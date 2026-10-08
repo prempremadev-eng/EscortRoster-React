@@ -1,0 +1,30 @@
+{
+  "defaults": {
+    "project": 1,
+    "env": 1
+  },
+  "actives": {
+    "project": 1,
+    "env": 1
+  },
+  "projects": [
+    {
+      "idx": 1,
+      "id": "41255000000306715",
+      "name": "EscortRosterReact",
+      "domain": {
+        "id": "50046706392",
+        "name": "escortrosterreact-60072483450.development"
+      },
+      "timezone": "Asia/Kolkata",
+      "env": [
+        {
+          "idx": 1,
+          "id": "60072483450",
+          "name": "Development",
+          "type": 3
+        }
+      ]
+    }
+  ]
+}

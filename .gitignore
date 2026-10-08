@@ -1,0 +1,5 @@
+node_modules/
+.build/
+catalyst-debug.log
+*.log
+.DS_Store

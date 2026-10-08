@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "targets": [
+      "escortAPI"
+    ],
+    "ignore": [],
+    "source": "functions"
+  },
+  "client": {
+    "source": "client"
+  }
+}

@@ -1,0 +1,113 @@
+
+export const PAGE_SIZE = 15;
+export const PICKUP_ROWS = 10;
+export const PICKUP_ROUTES = 2;
+
+// Local date (not UTC) — toISOString() gives yesterday's date before 5:30 AM in India.
+export function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function dayOf(dateStr) {
+  if (!dateStr) return -1;
+  return new Date(dateStr + 'T00:00:00').getDay();
+}
+export const isSunday = d => dayOf(d) === 0;
+export const isMonday = d => dayOf(d) === 1;
+export const isSaturday = d => dayOf(d) === 6;
+
+export function formatLongDate(dateStr) {
+  if (!dateStr) return '';
+  return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+}
+
+export function clampRotation(value) {
+  return Math.max(1, Math.min(8, parseInt(value) || 1));
+}
+
+// Seat rotation: first 10 escorts rotate among themselves, the rest rotate in a second group.
+export function computeDisplayRows(baseRows, rotation, startVal, dutyVal) {
+  if (!startVal || !dutyVal || baseRows.length === 0) return baseRows.slice();
+  const start = new Date(startVal + 'T00:00:00');
+  const duty = new Date(dutyVal + 'T00:00:00');
+  if (isNaN(start.getTime()) || isNaN(duty.getTime())) return baseRows.slice();
+  const daysDiff = Math.round((duty - start) / 86400000);
+  const g1Size = Math.min(10, baseRows.length);
+  const group1 = baseRows.slice(0, g1Size);
+  const group2 = baseRows.slice(g1Size);
+  const g2Size = group2.length;
+  const shift1 = g1Size > 0 ? (((rotation * daysDiff) % g1Size) + g1Size) % g1Size : 0;
+  const shift2 = g2Size > 0 ? (((rotation * daysDiff) % g2Size) + g2Size) % g2Size : 0;
+  const displayed1 = new Array(g1Size);
+  for (let i = 0; i < g1Size; i++) displayed1[(i + shift1) % g1Size] = group1[i];
+  const displayed2 = new Array(g2Size);
+  for (let i = 0; i < g2Size; i++) displayed2[(i + shift2) % g2Size] = group2[i];
+  return displayed1.concat(displayed2);
+}
+
+export function routeStatusClass(out, inn) {
+  if (out && inn) return 'route-complete';
+  if (out) return 'route-pending';
+  return '';
+}
+
+// Route N is editable only after route N-1 has both Out and In.
+export function routeLocks(routes, idx) {
+  const rec = routes[idx] || {};
+  let enabled = true;
+  if (idx > 0) {
+    const prev = routes[idx - 1] || {};
+    enabled = !!((prev.out || '').trim() && (prev.in || '').trim());
+  }
+  const hasLoc = !!(rec.loc || '').trim();
+  const hasOut = !!(rec.out || '').trim();
+  return {
+    locDisabled: !enabled,
+    outDisabled: !enabled || !hasLoc,
+    inDisabled: !enabled || !hasLoc || !hasOut
+  };
+}
+
+export const escortFromDb = e => ({
+  ROWID: e.ROWID,
+  name: e.escort_name || '',
+  agency: e.agency || '',
+  mobile: e.mobile || '',
+  id: e.id_no || ''
+});
+
+export const routeFromDb = rec => ({
+  ROWID: rec.ROWID,
+  loc: rec.location || '',
+  out: rec.out_time || '',
+  in: rec.in_time || ''
+});
+
+export const blankPickup = () => ({ name: '', agency: '', mobile: '', id: '', remarks: '', loc: '', out: '', in: '' });
+
+// Reads the first sheet of an .xlsx/.xls/.csv file into escort rows.
+export async function readEscortFile(file) {
+  // SheetJS is big, so it is only downloaded when someone actually uploads a file.
+  const XLSX = await import('xlsx');
+  const data = new Uint8Array(await file.arrayBuffer());
+  const wb = XLSX.read(data, { type: 'array' });
+  const sheet = wb.Sheets[wb.SheetNames[0]];
+  const json = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+  return json.map(row => {
+    const get = keys => {
+      for (const k of keys) {
+        const found = Object.keys(row).find(rk => rk.toLowerCase().replace(/[^a-z]/g, '') === k);
+        if (found) return String(row[found]);
+      }
+      return '';
+    };
+    return {
+      name: get(['nameofescort', 'name', 'escortname']),
+      agency: get(['agency']),
+      mobile: get(['mobileno', 'mobile', 'phone']),
+      id: get(['idno', 'id']),
+      remarks: get(['remarks'])
+    };
+  }).filter(r => r.name || r.agency || r.mobile || r.id);
+}
