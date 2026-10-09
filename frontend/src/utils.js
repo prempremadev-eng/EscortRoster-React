@@ -3,10 +3,24 @@ export const PAGE_SIZE = 15;
 export const PICKUP_ROWS = 10;
 export const PICKUP_ROUTES = 2;
 
-// Local date (not UTC) — toISOString() gives yesterday's date before 5:30 AM in India.
-export function todayStr() {
+// Night duty runs from evening to next morning (e.g. Fri 21:00 → Sat 08:00).
+// Until this hour the app still opens the PREVIOUS day's sheet.
+export const SHIFT_END_HOUR = 8;
+
+// Date of the duty that is running now, as YYYY-MM-DD in local time
+// (not UTC — toISOString() gives yesterday's date before 5:30 AM in India).
+// Exception: on Sunday morning stay on Sunday — Saturday is leave, so no night duty is running
+// and the Sunday pickup sheet must open.
+export function dutyDayStr() {
   const d = new Date();
+  if (d.getHours() < SHIFT_END_HOUR && d.getDay() !== 0) d.setDate(d.getDate() - 1);
   return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+// Sort key for HH:MM inside one night shift: 00:15 comes after 23:40.
+export function shiftMinutes(time) {
+  const [h, m] = String(time || '').split(':').map(n => parseInt(n) || 0);
+  return (h < SHIFT_END_HOUR ? h + 24 : h) * 60 + m;
 }
 
 function dayOf(dateStr) {
@@ -22,8 +36,23 @@ export function formatLongDate(dateStr) {
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
 }
 
-export function clampRotation(value) {
-  return Math.max(1, Math.min(8, parseInt(value) || 1));
+// Fixed: 4 Route columns, and every duty day each escort moves 4 seats down.
+// (Was an editable box; one stray tap re-ordered every seat, so it is locked.)
+export const ROTATION = 4;
+
+// Duty days from start to duty date. Saturday (leave) and Sunday (pickup) don't
+// count, so Friday → Monday moves the seats once, not three times.
+function dutyDaysBetween(start, duty) {
+  const sign = duty < start ? -1 : 1;
+  const d = new Date(sign > 0 ? start : duty);
+  const end = sign > 0 ? duty : start;
+  let count = 0;
+  while (d < end) {
+    const day = d.getDay();
+    if (day !== 0 && day !== 6) count++;
+    d.setDate(d.getDate() + 1);
+  }
+  return sign * count;
 }
 
 // Seat rotation: first 10 escorts rotate among themselves, the rest rotate in a second group.
@@ -32,7 +61,7 @@ export function computeDisplayRows(baseRows, rotation, startVal, dutyVal) {
   const start = new Date(startVal + 'T00:00:00');
   const duty = new Date(dutyVal + 'T00:00:00');
   if (isNaN(start.getTime()) || isNaN(duty.getTime())) return baseRows.slice();
-  const daysDiff = Math.round((duty - start) / 86400000);
+  const daysDiff = dutyDaysBetween(start, duty);
   const g1Size = Math.min(10, baseRows.length);
   const group1 = baseRows.slice(0, g1Size);
   const group2 = baseRows.slice(g1Size);

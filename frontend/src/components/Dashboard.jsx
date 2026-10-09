@@ -1,6 +1,6 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { routeFromDb, stopFromDb, isTripComplete, todayStr } from '../utils.js';
+import { dutyDayStr, isTripComplete, routeFromDb, shiftMinutes, stopFromDb } from '../utils.js';
 
 const RANGES = [
   { key: 'day', label: 'Day' },
@@ -58,7 +58,7 @@ function summarize({ escorts, trips, stops }) {
       pending: !complete && !!rec.in
     };
   });
-  rows.sort((a, b) => (a.date + a.rec.out).localeCompare(b.date + b.rec.out));
+  rows.sort((a, b) => a.date.localeCompare(b.date) || shiftMinutes(a.rec.out) - shiftMinutes(b.rec.out));
 
   const guardMap = {};
   rows.forEach(r => {
@@ -81,7 +81,7 @@ function summarize({ escorts, trips, stops }) {
 
 export default function Dashboard() {
   const [kind, setKind] = useState('day');
-  const [anchor, setAnchor] = useState(todayStr());
+  const [anchor, setAnchor] = useState(dutyDayStr());
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('loading');
   const [open, setOpen] = useState(null);

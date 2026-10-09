@@ -1,4 +1,6 @@
-export default function Toolbar({ startDate, dutyDate, rotation, onStartDate, onDutyDate, onRotation, onUpload, onPrint, onGenerate }) {
+import { ROTATION } from '../utils.js';
+
+export default function Toolbar({ startDate, dutyDate, onStartDate, onDutyDate, onUpload, onPrint, onGenerate }) {
   return (
     <div className="toolbar no-print">
       <div>
@@ -10,8 +12,8 @@ export default function Toolbar({ startDate, dutyDate, rotation, onStartDate, on
         <input type="date" id="dutyDate" value={dutyDate} onChange={e => onDutyDate(e.target.value)} />
       </div>
       <div>
-        <label htmlFor="rotation">Rotation:</label>
-        <input type="number" id="rotation" min="1" max="8" value={rotation} onChange={e => onRotation(e.target.value)} />
+        <label>Rotation:</label>
+        <span className="rotation-fixed" title="Fixed: 4 routes, seats move 4 per duty day">{ROTATION}</span>
       </div>
       <div className="spacer"></div>
       <a className="btn secondary" href="#dashboard">📊 Dashboard</a>

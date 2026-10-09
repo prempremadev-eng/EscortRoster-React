@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import {
-  PICKUP_ROWS, blankPickup, clampRotation, computeDisplayRows, escortFromDb, groupStops,
-  isMonday, isSaturday, isSunday, readEscortFile, routeFromDb, todayStr
+  PICKUP_ROWS, ROTATION, blankPickup, computeDisplayRows, escortFromDb, groupStops,
+  isMonday, isSaturday, isSunday, dutyDayStr, readEscortFile, routeFromDb
 } from './utils.js';
 import Toolbar from './components/Toolbar.jsx';
 import DutyTable from './components/DutyTable.jsx';
@@ -39,10 +39,9 @@ function setAt(arr, idx, patch) {
 let extraUid = 0;
 
 export default function App() {
-  const today = todayStr();
+  const today = dutyDayStr();
   const [startDate, setStartDate, startDateRef] = useStore(today);
   const [dutyDate, setDutyDate, dutyDateRef] = useStore(today);
-  const [rotationInput, setRotationInput] = useState('4');
   const [view, setView, viewRef] = useStore('loading');
 
   const [escorts, updateEscorts, escortsRef] = useStore([]);
@@ -64,7 +63,7 @@ export default function App() {
   const extraSeatCounter = useRef(9000);
   const typingRef = useRef(false);
 
-  const rotation = clampRotation(rotationInput);
+  const rotation = ROTATION;
 
   /* ---------- serial save queue (one queue per cell/row) ---------- */
   // Saves for the same record run one after another, so a second edit waits for the
@@ -564,9 +563,8 @@ export default function App() {
 
   /* ---------- excel upload ---------- */
 
-  function continueUpload(newStart, newRotation) {
+  function continueUpload(newStart) {
     setStartDate(newStart);
-    setRotationInput(newRotation);
     setPopup(null);
     // Open the file chooser right away, while the click still counts as a user action.
     fileInputRef.current.click();
@@ -636,10 +634,8 @@ export default function App() {
       <Toolbar
         startDate={startDate}
         dutyDate={dutyDate}
-        rotation={rotationInput}
         onStartDate={changeStartDate}
         onDutyDate={changeDutyDate}
-        onRotation={setRotationInput}
         onUpload={() => setPopup({ type: 'setup' })}
         onPrint={() => window.print()}
         onGenerate={generate}
@@ -697,7 +693,6 @@ export default function App() {
       {popup && popup.type === 'setup' && (
         <UploadSetupPopup
           startDate={startDate}
-          rotation={rotationInput}
           onCancel={() => setPopup(null)}
           onContinue={continueUpload}
         />

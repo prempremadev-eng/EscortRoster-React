@@ -1,9 +1,8 @@
 import { useState } from 'react';
 
-// "Before Uploading Excel" — confirm Start Date + Rotation, then open the file chooser.
-export function UploadSetupPopup({ startDate, rotation, onCancel, onContinue }) {
+// "Before Uploading Excel" — confirm Start Date, then open the file chooser.
+export function UploadSetupPopup({ startDate, onCancel, onContinue }) {
   const [start, setStart] = useState(startDate);
-  const [rot, setRot] = useState(rotation);
   return (
     <div className="upload-setup-overlay">
       <div className="upload-setup-box">
@@ -12,13 +11,9 @@ export function UploadSetupPopup({ startDate, rotation, onCancel, onContinue }) 
           <label htmlFor="setupStartDate">Start Date</label>
           <input type="date" id="setupStartDate" value={start} onChange={e => setStart(e.target.value)} />
         </div>
-        <div className="upload-setup-field">
-          <label htmlFor="setupRotation">Rotation</label>
-          <input type="number" id="setupRotation" min="1" max="8" value={rot} onChange={e => setRot(e.target.value)} />
-        </div>
         <div className="upload-setup-actions">
           <button className="upload-setup-cancel" onClick={onCancel}>Cancel</button>
-          <button className="upload-setup-continue" onClick={() => onContinue(start, rot)}>Continue</button>
+          <button className="upload-setup-continue" onClick={() => onContinue(start)}>Continue</button>
         </div>
       </div>
     </div>
