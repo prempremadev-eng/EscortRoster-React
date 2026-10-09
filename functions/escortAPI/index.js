@@ -233,6 +233,25 @@ app.get('/getDayData', async (req, res) => {
   }
 });
 
+// Dashboard: every trip that has started (Out time set) and its employee stops in a date range.
+// Escorts includes inactive ones so old trips still show the guard's name.
+app.get('/getDashboard', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const from = requireDate(req.query.from);
+    const to = requireDate(req.query.to);
+    const [escorts, trips, stops] = await Promise.all([
+      selectAll(zcql, 'Escorts', 'SELECT ROWID, escort_name, agency FROM Escorts ORDER BY ROWID ASC'),
+      selectAll(zcql, 'DutyRecords', `SELECT * FROM DutyRecords WHERE duty_date >= '${from}' AND duty_date <= '${to}' AND out_time != '' ORDER BY ROWID ASC`),
+      selectAll(zcql, 'TripStops', `SELECT * FROM TripStops WHERE duty_date >= '${from}' AND duty_date <= '${to}' ORDER BY CREATEDTIME ASC`)
+    ]);
+    res.status(200).json({ status: 'success', data: { escorts, trips, stops } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
 app.post('/addTripStop', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);

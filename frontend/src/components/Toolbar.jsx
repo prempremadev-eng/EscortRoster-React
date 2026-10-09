@@ -14,6 +14,7 @@ export default function Toolbar({ startDate, dutyDate, rotation, onStartDate, on
         <input type="number" id="rotation" min="1" max="8" value={rotation} onChange={e => onRotation(e.target.value)} />
       </div>
       <div className="spacer"></div>
+      <a className="btn secondary" href="#dashboard">📊 Dashboard</a>
       <button className="btn secondary" onClick={onUpload}>Upload Excel</button>
       <button className="btn secondary" onClick={onPrint}>Print</button>
       <button className="btn" onClick={onGenerate}>Generate</button>

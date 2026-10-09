@@ -32,6 +32,7 @@ export const api = {
   deleteDutyRecord: rowid => apiCall('DELETE', '/deleteDutyRecord?rowid=' + q(rowid)),
 
   updateTripCab: cab => apiCall('PUT', '/updateTripCab', cab),
+  getDashboard: (from, to) => apiCall('GET', '/getDashboard?from=' + q(from) + '&to=' + q(to)),
   getDayData: date => apiCall('GET', '/getDayData?date=' + q(date)),
   getTripStops: date => apiCall('GET', '/getTripStops?date=' + q(date)),
   addTripStop: stop => apiCall('POST', '/addTripStop', stop),
