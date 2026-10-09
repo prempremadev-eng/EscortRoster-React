@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import {
-  PICKUP_ROWS, blankPickup, clampRotation, computeDisplayRows, escortFromDb,
+  PICKUP_ROWS, blankPickup, clampRotation, computeDisplayRows, escortFromDb, groupStops,
   isMonday, isSaturday, isSunday, readEscortFile, routeFromDb, todayStr
 } from './utils.js';
 import Toolbar from './components/Toolbar.jsx';
@@ -9,10 +9,13 @@ import DutyTable from './components/DutyTable.jsx';
 import ExtraSection from './components/ExtraSection.jsx';
 import PickupTable from './components/PickupTable.jsx';
 import TimePicker from './components/TimePicker.jsx';
+import TripPopup from './components/TripPopup.jsx';
 import UploadPopup, { UploadSetupPopup } from './components/UploadPopup.jsx';
 import { LeaveMessage, MondayReminder, UploadPrompt } from './components/Messages.jsx';
 
-const AUTO_REFRESH_MS = 5000;
+// Every refresh costs Data Store reads (free tier is limited), so poll gently
+// and not at all while the tab is hidden.
+const AUTO_REFRESH_MS = 30000;
 const TYPING_IDLE_MS = 4000;
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -45,6 +48,8 @@ export default function App() {
   const [escorts, updateEscorts, escortsRef] = useStore([]);
   // escort ROWID -> { remarks, routes: [{ ROWID, loc, out, in }] }
   const [duty, updateDuty, dutyRef] = useStore({});
+  // trip (DutyRecords ROWID) -> [{ ROWID, emp, loc, type, time }]
+  const [stops, updateStops] = useStore({});
   const [extraRows, updateExtras, extrasRef] = useStore([]);
   const [pickupRows, updatePickups, pickupsRef] = useStore([]);
   const [locations, setLocations] = useState([]);
@@ -52,6 +57,8 @@ export default function App() {
 
   const [picker, setPicker, pickerRef] = useStore(null);
   const [popup, setPopup, popupRef] = useStore(null);
+  // Open trip popup: { id: escort ROWID, idx: route index }
+  const [trip, setTrip, tripRef] = useStore(null);
 
   const fileInputRef = useRef(null);
   const extraSeatCounter = useRef(9000);
@@ -95,10 +102,10 @@ export default function App() {
     }
   }, []);
 
-  const fetchDuty = useCallback(async date => {
-    const result = await api.getDutyRecords(date);
+  // Main duty routes from the day's DutyRecords: escort ROWID -> { remarks, routes }.
+  const buildDuty = useCallback(records => {
     const map = {};
-    result.data.forEach(rec => {
+    records.forEach(rec => {
       if (rec.is_extra === 'true' || rec.is_sunday_pickup === 'true') return;
       const key = String(rec.escort_id);
       if (!map[key]) map[key] = { remarks: '', routes: [] };
@@ -109,10 +116,11 @@ export default function App() {
     return map;
   }, []);
 
-  const fetchExtras = useCallback(async date => {
-    const result = await api.getExtraDutyRecords(date);
+  // Extra (today only) rows from the same DutyRecords, grouped by seat.
+  const buildExtras = useCallback(records => {
     const groups = {};
-    result.data.forEach(rec => {
+    records.forEach(rec => {
+      if (rec.is_extra !== 'true') return;
       (groups[rec.seat_no] = groups[rec.seat_no] || []).push(rec);
     });
     return Object.keys(groups).map(key => {
@@ -152,15 +160,32 @@ export default function App() {
     return rows;
   }, []);
 
-  // Loads the duty data for the day and replaces local state. Extras that were added
-  // on screen but not saved yet are kept, so a refresh never wipes them.
-  const applyTableData = useCallback(async date => {
-    const [map, extras] = await Promise.all([fetchDuty(date), fetchExtras(date)]);
-    if (dutyDateRef.current !== date) return;
-    updateDuty(map);
+  // One call for the whole duty sheet: escorts, routes, extras and trip stops.
+  const fetchDay = useCallback(async date => {
+    const { escorts: escortRows, duty: records, stops: stopRows } = (await api.getDayData(date)).data;
+    return {
+      escorts: escortRows.map(escortFromDb),
+      map: buildDuty(records),
+      extras: buildExtras(records),
+      stopMap: groupStops(stopRows)
+    };
+  }, [buildDuty, buildExtras]);
+
+  // Replaces local state with a fetched day. Extras that were added on screen
+  // but not saved yet are kept, so a refresh never wipes them.
+  const applyDay = useCallback(day => {
+    updateEscorts(day.escorts);
+    updateDuty(day.map);
+    updateStops(day.stopMap);
     const unsaved = extrasRef.current.filter(r => !r.deleted && !r.routes.some(x => x && x.ROWID));
-    updateExtras([...extras, ...unsaved]);
-  }, [fetchDuty, fetchExtras, updateDuty, updateExtras, dutyDateRef, extrasRef]);
+    updateExtras([...day.extras, ...unsaved]);
+  }, [updateEscorts, updateDuty, updateStops, updateExtras, extrasRef]);
+
+  const applyTableData = useCallback(async date => {
+    const day = await fetchDay(date);
+    if (dutyDateRef.current !== date) return;
+    applyDay(day);
+  }, [fetchDay, applyDay, dutyDateRef]);
 
   // Decides what the page shows for a date (leave / pickup / upload prompt / duty table).
   const loadForDate = useCallback(async date => {
@@ -233,7 +258,8 @@ export default function App() {
 
   useEffect(() => {
     const tick = async () => {
-      if (typingRef.current || pickerRef.current || popupRef.current || inFlight.current > 0) return;
+      if (document.hidden) return;
+      if (typingRef.current || pickerRef.current || popupRef.current || tripRef.current || inFlight.current > 0) return;
       const date = dutyDateRef.current;
       if (!date) return;
       try {
@@ -241,21 +267,23 @@ export default function App() {
           const rows = await fetchPickups(date);
           if (dutyDateRef.current === date && !typingRef.current && inFlight.current === 0) updatePickups(rows);
         } else if (viewRef.current === 'table') {
-          const [escortResult, map, extras] = await Promise.all([api.getEscorts(), fetchDuty(date), fetchExtras(date)]);
-          if (dutyDateRef.current !== date || typingRef.current || inFlight.current > 0 || popupRef.current) return;
-          updateEscorts(escortResult.data.map(escortFromDb));
-          updateDuty(map);
-          const unsaved = extrasRef.current.filter(r => !r.deleted && !r.routes.some(x => x && x.ROWID));
-          updateExtras([...extras, ...unsaved]);
+          const day = await fetchDay(date);
+          if (dutyDateRef.current !== date || typingRef.current || inFlight.current > 0 || popupRef.current || tripRef.current) return;
+          applyDay(day);
         }
       } catch (err) {
         console.error('Auto-refresh failed:', err);
       }
     };
     const id = setInterval(tick, AUTO_REFRESH_MS);
-    return () => clearInterval(id);
-  }, [fetchPickups, fetchDuty, fetchExtras, updatePickups, updateEscorts, updateDuty, updateExtras,
-    dutyDateRef, viewRef, pickerRef, popupRef, extrasRef]);
+    // Coming back to the tab: catch up at once instead of waiting for the next tick.
+    const onVisible = () => { if (!document.hidden) tick(); };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [fetchPickups, fetchDay, applyDay, updatePickups, dutyDateRef, viewRef, pickerRef, popupRef, tripRef]);
 
   /* ---------- toolbar ---------- */
 
@@ -273,6 +301,7 @@ export default function App() {
   function changeDutyDate(value) {
     setDutyDate(value);
     updateDuty({});
+    updateStops({});
     updateExtras([]);
     setCellStatus({});
     if (value) loadForDate(value);
@@ -362,6 +391,41 @@ export default function App() {
           actions.saveRoute(id, idx, seatNo, true);
         }
       });
+    },
+
+    /* ---------- trip details (cab + employee stops) ---------- */
+
+    openTrip(id, idx) {
+      setTrip({ id, idx });
+    },
+
+    async saveTripCab(id, idx, vehicle, driver) {
+      const rec = dutyRef.current[id].routes[idx];
+      await api.updateTripCab({ ROWID: rec.ROWID, vehicle_no: vehicle, driver_name: driver });
+      actions.setRouteField(id, idx, 'vehicle', vehicle);
+      actions.setRouteField(id, idx, 'driver', driver);
+    },
+
+    async saveTripStop(id, idx, stop) {
+      const rec = dutyRef.current[id].routes[idx];
+      const key = String(rec.ROWID);
+      const payload = { emp_id: stop.emp, location: stop.loc, trip_type: stop.type, stop_time: stop.time };
+      if (stop.ROWID) {
+        await api.updateTripStop({ ROWID: stop.ROWID, ...payload });
+        updateStops(m => ({ ...m, [key]: (m[key] || []).map(s => s.ROWID === stop.ROWID ? stop : s) }));
+      } else {
+        const result = await api.addTripStop({
+          duty_record_id: rec.ROWID, duty_date: dutyDateRef.current, escort_id: id, ...payload
+        });
+        updateStops(m => ({ ...m, [key]: [...(m[key] || []), { ...stop, ROWID: result.data.ROWID }] }));
+      }
+    },
+
+    async deleteTripStop(id, idx, rowid) {
+      const rec = dutyRef.current[id].routes[idx];
+      const key = String(rec.ROWID);
+      await api.deleteTripStop(rowid);
+      updateStops(m => ({ ...m, [key]: (m[key] || []).filter(s => s.ROWID !== rowid) }));
     },
 
     /* ---------- extra (today only) ---------- */
@@ -490,6 +554,7 @@ export default function App() {
       alert('Deleted: ' + result.deleted.escorts + ' escorts, ' + result.deleted.dutyRecords + ' duty records.');
       updateEscorts([]);
       updateDuty({});
+      updateStops({});
       updateExtras([]);
     } catch (err) {
       console.error('Wipe failed:', err);
@@ -552,6 +617,14 @@ export default function App() {
 
   const displayRows = computeDisplayRows(escorts, rotation, startDate, dutyDate);
 
+  // Current data for the open trip popup (null when closed or the trip vanished).
+  const tripRec = trip && duty[trip.id] && duty[trip.id].routes[trip.idx];
+  const tripView = tripRec && tripRec.ROWID ? {
+    rec: tripRec,
+    stops: stops[String(tripRec.ROWID)] || [],
+    escortName: (escorts.find(e => String(e.ROWID) === trip.id) || {}).name
+  } : null;
+
   return (
     <>
       <div className="titlebar">
@@ -586,6 +659,7 @@ export default function App() {
             <DutyTable
               displayRows={displayRows}
               duty={duty}
+              stops={stops}
               rotation={rotation}
               dutyDate={dutyDate}
               cellStatus={cellStatus}
@@ -608,6 +682,17 @@ export default function App() {
 
       {picker && (
         <TimePicker label={picker.label} value={picker.value} onOk={picker.onOk} onClose={() => setPicker(null)} />
+      )}
+      {tripView && (
+        <TripPopup
+          escortName={tripView.escortName}
+          rec={tripView.rec}
+          stops={tripView.stops}
+          onSaveCab={(vehicle, driver) => actions.saveTripCab(trip.id, trip.idx, vehicle, driver)}
+          onSaveStop={stop => actions.saveTripStop(trip.id, trip.idx, stop)}
+          onDeleteStop={rowid => actions.deleteTripStop(trip.id, trip.idx, rowid)}
+          onClose={() => setTrip(null)}
+        />
       )}
       {popup && popup.type === 'setup' && (
         <UploadSetupPopup

@@ -31,6 +31,13 @@ export const api = {
   updateDutyRecord: rec => apiCall('PUT', '/updateDutyRecord', rec),
   deleteDutyRecord: rowid => apiCall('DELETE', '/deleteDutyRecord?rowid=' + q(rowid)),
 
+  updateTripCab: cab => apiCall('PUT', '/updateTripCab', cab),
+  getDayData: date => apiCall('GET', '/getDayData?date=' + q(date)),
+  getTripStops: date => apiCall('GET', '/getTripStops?date=' + q(date)),
+  addTripStop: stop => apiCall('POST', '/addTripStop', stop),
+  updateTripStop: stop => apiCall('PUT', '/updateTripStop', stop),
+  deleteTripStop: rowid => apiCall('DELETE', '/deleteTripStop?rowid=' + q(rowid)),
+
   getExtraDutyRecords: date => apiCall('GET', '/getExtraDutyRecords?date=' + q(date)),
   addExtraDutyRecord: rec => apiCall('POST', '/addExtraDutyRecord', rec),
   updateExtraDutyRecord: rec => apiCall('PUT', '/updateExtraDutyRecord', rec),

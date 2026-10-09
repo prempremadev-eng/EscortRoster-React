@@ -81,8 +81,39 @@ export const routeFromDb = rec => ({
   ROWID: rec.ROWID,
   loc: rec.location || '',
   out: rec.out_time || '',
-  in: rec.in_time || ''
+  in: rec.in_time || '',
+  vehicle: rec.vehicle_no || '',
+  driver: rec.driver_name || ''
 });
+
+export const stopFromDb = s => ({
+  ROWID: s.ROWID,
+  emp: s.emp_id || '',
+  loc: s.location || '',
+  type: s.trip_type || '',
+  time: s.stop_time || ''
+});
+
+// TripStops rows for a day, grouped by the trip (DutyRecords ROWID) they belong to.
+export function groupStops(rows) {
+  const map = {};
+  rows.forEach(s => {
+    const key = String(s.duty_record_id);
+    (map[key] = map[key] || []).push(stopFromDb(s));
+  });
+  return map;
+}
+
+// A trip's paperwork is complete when the cab is noted and at least one employee is logged.
+// (Every stop is saved with all four fields, so stop rows are never half filled.)
+export function isTripComplete(rec, stops) {
+  return !!((rec.vehicle || '').trim() && (rec.driver || '').trim() && stops.length > 0);
+}
+
+export function nowTime() {
+  const d = new Date();
+  return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+}
 
 export const blankPickup = () => ({ name: '', agency: '', mobile: '', id: '', remarks: '', loc: '', out: '', in: '' });
 

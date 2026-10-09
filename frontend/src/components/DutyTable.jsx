@@ -5,7 +5,7 @@ import TableFooter from './TableFooter.jsx';
 import { PAGE_SIZE, formatLongDate, routeLocks } from '../utils.js';
 
 // Main duty sheet: one page-block (header + 15 rows + footer) per printed A4 page.
-export default function DutyTable({ displayRows, duty, rotation, dutyDate, cellStatus, actions }) {
+export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate, cellStatus, actions }) {
   const totalPages = Math.max(1, Math.ceil(displayRows.length / PAGE_SIZE));
   const dateText = formatLongDate(dutyDate);
   const pages = Array.from({ length: totalPages }, (_, p) => p);
@@ -32,6 +32,7 @@ export default function DutyTable({ displayRows, duty, rotation, dutyDate, cellS
                 r={r}
                 seatNo={startIdx + i + 1}
                 entry={duty[String(r.ROWID)]}
+                stops={stops}
                 rotation={rotation}
                 cellStatus={cellStatus}
                 actions={actions}
@@ -46,7 +47,7 @@ export default function DutyTable({ displayRows, duty, rotation, dutyDate, cellS
   });
 }
 
-function EscortRow({ r, seatNo, entry, rotation, cellStatus, actions }) {
+function EscortRow({ r, seatNo, entry, stops, rotation, cellStatus, actions }) {
   const routes = (entry && entry.routes) || [];
   const remarks = (entry && entry.remarks) || '';
   const id = String(r.ROWID);
@@ -78,6 +79,8 @@ function EscortRow({ r, seatNo, entry, rotation, cellStatus, actions }) {
           onCommit={() => actions.saveRoute(id, i, seatNo, true)}
           onPickTime={(field, label) => actions.pickRouteTime(id, i, seatNo, field, label)}
           onRetry={() => actions.saveRoute(id, i, seatNo, true)}
+          stops={(routes[i] && stops[String(routes[i].ROWID)]) || []}
+          onOpenTrip={() => actions.openTrip(id, i)}
         />
       ))}
       <td className="remarks">

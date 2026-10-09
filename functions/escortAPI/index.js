@@ -178,6 +178,93 @@ app.delete('/deleteDutyRecord', async (req, res) => {
     const table = catalystApp.datastore().table('DutyRecords');
     const rowid = requireRowId(req.query.rowid);
     const result = await table.deleteRow(rowid);
+    // A trip's employee stops go with it.
+    const stopTable = catalystApp.datastore().table('TripStops');
+    const stops = await selectAll(catalystApp.zcql(), 'TripStops', `SELECT ROWID FROM TripStops WHERE duty_record_id = ${rowid} ORDER BY ROWID ASC`);
+    await runInBatches(stops.map(s => s.ROWID), 10, id => stopTable.deleteRow(id));
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+/* ---------------- TRIP DETAILS (cab + employee stops) ---------------- */
+
+// Cab details live on the trip (DutyRecords row) — one copy per trip.
+app.put('/updateTripCab', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const table = catalystApp.datastore().table('DutyRecords');
+    const { ROWID, vehicle_no, driver_name } = req.body;
+    const result = await table.updateRow({ ROWID: requireRowId(ROWID), vehicle_no, driver_name });
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+app.get('/getTripStops', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const date = requireDate(req.query.date);
+    const records = await selectAll(zcql, 'TripStops', `SELECT * FROM TripStops WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`);
+    res.status(200).json({ status: 'success', data: records });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Everything the duty sheet needs for one day in a single call (3 SELECTs instead of 4 calls).
+// Extra rows are DutyRecords too, so the frontend splits them out of `duty`.
+app.get('/getDayData', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const date = requireDate(req.query.date);
+    const [escorts, duty, stops] = await Promise.all([
+      selectAll(zcql, 'Escorts', "SELECT * FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
+      selectAll(zcql, 'DutyRecords', `SELECT * FROM DutyRecords WHERE duty_date = '${date}' ORDER BY ROWID ASC`),
+      selectAll(zcql, 'TripStops', `SELECT * FROM TripStops WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`)
+    ]);
+    res.status(200).json({ status: 'success', data: { escorts, duty, stops } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+app.post('/addTripStop', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const table = catalystApp.datastore().table('TripStops');
+    const { duty_record_id, duty_date, escort_id, emp_id, location, trip_type, stop_time } = req.body;
+    const result = await table.insertRow({
+      duty_record_id: requireRowId(duty_record_id), duty_date: requireDate(duty_date),
+      escort_id, emp_id, location, trip_type, stop_time
+    });
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+app.put('/updateTripStop', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const table = catalystApp.datastore().table('TripStops');
+    const { ROWID, emp_id, location, trip_type, stop_time } = req.body;
+    const result = await table.updateRow({ ROWID: requireRowId(ROWID), emp_id, location, trip_type, stop_time });
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+app.delete('/deleteTripStop', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const table = catalystApp.datastore().table('TripStops');
+    const result = await table.deleteRow(requireRowId(req.query.rowid));
     res.status(200).json({ status: 'success', data: result });
   } catch (err) {
     fail(res, err);
@@ -427,16 +514,19 @@ app.post('/wipeAllData', async (req, res) => {
     const zcql = catalystApp.zcql();
     const escortTable = catalystApp.datastore().table('Escorts');
     const dutyTable = catalystApp.datastore().table('DutyRecords');
+    const stopTable = catalystApp.datastore().table('TripStops');
 
     const escorts = (await selectAll(zcql, 'Escorts', 'SELECT ROWID FROM Escorts ORDER BY ROWID ASC')).map(r => r.ROWID);
     const dutyRecords = (await selectAll(zcql, 'DutyRecords', 'SELECT ROWID FROM DutyRecords ORDER BY ROWID ASC')).map(r => r.ROWID);
+    const tripStops = (await selectAll(zcql, 'TripStops', 'SELECT ROWID FROM TripStops ORDER BY ROWID ASC')).map(r => r.ROWID);
 
     await runInBatches(escorts, 10, id => escortTable.deleteRow(id));
     await runInBatches(dutyRecords, 10, id => dutyTable.deleteRow(id));
+    await runInBatches(tripStops, 10, id => stopTable.deleteRow(id));
 
     res.status(200).json({
       status: 'success',
-      deleted: { escorts: escorts.length, dutyRecords: dutyRecords.length }
+      deleted: { escorts: escorts.length, dutyRecords: dutyRecords.length, tripStops: tripStops.length }
     });
   } catch (err) {
     res.status(400).json({

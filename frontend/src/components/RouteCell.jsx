@@ -1,5 +1,5 @@
 import Field from './Field.jsx';
-import { routeStatusClass } from '../utils.js';
+import { isTripComplete, routeStatusClass } from '../utils.js';
 
 const timeFilter = v => v.replace(/[^0-9:]/g, '');
 
@@ -7,7 +7,8 @@ const timeFilter = v => v.replace(/[^0-9:]/g, '');
 // timeMode 'picker' → Out/In are read-only and open the grid time picker on click.
 // timeMode 'typed'  → Out/In are typed (Sunday pickup table).
 // timeMode 'blank'  → nothing is saved (Sunday pickup Route 2 — left for handwriting on print).
-export default function RouteCell({ rec = {}, locks = {}, saveState, timeMode = 'picker', onChange, onCommit, onPickTime, onRetry }) {
+// onOpenTrip (main duty table only) → after Out time, a bar shows the trip's employee entries.
+export default function RouteCell({ rec = {}, locks = {}, saveState, timeMode = 'picker', stops = [], onChange, onCommit, onPickTime, onRetry, onOpenTrip }) {
   const cls = ['routecell', routeStatusClass(rec.out, rec.in)];
   if (saveState === 'saving') cls.push('route-saving');
   if (saveState === 'failed') cls.push('route-failed');
@@ -64,6 +65,25 @@ export default function RouteCell({ rec = {}, locks = {}, saveState, timeMode = 
         {timeInput('out', 'Out', locks.outDisabled)}
         {timeInput('in', 'In', locks.inDisabled)}
       </div>
+      {onOpenTrip && rec.out && <TripBar rec={rec} stops={stops} onOpen={onOpenTrip} />}
     </td>
+  );
+}
+
+function TripBar({ rec, stops, onOpen }) {
+  // The trip row must exist in the Data Store before employees can point to it.
+  if (!rec.ROWID) return <div className="trip-bar no-print">⏳</div>;
+  const complete = isTripComplete(rec, stops);
+  let cls = 'trip-bar no-print';
+  let text = '👤 ' + stops.length + '  +';
+  if (complete) {
+    cls += ' done';
+    text = '✅ 👤 ' + stops.length;
+  } else if (rec.in) {
+    cls += ' pending';
+    text = '⚠️ Entry pending';
+  }
+  return (
+    <button type="button" className={cls} onClick={e => { e.stopPropagation(); onOpen(); }}>{text}</button>
   );
 }

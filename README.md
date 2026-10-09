@@ -4,10 +4,10 @@ React + Vite rebuild of the Escort Duty Sheet (`~/Desktop/prem`), running on Zoh
 
 | | |
 |---|---|
-| Catalyst project | `EscortRosterReact` (ID `41255000000306715`, org `60072483450`, Development) |
-| Live app | https://escortrosterreact-60072483450.development.catalystserverless.in/app/index.html |
-| API | https://escortrosterreact-60072483450.development.catalystserverless.in/server/escortAPI/ |
-| Data Store | `Escorts`, `DutyRecords`, `Settings` (same columns as the old EscortRoster project) |
+| Catalyst project | `EscortRosterReact` (ID `50225000000055044`, org `60086856508`, Development) — moved here on 2026-10-09 (old: `41255000000306715` / org `60072483450`) |
+| Live app | https://escortrosterreact-60086856508.development.catalystserverless.in/app/index.html |
+| API | https://escortrosterreact-60086856508.development.catalystserverless.in/server/escortAPI/ |
+| Data Store | `Escorts`, `DutyRecords`, `Settings`, `TripStops` (full column list: `notes/HANDOFF-PROMPT.md`) |
 
 ## Folder structure
 
