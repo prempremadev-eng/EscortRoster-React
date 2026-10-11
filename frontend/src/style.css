@@ -929,3 +929,16 @@ a.btn{text-decoration:none;display:inline-block;}
 .setup-ok{color:#15803d;font-weight:bold;margin-top:12px;}
 .setup-msg{margin-top:12px;color:#334155;}
 .sim-push{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:12px;}
+.guard-lock{font-size:48px;text-align:center;margin:10px 0;}
+.guard-head{text-align:center;margin-bottom:12px;}
+.guard-date{color:#475569;font-size:14px;}
+.guard-me{font-size:34px;font-weight:bold;color:var(--blue-dark);margin:4px 0;}
+.guard-sub{color:#15803d;font-weight:bold;}
+.guard-count{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;color:#475569;}
+.guard-seats{width:100%;min-width:0;border-collapse:collapse;background:#fff;font-size:16px;}
+.guard-seats td{border:1px solid var(--border);padding:9px 8px;text-align:left;}
+.guard-seats td.guard-seat-no{width:44px;text-align:center;font-weight:bold;color:#475569;}
+.guard-seats td.guard-seat-time{width:60px;color:#15803d;font-size:13px;}
+.guard-seats tr.me td{background:#fef9c3;font-weight:bold;border-color:#facc15;}
+.guard-seats tr.empty td{color:#94a3b8;font-style:italic;}
+.guard-foot{text-align:center;margin-top:12px;}

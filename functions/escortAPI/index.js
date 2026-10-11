@@ -608,6 +608,48 @@ app.post('/addAccessLog', async (req, res) => {
   }
 });
 
+// Guard page (opened from the IN notification): the day's seat list for one guard.
+// Locked until this guard's card IN for the running duty day. The duty day switches at 08:00,
+// so the page locks itself next morning and needs a new IN.
+// Seats never shift: a guard who is not IN yet stays as an EMPTY row, and their name is not sent.
+app.get('/guardDay', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const me = await escortByToken(zcql, req.query.t);
+    // Testing on `catalyst serve` only: ?date= pretends it is that duty day.
+    const local = /^localhost(:\d+)?$/.test(req.get('host') || '');
+    const dutyDate = local && req.query.date ? requireDate(req.query.date) : istNow().dutyDate;
+
+    const ins = await selectAll(zcql, 'AccessLog', `SELECT escort_id, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' AND direction = 'IN' ORDER BY CREATEDTIME ASC`);
+    const inTime = {};
+    ins.forEach(r => { if (!inTime[String(r.escort_id)]) inTime[String(r.escort_id)] = r.punch_time; });
+    const myId = String(me.ROWID);
+    const base = { name: me.escort_name, dutyDate };
+    if (!inTime[myId]) {
+      return res.status(200).json({ status: 'success', data: { ...base, locked: true } });
+    }
+
+    const day = dayOf(dutyDate);
+    if (day === 0 || day === 6) {
+      return res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], seats: [] } });
+    }
+    const [escorts, start] = await Promise.all([
+      selectAll(zcql, 'Escorts', "SELECT ROWID, escort_name FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
+      getSetting(zcql, 'start_date')
+    ]);
+    const rows = computeDisplayRows(escorts, ROTATION, start && start.setting_value, dutyDate);
+    const seats = rows.map((e, i) => {
+      const id = String(e.ROWID);
+      const isIn = !!inTime[id];
+      return { seat: i + 1, me: id === myId, name: isIn ? e.escort_name : null, inTime: isIn ? inTime[id] : null };
+    });
+    res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], seats } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
 app.get('/getAccessLog', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);

@@ -60,6 +60,7 @@ export const api = {
   guardInfo: token => apiCall('GET', '/guardInfo?t=' + q(token)),
   saveSubscription: (t, subscription, device) => apiCall('POST', '/saveSubscription', { t, subscription, device }),
   testPush: t => apiCall('POST', '/testPush', { t }),
+  guardDay: (t, date) => apiCall('GET', '/guardDay?t=' + q(t) + (date ? '&date=' + q(date) : '')),
 
   syncEscortsFromExcel: escorts => apiCall('POST', '/syncEscortsFromExcel', { escorts }),
   getAllLocations: () => apiCall('GET', '/getAllLocations'),
