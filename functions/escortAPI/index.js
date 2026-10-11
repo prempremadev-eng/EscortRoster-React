@@ -215,19 +215,20 @@ app.get('/getTripStops', async (req, res) => {
   }
 });
 
-// Everything the duty sheet needs for one day in a single call (3 SELECTs instead of 4 calls).
+// Everything the duty sheet needs for one day in a single call (4 SELECTs instead of 5 calls).
 // Extra rows are DutyRecords too, so the frontend splits them out of `duty`.
 app.get('/getDayData', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
     const zcql = catalystApp.zcql();
     const date = requireDate(req.query.date);
-    const [escorts, duty, stops] = await Promise.all([
+    const [escorts, duty, stops, cardIn] = await Promise.all([
       selectAll(zcql, 'Escorts', "SELECT * FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
       selectAll(zcql, 'DutyRecords', `SELECT * FROM DutyRecords WHERE duty_date = '${date}' ORDER BY ROWID ASC`),
-      selectAll(zcql, 'TripStops', `SELECT * FROM TripStops WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`)
+      selectAll(zcql, 'TripStops', `SELECT * FROM TripStops WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`),
+      selectAll(zcql, 'AccessLog', `SELECT escort_id, punch_time FROM AccessLog WHERE duty_date = '${date}' AND direction = 'IN' ORDER BY CREATEDTIME ASC`)
     ]);
-    res.status(200).json({ status: 'success', data: { escorts, duty, stops } });
+    res.status(200).json({ status: 'success', data: { escorts, duty, stops, cardIn } });
   } catch (err) {
     fail(res, err);
   }
