@@ -4,6 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Escort Duty Sheet</title>
+<!-- Home Screen app (iPhone needs it for notifications). No start_url on purpose:
+     the app then opens the page it was added from, so the guard's secret link is kept. -->
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#1e3a8a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Escort Duty">
 </head>
 <body>
 <div id="root"></div>

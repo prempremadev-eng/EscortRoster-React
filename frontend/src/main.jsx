@@ -8,11 +8,34 @@ import GuardSetup from './components/GuardSetup.jsx';
 import GuardPage from './components/GuardPage.jsx';
 import './style.css';
 
+const GUARD_TOKEN_KEY = 'guard_token';
+const isHomeScreenApp = () => window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+
+// Safety net for the Home Screen app: if it ever opens without the secret link,
+// go back to the guard page this phone last used (supervisors use a normal tab, so not affected).
+function rememberGuard(hash) {
+  const m = hash.match(/^#(?:setup|guard)\/([0-9a-f]{32})/);
+  try {
+    if (m) localStorage.setItem(GUARD_TOKEN_KEY, m[1]);
+    else if (!hash && isHomeScreenApp()) {
+      const token = localStorage.getItem(GUARD_TOKEN_KEY);
+      if (token) return '#guard/' + token;
+    }
+  } catch {
+    // Storage blocked (private mode): the link in the address still works.
+  }
+  return null;
+}
+
 // Pages without a router: the duty sheet, #dashboard, #simulator, #links (supervisor)
 // and #setup/<token>, #guard/<token> (guard's phone).
 // The browser Back button works because each page is a URL hash.
 function Root() {
   const [hash, setHash] = useState(window.location.hash);
+  useEffect(() => {
+    const jump = rememberGuard(window.location.hash);
+    if (jump) window.location.hash = jump;
+  }, [hash]);
   useEffect(() => {
     const onHash = () => setHash(window.location.hash);
     window.addEventListener('hashchange', onHash);
