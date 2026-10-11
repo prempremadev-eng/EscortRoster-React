@@ -4,6 +4,7 @@ const express = require('express');
 const catalyst = require('zcatalyst-sdk-node');
 const crypto = require('crypto');
 const webpush = require('web-push');
+const { ROTATION, computeDisplayRows, dayOf } = require('./seats.js');
 
 // Push services want a contact (mailto: or https: URL) for the sender of the notifications.
 const VAPID_SUBJECT = 'https://escortcardaccess-60086856508.development.catalystserverless.in';
@@ -547,6 +548,38 @@ function istNow() {
   return { time, dutyDate };
 }
 
+// Guard's seat number (1-based) on the duty sheet of that day, or null on Saturday / Sunday
+// (leave / pickup sheet, no rotation seats). Same order as the duty sheet: active escorts by
+// sort_order, rotated from the saved Start Date.
+function seatOf(escorts, escortId, startDate, dutyDate) {
+  const day = dayOf(dutyDate);
+  if (day === 0 || day === 6) return null;
+  const rows = computeDisplayRows(escorts, ROTATION, startDate, dutyDate);
+  const idx = rows.findIndex(e => String(e.ROWID) === String(escortId));
+  return idx < 0 ? null : idx + 1;
+}
+
+// First IN of the duty day → "✅ IN 19:42 · Today your Seat 5" on the guard's phones.
+// Later INs the same duty day (card swiped again after a break) send nothing.
+async function onCardIn(catalystApp, escortId, time, dutyDate) {
+  const zcql = catalystApp.zcql();
+  const ins = await zcql.executeZCQLQuery(`SELECT ROWID FROM AccessLog WHERE escort_id = ${escortId} AND duty_date = '${dutyDate}' AND direction = 'IN'`);
+  if (ins.length > 1) return { skipped: 'already IN today' };
+
+  const [escorts, start] = await Promise.all([
+    selectAll(zcql, 'Escorts', "SELECT ROWID, guard_token FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
+    getSetting(zcql, 'start_date')
+  ]);
+  const me = escorts.find(e => String(e.ROWID) === String(escortId));
+  const seat = seatOf(escorts, escortId, start && start.setting_value, dutyDate);
+  const result = await sendPushToEscort(catalystApp, escortId, {
+    title: '✅ IN ' + time,
+    body: seat ? 'Today your Seat ' + seat : 'Your card IN is noted.',
+    url: me && me.guard_token ? 'index.html#guard/' + me.guard_token : 'index.html'
+  });
+  return { ...result, seat };
+}
+
 // One door: the Card Simulator posts here today; the real access system can post here later.
 app.post('/addAccessLog', async (req, res) => {
   try {
@@ -559,7 +592,17 @@ app.post('/addAccessLog', async (req, res) => {
     const result = await catalystApp.datastore().table('AccessLog').insertRow({
       escort_id, direction, punch_time: time, duty_date: dutyDate, source
     });
-    res.status(200).json({ status: 'success', data: result });
+    // The swipe is already saved; a push problem must not fail it.
+    let push = null;
+    if (direction === 'IN') {
+      try {
+        push = await onCardIn(catalystApp, escort_id, time, dutyDate);
+      } catch (err) {
+        console.error('Card IN push failed:', err);
+        push = { error: err.message || String(err) };
+      }
+    }
+    res.status(200).json({ status: 'success', data: result, push });
   } catch (err) {
     fail(res, err);
   }
@@ -601,6 +644,12 @@ async function getVapidKeys(catalystApp) {
     vapidCache = webpush.generateVAPIDKeys();
     await saveSetting(catalystApp, 'vapid_public_key', vapidCache.publicKey);
     await saveSetting(catalystApp, 'vapid_private_key', vapidCache.privateKey);
+  }
+  // The public key is 87 characters. Settings.setting_value must be varchar(255):
+  // at varchar(50) it was cut short and the browser refused it.
+  if (vapidCache.publicKey.length !== 87) {
+    vapidCache = null;
+    throw new Error('Push key in Settings is damaged (column too short?). Delete the vapid_* rows to make new keys.');
   }
   return vapidCache;
 }

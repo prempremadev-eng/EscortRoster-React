@@ -2,6 +2,15 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { dutyDayStr } from '../utils.js';
 
+// What happened to the IN notification, in one line for the tester.
+function pushNote(name, push) {
+  if (!push) return '';
+  if (push.error) return '❌ ' + name + ': push failed (' + push.error + ')';
+  if (push.skipped) return 'ℹ️ ' + name + ': ' + push.skipped + ', no new notification.';
+  if (!push.phones) return '📵 ' + name + ': no phone set up (Guard Links).';
+  return '📨 ' + name + ': sent to ' + push.sent + ' of ' + push.phones + ' phone(s)' + (push.seat ? ', Seat ' + push.seat : '') + '.';
+}
+
 // Pretends to be the access-card machine at the gate: each button press writes one AccessLog row.
 // Later the real card system writes the same table, and nothing else in the app has to change.
 export default function CardSimulator() {
@@ -11,6 +20,7 @@ export default function CardSimulator() {
   const [status, setStatus] = useState('loading');
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState('');
+  const [note, setNote] = useState('');
 
   // No auto-refresh: every load costs Data Store reads. Use 🔄 instead.
   const load = useCallback(async () => {
@@ -31,10 +41,12 @@ export default function CardSimulator() {
   async function punch(escortId, direction) {
     setBusy(escortId);
     setError('');
+    setNote('');
     try {
       const result = await api.addAccessLog(escortId, direction);
       // Add the new row ourselves instead of reloading the whole list (saves a read).
       setLogs(prev => [...prev, result.data]);
+      setNote(pushNote(names[escortId], result.push));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -64,6 +76,7 @@ export default function CardSimulator() {
       <div className="dash">
         <div className="sim-note">Test only: these buttons act like the guard's access card at the gate.</div>
         {error && <div className="trip-error">{error}</div>}
+        {note && <div className="sim-push">{note}</div>}
         {status === 'loading' && <div className="loading-message">Loading...</div>}
         {status === 'error' && <div className="loading-message">Could not load. Check your connection and press Refresh.</div>}
 
