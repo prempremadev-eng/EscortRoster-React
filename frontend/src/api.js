@@ -52,6 +52,9 @@ export const api = {
   getLastUploadDate: () => apiCall('GET', '/getLastUploadDate'),
   markUploadDone: value => apiCall('POST', '/markUploadDone', { value }),
 
+  addAccessLog: (escort_id, direction) => apiCall('POST', '/addAccessLog', { escort_id, direction }),
+  getAccessLog: date => apiCall('GET', '/getAccessLog?date=' + q(date)),
+
   syncEscortsFromExcel: escorts => apiCall('POST', '/syncEscortsFromExcel', { escorts }),
   getAllLocations: () => apiCall('GET', '/getAllLocations'),
   wipeAllData: () => apiCall('POST', '/wipeAllData')

@@ -524,6 +524,53 @@ app.get('/getAllLocations', async (req, res) => {
   }
 });
 
+/* ---------------- ACCESS CARD (dummy AccessLog until the real card system is allowed) ---------------- */
+
+// Same rule as dutyDayStr() in frontend/src/utils.js.
+const SHIFT_END_HOUR = 8;
+const IST_OFFSET_MIN = 330;
+
+// The function server runs in UTC, so shift to India time first and read the UTC fields.
+function istNow() {
+  const d = new Date(Date.now() + IST_OFFSET_MIN * 60000);
+  const pad = n => String(n).padStart(2, '0');
+  const time = pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes());
+  // A swipe before 08:00 belongs to the previous day's night duty (not on Sunday: Saturday is leave).
+  if (d.getUTCHours() < SHIFT_END_HOUR && d.getUTCDay() !== 0) d.setUTCDate(d.getUTCDate() - 1);
+  const dutyDate = d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate());
+  return { time, dutyDate };
+}
+
+// One door: the Card Simulator posts here today; the real access system can post here later.
+app.post('/addAccessLog', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const escort_id = requireRowId(req.body.escort_id);
+    const direction = String(req.body.direction || '').toUpperCase();
+    if (direction !== 'IN' && direction !== 'OUT') throw new Error('direction must be IN or OUT');
+    const source = req.body.source === 'REAL' ? 'REAL' : 'SIMULATOR';
+    const { time, dutyDate } = istNow();
+    const result = await catalystApp.datastore().table('AccessLog').insertRow({
+      escort_id, direction, punch_time: time, duty_date: dutyDate, source
+    });
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+app.get('/getAccessLog', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const date = requireDate(req.query.date);
+    const rows = await selectAll(zcql, 'AccessLog', `SELECT * FROM AccessLog WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`);
+    res.status(200).json({ status: 'success', data: rows });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
 /* ---------------- TEMPORARY TESTING UTILITY ---------------- */
 
 // POST (not GET) so a link preview, prefetch or browser history visit can never wipe the data.

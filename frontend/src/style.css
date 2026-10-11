@@ -906,3 +906,9 @@ a.btn{text-decoration:none;display:inline-block;}
   .dash-card-value{font-size:24px;}
 }
 .rotation-fixed{display:inline-block;min-width:34px;padding:5px 8px;border:1px solid var(--border);border-radius:4px;background:#f1f5f9;font-size:14px;text-align:center;}
+
+/* ---------- card simulator (#simulator) ---------- */
+.sim-note{color:#475569;font-size:13px;margin-bottom:12px;}
+.sim-in{color:#15803d;font-weight:bold;}
+.sim-buttons{white-space:nowrap;}
+.sim-buttons .btn{padding:4px 14px;margin:0 3px;}
