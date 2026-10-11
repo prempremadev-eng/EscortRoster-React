@@ -5,3 +5,4 @@
 | Time | Event |
 |---|---|
 | 09:45 | ▶️ Start |
+| 13:22 | 🍛 Lunch break (Card access steps 1–7 done) |
