@@ -1,12 +1,16 @@
-# Escort Duty Sheet — React version
+# Escort Duty Sheet — Card Access test copy
+
+> **Test copy** of `~/Desktop/EscortRoster-React` (branch `card-access`) for building the access-card → push notification → guard seat page feature. Live app stays in the original folder. Merge this branch into `main` when done.
+
+## Original README
 
 React + Vite rebuild of the Escort Duty Sheet (`~/Desktop/prem`), running on Zoho Catalyst.
 
 | | |
 |---|---|
-| Catalyst project | `EscortRosterReact` (ID `50225000000055044`, org `60086856508`, Development) — moved here on 2026-10-09 (old: `41255000000306715` / org `60072483450`) |
-| Live app | https://escortrosterreact-60086856508.development.catalystserverless.in/app/index.html |
-| API | https://escortrosterreact-60086856508.development.catalystserverless.in/server/escortAPI/ |
+| Catalyst project | `EscortCardAccess` (ID `50225000000055071`, org `60086856508`, Development) — moved here on 2026-10-09 (old: `41255000000306715` / org `60072483450`) |
+| Live app | https://escortcardaccess-60086856508.development.catalystserverless.in/app/index.html |
+| API | https://escortcardaccess-60086856508.development.catalystserverless.in/server/escortAPI/ |
 | Data Store | `Escorts`, `DutyRecords`, `Settings`, `TripStops` (full column list: `notes/HANDOFF-PROMPT.md`) |
 
 ## Folder structure

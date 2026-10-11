@@ -10,11 +10,11 @@
   "projects": [
     {
       "idx": 1,
-      "id": "50225000000055044",
-      "name": "EscortRosterReact",
+      "id": "50225000000055071",
+      "name": "EscortCardAccess",
       "domain": {
-        "id": "50046742128",
-        "name": "escortrosterreact-60086856508.development"
+        "id": "50046771222",
+        "name": "escortcardaccess-60086856508.development"
       },
       "timezone": "Asia/Kolkata",
       "env": [
