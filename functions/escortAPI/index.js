@@ -2,6 +2,11 @@
 
 const express = require('express');
 const catalyst = require('zcatalyst-sdk-node');
+const crypto = require('crypto');
+const webpush = require('web-push');
+
+// Push services want a contact (mailto: or https: URL) for the sender of the notifications.
+const VAPID_SUBJECT = 'https://escortcardaccess-60086856508.development.catalystserverless.in';
 
 const app = express();
 app.use(express.json({ limit: '2mb' }));
@@ -567,6 +572,153 @@ app.get('/getAccessLog', async (req, res) => {
     const date = requireDate(req.query.date);
     const rows = await selectAll(zcql, 'AccessLog', `SELECT * FROM AccessLog WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`);
     res.status(200).json({ status: 'success', data: rows });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+/* ---------------- GUARD LINKS + WEB PUSH ---------------- */
+
+const TOKEN_RE = /^[0-9a-f]{32}$/;
+
+// The secret part of a guard link. Only hex, so it is also safe inside a ZCQL string.
+function requireToken(value) {
+  if (!TOKEN_RE.test(String(value || ''))) throw new Error('Invalid link');
+  return value;
+}
+
+// VAPID keys = this app's ID card for the push services (Google / Apple / Mozilla).
+// Kept in the Settings table, not in catalyst-config.json, because that file is on public GitHub.
+// Made once on first use; cached while this function instance stays warm (saves reads).
+let vapidCache = null;
+async function getVapidKeys(catalystApp) {
+  if (vapidCache) return vapidCache;
+  const zcql = catalystApp.zcql();
+  const [pub, priv] = await Promise.all([getSetting(zcql, 'vapid_public_key'), getSetting(zcql, 'vapid_private_key')]);
+  if (pub && priv) {
+    vapidCache = { publicKey: pub.setting_value, privateKey: priv.setting_value };
+  } else {
+    vapidCache = webpush.generateVAPIDKeys();
+    await saveSetting(catalystApp, 'vapid_public_key', vapidCache.publicKey);
+    await saveSetting(catalystApp, 'vapid_private_key', vapidCache.privateKey);
+  }
+  return vapidCache;
+}
+
+async function escortByToken(zcql, token) {
+  const rows = await zcql.executeZCQLQuery(`SELECT ROWID, escort_name FROM Escorts WHERE guard_token = '${requireToken(token)}'`);
+  if (rows.length === 0) throw new Error('This link is not valid any more. Ask your supervisor for a new one.');
+  return rows[0].Escorts;
+}
+
+// Sends one notification to every phone the guard has set up.
+// A phone that uninstalled / blocked us answers 404 or 410: drop that subscription.
+async function sendPushToEscort(catalystApp, escortId, payload) {
+  const keys = await getVapidKeys(catalystApp);
+  const subs = await selectAll(catalystApp.zcql(), 'PushSubscriptions', `SELECT ROWID, subscription_json FROM PushSubscriptions WHERE escort_id = ${requireRowId(escortId)} ORDER BY ROWID ASC`);
+  const table = catalystApp.datastore().table('PushSubscriptions');
+  let sent = 0;
+  for (const s of subs) {
+    try {
+      await webpush.sendNotification(JSON.parse(s.subscription_json), JSON.stringify(payload), {
+        vapidDetails: { subject: VAPID_SUBJECT, publicKey: keys.publicKey, privateKey: keys.privateKey },
+        TTL: 60 * 60
+      });
+      sent++;
+    } catch (err) {
+      if (err.statusCode === 404 || err.statusCode === 410) await table.deleteRow(s.ROWID);
+      else console.error('Push failed:', err.statusCode, err.body || err.message);
+    }
+  }
+  return { phones: subs.length, sent };
+}
+
+// Supervisor page: every active guard, their link token and how many phones are set up.
+app.get('/getGuardLinks', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const [escorts, subs] = await Promise.all([
+      selectAll(zcql, 'Escorts', "SELECT ROWID, escort_name, agency, guard_token FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
+      selectAll(zcql, 'PushSubscriptions', 'SELECT escort_id FROM PushSubscriptions ORDER BY ROWID ASC')
+    ]);
+    const phones = {};
+    subs.forEach(s => { phones[String(s.escort_id)] = (phones[String(s.escort_id)] || 0) + 1; });
+    const data = escorts.map(e => ({ ...e, phones: phones[String(e.ROWID)] || 0 }));
+    res.status(200).json({ status: 'success', data });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Gives the guard a secret token once; pressing again returns the same link.
+app.post('/createGuardLink', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const escortId = requireRowId(req.body.escort_id);
+    const rows = await zcql.executeZCQLQuery(`SELECT guard_token FROM Escorts WHERE ROWID = ${escortId}`);
+    if (rows.length === 0) throw new Error('Escort not found');
+    let token = rows[0].Escorts.guard_token;
+    if (!token) {
+      token = crypto.randomBytes(16).toString('hex');
+      await catalystApp.datastore().table('Escorts').updateRow({ ROWID: escortId, guard_token: token });
+    }
+    res.status(200).json({ status: 'success', data: { token } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Guard setup page: whose link is this + the public key the phone needs to subscribe.
+app.get('/guardInfo', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const escort = await escortByToken(catalystApp.zcql(), req.query.t);
+    const keys = await getVapidKeys(catalystApp);
+    res.status(200).json({ status: 'success', data: { escort_name: escort.escort_name, vapidPublicKey: keys.publicKey } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Saves the phone's push address. The same phone pressing Allow again is not saved twice.
+app.post('/saveSubscription', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const escort = await escortByToken(zcql, req.body.t);
+    const sub = req.body.subscription;
+    if (!sub || typeof sub.endpoint !== 'string' || !sub.endpoint.startsWith('https://') || !sub.keys) {
+      throw new Error('Invalid subscription');
+    }
+    const device = ['android', 'iphone'].includes(req.body.device) ? req.body.device : 'other';
+    const existing = await selectAll(zcql, 'PushSubscriptions', `SELECT ROWID, subscription_json FROM PushSubscriptions WHERE escort_id = ${escort.ROWID} ORDER BY ROWID ASC`);
+    const same = existing.find(s => {
+      try { return JSON.parse(s.subscription_json).endpoint === sub.endpoint; } catch { return false; }
+    });
+    if (!same) {
+      await catalystApp.datastore().table('PushSubscriptions').insertRow({
+        escort_id: escort.ROWID, subscription_json: JSON.stringify(sub), device
+      });
+    }
+    res.status(200).json({ status: 'success', data: { saved: !same } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// "Send test notification" button on the setup page, so the guard sees it works right away.
+app.post('/testPush', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const escort = await escortByToken(catalystApp.zcql(), req.body.t);
+    const result = await sendPushToEscort(catalystApp, escort.ROWID, {
+      title: '🔔 Test notification',
+      body: 'Hi ' + escort.escort_name + ', notifications are working.',
+      url: 'index.html#setup/' + req.body.t
+    });
+    res.status(200).json({ status: 'success', data: result });
   } catch (err) {
     fail(res, err);
   }

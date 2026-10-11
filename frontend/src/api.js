@@ -55,6 +55,12 @@ export const api = {
   addAccessLog: (escort_id, direction) => apiCall('POST', '/addAccessLog', { escort_id, direction }),
   getAccessLog: date => apiCall('GET', '/getAccessLog?date=' + q(date)),
 
+  getGuardLinks: () => apiCall('GET', '/getGuardLinks'),
+  createGuardLink: escort_id => apiCall('POST', '/createGuardLink', { escort_id }),
+  guardInfo: token => apiCall('GET', '/guardInfo?t=' + q(token)),
+  saveSubscription: (t, subscription, device) => apiCall('POST', '/saveSubscription', { t, subscription, device }),
+  testPush: t => apiCall('POST', '/testPush', { t }),
+
   syncEscortsFromExcel: escorts => apiCall('POST', '/syncEscortsFromExcel', { escorts }),
   getAllLocations: () => apiCall('GET', '/getAllLocations'),
   wipeAllData: () => apiCall('POST', '/wipeAllData')

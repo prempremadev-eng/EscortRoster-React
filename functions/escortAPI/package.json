@@ -5,6 +5,7 @@
 	"author": "premprema.dev@gmail.com",
 	"dependencies": {
 		"express": "^4.21.2",
+		"web-push": "^3.6.7",
 		"zcatalyst-sdk-node": "^2.5.0"
 	}
 }
