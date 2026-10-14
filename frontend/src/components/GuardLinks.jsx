@@ -13,6 +13,9 @@ export default function GuardLinks() {
   const [qr, setQr] = useState('');
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
+  const [note, setNote] = useState('');
+  // ROWID of the guard whose "New link" was tapped once; the second tap makes the new link.
+  const [confirmReset, setConfirmReset] = useState(null);
 
   // No auto-refresh: every load costs Data Store reads. Use 🔄 instead.
   const load = useCallback(async () => {
@@ -28,8 +31,15 @@ export default function GuardLinks() {
 
   useEffect(() => { load(); }, [load]);
 
+  async function showLink(name, token) {
+    const link = setupLink(token);
+    setQr(await QRCode.toDataURL(link, { width: 240, margin: 1 }));
+    setShown({ name, link });
+  }
+
   async function show(g) {
     setError('');
+    setNote('');
     setCopied(false);
     try {
       let token = g.guard_token;
@@ -37,9 +47,26 @@ export default function GuardLinks() {
         token = (await api.createGuardLink(g.ROWID)).data.token;
         setGuards(prev => prev.map(x => (x.ROWID === g.ROWID ? { ...x, guard_token: token } : x)));
       }
-      const link = setupLink(token);
-      setQr(await QRCode.toDataURL(link, { width: 240, margin: 1 }));
-      setShown({ name: g.guard_name, link });
+      await showLink(g.guard_name, token);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  // Old link stops working and the guard's phones are removed; they set up again with the new QR.
+  async function resetLink(g) {
+    if (confirmReset !== g.ROWID) {
+      setConfirmReset(g.ROWID);
+      return;
+    }
+    setConfirmReset(null);
+    setError('');
+    setCopied(false);
+    try {
+      const { token, phonesRemoved } = (await api.resetGuardLink(g.ROWID)).data;
+      setGuards(prev => prev.map(x => (x.ROWID === g.ROWID ? { ...x, guard_token: token, phones: 0 } : x)));
+      setNote('🔄 ' + g.guard_name + ': old link is dead now' + (phonesRemoved ? ', ' + phonesRemoved + ' phone(s) removed' : '') + '. Set up the phone again with this new QR.');
+      await showLink(g.guard_name, token);
     } catch (err) {
       setError(err.message);
     }
@@ -70,6 +97,7 @@ export default function GuardLinks() {
       <div className="dash">
         <div className="sim-note">One-time setup: the guard scans the QR (or opens the link) on their phone and taps Allow.</div>
         {error && <div className="trip-error">{error}</div>}
+        {note && <div className="sim-push">{note}</div>}
 
         {shown && (
           <div className="link-box">
@@ -105,6 +133,11 @@ export default function GuardLinks() {
                     <td className={g.phones ? 'sim-in' : ''}>{g.phones ? '📱 ' + g.phones : '—'}</td>
                     <td>
                       <button className="btn secondary" onClick={() => show(g)}>{g.guard_token ? 'Show QR' : 'Create link'}</button>
+                      {g.guard_token && (
+                        <button className={'btn secondary link-reset' + (confirmReset === g.ROWID ? ' confirm' : '')} onClick={() => resetLink(g)}>
+                          {confirmReset === g.ROWID ? 'Sure? Old link stops' : '🔄 New link'}
+                        </button>
+                      )}
                     </td>
                   </tr>
                 ))}

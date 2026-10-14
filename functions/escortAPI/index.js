@@ -1123,6 +1123,25 @@ app.post('/createGuardLink', async (req, res) => {
   }
 });
 
+// The link was shared by mistake / the phone was lost: a new token makes the old link dead.
+// Phones set up with the old link are removed too (someone else may have pressed Allow with it),
+// so the guard sets up their phone again with the new link.
+app.post('/resetGuardLink', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const guard = await guardById(zcql, req.body.guard_id);
+    const token = crypto.randomBytes(16).toString('hex');
+    await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, guard_token: token });
+    const subs = await selectAll(zcql, 'PushSubscriptions', `SELECT ROWID FROM PushSubscriptions WHERE guard_id = ${guard.ROWID} ORDER BY ROWID ASC`);
+    const table = catalystApp.datastore().table('PushSubscriptions');
+    await runInBatches(subs.map(s => s.ROWID), 10, id => table.deleteRow(id));
+    res.status(200).json({ status: 'success', data: { token, phonesRemoved: subs.length } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
 // Guard setup page: whose link is this + the public key the phone needs to subscribe.
 app.get('/guardInfo', async (req, res) => {
   try {

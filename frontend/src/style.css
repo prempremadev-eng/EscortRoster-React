@@ -967,3 +967,5 @@ a.btn{text-decoration:none;display:inline-block;}
 /* Every row is view only; GuardSheet turns its own row's Route cells back on. */
 .gsheet-orig tbody tr{pointer-events:none;}
 .gsheet-orig .delcell-col{display:none;}
+.link-reset{margin-left:6px;}
+.link-reset.confirm{color:#b91c1c;border-color:#fca5a5;background:#fef2f2;}

@@ -63,6 +63,7 @@ export const api = {
 
   getGuardLinks: () => apiCall('GET', '/getGuardLinks'),
   createGuardLink: guard_id => apiCall('POST', '/createGuardLink', { guard_id }),
+  resetGuardLink: guard_id => apiCall('POST', '/resetGuardLink', { guard_id }),
   guardInfo: token => apiCall('GET', '/guardInfo?t=' + q(token)),
   saveSubscription: (t, subscription, device) => apiCall('POST', '/saveSubscription', { t, subscription, device }),
   testPush: t => apiCall('POST', '/testPush', { t }),
