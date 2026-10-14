@@ -67,6 +67,10 @@ export const api = {
   saveSubscription: (t, subscription, device) => apiCall('POST', '/saveSubscription', { t, subscription, device }),
   testPush: t => apiCall('POST', '/testPush', { t }),
   guardDay: (t, date) => apiCall('GET', '/guardDay?t=' + q(t) + (date ? '&date=' + q(date) : '')),
+  guardSaveRoute: body => apiCall('POST', '/guardSaveRoute', body),
+  guardSaveCab: body => apiCall('POST', '/guardSaveCab', body),
+  guardAddStop: body => apiCall('POST', '/guardAddStop', body),
+  guardDeleteStop: body => apiCall('POST', '/guardDeleteStop', body),
 
   syncEscortsFromExcel: escorts => apiCall('POST', '/syncEscortsFromExcel', { escorts }),
   getAllLocations: () => apiCall('GET', '/getAllLocations'),

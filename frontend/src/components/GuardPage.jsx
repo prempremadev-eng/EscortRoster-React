@@ -1,20 +1,25 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { formatLongDate } from '../utils.js';
+import GuardDuty from './GuardDuty.jsx';
 
-// Guard's phone, opened from the IN notification: today's seats, own row starred.
+// Guard's phone, opened from the IN notification.
+// ESCORT guard: My Duty (fill their own trips) + today's seats, own row starred. POST guard: their post.
 // The server decides locked / open, so a wrong phone clock can't open it.
 // `testDate` only works on `catalyst serve` (#guard/<token>?date=YYYY-MM-DD).
 export default function GuardPage({ token, testDate }) {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('loading');
   const [error, setError] = useState('');
+  // Bumped on every load, so the route cards start again from the fresh data.
+  const [version, setVersion] = useState(0);
 
   // No auto-refresh: every load costs Data Store reads. Use 🔄 instead.
   const load = useCallback(async () => {
     setStatus('loading');
     try {
       setData((await api.guardDay(token, testDate)).data);
+      setVersion(v => v + 1);
       setStatus('ok');
     } catch (err) {
       setError(err.message);
@@ -27,6 +32,14 @@ export default function GuardPage({ token, testDate }) {
   const mine = data && data.seats && data.seats.find(s => s.me);
   const inCount = data && data.seats ? data.seats.filter(s => s.name).length : 0;
   const isPost = data && data.dutyType === 'POST';
+  const hasDuty = !isPost && data && data.seats && data.seats.length > 0;
+
+  // Saved rows come back from the server; keep them in the page instead of reloading (saves reads).
+  const putRoute = rec => setData(d => ({
+    ...d, routes: [...d.routes.filter(r => String(r.ROWID) !== String(rec.ROWID)), rec]
+  }));
+  const updateStops = fn => setData(d => ({ ...d, stops: fn(d.stops) }));
+
   const headline = isPost
     ? (data.postName ? '📍 ' + data.postName : '✅ You are IN')
     : (mine ? '⭐ Seat ' + mine.seat : '✅ You are IN');
@@ -34,7 +47,7 @@ export default function GuardPage({ token, testDate }) {
   return (
     <>
       <div className="titlebar">
-        <h1>{isPost ? '📍 My Post' : '🪑 My Seat'}</h1>
+        <h1>{isPost ? '📍 My Post' : hasDuty ? '📝 My Duty' : '🪑 My Seat'}</h1>
       </div>
 
       <div className="setup">
@@ -64,6 +77,17 @@ export default function GuardPage({ token, testDate }) {
               <div className="setup-card">No rotation seats today (Saturday / Sunday).</div>
             ) : (
               <>
+                <GuardDuty
+                  key={version}
+                  token={token}
+                  testDate={testDate}
+                  routes={data.routes || []}
+                  stops={data.stops || []}
+                  onRoute={putRoute}
+                  onStops={updateStops}
+                />
+                <details className="guard-seat-list">
+                  <summary>🪑 Today's seat list</summary>
                 <div className="guard-count">
                   <span>{inCount} of {data.seats.length} IN</span>
                   <button className="btn secondary" onClick={load}>🔄 Refresh</button>
@@ -79,6 +103,7 @@ export default function GuardPage({ token, testDate }) {
                     ))}
                   </tbody>
                 </table>
+                </details>
               </>
             )}
             <p className="sim-note guard-foot">This page closes at 08:00. Tomorrow it opens again after your card IN.</p>

@@ -628,9 +628,7 @@ app.get('/guardDay', async (req, res) => {
     const catalystApp = catalyst.initialize(req);
     const zcql = catalystApp.zcql();
     const me = await guardByToken(zcql, req.query.t);
-    // Testing on `catalyst serve` only: ?date= pretends it is that duty day.
-    const local = /^localhost(:\d+)?$/.test(req.get('host') || '');
-    const dutyDate = local && req.query.date ? requireDate(req.query.date) : istNow().dutyDate;
+    const dutyDate = dutyDateFor(req, req.query.date);
 
     // First IN time of each guard (by Guards ROWID) on this duty day.
     const ins = await selectAll(zcql, 'AccessLog', `SELECT guard_id, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' AND direction = 'IN' ORDER BY CREATEDTIME ASC`);
@@ -646,10 +644,11 @@ app.get('/guardDay', async (req, res) => {
     if (me.duty_type !== 'ESCORT' || !me.escort_id || day === 0 || day === 6) {
       return res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], seats: [] } });
     }
-    const [escorts, start, escortGuards] = await Promise.all([
+    const [escorts, start, escortGuards, trips] = await Promise.all([
       selectAll(zcql, 'Escorts', "SELECT ROWID, escort_name FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
       getSetting(zcql, 'start_date'),
-      selectAll(zcql, 'Guards', "SELECT ROWID, escort_id FROM Guards WHERE duty_type = 'ESCORT' ORDER BY ROWID ASC")
+      selectAll(zcql, 'Guards', "SELECT ROWID, escort_id FROM Guards WHERE duty_type = 'ESCORT' ORDER BY ROWID ASC"),
+      myTrips(zcql, me.escort_id, dutyDate)
     ]);
     // Seats are escort rows; swipes are guard rows. Escorts ROWID → that guard's IN time.
     const escortIn = {};
@@ -661,7 +660,155 @@ app.get('/guardDay', async (req, res) => {
       const isIn = !!escortIn[id];
       return { seat: i + 1, me: id === myEscortId, name: isIn ? e.escort_name : null, inTime: isIn ? escortIn[id] : null };
     });
-    res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], seats } });
+    res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], seats, ...trips } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+/* ---------------- MY DUTY (escort guard fills their own trips from the phone) ---------------- */
+// Writes only escort data (DutyRecords / TripStops), only the guard's own escort row,
+// only for the running duty day, and only after their card IN. The supervisor's
+// duty sheet shows the same rows after Refresh.
+
+const ROUTES = 4;
+const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+// Testing on `catalyst serve` only: ?date= / body.date pretends it is that duty day.
+function dutyDateFor(req, wanted) {
+  const local = /^localhost(:\d+)?$/.test(req.get('host') || '');
+  return local && wanted ? requireDate(wanted) : istNow().dutyDate;
+}
+
+function optionalTime(value, label) {
+  const t = String(value || '').trim();
+  if (t && !TIME_RE.test(t)) throw new Error(label + ': use HH:MM (24 hours)');
+  return t;
+}
+
+// The escort row's main-sheet trips (routes 1..4) and their employee stops for one duty day.
+async function myTrips(zcql, escortId, dutyDate) {
+  const [records, stops] = await Promise.all([
+    selectAll(zcql, 'DutyRecords', `SELECT ROWID, route_no, seat_no, location, out_time, in_time, vehicle_no, driver_name, is_extra, is_sunday_pickup FROM DutyRecords WHERE duty_date = '${dutyDate}' AND escort_id = ${requireRowId(escortId)} ORDER BY ROWID ASC`),
+    selectAll(zcql, 'TripStops', `SELECT ROWID, duty_record_id, emp_id, location, trip_type, stop_time FROM TripStops WHERE duty_date = '${dutyDate}' AND escort_id = ${escortId} ORDER BY CREATEDTIME ASC`)
+  ]);
+  const routes = records.filter(r => r.is_extra !== 'true' && r.is_sunday_pickup !== 'true');
+  const ids = new Set(routes.map(r => String(r.ROWID)));
+  return { routes, stops: stops.filter(x => ids.has(String(x.duty_record_id))) };
+}
+
+// Every My Duty write starts here: valid link, ESCORT guard, card IN on this duty day, weekday seat.
+async function guardOnDuty(zcql, req) {
+  const b = req.body || {};
+  const me = await guardByToken(zcql, b.t);
+  if (me.duty_type !== 'ESCORT' || !me.escort_id) throw new Error('Only escort guards fill trips');
+  const dutyDate = dutyDateFor(req, b.date);
+  const day = dayOf(dutyDate);
+  if (day === 0 || day === 6) throw new Error('No escort trips on Saturday / Sunday');
+  const ins = await zcql.executeZCQLQuery(`SELECT ROWID FROM AccessLog WHERE guard_id = ${me.ROWID} AND duty_date = '${dutyDate}' AND direction = 'IN'`);
+  if (!ins.length) throw new Error('Your card is not IN for this duty day');
+  return { me, dutyDate, ...(await myTrips(zcql, me.escort_id, dutyDate)) };
+}
+
+function requireRouteNo(value) {
+  const n = parseInt(value, 10);
+  if (!(n >= 1 && n <= ROUTES)) throw new Error('Route must be 1 to ' + ROUTES);
+  return n;
+}
+
+const routeOf = (routes, n) => routes.find(r => (parseInt(r.route_no, 10) || 1) === n);
+
+// Save one route: Location → Out → In, in that order (same locks as the duty sheet).
+app.post('/guardSaveRoute', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const ctx = await guardOnDuty(zcql, req);
+    const b = req.body;
+    const n = requireRouteNo(b.route_no);
+    const location = String(b.location || '').trim().slice(0, 100);
+    const out_time = optionalTime(b.out_time, 'Out');
+    const in_time = optionalTime(b.in_time, 'In');
+    if (n > 1) {
+      const prev = routeOf(ctx.routes, n - 1);
+      if (!prev || !prev.out_time || !prev.in_time) throw new Error('Finish Route ' + (n - 1) + ' first (Out and In)');
+    }
+    if (out_time && !location) throw new Error('Location first, then Out');
+    if (in_time && !out_time) throw new Error('Out first, then In');
+
+    const table = catalystApp.datastore().table('DutyRecords');
+    const current = routeOf(ctx.routes, n);
+    let result;
+    if (current) {
+      result = await table.updateRow({ ROWID: current.ROWID, location, out_time, in_time });
+    } else {
+      // Seat on the sheet for this day, so the supervisor sees it on the right row.
+      const [escorts, start] = await Promise.all([
+        selectAll(zcql, 'Escorts', "SELECT ROWID FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
+        getSetting(zcql, 'start_date')
+      ]);
+      const seat = seatOf(escorts, ctx.me.escort_id, start && start.setting_value, ctx.dutyDate);
+      if (!seat) throw new Error('You have no seat on the duty sheet today');
+      result = await table.insertRow({
+        duty_date: ctx.dutyDate, escort_id: ctx.me.escort_id, seat_no: seat, route_no: n, location, out_time, in_time
+      });
+    }
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// A route's trip (cab + employees) opens once that route has an Out time.
+function tripFor(ctx, routeNo) {
+  const rec = routeOf(ctx.routes, requireRouteNo(routeNo));
+  if (!rec || !rec.out_time) throw new Error('Save the Out time of this route first');
+  return rec;
+}
+
+app.post('/guardSaveCab', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const ctx = await guardOnDuty(catalystApp.zcql(), req);
+    const rec = tripFor(ctx, req.body.route_no);
+    const vehicle_no = String(req.body.vehicle_no || '').trim().toUpperCase().slice(0, 20);
+    const driver_name = String(req.body.driver_name || '').trim().slice(0, 50);
+    const result = await catalystApp.datastore().table('DutyRecords').updateRow({ ROWID: rec.ROWID, vehicle_no, driver_name });
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+app.post('/guardAddStop', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const ctx = await guardOnDuty(catalystApp.zcql(), req);
+    const rec = tripFor(ctx, req.body.route_no);
+    const b = req.body;
+    const emp_id = requireText(b.emp_id, 'Emp ID', 20);
+    const location = requireText(b.location, 'Location', 100);
+    const trip_type = b.trip_type === 'Pickup' ? 'Pickup' : 'Drop';
+    const stop_time = optionalTime(b.stop_time, 'Time');
+    if (!stop_time) throw new Error('Time is required');
+    const result = await catalystApp.datastore().table('TripStops').insertRow({
+      duty_record_id: rec.ROWID, duty_date: ctx.dutyDate, escort_id: ctx.me.escort_id, emp_id, location, trip_type, stop_time
+    });
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Fix a mistake: the guard can remove an employee stop of their own trips today (not a whole trip).
+app.post('/guardDeleteStop', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const ctx = await guardOnDuty(catalystApp.zcql(), req);
+    const rowid = String(requireRowId(req.body.rowid));
+    if (!ctx.stops.some(x => String(x.ROWID) === rowid)) throw new Error('Employee entry not found');
+    await catalystApp.datastore().table('TripStops').deleteRow(rowid);
+    res.status(200).json({ status: 'success', data: { deleted: rowid } });
   } catch (err) {
     fail(res, err);
   }

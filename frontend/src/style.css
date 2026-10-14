@@ -965,3 +965,23 @@ a.btn{text-decoration:none;display:inline-block;}
 .master-danger-solid:hover{background:#7f1d1d;}
 .master-confirm{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;margin-top:10px;}
 .master-confirm .link-actions{margin:8px 0 0;}
+
+/* ---------- my duty (#guard/<token>, escort guard) ---------- */
+.duty-list{display:flex;flex-direction:column;gap:12px;margin-bottom:14px;}
+.duty-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;font-size:15px;}
+.duty-card.done{border-color:#86efac;background:#f0fdf4;}
+.duty-card.locked{color:#94a3b8;font-size:14px;background:#f8fafc;}
+.duty-card label, .duty-trip label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#475569;min-width:0;flex:1;}
+.duty-card input{font-size:16px;padding:8px;border:1px solid var(--border);border-radius:6px;min-width:0;width:100%;box-sizing:border-box;}
+.duty-head{font-weight:bold;color:var(--blue-dark);font-size:17px;}
+.duty-times{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
+.duty-time{display:flex;gap:6px;}
+.duty-time .btn{padding:6px 10px;}
+.duty-trip{border-top:1px dashed var(--border);padding-top:10px;display:flex;flex-direction:column;gap:10px;}
+.duty-sub{font-weight:bold;color:#334155;}
+.duty-stop{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;background:#f8fafc;border-radius:6px;padding:6px 8px;}
+.duty-del{background:none;border:none;font-size:16px;cursor:pointer;}
+.guard-seat-list{background:#fff;border:1px solid var(--border);border-radius:10px;padding:10px 12px;}
+.guard-seat-list summary{cursor:pointer;font-weight:bold;color:var(--blue-dark);margin-bottom:8px;}
+.duty-card label.duty-tf{flex:1 1 230px;}
+.duty-time input{flex:1;}
