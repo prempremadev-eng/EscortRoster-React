@@ -912,8 +912,6 @@ a.btn{text-decoration:none;display:inline-block;}
 .sim-in{color:#15803d;font-weight:bold;}
 .sim-buttons{white-space:nowrap;}
 .sim-buttons .btn{padding:4px 14px;margin:0 3px;}
-.card-mark{font-size:11px;color:#94a3b8;text-align:left;padding:0 4px;}
-.card-mark.in{color:#15803d;font-weight:bold;}
 
 /* ---------- guard links (#links) + guard setup (#setup/<token>) ---------- */
 .link-box{display:flex;gap:18px;align-items:flex-start;flex-wrap:wrap;background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px;margin-bottom:18px;}

@@ -17,8 +17,6 @@ export default function Toolbar({ startDate, dutyDate, onStartDate, onDutyDate, 
       </div>
       <div className="spacer"></div>
       <a className="btn secondary" href="#dashboard">📊 Dashboard</a>
-      <a className="btn secondary" href="#simulator">🪪 Card Simulator</a>
-      <a className="btn secondary" href="#links">🔗 Guard Links</a>
       <button className="btn secondary" onClick={onUpload}>Upload Excel</button>
       <button className="btn secondary" onClick={onPrint}>Print</button>
       <button className="btn" onClick={onGenerate}>Generate</button>

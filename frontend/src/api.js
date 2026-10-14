@@ -52,11 +52,12 @@ export const api = {
   getLastUploadDate: () => apiCall('GET', '/getLastUploadDate'),
   markUploadDone: value => apiCall('POST', '/markUploadDone', { value }),
 
-  addAccessLog: (escort_id, direction) => apiCall('POST', '/addAccessLog', { escort_id, direction }),
+  getGuards: () => apiCall('GET', '/getGuards'),
+  addAccessLog: (guard_id, direction) => apiCall('POST', '/addAccessLog', { guard_id, direction }),
   getAccessLog: date => apiCall('GET', '/getAccessLog?date=' + q(date)),
 
   getGuardLinks: () => apiCall('GET', '/getGuardLinks'),
-  createGuardLink: escort_id => apiCall('POST', '/createGuardLink', { escort_id }),
+  createGuardLink: guard_id => apiCall('POST', '/createGuardLink', { guard_id }),
   guardInfo: token => apiCall('GET', '/guardInfo?t=' + q(token)),
   saveSubscription: (t, subscription, device) => apiCall('POST', '/saveSubscription', { t, subscription, device }),
   testPush: t => apiCall('POST', '/testPush', { t }),

@@ -221,20 +221,19 @@ app.get('/getTripStops', async (req, res) => {
   }
 });
 
-// Everything the duty sheet needs for one day in a single call (4 SELECTs instead of 5 calls).
+// Everything the duty sheet needs for one day in a single call (3 SELECTs instead of 4 calls).
 // Extra rows are DutyRecords too, so the frontend splits them out of `duty`.
 app.get('/getDayData', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
     const zcql = catalystApp.zcql();
     const date = requireDate(req.query.date);
-    const [escorts, duty, stops, cardIn] = await Promise.all([
+    const [escorts, duty, stops] = await Promise.all([
       selectAll(zcql, 'Escorts', "SELECT * FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
       selectAll(zcql, 'DutyRecords', `SELECT * FROM DutyRecords WHERE duty_date = '${date}' ORDER BY ROWID ASC`),
-      selectAll(zcql, 'TripStops', `SELECT * FROM TripStops WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`),
-      selectAll(zcql, 'AccessLog', `SELECT escort_id, punch_time FROM AccessLog WHERE duty_date = '${date}' AND direction = 'IN' ORDER BY CREATEDTIME ASC`)
+      selectAll(zcql, 'TripStops', `SELECT * FROM TripStops WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`)
     ]);
-    res.status(200).json({ status: 'success', data: { escorts, duty, stops, cardIn } });
+    res.status(200).json({ status: 'success', data: { escorts, duty, stops } });
   } catch (err) {
     fail(res, err);
   }
@@ -559,23 +558,33 @@ function seatOf(escorts, escortId, startDate, dutyDate) {
   return idx < 0 ? null : idx + 1;
 }
 
-// First IN of the duty day → "✅ IN 19:42 · Today your Seat 5" on the guard's phones.
+// First IN of the duty day → a notification on the guard's phones. What it says depends on the
+// guard's duty type in the Guards master:
+//   ESCORT → "✅ IN 19:42 · Today your Seat 5" (seat from the escort duty sheet)
+//   POST   → "✅ IN 08:02 · Today your post: Gate 3"
 // Later INs the same duty day (card swiped again after a break) send nothing.
-async function onCardIn(catalystApp, escortId, time, dutyDate) {
+async function onCardIn(catalystApp, guard, time, dutyDate) {
   const zcql = catalystApp.zcql();
-  const ins = await zcql.executeZCQLQuery(`SELECT ROWID FROM AccessLog WHERE escort_id = ${escortId} AND duty_date = '${dutyDate}' AND direction = 'IN'`);
+  const ins = await zcql.executeZCQLQuery(`SELECT ROWID FROM AccessLog WHERE guard_id = ${guard.ROWID} AND duty_date = '${dutyDate}' AND direction = 'IN'`);
   if (ins.length > 1) return { skipped: 'already IN today' };
 
-  const [escorts, start] = await Promise.all([
-    selectAll(zcql, 'Escorts', "SELECT ROWID, guard_token FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
-    getSetting(zcql, 'start_date')
-  ]);
-  const me = escorts.find(e => String(e.ROWID) === String(escortId));
-  const seat = seatOf(escorts, escortId, start && start.setting_value, dutyDate);
-  const result = await sendPushToEscort(catalystApp, escortId, {
+  let body = 'Your card IN is noted.';
+  let seat = null;
+  if (guard.duty_type === 'ESCORT' && guard.escort_id) {
+    // Read-only look at the escort duty sheet; nothing is written on the escort side.
+    const [escorts, start] = await Promise.all([
+      selectAll(zcql, 'Escorts', "SELECT ROWID FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
+      getSetting(zcql, 'start_date')
+    ]);
+    seat = seatOf(escorts, guard.escort_id, start && start.setting_value, dutyDate);
+    if (seat) body = 'Today your Seat ' + seat;
+  } else if (guard.duty_type === 'POST' && guard.post_name) {
+    body = 'Today your post: ' + guard.post_name;
+  }
+  const result = await sendPushToGuard(catalystApp, guard.ROWID, {
     title: '✅ IN ' + time,
-    body: seat ? 'Today your Seat ' + seat : 'Your card IN is noted.',
-    url: me && me.guard_token ? 'index.html#guard/' + me.guard_token : 'index.html'
+    body,
+    url: guard.guard_token ? 'index.html#guard/' + guard.guard_token : 'index.html'
   });
   return { ...result, seat };
 }
@@ -584,19 +593,20 @@ async function onCardIn(catalystApp, escortId, time, dutyDate) {
 app.post('/addAccessLog', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
-    const escort_id = requireRowId(req.body.escort_id);
+    const guard = await guardById(catalystApp.zcql(), req.body.guard_id);
+    if (guard.is_active !== 'true') throw new Error(guard.guard_name + ' is not active');
     const direction = String(req.body.direction || '').toUpperCase();
     if (direction !== 'IN' && direction !== 'OUT') throw new Error('direction must be IN or OUT');
     const source = req.body.source === 'REAL' ? 'REAL' : 'SIMULATOR';
     const { time, dutyDate } = istNow();
     const result = await catalystApp.datastore().table('AccessLog').insertRow({
-      escort_id, direction, punch_time: time, duty_date: dutyDate, source
+      guard_id: guard.ROWID, direction, punch_time: time, duty_date: dutyDate, source
     });
     // The swipe is already saved; a push problem must not fail it.
     let push = null;
     if (direction === 'IN') {
       try {
-        push = await onCardIn(catalystApp, escort_id, time, dutyDate);
+        push = await onCardIn(catalystApp, guard, time, dutyDate);
       } catch (err) {
         console.error('Card IN push failed:', err);
         push = { error: err.message || String(err) };
@@ -608,41 +618,48 @@ app.post('/addAccessLog', async (req, res) => {
   }
 });
 
-// Guard page (opened from the IN notification): the day's seat list for one guard.
+// Guard page (opened from the IN notification).
 // Locked until this guard's card IN for the running duty day. The duty day switches at 08:00,
 // so the page locks itself next morning and needs a new IN.
+// POST guard → their post. ESCORT guard → the day's seat list from the escort duty sheet.
 // Seats never shift: a guard who is not IN yet stays as an EMPTY row, and their name is not sent.
 app.get('/guardDay', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
     const zcql = catalystApp.zcql();
-    const me = await escortByToken(zcql, req.query.t);
+    const me = await guardByToken(zcql, req.query.t);
     // Testing on `catalyst serve` only: ?date= pretends it is that duty day.
     const local = /^localhost(:\d+)?$/.test(req.get('host') || '');
     const dutyDate = local && req.query.date ? requireDate(req.query.date) : istNow().dutyDate;
 
-    const ins = await selectAll(zcql, 'AccessLog', `SELECT escort_id, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' AND direction = 'IN' ORDER BY CREATEDTIME ASC`);
+    // First IN time of each guard (by Guards ROWID) on this duty day.
+    const ins = await selectAll(zcql, 'AccessLog', `SELECT guard_id, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' AND direction = 'IN' ORDER BY CREATEDTIME ASC`);
     const inTime = {};
-    ins.forEach(r => { if (!inTime[String(r.escort_id)]) inTime[String(r.escort_id)] = r.punch_time; });
+    ins.forEach(r => { if (!inTime[String(r.guard_id)]) inTime[String(r.guard_id)] = r.punch_time; });
     const myId = String(me.ROWID);
-    const base = { name: me.escort_name, dutyDate };
+    const base = { name: me.guard_name, dutyType: me.duty_type, postName: me.post_name || null, dutyDate };
     if (!inTime[myId]) {
       return res.status(200).json({ status: 'success', data: { ...base, locked: true } });
     }
 
     const day = dayOf(dutyDate);
-    if (day === 0 || day === 6) {
+    if (me.duty_type !== 'ESCORT' || !me.escort_id || day === 0 || day === 6) {
       return res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], seats: [] } });
     }
-    const [escorts, start] = await Promise.all([
+    const [escorts, start, escortGuards] = await Promise.all([
       selectAll(zcql, 'Escorts', "SELECT ROWID, escort_name FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
-      getSetting(zcql, 'start_date')
+      getSetting(zcql, 'start_date'),
+      selectAll(zcql, 'Guards', "SELECT ROWID, escort_id FROM Guards WHERE duty_type = 'ESCORT' ORDER BY ROWID ASC")
     ]);
+    // Seats are escort rows; swipes are guard rows. Escorts ROWID → that guard's IN time.
+    const escortIn = {};
+    escortGuards.forEach(g => { if (g.escort_id && inTime[String(g.ROWID)]) escortIn[String(g.escort_id)] = inTime[String(g.ROWID)]; });
+    const myEscortId = String(me.escort_id);
     const rows = computeDisplayRows(escorts, ROTATION, start && start.setting_value, dutyDate);
     const seats = rows.map((e, i) => {
       const id = String(e.ROWID);
-      const isIn = !!inTime[id];
-      return { seat: i + 1, me: id === myId, name: isIn ? e.escort_name : null, inTime: isIn ? inTime[id] : null };
+      const isIn = !!escortIn[id];
+      return { seat: i + 1, me: id === myEscortId, name: isIn ? e.escort_name : null, inTime: isIn ? escortIn[id] : null };
     });
     res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], seats } });
   } catch (err) {
@@ -696,17 +713,28 @@ async function getVapidKeys(catalystApp) {
   return vapidCache;
 }
 
-async function escortByToken(zcql, token) {
-  const rows = await zcql.executeZCQLQuery(`SELECT ROWID, escort_name FROM Escorts WHERE guard_token = '${requireToken(token)}'`);
-  if (rows.length === 0) throw new Error('This link is not valid any more. Ask your supervisor for a new one.');
-  return rows[0].Escorts;
+// Access lives on the Guards master only. Escorts is read (seat list) but never written here.
+const GUARD_COLS = 'ROWID, guard_name, agency, duty_type, post_name, escort_id, guard_token, is_active';
+
+async function guardById(zcql, guardId) {
+  const rows = await zcql.executeZCQLQuery(`SELECT ${GUARD_COLS} FROM Guards WHERE ROWID = ${requireRowId(guardId)}`);
+  if (rows.length === 0) throw new Error('Guard not found');
+  return rows[0].Guards;
+}
+
+async function guardByToken(zcql, token) {
+  const rows = await zcql.executeZCQLQuery(`SELECT ${GUARD_COLS} FROM Guards WHERE guard_token = '${requireToken(token)}'`);
+  if (rows.length === 0 || rows[0].Guards.is_active !== 'true') {
+    throw new Error('This link is not valid any more. Ask your supervisor for a new one.');
+  }
+  return rows[0].Guards;
 }
 
 // Sends one notification to every phone the guard has set up.
 // A phone that uninstalled / blocked us answers 404 or 410: drop that subscription.
-async function sendPushToEscort(catalystApp, escortId, payload) {
+async function sendPushToGuard(catalystApp, guardId, payload) {
   const keys = await getVapidKeys(catalystApp);
-  const subs = await selectAll(catalystApp.zcql(), 'PushSubscriptions', `SELECT ROWID, subscription_json FROM PushSubscriptions WHERE escort_id = ${requireRowId(escortId)} ORDER BY ROWID ASC`);
+  const subs = await selectAll(catalystApp.zcql(), 'PushSubscriptions', `SELECT ROWID, subscription_json FROM PushSubscriptions WHERE guard_id = ${requireRowId(guardId)} ORDER BY ROWID ASC`);
   const table = catalystApp.datastore().table('PushSubscriptions');
   let sent = 0;
   for (const s of subs) {
@@ -724,18 +752,29 @@ async function sendPushToEscort(catalystApp, escortId, payload) {
   return { phones: subs.length, sent };
 }
 
+// Card Simulator: every active guard from the master (POST and ESCORT).
+app.get('/getGuards', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const guards = await selectAll(catalystApp.zcql(), 'Guards', "SELECT ROWID, id_number, guard_name, agency, branch_id, duty_type, post_name FROM Guards WHERE is_active = 'true' ORDER BY id_number ASC");
+    res.status(200).json({ status: 'success', data: guards });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
 // Supervisor page: every active guard, their link token and how many phones are set up.
 app.get('/getGuardLinks', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
     const zcql = catalystApp.zcql();
-    const [escorts, subs] = await Promise.all([
-      selectAll(zcql, 'Escorts', "SELECT ROWID, escort_name, agency, guard_token FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
-      selectAll(zcql, 'PushSubscriptions', 'SELECT escort_id FROM PushSubscriptions ORDER BY ROWID ASC')
+    const [guards, subs] = await Promise.all([
+      selectAll(zcql, 'Guards', "SELECT ROWID, id_number, guard_name, agency, duty_type, guard_token FROM Guards WHERE is_active = 'true' ORDER BY id_number ASC"),
+      selectAll(zcql, 'PushSubscriptions', 'SELECT guard_id FROM PushSubscriptions ORDER BY ROWID ASC')
     ]);
     const phones = {};
-    subs.forEach(s => { phones[String(s.escort_id)] = (phones[String(s.escort_id)] || 0) + 1; });
-    const data = escorts.map(e => ({ ...e, phones: phones[String(e.ROWID)] || 0 }));
+    subs.forEach(s => { phones[String(s.guard_id)] = (phones[String(s.guard_id)] || 0) + 1; });
+    const data = guards.map(g => ({ ...g, phones: phones[String(g.ROWID)] || 0 }));
     res.status(200).json({ status: 'success', data });
   } catch (err) {
     fail(res, err);
@@ -746,14 +785,11 @@ app.get('/getGuardLinks', async (req, res) => {
 app.post('/createGuardLink', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
-    const zcql = catalystApp.zcql();
-    const escortId = requireRowId(req.body.escort_id);
-    const rows = await zcql.executeZCQLQuery(`SELECT guard_token FROM Escorts WHERE ROWID = ${escortId}`);
-    if (rows.length === 0) throw new Error('Escort not found');
-    let token = rows[0].Escorts.guard_token;
+    const guard = await guardById(catalystApp.zcql(), req.body.guard_id);
+    let token = guard.guard_token;
     if (!token) {
       token = crypto.randomBytes(16).toString('hex');
-      await catalystApp.datastore().table('Escorts').updateRow({ ROWID: escortId, guard_token: token });
+      await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, guard_token: token });
     }
     res.status(200).json({ status: 'success', data: { token } });
   } catch (err) {
@@ -765,9 +801,9 @@ app.post('/createGuardLink', async (req, res) => {
 app.get('/guardInfo', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
-    const escort = await escortByToken(catalystApp.zcql(), req.query.t);
+    const guard = await guardByToken(catalystApp.zcql(), req.query.t);
     const keys = await getVapidKeys(catalystApp);
-    res.status(200).json({ status: 'success', data: { escort_name: escort.escort_name, vapidPublicKey: keys.publicKey } });
+    res.status(200).json({ status: 'success', data: { guard_name: guard.guard_name, vapidPublicKey: keys.publicKey } });
   } catch (err) {
     fail(res, err);
   }
@@ -778,19 +814,19 @@ app.post('/saveSubscription', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
     const zcql = catalystApp.zcql();
-    const escort = await escortByToken(zcql, req.body.t);
+    const guard = await guardByToken(zcql, req.body.t);
     const sub = req.body.subscription;
     if (!sub || typeof sub.endpoint !== 'string' || !sub.endpoint.startsWith('https://') || !sub.keys) {
       throw new Error('Invalid subscription');
     }
     const device = ['android', 'iphone'].includes(req.body.device) ? req.body.device : 'other';
-    const existing = await selectAll(zcql, 'PushSubscriptions', `SELECT ROWID, subscription_json FROM PushSubscriptions WHERE escort_id = ${escort.ROWID} ORDER BY ROWID ASC`);
+    const existing = await selectAll(zcql, 'PushSubscriptions', `SELECT ROWID, subscription_json FROM PushSubscriptions WHERE guard_id = ${guard.ROWID} ORDER BY ROWID ASC`);
     const same = existing.find(s => {
       try { return JSON.parse(s.subscription_json).endpoint === sub.endpoint; } catch { return false; }
     });
     if (!same) {
       await catalystApp.datastore().table('PushSubscriptions').insertRow({
-        escort_id: escort.ROWID, subscription_json: JSON.stringify(sub), device
+        guard_id: guard.ROWID, subscription_json: JSON.stringify(sub), device
       });
     }
     res.status(200).json({ status: 'success', data: { saved: !same } });
@@ -803,10 +839,10 @@ app.post('/saveSubscription', async (req, res) => {
 app.post('/testPush', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
-    const escort = await escortByToken(catalystApp.zcql(), req.body.t);
-    const result = await sendPushToEscort(catalystApp, escort.ROWID, {
+    const guard = await guardByToken(catalystApp.zcql(), req.body.t);
+    const result = await sendPushToGuard(catalystApp, guard.ROWID, {
       title: '🔔 Test notification',
-      body: 'Hi ' + escort.escort_name + ', notifications are working.',
+      body: 'Hi ' + guard.guard_name + ', notifications are working.',
       url: 'index.html#setup/' + req.body.t
     });
     res.status(200).json({ status: 'success', data: result });

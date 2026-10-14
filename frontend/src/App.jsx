@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import {
-  PICKUP_ROWS, ROTATION, blankPickup, computeDisplayRows, escortFromDb, firstCardIn, groupStops,
+  PICKUP_ROWS, ROTATION, blankPickup, computeDisplayRows, escortFromDb, groupStops,
   isMonday, isSaturday, isSunday, dutyDayStr, readEscortFile, routeFromDb
 } from './utils.js';
 import Toolbar from './components/Toolbar.jsx';
@@ -49,8 +49,6 @@ export default function App() {
   const [duty, updateDuty, dutyRef] = useStore({});
   // trip (DutyRecords ROWID) -> [{ ROWID, emp, loc, type, time }]
   const [stops, updateStops] = useStore({});
-  // escort ROWID -> first access-card IN time (HH:MM) of the duty day
-  const [cardIn, updateCardIn] = useStore({});
   const [extraRows, updateExtras, extrasRef] = useStore([]);
   const [pickupRows, updatePickups, pickupsRef] = useStore([]);
   const [locations, setLocations] = useState([]);
@@ -163,13 +161,12 @@ export default function App() {
 
   // One call for the whole duty sheet: escorts, routes, extras and trip stops.
   const fetchDay = useCallback(async date => {
-    const { escorts: escortRows, duty: records, stops: stopRows, cardIn: cardRows } = (await api.getDayData(date)).data;
+    const { escorts: escortRows, duty: records, stops: stopRows } = (await api.getDayData(date)).data;
     return {
       escorts: escortRows.map(escortFromDb),
       map: buildDuty(records),
       extras: buildExtras(records),
-      stopMap: groupStops(stopRows),
-      cardIn: firstCardIn(cardRows)
+      stopMap: groupStops(stopRows)
     };
   }, [buildDuty, buildExtras]);
 
@@ -179,10 +176,9 @@ export default function App() {
     updateEscorts(day.escorts);
     updateDuty(day.map);
     updateStops(day.stopMap);
-    updateCardIn(day.cardIn);
     const unsaved = extrasRef.current.filter(r => !r.deleted && !r.routes.some(x => x && x.ROWID));
     updateExtras([...day.extras, ...unsaved]);
-  }, [updateEscorts, updateDuty, updateStops, updateCardIn, updateExtras, extrasRef]);
+  }, [updateEscorts, updateDuty, updateStops, updateExtras, extrasRef]);
 
   const applyTableData = useCallback(async date => {
     const day = await fetchDay(date);
@@ -660,7 +656,6 @@ export default function App() {
               displayRows={displayRows}
               duty={duty}
               stops={stops}
-              cardIn={cardIn}
               rotation={rotation}
               dutyDate={dutyDate}
               cellStatus={cellStatus}

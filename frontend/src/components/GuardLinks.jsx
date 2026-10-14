@@ -39,7 +39,7 @@ export default function GuardLinks() {
       }
       const link = setupLink(token);
       setQr(await QRCode.toDataURL(link, { width: 240, margin: 1 }));
-      setShown({ name: g.escort_name, link });
+      setShown({ name: g.guard_name, link });
     } catch (err) {
       setError(err.message);
     }
@@ -61,7 +61,7 @@ export default function GuardLinks() {
       </div>
 
       <div className="toolbar no-print">
-        <a className="btn secondary" href="#">← Duty Sheet</a>
+        <a className="btn secondary" href="#simulator">🪪 Card Simulator</a>
         <div className="spacer"></div>
         <button className="btn" onClick={load}>🔄 Refresh</button>
       </div>
@@ -92,20 +92,22 @@ export default function GuardLinks() {
           <div className="dash-scroll">
             <table className="dash-table">
               <thead>
-                <tr><th>Guard</th><th>Agency</th><th>Phone set up</th><th>Link</th></tr>
+                <tr><th>ID</th><th>Guard</th><th>Agency</th><th>Duty</th><th>Phone set up</th><th>Link</th></tr>
               </thead>
               <tbody>
                 {guards.map(g => (
                   <tr key={g.ROWID}>
-                    <td className="left">{g.escort_name}</td>
+                    <td>{g.id_number}</td>
+                    <td className="left">{g.guard_name}</td>
                     <td>{g.agency}</td>
+                    <td>{g.duty_type === 'POST' ? '📍 Post' : '🚐 Escort'}</td>
                     <td className={g.phones ? 'sim-in' : ''}>{g.phones ? '📱 ' + g.phones : '—'}</td>
                     <td>
                       <button className="btn secondary" onClick={() => show(g)}>{g.guard_token ? 'Show QR' : 'Create link'}</button>
                     </td>
                   </tr>
                 ))}
-                {guards.length === 0 && <tr><td colSpan="4">No escorts yet. Upload the Excel first.</td></tr>}
+                {guards.length === 0 && <tr><td colSpan="6">No guards in the master yet.</td></tr>}
               </tbody>
             </table>
           </div>

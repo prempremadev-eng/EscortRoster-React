@@ -5,7 +5,7 @@ import TableFooter from './TableFooter.jsx';
 import { PAGE_SIZE, formatLongDate, routeLocks } from '../utils.js';
 
 // Main duty sheet: one page-block (header + 15 rows + footer) per printed A4 page.
-export default function DutyTable({ displayRows, duty, stops, cardIn, rotation, dutyDate, cellStatus, actions }) {
+export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate, cellStatus, actions }) {
   const totalPages = Math.max(1, Math.ceil(displayRows.length / PAGE_SIZE));
   const dateText = formatLongDate(dutyDate);
   const pages = Array.from({ length: totalPages }, (_, p) => p);
@@ -33,7 +33,6 @@ export default function DutyTable({ displayRows, duty, stops, cardIn, rotation, 
                 seatNo={startIdx + i + 1}
                 entry={duty[String(r.ROWID)]}
                 stops={stops}
-                inTime={cardIn[String(r.ROWID)]}
                 rotation={rotation}
                 cellStatus={cellStatus}
                 actions={actions}
@@ -48,33 +47,25 @@ export default function DutyTable({ displayRows, duty, stops, cardIn, rotation, 
   });
 }
 
-function EscortRow({ r, seatNo, entry, stops, inTime, rotation, cellStatus, actions }) {
+function EscortRow({ r, seatNo, entry, stops, rotation, cellStatus, actions }) {
   const routes = (entry && entry.routes) || [];
   const remarks = (entry && entry.remarks) || '';
   const id = String(r.ROWID);
 
-  const textCell = (field, cls, extra) => (
+  const textCell = (field, cls) => (
     <td className={cls}>
       <Field
         value={r[field]}
         onChange={v => actions.setEscortField(id, field, v)}
         onCommit={() => actions.saveEscort(id)}
       />
-      {extra}
     </td>
-  );
-
-  // Access card: ✅ first IN time of the duty day, ⏳ not IN yet. Screen only, print stays the same.
-  const cardMark = (
-    <div className={'card-mark no-print' + (inTime ? ' in' : '')} title={inTime ? 'Card IN at ' + inTime : 'Card not IN yet'}>
-      {inTime ? '✅ ' + inTime : '⏳'}
-    </div>
   );
 
   return (
     <tr>
       <td className="rowno col-sno">{seatNo}</td>
-      {textCell('name', 'name col-name', cardMark)}
+      {textCell('name', 'name col-name')}
       {textCell('agency')}
       {textCell('mobile')}
       {textCell('id')}

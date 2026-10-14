@@ -135,16 +135,6 @@ export function groupStops(rows) {
 
 // A trip's paperwork is complete when the cab is noted and at least one employee is logged.
 // (Every stop is saved with all four fields, so stop rows are never half filled.)
-// AccessLog IN rows (oldest first) -> { escort ROWID: first IN time of the duty day }.
-export function firstCardIn(rows) {
-  const map = {};
-  (rows || []).forEach(r => {
-    const id = String(r.escort_id);
-    if (!map[id]) map[id] = r.punch_time;
-  });
-  return map;
-}
-
 export function isTripComplete(rec, stops) {
   return !!((rec.vehicle || '').trim() && (rec.driver || '').trim() && stops.length > 0);
 }

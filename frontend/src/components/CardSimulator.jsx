@@ -12,10 +12,11 @@ function pushNote(name, push) {
 }
 
 // Pretends to be the access-card machine at the gate: each button press writes one AccessLog row.
+// Every guard in the Guards master can swipe (POST and ESCORT).
 // Later the real card system writes the same table, and nothing else in the app has to change.
 export default function CardSimulator() {
   const dutyDate = dutyDayStr();
-  const [escorts, setEscorts] = useState([]);
+  const [guards, setGuards] = useState([]);
   const [logs, setLogs] = useState([]);
   const [status, setStatus] = useState('loading');
   const [busy, setBusy] = useState(null);
@@ -26,8 +27,8 @@ export default function CardSimulator() {
   const load = useCallback(async () => {
     setStatus('loading');
     try {
-      const [e, l] = await Promise.all([api.getEscorts(), api.getAccessLog(dutyDate)]);
-      setEscorts(e.data);
+      const [g, l] = await Promise.all([api.getGuards(), api.getAccessLog(dutyDate)]);
+      setGuards(g.data);
       setLogs(l.data);
       setStatus('ok');
     } catch (err) {
@@ -38,15 +39,15 @@ export default function CardSimulator() {
 
   useEffect(() => { load(); }, [load]);
 
-  async function punch(escortId, direction) {
-    setBusy(escortId);
+  async function punch(guardId, direction) {
+    setBusy(guardId);
     setError('');
     setNote('');
     try {
-      const result = await api.addAccessLog(escortId, direction);
+      const result = await api.addAccessLog(guardId, direction);
       // Add the new row ourselves instead of reloading the whole list (saves a read).
       setLogs(prev => [...prev, result.data]);
-      setNote(pushNote(names[escortId], result.push));
+      setNote(pushNote(names[guardId], result.push));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -54,11 +55,13 @@ export default function CardSimulator() {
     }
   }
 
-  // Latest swipe of each guard decides their status.
+  // Latest swipe of each guard decides their status. Old rows from before the Guards master
+  // have no guard_id and are left out.
+  const myLogs = logs.filter(l => l.guard_id);
   const last = {};
-  logs.forEach(l => { last[String(l.escort_id)] = l; });
+  myLogs.forEach(l => { last[String(l.guard_id)] = l; });
   const names = {};
-  escorts.forEach(e => { names[String(e.ROWID)] = e.escort_name; });
+  guards.forEach(g => { names[String(g.ROWID)] = g.guard_name; });
 
   return (
     <>
@@ -67,7 +70,7 @@ export default function CardSimulator() {
       </div>
 
       <div className="toolbar no-print">
-        <a className="btn secondary" href="#">← Duty Sheet</a>
+        <a className="btn secondary" href="#links">🔗 Guard Links</a>
         <div><label>Duty day:</label> {dutyDate}</div>
         <div className="spacer"></div>
         <button className="btn" onClick={load}>🔄 Refresh</button>
@@ -85,17 +88,19 @@ export default function CardSimulator() {
             <div className="dash-scroll">
               <table className="dash-table">
                 <thead>
-                  <tr><th>Guard</th><th>Agency</th><th>Status</th><th>Card</th></tr>
+                  <tr><th>ID</th><th>Guard</th><th>Agency</th><th>Duty</th><th>Status</th><th>Card</th></tr>
                 </thead>
                 <tbody>
-                  {escorts.map(e => {
-                    const id = String(e.ROWID);
+                  {guards.map(g => {
+                    const id = String(g.ROWID);
                     const l = last[id];
                     const isIn = l && l.direction === 'IN';
                     return (
                       <tr key={id}>
-                        <td className="left">{e.escort_name}</td>
-                        <td>{e.agency}</td>
+                        <td>{g.id_number}</td>
+                        <td className="left">{g.guard_name}</td>
+                        <td>{g.agency}</td>
+                        <td>{g.duty_type === 'POST' ? '📍 ' + (g.post_name || 'Post') : '🚐 Escort'}</td>
                         <td className={isIn ? 'sim-in' : ''}>{l ? (isIn ? '✅ IN ' : '🚪 OUT ') + l.punch_time : '⏳'}</td>
                         <td className="sim-buttons">
                           <button className="btn" disabled={busy === id} onClick={() => punch(id, 'IN')}>IN</button>
@@ -104,27 +109,27 @@ export default function CardSimulator() {
                       </tr>
                     );
                   })}
-                  {escorts.length === 0 && <tr><td colSpan="4">No escorts yet. Upload the Excel first.</td></tr>}
+                  {guards.length === 0 && <tr><td colSpan="6">No guards in the master yet.</td></tr>}
                 </tbody>
               </table>
             </div>
 
-            <h2 className="dash-h2">Swipe log ({logs.length})</h2>
+            <h2 className="dash-h2">Swipe log ({myLogs.length})</h2>
             <div className="dash-scroll">
               <table className="dash-table">
                 <thead>
                   <tr><th>Time</th><th>Guard</th><th>Direction</th><th>Source</th></tr>
                 </thead>
                 <tbody>
-                  {[...logs].reverse().map(l => (
+                  {[...myLogs].reverse().map(l => (
                     <tr key={l.ROWID}>
                       <td>{l.punch_time}</td>
-                      <td className="left">{names[String(l.escort_id)] || '(removed escort)'}</td>
+                      <td className="left">{names[String(l.guard_id)] || '(inactive guard)'}</td>
                       <td>{l.direction}</td>
                       <td>{l.source}</td>
                     </tr>
                   ))}
-                  {logs.length === 0 && <tr><td colSpan="4">No swipes yet for this duty day.</td></tr>}
+                  {myLogs.length === 0 && <tr><td colSpan="4">No swipes yet for this duty day.</td></tr>}
                 </tbody>
               </table>
             </div>

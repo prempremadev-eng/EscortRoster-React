@@ -85,8 +85,8 @@ export default function GuardSetup({ token }) {
 
         {info && step !== 'error' && (
           <div className="setup-card">
-            <div className="setup-hello">Hi <b>{info.escort_name}</b> 👋</div>
-            <p>When your access card shows <b>IN</b>, this phone will get a message with your seat for the day.</p>
+            <div className="setup-hello">Hi <b>{info.guard_name}</b> 👋</div>
+            <p>When your access card shows <b>IN</b>, this phone will get a message with your seat or post for the day.</p>
 
             {step === 'ready' && <button className="btn setup-btn" onClick={allow}>🔔 Allow notifications</button>}
             {step === 'working' && <button className="btn setup-btn" disabled>Please wait...</button>}

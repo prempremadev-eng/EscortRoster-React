@@ -26,11 +26,15 @@ export default function GuardPage({ token, testDate }) {
 
   const mine = data && data.seats && data.seats.find(s => s.me);
   const inCount = data && data.seats ? data.seats.filter(s => s.name).length : 0;
+  const isPost = data && data.dutyType === 'POST';
+  const headline = isPost
+    ? (data.postName ? '📍 ' + data.postName : '✅ You are IN')
+    : (mine ? '⭐ Seat ' + mine.seat : '✅ You are IN');
 
   return (
     <>
       <div className="titlebar">
-        <h1>🪑 My Seat</h1>
+        <h1>{isPost ? '📍 My Post' : '🪑 My Seat'}</h1>
       </div>
 
       <div className="setup">
@@ -41,7 +45,7 @@ export default function GuardPage({ token, testDate }) {
           <div className="setup-card">
             <div className="setup-hello">Hi <b>{data.name}</b> 👋</div>
             <div className="guard-lock">🔒</div>
-            <p>Your seat page opens after your access card shows <b>IN</b> for today's duty.</p>
+            <p>Your duty page opens after your access card shows <b>IN</b> for today's duty.</p>
             <button className="btn secondary setup-btn" onClick={load}>🔄 Check again</button>
           </div>
         )}
@@ -50,11 +54,13 @@ export default function GuardPage({ token, testDate }) {
           <>
             <div className="setup-card guard-head">
               <div className="guard-date">{formatLongDate(data.dutyDate)}</div>
-              <div className="guard-me">{mine ? '⭐ Seat ' + mine.seat : '✅ You are IN'}</div>
+              <div className="guard-me">{headline}</div>
               <div className="guard-sub">{data.name} · IN {data.inTime}</div>
             </div>
 
-            {data.seats.length === 0 ? (
+            {isPost ? (
+              <div className="setup-card">Today your post is <b>{data.postName || 'not set yet'}</b>. The full post page comes later.</div>
+            ) : data.seats.length === 0 ? (
               <div className="setup-card">No rotation seats today (Saturday / Sunday).</div>
             ) : (
               <>
