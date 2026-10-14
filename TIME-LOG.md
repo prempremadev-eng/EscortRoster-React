@@ -13,6 +13,7 @@
 | Time | Event |
 |---|---|
 | ~22:00 | ▶️ Start (no "start" message; first table created 22:05) |
-| 23:48 | ⏹️ Done (Guard Master, access moved to Guards, guard duty sheet, New link) |
+| 23:48 | ⏸️ Said "naalaku start panalam" |
+| 00:04 (15 Oct) | ⏹️ Good night (after phone test check + per-device push report) |
 
-**Total:** ~1 h 48 min
+**Total:** ~2 h (22:00 → 00:04)
