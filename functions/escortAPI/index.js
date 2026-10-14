@@ -926,24 +926,33 @@ async function guardByToken(zcql, token) {
 
 // Sends one notification to every phone the guard has set up.
 // A phone that uninstalled / blocked us answers 404 or 410: drop that subscription.
+// `devices` says what happened per phone, so the setup page can show which one failed.
+// "sent" only means the push service (Google / Apple / Mozilla) took it; the phone's own
+// settings still decide whether it is shown.
 async function sendPushToGuard(catalystApp, guardId, payload) {
   const keys = await getVapidKeys(catalystApp);
-  const subs = await selectAll(catalystApp.zcql(), 'PushSubscriptions', `SELECT ROWID, subscription_json FROM PushSubscriptions WHERE guard_id = ${requireRowId(guardId)} ORDER BY ROWID ASC`);
+  const subs = await selectAll(catalystApp.zcql(), 'PushSubscriptions', `SELECT ROWID, subscription_json, device FROM PushSubscriptions WHERE guard_id = ${requireRowId(guardId)} ORDER BY ROWID ASC`);
   const table = catalystApp.datastore().table('PushSubscriptions');
-  let sent = 0;
+  const devices = [];
   for (const s of subs) {
+    const device = s.device || 'other';
     try {
       await webpush.sendNotification(JSON.parse(s.subscription_json), JSON.stringify(payload), {
         vapidDetails: { subject: VAPID_SUBJECT, publicKey: keys.publicKey, privateKey: keys.privateKey },
         TTL: 60 * 60
       });
-      sent++;
+      devices.push({ device, result: 'sent' });
     } catch (err) {
-      if (err.statusCode === 404 || err.statusCode === 410) await table.deleteRow(s.ROWID);
-      else console.error('Push failed:', err.statusCode, err.body || err.message);
+      if (err.statusCode === 404 || err.statusCode === 410) {
+        await table.deleteRow(s.ROWID);
+        devices.push({ device, result: 'removed' });
+      } else {
+        console.error('Push failed:', err.statusCode, err.body || err.message);
+        devices.push({ device, result: 'failed', code: err.statusCode || null });
+      }
     }
   }
-  return { phones: subs.length, sent };
+  return { phones: subs.length, sent: devices.filter(d => d.result === 'sent').length, devices };
 }
 
 // Card Simulator: every active guard from the master (POST and ESCORT).

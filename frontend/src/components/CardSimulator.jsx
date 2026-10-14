@@ -8,7 +8,8 @@ function pushNote(name, push) {
   if (push.error) return '❌ ' + name + ': push failed (' + push.error + ')';
   if (push.skipped) return 'ℹ️ ' + name + ': ' + push.skipped + ', no new notification.';
   if (!push.phones) return '📵 ' + name + ': no phone set up (Guard Links).';
-  return '📨 ' + name + ': sent to ' + push.sent + ' of ' + push.phones + ' phone(s)' + (push.seat ? ', Seat ' + push.seat : '') + '.';
+  const failed = (push.devices || []).filter(d => d.result !== 'sent').map(d => d.device + ' ' + d.result).join(', ');
+  return '📨 ' + name + ': sent to ' + push.sent + ' of ' + push.phones + ' phone(s)' + (push.seat ? ', Seat ' + push.seat : '') + (failed ? ' (' + failed + ')' : '') + '.';
 }
 
 // Pretends to be the access-card machine at the gate: each button press writes one AccessLog row.

@@ -14,6 +14,15 @@ function deviceType() {
   return 'other';
 }
 
+const DEVICE_NAME = { android: '📱 Android', iphone: '📱 iPhone', other: '💻 Computer' };
+const RESULT = { sent: '✅ sent', failed: '❌ failed', removed: '🗑 old, removed' };
+
+// One line per device, e.g. "📱 Android ✅ sent · 💻 Computer ✅ sent".
+function testReport(devices) {
+  const line = devices.map(d => DEVICE_NAME[d.device] + ' ' + RESULT[d.result]).join(' · ');
+  return '📨 ' + line + '. A sent message should appear in a few seconds. If this phone shows ✅ but nothing appears, check the phone\'s notification settings for Chrome.';
+}
+
 // iPhone allows web push only for an app opened from the Home Screen (iOS 16.4+).
 const isIphoneBrowserTab = () => deviceType() === 'iphone' && !window.navigator.standalone;
 
@@ -67,7 +76,7 @@ export default function GuardSetup({ token }) {
     setMessage('');
     try {
       const r = (await api.testPush(token)).data;
-      setMessage(r.sent ? '📨 Sent. It should appear in a few seconds.' : 'No phone is set up yet. Tap Allow first.');
+      setMessage(r.phones ? testReport(r.devices) : 'No phone is set up yet. Tap Allow first.');
     } catch (err) {
       setMessage(err.message);
     }
