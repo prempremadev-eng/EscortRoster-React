@@ -54,8 +54,10 @@ export const api = {
 
   getGuards: () => apiCall('GET', '/getGuards'),
   getMaster: () => apiCall('GET', '/getMaster'),
-  getFreeEscorts: () => apiCall('GET', '/getFreeEscorts'),
+  getFreeEscorts: keep => apiCall('GET', '/getFreeEscorts' + (keep ? '?keep=' + q(keep) : '')),
   addGuard: guard => apiCall('POST', '/addGuard', guard),
+  updateGuard: guard => apiCall('PUT', '/updateGuard', guard),
+  setGuardActive: (ROWID, active) => apiCall('PUT', '/setGuardActive', { ROWID, active }),
   addAccessLog: (guard_id, direction) => apiCall('POST', '/addAccessLog', { guard_id, direction }),
   getAccessLog: date => apiCall('GET', '/getAccessLog?date=' + q(date)),
 

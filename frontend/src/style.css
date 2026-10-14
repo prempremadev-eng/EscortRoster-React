@@ -955,3 +955,13 @@ a.btn{text-decoration:none;display:inline-block;}
 .master-form-title{font-weight:bold;color:var(--blue-dark);margin-bottom:10px;}
 .master-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px 12px;margin-bottom:12px;}
 @media (max-width:480px){.master-search{grid-column:auto;}}
+.master-actions{white-space:nowrap;}
+.master-actions .btn{padding:4px 10px;}
+.master-left td{color:#94a3b8;background:#f8fafc;}
+.master-left-toggle{display:flex;align-items:center;gap:6px;font-size:13px;color:#475569;}
+.master-danger{color:#b91c1c;border-color:#fca5a5;margin-left:auto;}
+.master-danger:hover{background:#fef2f2;}
+.master-danger-solid{background:#b91c1c;}
+.master-danger-solid:hover{background:#7f1d1d;}
+.master-confirm{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;margin-top:10px;}
+.master-confirm .link-actions{margin:8px 0 0;}

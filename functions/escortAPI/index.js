@@ -768,15 +768,15 @@ app.get('/getGuards', async (req, res) => {
 const DUTY_TYPES = ['POST', 'ESCORT'];
 const ID_NUMBER_RE = /^[A-Za-z0-9-]{1,20}$/;
 
-// Master page in one call: active guards, branches and today's swipes (3 SELECTs).
-// The page joins them itself, so Refresh is the only time it reads again.
+// Master page in one call: all guards (left ones too, the page hides them), branches and
+// today's swipes (3 SELECTs). The page joins them itself, so Refresh is the only time it reads again.
 app.get('/getMaster', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
     const zcql = catalystApp.zcql();
     const { dutyDate } = istNow();
     const [guards, branches, swipes] = await Promise.all([
-      selectAll(zcql, 'Guards', "SELECT ROWID, id_number, guard_name, agency, branch_id, duty_type, post_name, escort_id, phone FROM Guards WHERE is_active = 'true' ORDER BY id_number ASC"),
+      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, guard_name, agency, branch_id, duty_type, post_name, escort_id, phone, is_active FROM Guards ORDER BY id_number ASC'),
       selectAll(zcql, 'Branches', "SELECT ROWID, branch_code, branch_name, company, country, state, city, area FROM Branches WHERE is_active = 'true' ORDER BY branch_code ASC"),
       selectAll(zcql, 'AccessLog', `SELECT guard_id, direction, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' ORDER BY CREATEDTIME ASC`)
     ]);
@@ -786,16 +786,19 @@ app.get('/getMaster', async (req, res) => {
   }
 });
 
-// Add-guard form, ESCORT only: escorts that no guard is linked to yet (one guard per escort).
+// Guard form, ESCORT only: escorts that no active guard is linked to (one guard per escort).
+// ?keep=<escort ROWID> keeps the escort of the guard being edited in the list.
 app.get('/getFreeEscorts', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
     const zcql = catalystApp.zcql();
+    const keep = req.query.keep ? String(requireRowId(req.query.keep)) : '';
     const [escorts, linked] = await Promise.all([
       selectAll(zcql, 'Escorts', "SELECT ROWID, escort_name, agency FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
-      selectAll(zcql, 'Guards', "SELECT escort_id FROM Guards WHERE duty_type = 'ESCORT' ORDER BY ROWID ASC")
+      selectAll(zcql, 'Guards', "SELECT escort_id FROM Guards WHERE duty_type = 'ESCORT' AND is_active = 'true' ORDER BY ROWID ASC")
     ]);
     const taken = new Set(linked.map(g => String(g.escort_id)));
+    taken.delete(keep);
     res.status(200).json({ status: 'success', data: escorts.filter(e => !taken.has(String(e.ROWID))) });
   } catch (err) {
     fail(res, err);
@@ -809,43 +812,83 @@ function requireText(value, label, max) {
   return text;
 }
 
+// Form fields -> a clean Guards row. POST guards have a post and no escort; ESCORT guards the other way.
+function guardFromBody(b) {
+  const id_number = String(b.id_number || '').trim().toUpperCase();
+  if (!ID_NUMBER_RE.test(id_number)) throw new Error('ID number: letters, numbers and - only (max 20)');
+  const duty_type = String(b.duty_type || '').toUpperCase();
+  if (!DUTY_TYPES.includes(duty_type)) throw new Error('Duty must be POST or ESCORT');
+  const phone = String(b.phone || '').trim();
+  if (phone && !/^[0-9+ ]{6,15}$/.test(phone)) throw new Error('Phone: numbers only (6 to 15)');
+  return {
+    id_number,
+    guard_name: requireText(b.guard_name, 'Name', 100),
+    agency: requireText(b.agency, 'Agency', 100),
+    branch_id: requireRowId(b.branch_id),
+    duty_type,
+    post_name: duty_type === 'POST' ? requireText(b.post_name, 'Post', 50) : null,
+    escort_id: duty_type === 'ESCORT' ? requireRowId(b.escort_id) : null,
+    phone: phone || null
+  };
+}
+
+// Rules shared by add and edit. `selfId` is the guard being edited (it may keep its own ID / escort).
+async function checkGuard(zcql, row, selfId) {
+  const other = rows => rows.some(r => String(r.Guards.ROWID) !== String(selfId || ''));
+  const checks = [
+    zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE id_number = '${row.id_number}'`),
+    zcql.executeZCQLQuery(`SELECT ROWID FROM Branches WHERE ROWID = ${row.branch_id} AND is_active = 'true'`)
+  ];
+  if (row.escort_id) {
+    checks.push(zcql.executeZCQLQuery(`SELECT ROWID FROM Escorts WHERE ROWID = ${row.escort_id} AND is_active = 'true'`));
+    checks.push(zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE escort_id = ${row.escort_id} AND is_active = 'true'`));
+  }
+  const [sameId, branch, escort, escortTaken] = await Promise.all(checks);
+  if (other(sameId)) throw new Error('ID number ' + row.id_number + ' is already used');
+  if (!branch.length) throw new Error('Branch not found');
+  if (row.escort_id && !escort.length) throw new Error('Escort not found');
+  if (row.escort_id && other(escortTaken)) throw new Error('This escort is already linked to another guard');
+}
+
 app.post('/addGuard', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
-    const zcql = catalystApp.zcql();
-    const b = req.body || {};
-    const id_number = String(b.id_number || '').trim().toUpperCase();
-    if (!ID_NUMBER_RE.test(id_number)) throw new Error('ID number: letters, numbers and - only (max 20)');
-    const guard_name = requireText(b.guard_name, 'Name', 100);
-    const agency = requireText(b.agency, 'Agency', 100);
-    const duty_type = String(b.duty_type || '').toUpperCase();
-    if (!DUTY_TYPES.includes(duty_type)) throw new Error('Duty must be POST or ESCORT');
-    const branch_id = requireRowId(b.branch_id);
-    const phone = String(b.phone || '').trim();
-    if (phone && !/^[0-9+ ]{6,15}$/.test(phone)) throw new Error('Phone: numbers only (6 to 15)');
-
-    const row = { id_number, guard_name, agency, branch_id, duty_type, phone: phone || null };
-    if (duty_type === 'POST') {
-      row.post_name = requireText(b.post_name, 'Post', 50);
-    } else {
-      row.escort_id = requireRowId(b.escort_id);
-    }
-
-    const checks = [
-      zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE id_number = '${id_number}'`),
-      zcql.executeZCQLQuery(`SELECT ROWID FROM Branches WHERE ROWID = ${branch_id} AND is_active = 'true'`)
-    ];
-    if (row.escort_id) {
-      checks.push(zcql.executeZCQLQuery(`SELECT ROWID FROM Escorts WHERE ROWID = ${row.escort_id} AND is_active = 'true'`));
-      checks.push(zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE escort_id = ${row.escort_id}`));
-    }
-    const [sameId, branch, escort, escortTaken] = await Promise.all(checks);
-    if (sameId.length) throw new Error('ID number ' + id_number + ' is already used');
-    if (!branch.length) throw new Error('Branch not found');
-    if (row.escort_id && !escort.length) throw new Error('Escort not found');
-    if (row.escort_id && escortTaken.length) throw new Error('This escort is already linked to another guard');
-
+    const row = guardFromBody(req.body || {});
+    await checkGuard(catalystApp.zcql(), row, null);
     const result = await catalystApp.datastore().table('Guards').insertRow(row);
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+app.put('/updateGuard', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const current = await guardById(zcql, req.body && req.body.ROWID);
+    const row = guardFromBody(req.body);
+    await checkGuard(zcql, row, current.ROWID);
+    const result = await catalystApp.datastore().table('Guards').updateRow({ ROWID: current.ROWID, ...row });
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// A guard who left is switched off, never deleted, so old swipes still show their name.
+// Switched off: their link and phone stop working and the Card Simulator hides them.
+app.put('/setGuardActive', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const guard = await guardById(zcql, req.body && req.body.ROWID);
+    const active = req.body.active === true;
+    if (active && guard.duty_type === 'ESCORT' && guard.escort_id) {
+      const taken = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE escort_id = ${guard.escort_id} AND is_active = 'true'`);
+      if (taken.length) throw new Error('Another active guard is linked to this escort now. Edit one of them first.');
+    }
+    const result = await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, is_active: active ? 'true' : 'false' });
     res.status(200).json({ status: 'success', data: result });
   } catch (err) {
     fail(res, err);

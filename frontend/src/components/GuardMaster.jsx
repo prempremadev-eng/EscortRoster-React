@@ -20,12 +20,15 @@ function todayStatus(swipes) {
   return map;
 }
 
-// Head-office register: every guard of every branch, today's card status, filters, add guard.
+// Head-office register: every guard of every branch, today's card status, filters,
+// add / edit a guard, and switch off a guard who left (never deleted).
 export default function GuardMaster() {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('loading');
   const [filters, setFilters] = useState(NO_FILTERS);
+  const [showLeft, setShowLeft] = useState(false);
   const [form, setForm] = useState(null);
+  const [confirmLeft, setConfirmLeft] = useState(false);
   const [freeEscorts, setFreeEscorts] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -56,7 +59,9 @@ export default function GuardMaster() {
   // Cascading: picking a state narrows the city list, picking a city narrows the branch list.
   const inState = branches.filter(b => !filters.state || b.state === filters.state);
   const inCity = inState.filter(b => !filters.city || b.city === filters.city);
-  const guards = data ? data.guards : [];
+  const allGuards = data ? data.guards : [];
+  const leftCount = allGuards.filter(g => g.is_active !== 'true').length;
+  const guards = showLeft ? allGuards : allGuards.filter(g => g.is_active === 'true');
 
   const statusOf = g => (today[String(g.ROWID)] || { status: 'NONE' }).status;
   const q = filters.q.trim().toLowerCase();
@@ -89,22 +94,45 @@ export default function GuardMaster() {
   if (filters.city) trail.push(filters.city);
   if (filters.branch && branchById[filters.branch]) trail.push(branchById[filters.branch].branch_name);
 
-  function openForm() {
-    setError('');
-    setNote('');
-    setForm({ ...BLANK_GUARD, branch_id: filters.branch || '' });
+  // The escort list costs reads, so fetch it only when the form shows ESCORT.
+  // `keep` = the escort of the guard being edited, so it stays in the list.
+  async function loadFreeEscorts(keep) {
+    setFreeEscorts(null);
+    try {
+      setFreeEscorts((await api.getFreeEscorts(keep)).data);
+    } catch (err) {
+      setError(err.message);
+    }
   }
 
-  async function setFormField(key, value) {
+  function openForm(g) {
+    setError('');
+    setNote('');
+    setConfirmLeft(false);
+    const next = g
+      ? { ...BLANK_GUARD, ...g, post_name: g.post_name || '', escort_id: g.escort_id || '', phone: g.phone || '' }
+      : { ...BLANK_GUARD, branch_id: filters.branch || '' };
+    setForm(next);
+    if (next.duty_type === 'ESCORT') loadFreeEscorts(next.escort_id);
+    else setFreeEscorts(null);
+    window.scrollTo({ top: 0 });
+  }
+
+  function setFormField(key, value) {
     setForm(prev => ({ ...prev, [key]: value }));
-    // The escort list costs reads, so fetch it only when ESCORT is picked.
-    if (key === 'duty_type' && value === 'ESCORT' && !freeEscorts) {
-      try {
-        setFreeEscorts((await api.getFreeEscorts()).data);
-      } catch (err) {
-        setError(err.message);
-      }
-    }
+    if (key === 'duty_type' && value === 'ESCORT' && !freeEscorts) loadFreeEscorts(form.escort_id);
+  }
+
+  // Put a saved row into the list ourselves instead of reloading everything (saves reads).
+  function putRow(saved) {
+    setData(prev => {
+      const old = prev.guards.find(x => String(x.ROWID) === String(saved.ROWID));
+      return {
+        ...prev,
+        guards: [...prev.guards.filter(x => x !== old), { ...old, ...saved }]
+          .sort((a, b) => a.id_number.localeCompare(b.id_number))
+      };
+    });
   }
 
   async function save(e) {
@@ -112,22 +140,38 @@ export default function GuardMaster() {
     setSaving(true);
     setError('');
     try {
-      const payload = { ...form };
-      if (payload.duty_type === 'POST') delete payload.escort_id;
-      else delete payload.post_name;
-      const saved = (await api.addGuard(payload)).data;
-      // Add the new row ourselves instead of reloading everything (saves reads).
-      setData(prev => ({
-        ...prev,
-        guards: [...prev.guards, saved].sort((a, b) => a.id_number.localeCompare(b.id_number))
-      }));
-      if (saved.escort_id) setFreeEscorts(prev => prev && prev.filter(x => String(x.ROWID) !== String(saved.escort_id)));
-      setNote('✅ ' + saved.guard_name + ' (' + saved.id_number + ') added.');
+      const fields = ['id_number', 'guard_name', 'agency', 'branch_id', 'duty_type', 'phone',
+        form.duty_type === 'POST' ? 'post_name' : 'escort_id'];
+      const payload = {};
+      fields.forEach(k => { payload[k] = form[k]; });
+      const saved = form.ROWID
+        ? (await api.updateGuard({ ROWID: form.ROWID, ...payload })).data
+        : (await api.addGuard(payload)).data;
+      putRow(saved);
+      setNote('✅ ' + saved.guard_name + ' (' + saved.id_number + ') ' + (form.ROWID ? 'saved.' : 'added.'));
       setForm(null);
+      setFreeEscorts(null);
     } catch (err) {
       setError(err.message);
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function setActive(g, active) {
+    setSaving(true);
+    setError('');
+    setNote('');
+    try {
+      putRow((await api.setGuardActive(g.ROWID, active)).data);
+      setNote(active ? '↩️ ' + g.guard_name + ' is active again.' : '🚫 ' + g.guard_name + ' is switched off (left). Their link and phone stop working.');
+      setForm(null);
+      setFreeEscorts(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+      setConfirmLeft(false);
     }
   }
 
@@ -144,7 +188,7 @@ export default function GuardMaster() {
         <a className="btn secondary" href="#links">🔗 Guard Links</a>
         {data && <div><label>Duty day:</label> {data.dutyDate}</div>}
         <div className="spacer"></div>
-        <button className="btn secondary" onClick={openForm}>➕ Add guard</button>
+        <button className="btn secondary" onClick={() => openForm()}>➕ Add guard</button>
         <button className="btn" onClick={load}>🔄 Refresh</button>
       </div>
 
@@ -154,7 +198,7 @@ export default function GuardMaster() {
 
         {form && (
           <form className="master-form" onSubmit={save}>
-            <div className="master-form-title">➕ New guard</div>
+            <div className="master-form-title">{form.ROWID ? '✏️ Edit ' + form.guard_name : '➕ New guard'}</div>
             <div className="master-grid">
               <label>ID number<input id="g-id" value={form.id_number} onChange={e => setFormField('id_number', e.target.value)} placeholder="SG-1009" required /></label>
               <label>Name<input id="g-name" value={form.guard_name} onChange={e => setFormField('guard_name', e.target.value)} required /></label>
@@ -190,7 +234,19 @@ export default function GuardMaster() {
             <div className="link-actions">
               <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save guard'}</button>
               <button className="btn secondary" type="button" onClick={() => setForm(null)}>Cancel</button>
+              {form.ROWID && form.is_active === 'true' && !confirmLeft && (
+                <button className="btn secondary master-danger" type="button" onClick={() => setConfirmLeft(true)}>🚫 Guard left</button>
+              )}
             </div>
+            {confirmLeft && (
+              <div className="master-confirm">
+                Switch off <b>{form.guard_name}</b>? Their link and phone stop working. Old swipes stay.
+                <div className="link-actions">
+                  <button className="btn master-danger-solid" type="button" disabled={saving} onClick={() => setActive(form, false)}>Yes, switch off</button>
+                  <button className="btn secondary" type="button" onClick={() => setConfirmLeft(false)}>No</button>
+                </div>
+              </div>
+            )}
           </form>
         )}
 
@@ -240,6 +296,11 @@ export default function GuardMaster() {
               <div className="master-trail">Showing: <b>{trail.join(' › ')}</b></div>
               <button className={'btn' + (filters.duty === 'ESCORT' ? '' : ' secondary')} onClick={() => toggle('duty', 'ESCORT')}>🚐 Escorts</button>
               <button className="btn secondary" onClick={() => setFilters(NO_FILTERS)}>Clear filters</button>
+              {leftCount > 0 && (
+                <label className="master-left-toggle">
+                  <input id="f-left" type="checkbox" checked={showLeft} onChange={e => setShowLeft(e.target.checked)} /> Show guards who left ({leftCount})
+                </label>
+              )}
             </div>
 
             <div className="dash-cards">
@@ -254,14 +315,15 @@ export default function GuardMaster() {
             <div className="dash-scroll">
               <table className="dash-table">
                 <thead>
-                  <tr><th>ID</th><th>Guard</th><th>Agency</th><th>Branch</th><th>Duty</th><th>IN</th><th>OUT</th><th>Status</th></tr>
+                  <tr><th>ID</th><th>Guard</th><th>Agency</th><th>Branch</th><th>Duty</th><th>IN</th><th>OUT</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody>
                   {shown.map(g => {
                     const b = branchById[String(g.branch_id)];
                     const t = today[String(g.ROWID)] || { status: 'NONE' };
+                    const left = g.is_active !== 'true';
                     return (
-                      <tr key={g.ROWID}>
+                      <tr key={g.ROWID} className={left ? 'master-left' : ''}>
                         <td>{g.id_number}</td>
                         <td className="left">{g.guard_name}</td>
                         <td>{g.agency}</td>
@@ -269,11 +331,16 @@ export default function GuardMaster() {
                         <td>{g.duty_type === 'POST' ? '📍 ' + (g.post_name || 'Post') : '🚐 Escort'}</td>
                         <td>{t.firstIn || '—'}</td>
                         <td>{t.lastOut || '—'}</td>
-                        <td className={t.status === 'IN' ? 'sim-in' : ''}>{STATUS_LABEL[t.status]}</td>
+                        <td className={t.status === 'IN' && !left ? 'sim-in' : ''}>{left ? '🚫 Left' : STATUS_LABEL[t.status]}</td>
+                        <td className="master-actions">
+                          {left
+                            ? <button className="btn secondary" disabled={saving} onClick={() => setActive(g, true)}>↩️ Re-activate</button>
+                            : <button className="btn secondary" onClick={() => openForm(g)}>✏️ Edit</button>}
+                        </td>
                       </tr>
                     );
                   })}
-                  {shown.length === 0 && <tr><td colSpan="8">No guards match these filters.</td></tr>}
+                  {shown.length === 0 && <tr><td colSpan="9">No guards match these filters.</td></tr>}
                 </tbody>
               </table>
             </div>
