@@ -644,23 +644,39 @@ app.get('/guardDay', async (req, res) => {
     if (me.duty_type !== 'ESCORT' || !me.escort_id || day === 0 || day === 6) {
       return res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], seats: [] } });
     }
-    const [escorts, start, escortGuards, trips] = await Promise.all([
-      selectAll(zcql, 'Escorts', "SELECT ROWID, escort_name FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
+    const [escorts, start, escortGuards, records, myStops] = await Promise.all([
+      selectAll(zcql, 'Escorts', "SELECT ROWID, escort_name, agency FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
       getSetting(zcql, 'start_date'),
       selectAll(zcql, 'Guards', "SELECT ROWID, escort_id FROM Guards WHERE duty_type = 'ESCORT' ORDER BY ROWID ASC"),
-      myTrips(zcql, me.escort_id, dutyDate)
+      dayRoutes(zcql, dutyDate),
+      selectAll(zcql, 'TripStops', `SELECT ROWID, duty_record_id, emp_id, location, trip_type, stop_time FROM TripStops WHERE duty_date = '${dutyDate}' AND escort_id = ${me.escort_id} ORDER BY CREATEDTIME ASC`)
     ]);
     // Seats are escort rows; swipes are guard rows. Escorts ROWID → that guard's IN time.
     const escortIn = {};
     escortGuards.forEach(g => { if (g.escort_id && inTime[String(g.ROWID)]) escortIn[String(g.escort_id)] = inTime[String(g.ROWID)]; });
     const myEscortId = String(me.escort_id);
+    // The whole duty sheet of the day, read only (same seat order as the supervisor's sheet).
+    // Mobile and ID numbers are left out: every guard sees this page.
+    const byEscort = {};
+    records.forEach(r => { (byEscort[String(r.escort_id)] = byEscort[String(r.escort_id)] || []).push(r); });
     const rows = computeDisplayRows(escorts, ROTATION, start && start.setting_value, dutyDate);
-    const seats = rows.map((e, i) => {
+    const sheet = rows.map((e, i) => {
       const id = String(e.ROWID);
-      const isIn = !!escortIn[id];
-      return { seat: i + 1, me: id === myEscortId, name: isIn ? e.escort_name : null, inTime: isIn ? escortIn[id] : null };
+      const recs = byEscort[id] || [];
+      const first = recs.find(r => (parseInt(r.route_no, 10) || 1) === 1);
+      return {
+        seat: i + 1, me: id === myEscortId, name: e.escort_name, agency: e.agency, inTime: escortIn[id] || null,
+        routes: Array.from({ length: ROUTES }, (_, k) => {
+          const r = recs.find(x => (parseInt(x.route_no, 10) || 1) === k + 1);
+          return r ? { loc: r.location || '', out: r.out_time || '', in: r.in_time || '' } : null;
+        }),
+        remarks: (first && first.remarks) || ''
+      };
     });
-    res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], seats, ...trips } });
+    const routes = byEscort[myEscortId] || [];
+    const ids = new Set(routes.map(r => String(r.ROWID)));
+    const stops = myStops.filter(x => ids.has(String(x.duty_record_id)));
+    res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], sheet, routes, stops } });
   } catch (err) {
     fail(res, err);
   }
@@ -686,13 +702,20 @@ function optionalTime(value, label) {
   return t;
 }
 
-// The escort row's main-sheet trips (routes 1..4) and their employee stops for one duty day.
+// Main-sheet trips (routes 1..4) of a duty day, without the Extra and Sunday pickup rows.
+// With escortId: only that escort's trips.
+async function dayRoutes(zcql, dutyDate, escortId) {
+  const only = escortId ? ` AND escort_id = ${requireRowId(escortId)}` : '';
+  const records = await selectAll(zcql, 'DutyRecords', `SELECT ROWID, escort_id, route_no, seat_no, location, out_time, in_time, remarks, vehicle_no, driver_name, is_extra, is_sunday_pickup FROM DutyRecords WHERE duty_date = '${dutyDate}'${only} ORDER BY ROWID ASC`);
+  return records.filter(r => r.is_extra !== 'true' && r.is_sunday_pickup !== 'true');
+}
+
+// The escort row's trips and their employee stops for one duty day.
 async function myTrips(zcql, escortId, dutyDate) {
-  const [records, stops] = await Promise.all([
-    selectAll(zcql, 'DutyRecords', `SELECT ROWID, route_no, seat_no, location, out_time, in_time, vehicle_no, driver_name, is_extra, is_sunday_pickup FROM DutyRecords WHERE duty_date = '${dutyDate}' AND escort_id = ${requireRowId(escortId)} ORDER BY ROWID ASC`),
+  const [routes, stops] = await Promise.all([
+    dayRoutes(zcql, dutyDate, escortId),
     selectAll(zcql, 'TripStops', `SELECT ROWID, duty_record_id, emp_id, location, trip_type, stop_time FROM TripStops WHERE duty_date = '${dutyDate}' AND escort_id = ${escortId} ORDER BY CREATEDTIME ASC`)
   ]);
-  const routes = records.filter(r => r.is_extra !== 'true' && r.is_sunday_pickup !== 'true');
   const ids = new Set(routes.map(r => String(r.ROWID)));
   return { routes, stops: stops.filter(x => ids.has(String(x.duty_record_id))) };
 }

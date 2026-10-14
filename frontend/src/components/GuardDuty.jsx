@@ -2,40 +2,12 @@ import { useState } from 'react';
 import { api } from '../api.js';
 import { nowTime } from '../utils.js';
 
-const ROUTES = 4;
 const blankStop = () => ({ emp: '', loc: '', type: 'Drop', time: nowTime() });
 
-// Escort guard's own trips for today, filled from the phone (opened from the IN notification).
+// Editor for one route of the escort guard's own row (opened from their row on the duty sheet).
 // Same order as the duty sheet: Location → Out → In, and Route 2 opens after Route 1 is IN.
 // Every save goes through the guard's secret link; the server checks it is their own row.
-export default function GuardDuty({ token, testDate, routes, stops, onRoute, onStops }) {
-  const auth = { t: token, ...(testDate ? { date: testDate } : {}) };
-  const byNo = n => routes.find(r => (parseInt(r.route_no, 10) || 1) === n) || null;
-
-  return (
-    <div className="duty-list">
-      {Array.from({ length: ROUTES }, (_, i) => i + 1).map(n => {
-        const prev = n > 1 ? byNo(n - 1) : null;
-        const open = n === 1 || !!(prev && prev.out_time && prev.in_time);
-        const rec = byNo(n);
-        return (
-          <RouteCard
-            key={(rec && rec.ROWID) || 'new-' + n}
-            n={n}
-            open={open}
-            rec={rec}
-            stops={rec ? stops.filter(s => String(s.duty_record_id) === String(rec.ROWID)) : []}
-            auth={auth}
-            onRoute={onRoute}
-            onStops={onStops}
-          />
-        );
-      })}
-    </div>
-  );
-}
-
-function RouteCard({ n, open, rec, stops, auth, onRoute, onStops }) {
+export function RouteCard({ n, open, rec, stops, auth, onRoute, onStops }) {
   const [loc, setLoc] = useState((rec && rec.location) || '');
   const [out, setOut] = useState((rec && rec.out_time) || '');
   const [inn, setIn] = useState((rec && rec.in_time) || '');
