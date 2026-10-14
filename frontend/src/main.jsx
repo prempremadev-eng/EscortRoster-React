@@ -4,6 +4,7 @@ import App from './App.jsx';
 import Dashboard from './components/Dashboard.jsx';
 import CardSimulator from './components/CardSimulator.jsx';
 import GuardLinks from './components/GuardLinks.jsx';
+import GuardMaster from './components/GuardMaster.jsx';
 import GuardSetup from './components/GuardSetup.jsx';
 import GuardPage from './components/GuardPage.jsx';
 import './style.css';
@@ -27,7 +28,7 @@ function rememberGuard(hash) {
   return null;
 }
 
-// Pages without a router: the duty sheet, #dashboard, #simulator, #links (supervisor)
+// Pages without a router: the duty sheet, #dashboard, #master, #simulator, #links (supervisor)
 // and #setup/<token>, #guard/<token> (guard's phone).
 // The browser Back button works because each page is a URL hash.
 function Root() {
@@ -42,6 +43,7 @@ function Root() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
   if (hash === '#dashboard') return <Dashboard />;
+  if (hash === '#master') return <GuardMaster />;
   if (hash === '#simulator') return <CardSimulator />;
   if (hash === '#links') return <GuardLinks />;
   if (hash.startsWith('#setup/')) return <GuardSetup token={hash.slice('#setup/'.length)} />;

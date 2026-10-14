@@ -61,6 +61,7 @@ export default function GuardLinks() {
       </div>
 
       <div className="toolbar no-print">
+        <a className="btn secondary" href="#master">🛡️ Guard Master</a>
         <a className="btn secondary" href="#simulator">🪪 Card Simulator</a>
         <div className="spacer"></div>
         <button className="btn" onClick={load}>🔄 Refresh</button>

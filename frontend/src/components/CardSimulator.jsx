@@ -70,6 +70,7 @@ export default function CardSimulator() {
       </div>
 
       <div className="toolbar no-print">
+        <a className="btn secondary" href="#master">🛡️ Guard Master</a>
         <a className="btn secondary" href="#links">🔗 Guard Links</a>
         <div><label>Duty day:</label> {dutyDate}</div>
         <div className="spacer"></div>

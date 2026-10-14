@@ -53,6 +53,9 @@ export const api = {
   markUploadDone: value => apiCall('POST', '/markUploadDone', { value }),
 
   getGuards: () => apiCall('GET', '/getGuards'),
+  getMaster: () => apiCall('GET', '/getMaster'),
+  getFreeEscorts: () => apiCall('GET', '/getFreeEscorts'),
+  addGuard: guard => apiCall('POST', '/addGuard', guard),
   addAccessLog: (guard_id, direction) => apiCall('POST', '/addAccessLog', { guard_id, direction }),
   getAccessLog: date => apiCall('GET', '/getAccessLog?date=' + q(date)),
 

@@ -763,6 +763,95 @@ app.get('/getGuards', async (req, res) => {
   }
 });
 
+/* ---------------- GUARD MASTER (#master) ---------------- */
+
+const DUTY_TYPES = ['POST', 'ESCORT'];
+const ID_NUMBER_RE = /^[A-Za-z0-9-]{1,20}$/;
+
+// Master page in one call: active guards, branches and today's swipes (3 SELECTs).
+// The page joins them itself, so Refresh is the only time it reads again.
+app.get('/getMaster', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const { dutyDate } = istNow();
+    const [guards, branches, swipes] = await Promise.all([
+      selectAll(zcql, 'Guards', "SELECT ROWID, id_number, guard_name, agency, branch_id, duty_type, post_name, escort_id, phone FROM Guards WHERE is_active = 'true' ORDER BY id_number ASC"),
+      selectAll(zcql, 'Branches', "SELECT ROWID, branch_code, branch_name, company, country, state, city, area FROM Branches WHERE is_active = 'true' ORDER BY branch_code ASC"),
+      selectAll(zcql, 'AccessLog', `SELECT guard_id, direction, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' ORDER BY CREATEDTIME ASC`)
+    ]);
+    res.status(200).json({ status: 'success', data: { dutyDate, guards, branches, swipes } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Add-guard form, ESCORT only: escorts that no guard is linked to yet (one guard per escort).
+app.get('/getFreeEscorts', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const [escorts, linked] = await Promise.all([
+      selectAll(zcql, 'Escorts', "SELECT ROWID, escort_name, agency FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
+      selectAll(zcql, 'Guards', "SELECT escort_id FROM Guards WHERE duty_type = 'ESCORT' ORDER BY ROWID ASC")
+    ]);
+    const taken = new Set(linked.map(g => String(g.escort_id)));
+    res.status(200).json({ status: 'success', data: escorts.filter(e => !taken.has(String(e.ROWID))) });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+function requireText(value, label, max) {
+  const text = String(value || '').trim();
+  if (!text) throw new Error(label + ' is required');
+  if (text.length > max) throw new Error(label + ' is too long (max ' + max + ')');
+  return text;
+}
+
+app.post('/addGuard', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const b = req.body || {};
+    const id_number = String(b.id_number || '').trim().toUpperCase();
+    if (!ID_NUMBER_RE.test(id_number)) throw new Error('ID number: letters, numbers and - only (max 20)');
+    const guard_name = requireText(b.guard_name, 'Name', 100);
+    const agency = requireText(b.agency, 'Agency', 100);
+    const duty_type = String(b.duty_type || '').toUpperCase();
+    if (!DUTY_TYPES.includes(duty_type)) throw new Error('Duty must be POST or ESCORT');
+    const branch_id = requireRowId(b.branch_id);
+    const phone = String(b.phone || '').trim();
+    if (phone && !/^[0-9+ ]{6,15}$/.test(phone)) throw new Error('Phone: numbers only (6 to 15)');
+
+    const row = { id_number, guard_name, agency, branch_id, duty_type, phone: phone || null };
+    if (duty_type === 'POST') {
+      row.post_name = requireText(b.post_name, 'Post', 50);
+    } else {
+      row.escort_id = requireRowId(b.escort_id);
+    }
+
+    const checks = [
+      zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE id_number = '${id_number}'`),
+      zcql.executeZCQLQuery(`SELECT ROWID FROM Branches WHERE ROWID = ${branch_id} AND is_active = 'true'`)
+    ];
+    if (row.escort_id) {
+      checks.push(zcql.executeZCQLQuery(`SELECT ROWID FROM Escorts WHERE ROWID = ${row.escort_id} AND is_active = 'true'`));
+      checks.push(zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE escort_id = ${row.escort_id}`));
+    }
+    const [sameId, branch, escort, escortTaken] = await Promise.all(checks);
+    if (sameId.length) throw new Error('ID number ' + id_number + ' is already used');
+    if (!branch.length) throw new Error('Branch not found');
+    if (row.escort_id && !escort.length) throw new Error('Escort not found');
+    if (row.escort_id && escortTaken.length) throw new Error('This escort is already linked to another guard');
+
+    const result = await catalystApp.datastore().table('Guards').insertRow(row);
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
 // Supervisor page: every active guard, their link token and how many phones are set up.
 app.get('/getGuardLinks', async (req, res) => {
   try {
