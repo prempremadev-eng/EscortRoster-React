@@ -70,6 +70,7 @@ export const api = {
   guardSaveRoute: body => apiCall('POST', '/guardSaveRoute', body),
   guardSaveCab: body => apiCall('POST', '/guardSaveCab', body),
   guardAddStop: body => apiCall('POST', '/guardAddStop', body),
+  guardUpdateStop: body => apiCall('POST', '/guardUpdateStop', body),
   guardDeleteStop: body => apiCall('POST', '/guardDeleteStop', body),
 
   syncEscortsFromExcel: escorts => apiCall('POST', '/syncEscortsFromExcel', { escorts }),

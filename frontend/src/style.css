@@ -959,47 +959,11 @@ a.btn{text-decoration:none;display:inline-block;}
 .master-confirm{background:#fef2f2;border:1px solid #fca5a5;border-radius:8px;padding:10px 12px;margin-top:10px;}
 .master-confirm .link-actions{margin:8px 0 0;}
 
-/* ---------- my duty (#guard/<token>, escort guard) ---------- */
-.duty-card{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:10px;font-size:15px;}
-.duty-card.done{border-color:#86efac;background:#f0fdf4;}
-.duty-card.locked{color:#94a3b8;font-size:14px;background:#f8fafc;}
-.duty-card label, .duty-trip label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#475569;min-width:0;flex:1;}
-.duty-card input{font-size:16px;padding:8px;border:1px solid var(--border);border-radius:6px;min-width:0;width:100%;box-sizing:border-box;}
-.duty-head{font-weight:bold;color:var(--blue-dark);font-size:17px;}
-.duty-times{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;}
-.duty-time{display:flex;gap:6px;}
-.duty-time .btn{padding:6px 10px;}
-.duty-trip{border-top:1px dashed var(--border);padding-top:10px;display:flex;flex-direction:column;gap:10px;}
-.duty-sub{font-weight:bold;color:#334155;}
-.duty-stop{display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:14px;background:#f8fafc;border-radius:6px;padding:6px 8px;}
-.duty-del{background:none;border:none;font-size:16px;cursor:pointer;}
-.duty-card label.duty-tf{flex:1 1 230px;}
-.duty-time input{flex:1;}
-
 /* ---------- escort duty sheet on the guard's phone (#guard/<token>) ---------- */
 .gsheet-bar{flex-wrap:wrap;gap:8px 14px;font-size:14px;}
 .gsheet-me{font-size:20px;font-weight:bold;color:var(--blue-dark);}
-.gsheet-wrap{padding:10px 12px 30px;}
-.gsheet-scroll{overflow:auto;max-height:75vh;border:1px solid var(--border);border-radius:8px;background:#fff;}
-.gsheet{border-collapse:collapse;min-width:820px;width:100%;font-size:13px;}
-.gsheet th{background:var(--blue-header);color:var(--blue-dark);position:sticky;top:0;z-index:1;padding:6px;border:1px solid var(--border);}
-.gsheet td{border:1px solid var(--border);padding:4px 6px;vertical-align:top;text-align:left;}
-.gsheet-sub{font-size:11px;font-weight:normal;}
-.gsheet-sno{width:40px;text-align:center !important;font-weight:bold;}
-.gsheet-name{min-width:130px;font-weight:bold;}
-.gsheet-in{font-size:11px;color:#15803d;font-weight:normal;}
-.gsheet-route{min-width:110px;}
-.gsheet-loc{font-weight:bold;min-height:16px;}
-.gsheet-times{color:#475569;font-size:12px;}
-.gsheet-remarks{min-width:90px;color:#475569;}
-.gsheet tr.me td{background:#fef9c3;border-color:#facc15;}
-.gsheet td.mine{padding:0;}
-.gsheet td.mine button{width:100%;min-height:44px;padding:4px 6px;text-align:left;background:#fff;border:2px solid var(--blue-mid);border-radius:6px;cursor:pointer;font:inherit;}
-.gsheet td.mine.locked button{border-color:var(--border);color:#94a3b8;text-align:center;cursor:not-allowed;}
-.gsheet-editor{max-height:90vh;overflow:auto;}
-.gsheet-editor .duty-card{border:none;padding:0;}
-.gsheet .gsheet-sno{position:sticky;left:0;z-index:2;background:#fff;}
-.gsheet .gsheet-name{position:sticky;left:40px;z-index:2;background:#fff;box-shadow:2px 0 0 var(--border);}
-.gsheet th.gsheet-sno, .gsheet th.gsheet-name{z-index:3;background:var(--blue-header);}
-.gsheet tr.me .gsheet-sno, .gsheet tr.me .gsheet-name{background:#fef9c3;}
-@media (max-width:600px){.gsheet-name{min-width:110px;max-width:130px;}}
+.gsheet-note{padding:8px 16px 0;}
+.gsheet-error{margin:8px 16px 0;}
+/* Every row is view only; GuardSheet turns its own row's Route cells back on. */
+.gsheet-orig tbody tr{pointer-events:none;}
+.gsheet-orig .delcell-col{display:none;}

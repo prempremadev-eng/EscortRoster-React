@@ -34,13 +34,7 @@ export default function GuardPage({ token, testDate }) {
   const mine = sheet.find(s => s.me);
   const inCount = sheet.filter(s => s.inTime).length;
   const isPost = data && data.dutyType === 'POST';
-  const hasSheet = !isPost && sheet.length > 0;
-
-  // Saved rows come back from the server; keep them in the page instead of reloading (saves reads).
-  const putRoute = rec => setData(d => ({
-    ...d, routes: [...d.routes.filter(r => String(r.ROWID) !== String(rec.ROWID)), rec]
-  }));
-  const updateStops = fn => setData(d => ({ ...d, stops: fn(d.stops) }));
+  const hasSheet = !isPost && !!mine;
 
   const open = status === 'ok' && !data.locked;
   const headline = isPost
@@ -50,7 +44,7 @@ export default function GuardPage({ token, testDate }) {
   return (
     <>
       <div className="titlebar">
-        <h1>{isPost ? '📍 My Post' : hasSheet ? '📝 Escort Duty Sheet' : '🪑 My Seat'}</h1>
+        <h1>{isPost ? '📍 My Post' : hasSheet ? 'Escort Duty Sheet' : '🪑 My Seat'}</h1>
       </div>
 
       {open && hasSheet && (
@@ -63,20 +57,15 @@ export default function GuardPage({ token, testDate }) {
             <div>{inCount} of {sheet.length} IN</div>
             <button className="btn" onClick={load}>🔄 Refresh</button>
           </div>
-          <div className="gsheet-wrap">
-            <div className="sim-note">Tap a Route on your ⭐ row to fill it. Other rows are view only.</div>
-            <GuardSheet
-              key={version}
-              token={token}
-              testDate={testDate}
-              sheet={sheet}
-              routes={data.routes || []}
-              stops={data.stops || []}
-              onRoute={putRoute}
-              onStops={updateStops}
-            />
-            <p className="sim-note guard-foot">This page closes at 08:00. Tomorrow it opens again after your card IN.</p>
-          </div>
+          <div className="sim-note gsheet-note">Fill your ⭐ row like the duty sheet. Other rows are view only. This page closes at 08:00.</div>
+          <GuardSheet
+            key={version}
+            token={token}
+            testDate={testDate}
+            dutyDate={data.dutyDate}
+            sheet={sheet}
+            myStops={data.stops || []}
+          />
         </>
       )}
 

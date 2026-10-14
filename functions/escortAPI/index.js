@@ -644,19 +644,22 @@ app.get('/guardDay', async (req, res) => {
     if (me.duty_type !== 'ESCORT' || !me.escort_id || day === 0 || day === 6) {
       return res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], seats: [] } });
     }
-    const [escorts, start, escortGuards, records, myStops] = await Promise.all([
+    const [escorts, start, escortGuards, records, dayStops] = await Promise.all([
       selectAll(zcql, 'Escorts', "SELECT ROWID, escort_name, agency FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
       getSetting(zcql, 'start_date'),
       selectAll(zcql, 'Guards', "SELECT ROWID, escort_id FROM Guards WHERE duty_type = 'ESCORT' ORDER BY ROWID ASC"),
       dayRoutes(zcql, dutyDate),
-      selectAll(zcql, 'TripStops', `SELECT ROWID, duty_record_id, emp_id, location, trip_type, stop_time FROM TripStops WHERE duty_date = '${dutyDate}' AND escort_id = ${me.escort_id} ORDER BY CREATEDTIME ASC`)
+      selectAll(zcql, 'TripStops', `SELECT ROWID, duty_record_id, escort_id, emp_id, location, trip_type, stop_time FROM TripStops WHERE duty_date = '${dutyDate}' ORDER BY CREATEDTIME ASC`)
     ]);
     // Seats are escort rows; swipes are guard rows. Escorts ROWID → that guard's IN time.
     const escortIn = {};
     escortGuards.forEach(g => { if (g.escort_id && inTime[String(g.ROWID)]) escortIn[String(g.escort_id)] = inTime[String(g.ROWID)]; });
     const myEscortId = String(me.escort_id);
-    // The whole duty sheet of the day, read only (same seat order as the supervisor's sheet).
-    // Mobile and ID numbers are left out: every guard sees this page.
+    // The whole duty sheet of the day in the supervisor's layout; only the guard's own row can be
+    // changed (the write routes below check that). Other rows send no employee details, only how
+    // many employees a trip has. Mobile and ID numbers are left out: every guard sees this page.
+    const stopCount = {};
+    dayStops.forEach(x => { stopCount[String(x.duty_record_id)] = (stopCount[String(x.duty_record_id)] || 0) + 1; });
     const byEscort = {};
     records.forEach(r => { (byEscort[String(r.escort_id)] = byEscort[String(r.escort_id)] || []).push(r); });
     const rows = computeDisplayRows(escorts, ROTATION, start && start.setting_value, dutyDate);
@@ -665,18 +668,19 @@ app.get('/guardDay', async (req, res) => {
       const recs = byEscort[id] || [];
       const first = recs.find(r => (parseInt(r.route_no, 10) || 1) === 1);
       return {
-        seat: i + 1, me: id === myEscortId, name: e.escort_name, agency: e.agency, inTime: escortIn[id] || null,
+        escortId: id, seat: i + 1, me: id === myEscortId, name: e.escort_name, agency: e.agency,
+        inTime: escortIn[id] || null, remarks: (first && first.remarks) || '',
         routes: Array.from({ length: ROUTES }, (_, k) => {
           const r = recs.find(x => (parseInt(x.route_no, 10) || 1) === k + 1);
-          return r ? { loc: r.location || '', out: r.out_time || '', in: r.in_time || '' } : null;
-        }),
-        remarks: (first && first.remarks) || ''
+          return r ? {
+            ROWID: r.ROWID, loc: r.location || '', out: r.out_time || '', in: r.in_time || '',
+            vehicle: r.vehicle_no || '', driver: r.driver_name || '', stopCount: stopCount[String(r.ROWID)] || 0
+          } : null;
+        })
       };
     });
-    const routes = byEscort[myEscortId] || [];
-    const ids = new Set(routes.map(r => String(r.ROWID)));
-    const stops = myStops.filter(x => ids.has(String(x.duty_record_id)));
-    res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], sheet, routes, stops } });
+    const stops = dayStops.filter(x => String(x.escort_id) === myEscortId);
+    res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], sheet, stops } });
   } catch (err) {
     fail(res, err);
   }
@@ -816,6 +820,26 @@ app.post('/guardAddStop', async (req, res) => {
     if (!stop_time) throw new Error('Time is required');
     const result = await catalystApp.datastore().table('TripStops').insertRow({
       duty_record_id: rec.ROWID, duty_date: ctx.dutyDate, escort_id: ctx.me.escort_id, emp_id, location, trip_type, stop_time
+    });
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Fix a mistake in an employee stop of the guard's own trips today.
+app.post('/guardUpdateStop', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const ctx = await guardOnDuty(catalystApp.zcql(), req);
+    const b = req.body;
+    const rowid = String(requireRowId(b.rowid));
+    if (!ctx.stops.some(x => String(x.ROWID) === rowid)) throw new Error('Employee entry not found');
+    const stop_time = optionalTime(b.stop_time, 'Time');
+    if (!stop_time) throw new Error('Time is required');
+    const result = await catalystApp.datastore().table('TripStops').updateRow({
+      ROWID: rowid, emp_id: requireText(b.emp_id, 'Emp ID', 20), location: requireText(b.location, 'Location', 100),
+      trip_type: b.trip_type === 'Pickup' ? 'Pickup' : 'Drop', stop_time
     });
     res.status(200).json({ status: 'success', data: result });
   } catch (err) {
