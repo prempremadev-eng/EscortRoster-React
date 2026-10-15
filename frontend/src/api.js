@@ -80,6 +80,12 @@ export const api = {
   guardUpdateStop: body => apiCall('POST', '/guardUpdateStop', body),
   guardDeleteStop: body => apiCall('POST', '/guardDeleteStop', body),
 
+  postDuty: t => apiCall('GET', '/postDuty?t=' + q(t)),
+  takeOver: t => apiCall('POST', '/takeOver', { t }),
+  postTimeline: t => apiCall('GET', '/postTimeline?t=' + q(t)),
+  postMessage: (t, text) => apiCall('POST', '/postMessage', { t, text }),
+  pinMessage: (t, rowid, pinned) => apiCall('POST', '/pinMessage', { t, rowid, pinned }),
+
   syncEscortsFromExcel: escorts => apiCall('POST', '/syncEscortsFromExcel', { escorts }),
   getAllLocations: () => apiCall('GET', '/getAllLocations'),
   wipeAllData: () => apiCall('POST', '/wipeAllData')

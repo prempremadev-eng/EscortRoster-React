@@ -585,7 +585,9 @@ async function onCardIn(catalystApp, guard, time, dutyDate) {
     }
     body += ' · ' + shiftText(duty.shift);
   } else if (duty) {
-    body = duty.post.post_name + ' · ' + shiftText(duty.shift);
+    // POST guard: their DutyLog row starts "waiting" until they press Taken over (post.js).
+    await post.onPostIn(catalystApp, guard, duty);
+    body = 'Your post for today is ready · ' + duty.post.post_name + ' · ' + shiftText(duty.shift);
   }
   const result = await sendPushToGuard(catalystApp, guard.ROWID, {
     title: '✅ IN ' + time,
@@ -1478,6 +1480,12 @@ app.post('/wipeAllData', async (req, res) => {
       fullError: JSON.stringify(err, Object.getOwnPropertyNames(err))
     });
   }
+});
+
+/* ---------------- POST HANDOVER (post.js) ---------------- */
+
+const post = require('./post.js')(app, {
+  catalyst, selectAll, requireRowId, fail, guardByToken, sendPushToGuard, getShifts, shiftDate, IST_OFFSET_MIN
 });
 
 module.exports = app;

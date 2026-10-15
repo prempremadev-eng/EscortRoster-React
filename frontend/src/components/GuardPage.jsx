@@ -2,10 +2,11 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { formatLongDate } from '../utils.js';
 import GuardSheet from './GuardSheet.jsx';
+import PostDuty from '../post/PostDuty.jsx';
 
 // Guard's phone, opened from the IN notification.
 // ESCORT guard: the whole duty sheet of the day; only their own row (⭐) can be filled in.
-// POST guard: their post.
+// POST guard: take over the post and write on its timeline (src/post).
 // The server decides locked / open, so a wrong phone clock can't open it.
 // `testDate` only works on `catalyst serve` (#guard/<token>?date=YYYY-MM-DD).
 export default function GuardPage({ token, testDate }) {
@@ -43,6 +44,9 @@ export default function GuardPage({ token, testDate }) {
     : notAssigned ? '⏳ Not assigned' : (mine ? '⭐ Seat ' + mine.seat : '✅ You are IN');
   // "Shift A · 06:00–15:00" from this week's Duty Chart.
   const shiftLine = data && data.shift ? 'Shift ' + data.shift.code + ' · ' + data.shift.start + '–' + data.shift.end : '';
+
+  // POST guard: the post handover screens (take over, post timeline).
+  if (isPost) return <PostDuty token={token} />;
 
   return (
     <>
