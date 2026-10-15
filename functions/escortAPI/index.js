@@ -1432,6 +1432,7 @@ app.post('/saveSubscription', async (req, res) => {
 });
 
 // "Send test notification" button on the setup page, so the guard sees it works right away.
+// Tapping it opens the guard's duty page, the same page a real duty notification opens.
 app.post('/testPush', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
@@ -1439,7 +1440,7 @@ app.post('/testPush', async (req, res) => {
     const result = await sendPushToGuard(catalystApp, guard.ROWID, {
       title: '🔔 Test notification',
       body: 'Hi ' + guard.guard_name + ', notifications are working.',
-      url: 'index.html#setup/' + req.body.t
+      url: 'index.html#guard/' + req.body.t
     });
     res.status(200).json({ status: 'success', data: result });
   } catch (err) {
