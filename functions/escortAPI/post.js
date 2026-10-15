@@ -47,16 +47,17 @@ module.exports = function postRoutes(app, h) {
     return catalystApp.datastore().table('PostMessages').insertRow({ pinned: false, ...row });
   }
 
-  // F1: called on the first card IN of the day of a guard whose chart row is a POST.
-  // Makes their DutyLog row (waiting) unless it is already there.
+  // F1: called on a card IN of a guard whose chart row is a POST.
+  // Makes their DutyLog row (waiting) unless today's row is already there.
   async function onPostIn(catalystApp, guard, duty) {
     const zcql = catalystApp.zcql();
     const existing = await myLog(zcql, guard.ROWID);
-    if (existing) return existing;
-    return catalystApp.datastore().table('DutyLog').insertRow({
+    if (existing) return { log: existing, created: false };
+    const log = await catalystApp.datastore().table('DutyLog').insertRow({
       guard_id: guard.ROWID, post_id: duty.post.ROWID, shift_code: duty.shift.code,
       duty_date: shiftDate(), status: 'waiting', in_at: nowStamp()
     });
+    return { log, created: true };
   }
 
   // Screens 1 and 2: my post, my shift, who I take over from, and their pinned notes.

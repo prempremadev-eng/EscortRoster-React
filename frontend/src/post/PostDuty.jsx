@@ -133,7 +133,7 @@ export default function PostDuty({ token }) {
       <div className="pd pd-page">
         <div className="pd-top"><div className="pd-brand">Duty</div></div>
         <div className="pd-muted">Hi {duty.name}</div>
-        <div className="pd-card">Your post opens after your access card shows <b>IN</b> for today's duty.</div>
+        <div className="pd-card"><div>Your post opens after your access card shows <b>IN</b> for today's duty.</div></div>
         <div className="pd-grow"></div>
         <button className="pd-btn pd-btn-outline" onClick={load}>Check again</button>
       </div>
@@ -151,7 +151,7 @@ export default function PostDuty({ token }) {
           </div>
           <div className="pd-pill pd-neutral">Handed over</div>
         </div>
-        <div className="pd-card">Handed over at <b>{duty.handedOverAt}</b>. Your duty for today is over. You can leave.</div>
+        <div className="pd-card"><div>Handed over at <b>{duty.handedOverAt}</b>. Your duty for today is over. You can leave.</div></div>
         <div className="pd-grow"></div>
         <button className="pd-btn pd-btn-outline" onClick={load}>Check again</button>
       </div>

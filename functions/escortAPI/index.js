@@ -567,9 +567,13 @@ function seatOf(escorts, escortId, startDate, dutyDate) {
 async function onCardIn(catalystApp, guard, time, dutyDate) {
   const zcql = catalystApp.zcql();
   const ins = await zcql.executeZCQLQuery(`SELECT ROWID FROM AccessLog WHERE guard_id = ${guard.ROWID} AND duty_date = '${dutyDate}' AND direction = 'IN'`);
-  if (ins.length > 1) return { skipped: 'already IN today' };
-
   const duty = await dutyOf(zcql, guard.ROWID, weekStartOf(shiftDate()));
+  // POST guard: their DutyLog row starts "waiting" until they press Taken over (post.js).
+  // Made on any IN of the day that finds none (the chart may have changed after the first IN);
+  // a new row also means a new notification.
+  const newPostLog = duty && duty.post.post_type === 'POST' ? (await post.onPostIn(catalystApp, guard, duty)).created : false;
+  if (ins.length > 1 && !newPostLog) return { skipped: 'already IN today' };
+
   let body = 'Duty not assigned yet. Ask your supervisor.';
   let seat = null;
   if (duty && duty.post.post_type === 'ESCORT') {
@@ -585,8 +589,6 @@ async function onCardIn(catalystApp, guard, time, dutyDate) {
     }
     body += ' · ' + shiftText(duty.shift);
   } else if (duty) {
-    // POST guard: their DutyLog row starts "waiting" until they press Taken over (post.js).
-    await post.onPostIn(catalystApp, guard, duty);
     body = 'Your post for today is ready · ' + duty.post.post_name + ' · ' + shiftText(duty.shift);
   }
   const result = await sendPushToGuard(catalystApp, guard.ROWID, {
