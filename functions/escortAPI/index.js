@@ -558,35 +558,41 @@ function seatOf(escorts, escortId, startDate, dutyDate) {
   return idx < 0 ? null : idx + 1;
 }
 
-// First IN of the duty day → a notification on the guard's phones. What it says depends on the
-// guard's duty type in the Guards master:
-//   ESCORT → "✅ IN 19:42 · Today your Seat 5" (seat from the escort duty sheet)
-//   POST   → "✅ IN 08:02 · Today your post: Gate 3"
+// First IN of the duty day → a notification on the guard's phones. What it says comes from
+// this week's Duty Chart (post + shift):
+//   ESCORT post → "✅ IN 19:42 · Today your Seat 5 · Shift C (21:00–06:00)" (seat from the escort duty sheet)
+//   POST        → "✅ IN 05:55 · Gate 3 · Shift A (06:00–15:00)"
+//   not in the chart → "Duty not assigned yet"
 // Later INs the same duty day (card swiped again after a break) send nothing.
 async function onCardIn(catalystApp, guard, time, dutyDate) {
   const zcql = catalystApp.zcql();
   const ins = await zcql.executeZCQLQuery(`SELECT ROWID FROM AccessLog WHERE guard_id = ${guard.ROWID} AND duty_date = '${dutyDate}' AND direction = 'IN'`);
   if (ins.length > 1) return { skipped: 'already IN today' };
 
-  let body = 'Your card IN is noted.';
+  const duty = await dutyOf(zcql, guard.ROWID, weekStartOf(shiftDate()));
+  let body = 'Duty not assigned yet. Ask your supervisor.';
   let seat = null;
-  if (guard.duty_type === 'ESCORT' && guard.escort_id) {
-    // Read-only look at the escort duty sheet; nothing is written on the escort side.
-    const [escorts, start] = await Promise.all([
-      selectAll(zcql, 'Escorts', "SELECT ROWID FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
-      getSetting(zcql, 'start_date')
-    ]);
-    seat = seatOf(escorts, guard.escort_id, start && start.setting_value, dutyDate);
-    if (seat) body = 'Today your Seat ' + seat;
-  } else if (guard.duty_type === 'POST' && guard.post_name) {
-    body = 'Today your post: ' + guard.post_name;
+  if (duty && duty.post.post_type === 'ESCORT') {
+    body = 'Your card IN is noted';
+    if (guard.escort_id) {
+      // Read-only look at the escort duty sheet; nothing is written on the escort side.
+      const [escorts, start] = await Promise.all([
+        selectAll(zcql, 'Escorts', "SELECT ROWID FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
+        getSetting(zcql, 'start_date')
+      ]);
+      seat = seatOf(escorts, guard.escort_id, start && start.setting_value, dutyDate);
+      if (seat) body = 'Today your Seat ' + seat;
+    }
+    body += ' · ' + shiftText(duty.shift);
+  } else if (duty) {
+    body = duty.post.post_name + ' · ' + shiftText(duty.shift);
   }
   const result = await sendPushToGuard(catalystApp, guard.ROWID, {
     title: '✅ IN ' + time,
     body,
     url: guard.guard_token ? 'index.html#guard/' + guard.guard_token : 'index.html'
   });
-  return { ...result, seat };
+  return { ...result, seat, post: duty ? duty.post.post_name : null, shift: duty ? duty.shift.code : null };
 }
 
 // One door: the Card Simulator posts here today; the real access system can post here later.
@@ -629,25 +635,32 @@ app.get('/guardDay', async (req, res) => {
     const zcql = catalystApp.zcql();
     const me = await guardByToken(zcql, req.query.t);
     const dutyDate = dutyDateFor(req, req.query.date);
+    // This week's chart decides the page: escort sheet, post, or "not assigned".
+    const duty = await dutyOf(zcql, me.ROWID, weekStartOf(req.query.date && dutyDate === req.query.date ? dutyDate : shiftDate()));
 
     // First IN time of each guard (by Guards ROWID) on this duty day.
     const ins = await selectAll(zcql, 'AccessLog', `SELECT guard_id, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' AND direction = 'IN' ORDER BY CREATEDTIME ASC`);
     const inTime = {};
     ins.forEach(r => { if (!inTime[String(r.guard_id)]) inTime[String(r.guard_id)] = r.punch_time; });
     const myId = String(me.ROWID);
-    const base = { name: me.guard_name, dutyType: me.duty_type, postName: me.post_name || null, dutyDate };
+    const base = {
+      name: me.guard_name, dutyDate,
+      dutyType: duty ? duty.post.post_type : null,
+      postName: duty ? duty.post.post_name : null,
+      shift: duty ? duty.shift : null
+    };
     if (!inTime[myId]) {
       return res.status(200).json({ status: 'success', data: { ...base, locked: true } });
     }
 
     const day = dayOf(dutyDate);
-    if (me.duty_type !== 'ESCORT' || !me.escort_id || day === 0 || day === 6) {
+    if (base.dutyType !== 'ESCORT' || !me.escort_id || day === 0 || day === 6) {
       return res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], seats: [] } });
     }
     const [escorts, start, escortGuards, records, dayStops] = await Promise.all([
       selectAll(zcql, 'Escorts', "SELECT ROWID, escort_name, agency FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
       getSetting(zcql, 'start_date'),
-      selectAll(zcql, 'Guards', "SELECT ROWID, escort_id FROM Guards WHERE duty_type = 'ESCORT' ORDER BY ROWID ASC"),
+      selectAll(zcql, 'Guards', 'SELECT ROWID, escort_id FROM Guards ORDER BY ROWID ASC'),
       dayRoutes(zcql, dutyDate),
       selectAll(zcql, 'TripStops', `SELECT ROWID, duty_record_id, escort_id, emp_id, location, trip_type, stop_time FROM TripStops WHERE duty_date = '${dutyDate}' ORDER BY CREATEDTIME ASC`)
     ]);
@@ -728,7 +741,7 @@ async function myTrips(zcql, escortId, dutyDate) {
 async function guardOnDuty(zcql, req) {
   const b = req.body || {};
   const me = await guardByToken(zcql, b.t);
-  if (me.duty_type !== 'ESCORT' || !me.escort_id) throw new Error('Only escort guards fill trips');
+  if (!me.escort_id) throw new Error('Only escort guards fill trips');
   const dutyDate = dutyDateFor(req, b.date);
   const day = dayOf(dutyDate);
   if (day === 0 || day === 6) throw new Error('No escort trips on Saturday / Sunday');
@@ -908,7 +921,7 @@ async function getVapidKeys(catalystApp) {
 }
 
 // Access lives on the Guards master only. Escorts is read (seat list) but never written here.
-const GUARD_COLS = 'ROWID, guard_name, agency, duty_type, post_name, escort_id, guard_token, is_active';
+const GUARD_COLS = 'ROWID, guard_name, agency, branch_id, escort_id, guard_token, is_active';
 
 async function guardById(zcql, guardId) {
   const rows = await zcql.executeZCQLQuery(`SELECT ${GUARD_COLS} FROM Guards WHERE ROWID = ${requireRowId(guardId)}`);
@@ -959,8 +972,237 @@ async function sendPushToGuard(catalystApp, guardId, payload) {
 app.get('/getGuards', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
-    const guards = await selectAll(catalystApp.zcql(), 'Guards', "SELECT ROWID, id_number, guard_name, agency, branch_id, duty_type, post_name FROM Guards WHERE is_active = 'true' ORDER BY id_number ASC");
-    res.status(200).json({ status: 'success', data: guards });
+    const zcql = catalystApp.zcql();
+    const [guards, duties] = await Promise.all([
+      selectAll(zcql, 'Guards', "SELECT ROWID, id_number, guard_name, agency, branch_id FROM Guards WHERE is_active = 'true' ORDER BY id_number ASC"),
+      weekDuties(zcql, weekStartOf(shiftDate()))
+    ]);
+    res.status(200).json({ status: 'success', data: guards.map(g => ({ ...g, duty: duties[String(g.ROWID)] || null })) });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+/* ---------------- SHIFTS, POSTS, DUTY CHART (#posts, #chart) ---------------- */
+// Guards = who the guard is. Posts = the places of a branch (Gate 3, Lobby, Escort).
+// DutyChart = one row per guard per week: which post and which shift (A / B / C).
+
+const POST_TYPES = ['POST', 'ESCORT'];
+const SHIFT_START_HOUR = 4;
+
+// The IST date a shift belongs to. Shift C starts 21:00 and runs past midnight, so a swipe
+// before 04:00 still belongs to the day before; Shift A guards coming early (05:30) count today.
+function shiftDate() {
+  const d = new Date(Date.now() + IST_OFFSET_MIN * 60000);
+  if (d.getUTCHours() < SHIFT_START_HOUR) d.setUTCDate(d.getUTCDate() - 1);
+  return d.toISOString().slice(0, 10);
+}
+
+// Monday of the week a date is in (charts run Monday → Sunday).
+function weekStartOf(date) {
+  const d = new Date(requireDate(date) + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+function requireMonday(value) {
+  if (weekStartOf(value) !== value) throw new Error('Week must start on a Monday');
+  return value;
+}
+
+// Shift timings rarely change; kept while this function instance stays warm (saves reads).
+let shiftCache = null;
+async function getShifts(zcql) {
+  if (!shiftCache) {
+    const rows = await selectAll(zcql, 'Shifts', 'SELECT shift_code, start_time, end_time FROM Shifts ORDER BY shift_code ASC');
+    shiftCache = rows.map(r => ({ code: r.shift_code, start: r.start_time, end: r.end_time }));
+  }
+  return shiftCache;
+}
+
+const shiftText = sh => 'Shift ' + sh.code + ' (' + sh.start + '–' + sh.end + ')';
+
+// One guard's post + shift for a week, or null when the chart has no row for them.
+async function dutyOf(zcql, guardId, week) {
+  const rows = await zcql.executeZCQLQuery(`SELECT post_id, shift_code FROM DutyChart WHERE guard_id = ${requireRowId(guardId)} AND week_start = '${week}'`);
+  if (!rows.length) return null;
+  const c = rows[0].DutyChart;
+  const [posts, shifts] = await Promise.all([
+    zcql.executeZCQLQuery(`SELECT ROWID, post_name, post_type FROM Posts WHERE ROWID = ${c.post_id}`),
+    getShifts(zcql)
+  ]);
+  const shift = shifts.find(x => x.code === c.shift_code);
+  if (!posts.length || !shift) return null;
+  return { post: posts[0].Posts, shift };
+}
+
+// Every guard's duty for a week: { guard ROWID: { post_name, post_type, shift_code } }.
+async function weekDuties(zcql, week) {
+  const [chart, posts] = await Promise.all([
+    selectAll(zcql, 'DutyChart', `SELECT guard_id, post_id, shift_code FROM DutyChart WHERE week_start = '${week}' ORDER BY ROWID ASC`),
+    selectAll(zcql, 'Posts', 'SELECT ROWID, post_name, post_type FROM Posts ORDER BY ROWID ASC')
+  ]);
+  const postById = {};
+  posts.forEach(p => { postById[String(p.ROWID)] = p; });
+  const map = {};
+  chart.forEach(c => {
+    const p = postById[String(c.post_id)];
+    if (p) map[String(c.guard_id)] = { post_name: p.post_name, post_type: p.post_type, shift_code: c.shift_code };
+  });
+  return map;
+}
+
+// Posts page: every post (switched-off ones too) and the branches to pick from.
+app.get('/getPosts', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const [posts, branches] = await Promise.all([
+      selectAll(zcql, 'Posts', 'SELECT ROWID, branch_id, post_name, post_type, is_active FROM Posts ORDER BY post_name ASC'),
+      selectAll(zcql, 'Branches', "SELECT ROWID, branch_code, branch_name, city, area FROM Branches WHERE is_active = 'true' ORDER BY branch_code ASC")
+    ]);
+    res.status(200).json({ status: 'success', data: { posts, branches } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+function postFromBody(b) {
+  const post_type = String(b.post_type || '').toUpperCase();
+  if (!POST_TYPES.includes(post_type)) throw new Error('Type must be POST or ESCORT');
+  return { branch_id: requireRowId(b.branch_id), post_name: requireText(b.post_name, 'Post name', 50), post_type };
+}
+
+async function checkPost(zcql, row, selfId) {
+  const [branch, same] = await Promise.all([
+    zcql.executeZCQLQuery(`SELECT ROWID FROM Branches WHERE ROWID = ${row.branch_id} AND is_active = 'true'`),
+    selectAll(zcql, 'Posts', `SELECT ROWID, post_name FROM Posts WHERE branch_id = ${row.branch_id} ORDER BY ROWID ASC`)
+  ]);
+  if (!branch.length) throw new Error('Branch not found');
+  const lower = row.post_name.toLowerCase();
+  if (same.some(p => p.post_name.toLowerCase() === lower && String(p.ROWID) !== String(selfId || ''))) {
+    throw new Error('This branch already has a post called ' + row.post_name);
+  }
+}
+
+app.post('/addPost', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const row = postFromBody(req.body || {});
+    await checkPost(catalystApp.zcql(), row, null);
+    const result = await catalystApp.datastore().table('Posts').insertRow(row);
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Rename / change type, or switch a post off (never deleted: old charts point to it).
+app.put('/updatePost', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const b = req.body || {};
+    const rowid = requireRowId(b.ROWID);
+    const row = postFromBody(b);
+    await checkPost(catalystApp.zcql(), row, rowid);
+    const result = await catalystApp.datastore().table('Posts').updateRow({
+      ROWID: rowid, ...row, is_active: b.is_active === false ? 'false' : 'true'
+    });
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Duty Chart page: one branch, one week. Guards and posts of the branch, the shifts, and the
+// chart rows of that week (4 to 5 SELECTs).
+app.get('/getChart', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const week = requireMonday(req.query.week || weekStartOf(shiftDate()));
+    const [branches, shifts] = await Promise.all([
+      selectAll(zcql, 'Branches', "SELECT ROWID, branch_code, branch_name, city, area FROM Branches WHERE is_active = 'true' ORDER BY branch_code ASC"),
+      getShifts(zcql)
+    ]);
+    const branchId = req.query.branch ? requireRowId(req.query.branch) : (branches[0] && branches[0].ROWID);
+    const [guards, posts, chart] = await Promise.all([
+      selectAll(zcql, 'Guards', `SELECT ROWID, id_number, guard_name, escort_id FROM Guards WHERE branch_id = ${branchId} AND is_active = 'true' ORDER BY id_number ASC`),
+      selectAll(zcql, 'Posts', `SELECT ROWID, post_name, post_type FROM Posts WHERE branch_id = ${branchId} AND is_active = 'true' ORDER BY post_name ASC`),
+      selectAll(zcql, 'DutyChart', `SELECT ROWID, guard_id, post_id, shift_code FROM DutyChart WHERE week_start = '${week}' ORDER BY ROWID ASC`)
+    ]);
+    const ids = new Set(guards.map(g => String(g.ROWID)));
+    res.status(200).json({
+      status: 'success',
+      data: { week, branchId: String(branchId), branches, shifts, guards, posts, chart: chart.filter(c => ids.has(String(c.guard_id))) }
+    });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Set one guard's post + shift for a week (one row per guard per week). No post = not assigned.
+app.post('/saveChart', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const b = req.body || {};
+    const week = requireMonday(requireDate(b.week));
+    const guard = await guardById(zcql, b.guard_id);
+    if (guard.is_active !== 'true') throw new Error(guard.guard_name + ' is not active');
+    const table = catalystApp.datastore().table('DutyChart');
+    const existing = await zcql.executeZCQLQuery(`SELECT ROWID FROM DutyChart WHERE guard_id = ${guard.ROWID} AND week_start = '${week}'`);
+    if (!b.post_id) {
+      if (existing.length) await table.deleteRow(existing[0].DutyChart.ROWID);
+      return res.status(200).json({ status: 'success', data: null });
+    }
+    const [posts, shifts] = await Promise.all([
+      zcql.executeZCQLQuery(`SELECT ROWID, branch_id, post_type, is_active FROM Posts WHERE ROWID = ${requireRowId(b.post_id)}`),
+      getShifts(zcql)
+    ]);
+    const post = posts.length && posts[0].Posts;
+    if (!post || post.is_active !== 'true') throw new Error('Post not found');
+    if (String(post.branch_id) !== String(guard.branch_id)) throw new Error('This post is in another branch');
+    if (post.post_type === 'ESCORT' && !guard.escort_id) {
+      throw new Error(guard.guard_name + ' is not linked to the escort duty sheet. Guard Master → Edit → Escort duty sheet name.');
+    }
+    const shift_code = String(b.shift_code || '').toUpperCase();
+    if (!shifts.some(x => x.code === shift_code)) throw new Error('Pick a shift');
+    const row = { post_id: post.ROWID, shift_code };
+    const result = existing.length
+      ? await table.updateRow({ ROWID: existing[0].DutyChart.ROWID, ...row })
+      : await table.insertRow({ guard_id: guard.ROWID, week_start: week, ...row });
+    res.status(200).json({ status: 'success', data: result });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Next week usually looks like this week: copy last week's rows of one branch into this week,
+// only for guards who have no row yet (nothing already set is changed).
+app.post('/copyChart', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req);
+    const zcql = catalystApp.zcql();
+    const b = req.body || {};
+    const week = requireMonday(requireDate(b.week));
+    const prev = new Date(week + 'T00:00:00Z');
+    prev.setUTCDate(prev.getUTCDate() - 7);
+    const lastWeek = prev.toISOString().slice(0, 10);
+    const branchId = requireRowId(b.branch_id);
+    const [guards, posts, chart] = await Promise.all([
+      selectAll(zcql, 'Guards', `SELECT ROWID FROM Guards WHERE branch_id = ${branchId} AND is_active = 'true' ORDER BY ROWID ASC`),
+      selectAll(zcql, 'Posts', `SELECT ROWID FROM Posts WHERE branch_id = ${branchId} AND is_active = 'true' ORDER BY ROWID ASC`),
+      selectAll(zcql, 'DutyChart', `SELECT guard_id, post_id, shift_code, week_start FROM DutyChart WHERE week_start = '${lastWeek}' OR week_start = '${week}' ORDER BY ROWID ASC`)
+    ]);
+    const ids = new Set(guards.map(g => String(g.ROWID)));
+    const livePosts = new Set(posts.map(p => String(p.ROWID)));
+    const has = new Set(chart.filter(c => c.week_start === week).map(c => String(c.guard_id)));
+    const rows = chart
+      .filter(c => c.week_start === lastWeek && ids.has(String(c.guard_id)) && !has.has(String(c.guard_id)) && livePosts.has(String(c.post_id)))
+      .map(c => ({ guard_id: c.guard_id, post_id: c.post_id, shift_code: c.shift_code, week_start: week }));
+    const result = rows.length ? await catalystApp.datastore().table('DutyChart').insertRows(rows) : [];
+    res.status(200).json({ status: 'success', data: { copied: rows.length, rows: result } });
   } catch (err) {
     fail(res, err);
   }
@@ -968,28 +1210,30 @@ app.get('/getGuards', async (req, res) => {
 
 /* ---------------- GUARD MASTER (#master) ---------------- */
 
-const DUTY_TYPES = ['POST', 'ESCORT'];
 const ID_NUMBER_RE = /^[A-Za-z0-9-]{1,20}$/;
 
-// Master page in one call: all guards (left ones too, the page hides them), branches and
-// today's swipes (3 SELECTs). The page joins them itself, so Refresh is the only time it reads again.
+// Master page in one call: all guards (left ones too, the page hides them), branches,
+// today's swipes and this week's duties (5 SELECTs). The page joins them itself, so Refresh
+// is the only time it reads again.
 app.get('/getMaster', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req);
     const zcql = catalystApp.zcql();
     const { dutyDate } = istNow();
-    const [guards, branches, swipes] = await Promise.all([
-      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, guard_name, agency, branch_id, duty_type, post_name, escort_id, phone, is_active FROM Guards ORDER BY id_number ASC'),
+    const week = weekStartOf(shiftDate());
+    const [guards, branches, swipes, duties] = await Promise.all([
+      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, guard_name, agency, branch_id, escort_id, phone, is_active FROM Guards ORDER BY id_number ASC'),
       selectAll(zcql, 'Branches', "SELECT ROWID, branch_code, branch_name, company, country, state, city, area FROM Branches WHERE is_active = 'true' ORDER BY branch_code ASC"),
-      selectAll(zcql, 'AccessLog', `SELECT guard_id, direction, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' ORDER BY CREATEDTIME ASC`)
+      selectAll(zcql, 'AccessLog', `SELECT guard_id, direction, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' ORDER BY CREATEDTIME ASC`),
+      weekDuties(zcql, week)
     ]);
-    res.status(200).json({ status: 'success', data: { dutyDate, guards, branches, swipes } });
+    res.status(200).json({ status: 'success', data: { dutyDate, week, guards, branches, swipes, duties } });
   } catch (err) {
     fail(res, err);
   }
 });
 
-// Guard form, ESCORT only: escorts that no active guard is linked to (one guard per escort).
+// Guard form, "escort duty sheet name": escorts that no active guard is linked to (one guard per escort).
 // ?keep=<escort ROWID> keeps the escort of the guard being edited in the list.
 app.get('/getFreeEscorts', async (req, res) => {
   try {
@@ -998,9 +1242,9 @@ app.get('/getFreeEscorts', async (req, res) => {
     const keep = req.query.keep ? String(requireRowId(req.query.keep)) : '';
     const [escorts, linked] = await Promise.all([
       selectAll(zcql, 'Escorts', "SELECT ROWID, escort_name, agency FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
-      selectAll(zcql, 'Guards', "SELECT escort_id FROM Guards WHERE duty_type = 'ESCORT' AND is_active = 'true' ORDER BY ROWID ASC")
+      selectAll(zcql, 'Guards', "SELECT escort_id FROM Guards WHERE is_active = 'true' ORDER BY ROWID ASC")
     ]);
-    const taken = new Set(linked.map(g => String(g.escort_id)));
+    const taken = new Set(linked.filter(g => g.escort_id).map(g => String(g.escort_id)));
     taken.delete(keep);
     res.status(200).json({ status: 'success', data: escorts.filter(e => !taken.has(String(e.ROWID))) });
   } catch (err) {
@@ -1015,12 +1259,12 @@ function requireText(value, label, max) {
   return text;
 }
 
-// Form fields -> a clean Guards row. POST guards have a post and no escort; ESCORT guards the other way.
+// Form fields -> a clean Guards row: the guard's own details only. Their post and shift are
+// set week by week in the Duty Chart. `escort_id` (optional) says which escort duty sheet row is
+// this same person, for guards who do escort duty.
 function guardFromBody(b) {
   const id_number = String(b.id_number || '').trim().toUpperCase();
   if (!ID_NUMBER_RE.test(id_number)) throw new Error('ID number: letters, numbers and - only (max 20)');
-  const duty_type = String(b.duty_type || '').toUpperCase();
-  if (!DUTY_TYPES.includes(duty_type)) throw new Error('Duty must be POST or ESCORT');
   const phone = String(b.phone || '').trim();
   if (phone && !/^[0-9+ ]{6,15}$/.test(phone)) throw new Error('Phone: numbers only (6 to 15)');
   return {
@@ -1028,9 +1272,7 @@ function guardFromBody(b) {
     guard_name: requireText(b.guard_name, 'Name', 100),
     agency: requireText(b.agency, 'Agency', 100),
     branch_id: requireRowId(b.branch_id),
-    duty_type,
-    post_name: duty_type === 'POST' ? requireText(b.post_name, 'Post', 50) : null,
-    escort_id: duty_type === 'ESCORT' ? requireRowId(b.escort_id) : null,
+    escort_id: b.escort_id ? requireRowId(b.escort_id) : null,
     phone: phone || null
   };
 }
@@ -1087,7 +1329,7 @@ app.put('/setGuardActive', async (req, res) => {
     const zcql = catalystApp.zcql();
     const guard = await guardById(zcql, req.body && req.body.ROWID);
     const active = req.body.active === true;
-    if (active && guard.duty_type === 'ESCORT' && guard.escort_id) {
+    if (active && guard.escort_id) {
       const taken = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE escort_id = ${guard.escort_id} AND is_active = 'true'`);
       if (taken.length) throw new Error('Another active guard is linked to this escort now. Edit one of them first.');
     }
@@ -1104,7 +1346,7 @@ app.get('/getGuardLinks', async (req, res) => {
     const catalystApp = catalyst.initialize(req);
     const zcql = catalystApp.zcql();
     const [guards, subs] = await Promise.all([
-      selectAll(zcql, 'Guards', "SELECT ROWID, id_number, guard_name, agency, duty_type, guard_token FROM Guards WHERE is_active = 'true' ORDER BY id_number ASC"),
+      selectAll(zcql, 'Guards', "SELECT ROWID, id_number, guard_name, agency, guard_token FROM Guards WHERE is_active = 'true' ORDER BY id_number ASC"),
       selectAll(zcql, 'PushSubscriptions', 'SELECT guard_id FROM PushSubscriptions ORDER BY ROWID ASC')
     ]);
     const phones = {};

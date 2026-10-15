@@ -5,6 +5,8 @@ import Dashboard from './components/Dashboard.jsx';
 import CardSimulator from './components/CardSimulator.jsx';
 import GuardLinks from './components/GuardLinks.jsx';
 import GuardMaster from './components/GuardMaster.jsx';
+import PostsPage from './components/PostsPage.jsx';
+import DutyChart from './components/DutyChart.jsx';
 import GuardSetup from './components/GuardSetup.jsx';
 import GuardPage from './components/GuardPage.jsx';
 import './style.css';
@@ -39,7 +41,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Pages without a router: the duty sheet, #dashboard, #master, #simulator, #links (supervisor)
+// Pages without a router: the duty sheet, #dashboard, #master, #posts, #chart, #simulator, #links (supervisor)
 // and #setup/<token>, #guard/<token> (guard's phone).
 // The browser Back button works because each page is a URL hash.
 function Root() {
@@ -55,6 +57,8 @@ function Root() {
   }, []);
   if (hash === '#dashboard') return <Dashboard />;
   if (hash === '#master') return <GuardMaster />;
+  if (hash === '#posts') return <PostsPage />;
+  if (hash === '#chart') return <DutyChart />;
   if (hash === '#simulator') return <CardSimulator />;
   if (hash === '#links') return <GuardLinks />;
   if (hash.startsWith('#setup/')) return <GuardSetup token={hash.slice('#setup/'.length)} />;

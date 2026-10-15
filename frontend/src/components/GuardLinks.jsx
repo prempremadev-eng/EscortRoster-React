@@ -121,7 +121,7 @@ export default function GuardLinks() {
           <div className="dash-scroll">
             <table className="dash-table">
               <thead>
-                <tr><th>ID</th><th>Guard</th><th>Agency</th><th>Duty</th><th>Phone set up</th><th>Link</th></tr>
+                <tr><th>ID</th><th>Guard</th><th>Agency</th><th>Phone set up</th><th>Link</th></tr>
               </thead>
               <tbody>
                 {guards.map(g => (
@@ -129,7 +129,6 @@ export default function GuardLinks() {
                     <td>{g.id_number}</td>
                     <td className="left">{g.guard_name}</td>
                     <td>{g.agency}</td>
-                    <td>{g.duty_type === 'POST' ? '📍 Post' : '🚐 Escort'}</td>
                     <td className={g.phones ? 'sim-in' : ''}>{g.phones ? '📱 ' + g.phones : '—'}</td>
                     <td>
                       <button className="btn secondary" onClick={() => show(g)}>{g.guard_token ? 'Show QR' : 'Create link'}</button>
@@ -141,7 +140,7 @@ export default function GuardLinks() {
                     </td>
                   </tr>
                 ))}
-                {guards.length === 0 && <tr><td colSpan="6">No guards in the master yet.</td></tr>}
+                {guards.length === 0 && <tr><td colSpan="5">No guards in the master yet.</td></tr>}
               </tbody>
             </table>
           </div>

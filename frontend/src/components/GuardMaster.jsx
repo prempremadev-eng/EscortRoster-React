@@ -2,10 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 
 const NO_FILTERS = { state: '', city: '', branch: '', agency: '', duty: '', status: '', q: '' };
-const BLANK_GUARD = { id_number: '', guard_name: '', agency: '', branch_id: '', duty_type: 'POST', post_name: '', escort_id: '', phone: '' };
+const BLANK_GUARD = { id_number: '', guard_name: '', agency: '', branch_id: '', escort_id: '', phone: '' };
 const STATUS_LABEL = { IN: '✅ IN', OUT: '🚪 OUT', NONE: '⏳ Not yet' };
 
 const uniq = list => [...new Set(list)];
+
+// "📍 Gate 3 · A", "🚐 Escort · C" or "⏳ Not assigned" (this week's Duty Chart).
+export const dutyLabel = d => (d ? (d.post_type === 'ESCORT' ? '🚐 ' : '📍 ') + d.post_name + ' · ' + d.shift_code : '⏳ Not assigned');
 
 // Today's swipes (oldest first) -> { guard ROWID: { status, firstIn, lastOut } }.
 function todayStatus(swipes) {
@@ -64,6 +67,9 @@ export default function GuardMaster() {
   const guards = showLeft ? allGuards : allGuards.filter(g => g.is_active === 'true');
 
   const statusOf = g => (today[String(g.ROWID)] || { status: 'NONE' }).status;
+  // This week's post + shift from the Duty Chart (null = not assigned).
+  const dutyOf = g => (data && data.duties[String(g.ROWID)]) || null;
+  const dutyKind = g => (dutyOf(g) ? dutyOf(g).post_type : 'NONE');
   const q = filters.q.trim().toLowerCase();
   // Everything except the status filter, so the summary boxes count the same group.
   const base = guards.filter(g => {
@@ -73,7 +79,7 @@ export default function GuardMaster() {
       && (!filters.city || b.city === filters.city)
       && (!filters.branch || String(b.ROWID) === filters.branch)
       && (!filters.agency || g.agency === filters.agency)
-      && (!filters.duty || g.duty_type === filters.duty)
+      && (!filters.duty || dutyKind(g) === filters.duty)
       && (!q || g.guard_name.toLowerCase().includes(q) || g.id_number.toLowerCase().includes(q));
   });
   const shown = base.filter(g => !filters.status || statusOf(g) === filters.status);
@@ -94,10 +100,10 @@ export default function GuardMaster() {
   if (filters.city) trail.push(filters.city);
   if (filters.branch && branchById[filters.branch]) trail.push(branchById[filters.branch].branch_name);
 
-  // The escort list costs reads, so fetch it only when the form shows ESCORT.
+  // The escort list costs reads, so fetch it only when the escort box is opened.
   // `keep` = the escort of the guard being edited, so it stays in the list.
   async function loadFreeEscorts(keep) {
-    setFreeEscorts(null);
+    if (freeEscorts) return;
     try {
       setFreeEscorts((await api.getFreeEscorts(keep)).data);
     } catch (err) {
@@ -110,17 +116,15 @@ export default function GuardMaster() {
     setNote('');
     setConfirmLeft(false);
     const next = g
-      ? { ...BLANK_GUARD, ...g, post_name: g.post_name || '', escort_id: g.escort_id || '', phone: g.phone || '' }
+      ? { ...BLANK_GUARD, ...g, escort_id: g.escort_id || '', phone: g.phone || '' }
       : { ...BLANK_GUARD, branch_id: filters.branch || '' };
     setForm(next);
-    if (next.duty_type === 'ESCORT') loadFreeEscorts(next.escort_id);
-    else setFreeEscorts(null);
+    setFreeEscorts(null);
     window.scrollTo({ top: 0 });
   }
 
   function setFormField(key, value) {
     setForm(prev => ({ ...prev, [key]: value }));
-    if (key === 'duty_type' && value === 'ESCORT' && !freeEscorts) loadFreeEscorts(form.escort_id);
   }
 
   // Put a saved row into the list ourselves instead of reloading everything (saves reads).
@@ -140,8 +144,7 @@ export default function GuardMaster() {
     setSaving(true);
     setError('');
     try {
-      const fields = ['id_number', 'guard_name', 'agency', 'branch_id', 'duty_type', 'phone',
-        form.duty_type === 'POST' ? 'post_name' : 'escort_id'];
+      const fields = ['id_number', 'guard_name', 'agency', 'branch_id', 'phone', 'escort_id'];
       const payload = {};
       fields.forEach(k => { payload[k] = form[k]; });
       const saved = form.ROWID
@@ -184,6 +187,8 @@ export default function GuardMaster() {
       </div>
 
       <div className="toolbar no-print">
+        <a className="btn secondary" href="#posts">📍 Posts</a>
+        <a className="btn secondary" href="#chart">📅 Duty Chart</a>
         <a className="btn secondary" href="#simulator">🪪 Card Simulator</a>
         <a className="btn secondary" href="#links">🔗 Guard Links</a>
         {data && <div><label>Duty day:</label> {data.dutyDate}</div>}
@@ -209,28 +214,17 @@ export default function GuardMaster() {
                   {branches.map(b => <option key={b.ROWID} value={b.ROWID}>{branchLabel(b)} · {b.city}</option>)}
                 </select>
               </label>
-              <label>Duty
-                <select id="g-duty" value={form.duty_type} onChange={e => setFormField('duty_type', e.target.value)}>
-                  <option value="POST">📍 POST</option>
-                  <option value="ESCORT">🚐 ESCORT</option>
+              <label>Escort duty sheet name (only for escort duty)
+                <select id="g-escort" value={form.escort_id} onFocus={() => loadFreeEscorts(form.escort_id)} onChange={e => setFormField('escort_id', e.target.value)}>
+                  <option value="">— Not on the escort sheet —</option>
+                  {form.escort_id && !freeEscorts && <option value={form.escort_id}>Linked (tap to change)</option>}
+                  {(freeEscorts || []).map(x => <option key={x.ROWID} value={x.ROWID}>{x.escort_name}</option>)}
                 </select>
               </label>
-              {form.duty_type === 'POST' ? (
-                <label>Post<input id="g-post" value={form.post_name} onChange={e => setFormField('post_name', e.target.value)} placeholder="Gate 3" required /></label>
-              ) : (
-                <label>Escort (duty sheet name)
-                  <select id="g-escort" value={form.escort_id} onChange={e => setFormField('escort_id', e.target.value)} required>
-                    <option value="">{freeEscorts ? 'Pick an escort' : 'Loading...'}</option>
-                    {(freeEscorts || []).map(x => <option key={x.ROWID} value={x.ROWID}>{x.escort_name}</option>)}
-                  </select>
-                </label>
-              )}
               <label>Phone (optional)<input id="g-phone" value={form.phone} onChange={e => setFormField('phone', e.target.value)} inputMode="tel" /></label>
             </div>
             <datalist id="g-agencies">{uniq(guards.map(g => g.agency)).map(a => <option key={a} value={a} />)}</datalist>
-            {form.duty_type === 'ESCORT' && freeEscorts && freeEscorts.length === 0 && (
-              <div className="sim-note">Every escort on the duty sheet already has a guard.</div>
-            )}
+            <div className="sim-note">Only the guard's own details here. Post and shift are set week by week in 📅 Duty Chart.</div>
             <div className="link-actions">
               <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save guard'}</button>
               <button className="btn secondary" type="button" onClick={() => setForm(null)}>Cancel</button>
@@ -285,6 +279,7 @@ export default function GuardMaster() {
                   <option value="">All duties</option>
                   <option value="POST">📍 POST</option>
                   <option value="ESCORT">🚐 ESCORT</option>
+                  <option value="NONE">⏳ Not assigned</option>
                 </select>
               </label>
               <label className="master-search">Search name / ID
@@ -315,7 +310,7 @@ export default function GuardMaster() {
             <div className="dash-scroll">
               <table className="dash-table">
                 <thead>
-                  <tr><th>ID</th><th>Guard</th><th>Agency</th><th>Branch</th><th>Duty</th><th>IN</th><th>OUT</th><th>Status</th><th></th></tr>
+                  <tr><th>ID</th><th>Guard</th><th>Agency</th><th>Branch</th><th>This week</th><th>IN</th><th>OUT</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody>
                   {shown.map(g => {
@@ -328,7 +323,7 @@ export default function GuardMaster() {
                         <td className="left">{g.guard_name}</td>
                         <td>{g.agency}</td>
                         <td className="left">{b ? branchLabel(b) : '—'}<div className="master-sub">{b ? b.city + ', ' + b.state : ''}</div></td>
-                        <td>{g.duty_type === 'POST' ? '📍 ' + (g.post_name || 'Post') : '🚐 Escort'}</td>
+                        <td>{dutyLabel(dutyOf(g))}</td>
                         <td>{t.firstIn || '—'}</td>
                         <td>{t.lastOut || '—'}</td>
                         <td className={t.status === 'IN' && !left ? 'sim-in' : ''}>{left ? '🚫 Left' : STATUS_LABEL[t.status]}</td>

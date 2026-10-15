@@ -54,6 +54,12 @@ export const api = {
 
   getGuards: () => apiCall('GET', '/getGuards'),
   getMaster: () => apiCall('GET', '/getMaster'),
+  getPosts: () => apiCall('GET', '/getPosts'),
+  addPost: post => apiCall('POST', '/addPost', post),
+  updatePost: post => apiCall('PUT', '/updatePost', post),
+  getChart: (week, branch) => apiCall('GET', '/getChart?week=' + q(week || '') + (branch ? '&branch=' + q(branch) : '')),
+  saveChart: row => apiCall('POST', '/saveChart', row),
+  copyChart: (week, branch_id) => apiCall('POST', '/copyChart', { week, branch_id }),
   getFreeEscorts: keep => apiCall('GET', '/getFreeEscorts' + (keep ? '?keep=' + q(keep) : '')),
   addGuard: guard => apiCall('POST', '/addGuard', guard),
   updateGuard: guard => apiCall('PUT', '/updateGuard', guard),

@@ -969,3 +969,14 @@ a.btn{text-decoration:none;display:inline-block;}
 .gsheet-orig .delcell-col{display:none;}
 .link-reset{margin-left:6px;}
 .link-reset.confirm{color:#b91c1c;border-color:#fca5a5;background:#fef2f2;}
+
+/* ---------- duty chart (#chart) ---------- */
+.chart-week{display:flex;align-items:center;gap:6px;font-weight:bold;color:var(--blue-dark);}
+.chart-week .btn{padding:4px 10px;}
+.chart-shifts{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;}
+.chart-shift{background:#fff;border:1px solid var(--border);border-radius:16px;padding:4px 12px;font-size:13px;color:#334155;}
+.dash-table select{font-size:14px;padding:4px 6px;border:1px solid var(--border);border-radius:5px;max-width:220px;}
+.chart-empty td{background:#fffbeb;}
+.chart-state{white-space:nowrap;font-size:13px;}
+.guard-shift{color:var(--blue-dark);font-weight:bold;margin-top:4px;}
+.master-actions{display:flex;gap:6px;justify-content:center;}

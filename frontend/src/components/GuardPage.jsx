@@ -37,9 +37,12 @@ export default function GuardPage({ token, testDate }) {
   const hasSheet = !isPost && !!mine;
 
   const open = status === 'ok' && !data.locked;
+  const notAssigned = data && !data.dutyType;
   const headline = isPost
-    ? (data && data.postName ? '📍 ' + data.postName : '✅ You are IN')
-    : (mine ? '⭐ Seat ' + mine.seat : '✅ You are IN');
+    ? '📍 ' + data.postName
+    : notAssigned ? '⏳ Not assigned' : (mine ? '⭐ Seat ' + mine.seat : '✅ You are IN');
+  // "Shift A · 06:00–15:00" from this week's Duty Chart.
+  const shiftLine = data && data.shift ? 'Shift ' + data.shift.code + ' · ' + data.shift.start + '–' + data.shift.end : '';
 
   return (
     <>
@@ -51,7 +54,7 @@ export default function GuardPage({ token, testDate }) {
         <>
           <div className="toolbar no-print gsheet-bar">
             <div className="gsheet-me">{headline}</div>
-            <div>{data.name} · IN {data.inTime}</div>
+            <div>{data.name} · IN {data.inTime}{shiftLine ? ' · ' + shiftLine : ''}</div>
             <div>{formatLongDate(data.dutyDate)}</div>
             <div className="spacer"></div>
             <div>{inCount} of {sheet.length} IN</div>
@@ -89,11 +92,14 @@ export default function GuardPage({ token, testDate }) {
                 <div className="guard-date">{formatLongDate(data.dutyDate)}</div>
                 <div className="guard-me">{headline}</div>
                 <div className="guard-sub">{data.name} · IN {data.inTime}</div>
+                {shiftLine && <div className="guard-shift">{shiftLine}</div>}
               </div>
               <div className="setup-card">
                 {isPost
-                  ? <>Today your post is <b>{data.postName || 'not set yet'}</b>. The full post page comes later.</>
-                  : 'No escort duty sheet today (Saturday / Sunday).'}
+                  ? <>Today your post is <b>{data.postName}</b>, {shiftLine}.</>
+                  : notAssigned
+                    ? 'Your duty for this week is not assigned yet. Ask your supervisor.'
+                    : 'No escort duty sheet today (Saturday / Sunday).'}
               </div>
               <p className="sim-note guard-foot">This page closes at 08:00. Tomorrow it opens again after your card IN.</p>
             </>

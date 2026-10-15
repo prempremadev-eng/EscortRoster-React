@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { dutyDayStr } from '../utils.js';
+import { dutyLabel } from './GuardMaster.jsx';
 
 // What happened to the IN notification, in one line for the tester.
 function pushNote(name, push) {
@@ -9,7 +10,7 @@ function pushNote(name, push) {
   if (push.skipped) return 'ℹ️ ' + name + ': ' + push.skipped + ', no new notification.';
   if (!push.phones) return '📵 ' + name + ': no phone set up (Guard Links).';
   const failed = (push.devices || []).filter(d => d.result !== 'sent').map(d => d.device + ' ' + d.result).join(', ');
-  return '📨 ' + name + ': sent to ' + push.sent + ' of ' + push.phones + ' phone(s)' + (push.seat ? ', Seat ' + push.seat : '') + (failed ? ' (' + failed + ')' : '') + '.';
+  return '📨 ' + name + ': sent to ' + push.sent + ' of ' + push.phones + ' phone(s)' + (push.seat ? ', Seat ' + push.seat : '') + (push.post ? ', ' + push.post + ' · Shift ' + push.shift : ', duty not assigned') + (failed ? ' (' + failed + ')' : '') + '.';
 }
 
 // Pretends to be the access-card machine at the gate: each button press writes one AccessLog row.
@@ -90,7 +91,7 @@ export default function CardSimulator() {
             <div className="dash-scroll">
               <table className="dash-table">
                 <thead>
-                  <tr><th>ID</th><th>Guard</th><th>Agency</th><th>Duty</th><th>Status</th><th>Card</th></tr>
+                  <tr><th>ID</th><th>Guard</th><th>Agency</th><th>This week</th><th>Status</th><th>Card</th></tr>
                 </thead>
                 <tbody>
                   {guards.map(g => {
@@ -102,7 +103,7 @@ export default function CardSimulator() {
                         <td>{g.id_number}</td>
                         <td className="left">{g.guard_name}</td>
                         <td>{g.agency}</td>
-                        <td>{g.duty_type === 'POST' ? '📍 ' + (g.post_name || 'Post') : '🚐 Escort'}</td>
+                        <td>{dutyLabel(g.duty)}</td>
                         <td className={isIn ? 'sim-in' : ''}>{l ? (isIn ? '✅ IN ' : '🚪 OUT ') + l.punch_time : '⏳'}</td>
                         <td className="sim-buttons">
                           <button className="btn" disabled={busy === id} onClick={() => punch(id, 'IN')}>IN</button>
