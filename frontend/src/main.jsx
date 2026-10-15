@@ -28,6 +28,17 @@ function rememberGuard(hash) {
   return null;
 }
 
+// A tapped notification asks an already open tab to go to its page (see public/sw.js).
+// Same page again → reload, so the guard sees fresh data.
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', e => {
+    const url = e.data && e.data.type === 'open' && String(e.data.url || '');
+    if (!url || !url.startsWith(window.location.origin + '/')) return;
+    if (url === window.location.href) window.location.reload();
+    else window.location.href = url;
+  });
+}
+
 // Pages without a router: the duty sheet, #dashboard, #master, #simulator, #links (supervisor)
 // and #setup/<token>, #guard/<token> (guard's phone).
 // The browser Back button works because each page is a URL hash.

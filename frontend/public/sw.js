@@ -17,21 +17,18 @@ self.addEventListener('push', event => {
 });
 
 // Tapping the notification brings the app to the front at the page the message points to.
-// An open tab is reused when the phone allows it; otherwise a new tab opens.
+// The browser allows focus / open window only for a moment after the tap, so nothing slow
+// happens before them. An open tab is told where to go (it moves itself, see main.jsx);
+// with no open tab, a new one opens.
 self.addEventListener('notificationclick', event => {
   event.notification.close();
   const url = new URL(event.notification.data.url, self.registration.scope).href;
-  event.waitUntil((async () => {
-    const tabs = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-    for (const tab of tabs) {
-      try {
-        const focused = await tab.focus();
-        await (focused || tab).navigate(url);
-        return;
-      } catch (err) {
-        // Not allowed for this tab (e.g. not controlled yet): try the next one, then a new tab.
-      }
-    }
-    await self.clients.openWindow(url);
-  })());
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(tabs => {
+      const tab = tabs[0];
+      if (!tab) return self.clients.openWindow(url);
+      tab.postMessage({ type: 'open', url });
+      return tab.focus().catch(() => self.clients.openWindow(url));
+    })
+  );
 });
