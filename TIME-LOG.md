@@ -23,3 +23,6 @@
 | Time | Event |
 |---|---|
 | 15:47 | ▶️ Start |
+| 00:08 (16 Oct) | ⏹️ Done (after post handover phase 1 phone test) |
+
+**Total:** ~8 h 20 min span (15:47 → 00:08), breaks not logged
