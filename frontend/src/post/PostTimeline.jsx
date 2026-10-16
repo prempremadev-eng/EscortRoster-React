@@ -3,6 +3,8 @@ import { api } from '../api.js';
 import { Icon, initials } from './icons.jsx';
 import AddWork from './AddWork.jsx';
 import SafetySheet from './SafetySheet.jsx';
+import VideoRecorder from './VideoRecorder.jsx';
+import { MAX_VIDEO_MB, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, clock, compressImage, recorderType, videoSeconds } from './media.js';
 
 const QUICK_REPLIES = ['OK', 'Noted', 'Done'];
 const ALERT_WAIT_MIN = 5;
@@ -41,11 +43,30 @@ function Bubble({ m, onMenu, onReply }) {
           <div className="pd-quote-text">{m.reply.text}</div>
         </div>
       )}
-      <div>{m.text}</div>
+      {m.media && <Media m={m} />}
+      {m.text && <div>{m.text}</div>}
       <div className="pd-meta">
         {m.pinned && <>{Icon.pin}Pinned for next guard · </>}
         {m.forwarded && <>Sent to supervisor · </>}
         {m.time}
+      </div>
+    </div>
+  );
+}
+
+// Photo / video / voice inside a bubble, with where it came from.
+function Media({ m }) {
+  const { url, source, duration } = m.media;
+  if (!url) return <div className="pd-media-missing">{m.kind === 'voice' ? 'Voice note' : m.kind === 'video' ? 'Video' : 'Photo'} not available</div>;
+  return (
+    <div className="pd-media">
+      {m.kind === 'photo' && <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="Photo from the post" className="pd-media-img" /></a>}
+      {m.kind === 'video' && <video src={url} controls playsInline preload="metadata" className="pd-media-img" />}
+      {m.kind === 'voice' && <audio src={url} controls preload="metadata" className="pd-media-audio" />}
+      <div className="pd-media-tags">
+        {source === 'camera' && <span className="pd-tag pd-tag-green">Taken at post</span>}
+        {source === 'gallery' && <span className="pd-tag pd-tag-amber">From gallery</span>}
+        {duration > 0 && <span className="pd-tag">{clock(duration)}</span>}
       </div>
     </div>
   );
@@ -118,7 +139,14 @@ export default function PostTimeline({ token, duty, shiftLine }) {
   const [sheet, setSheet] = useState(null); // 'menu' | 'alert' | 'safety' | message object
   const [page, setPage] = useState(null); // 'work'
   const [alertText, setAlertText] = useState('');
+  const [camera, setCamera] = useState(false);
+  const [voice, setVoice] = useState(null); // seconds while recording
   const endRef = useRef(null);
+  const photoInput = useRef(null);
+  const galleryInput = useRef(null);
+  const holdTimer = useRef(null);
+  const voiceRec = useRef(null);
+  const holdingMic = useRef(false);
 
   const load = useCallback(async () => {
     setError('');
@@ -190,6 +218,96 @@ export default function PostTimeline({ token, duty, shiftLine }) {
     }
   }
 
+  // Every photo / video / voice goes the same way: upload, then reload the timeline.
+  function upload(blob, kind, source, duration) {
+    const replying = replyTo ? replyTo.ROWID : null;
+    say('Sending ' + (kind === 'voice' ? 'voice note' : kind) + '...');
+    run(() => api.uploadMedia(token, blob, { kind, source, duration, reply_to: replying }), () => setReplyTo(null));
+  }
+
+  async function onPhotoTaken(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      upload(await compressImage(file), 'photo', 'camera', 0);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function onGalleryPick(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      if (file.type.startsWith('image/')) return upload(await compressImage(file), 'photo', 'gallery', 0);
+      if (!file.type.startsWith('video/')) return setError('Pick a photo or a video.');
+      const secs = await videoSeconds(file);
+      if (secs > MAX_VIDEO_SECONDS + 1) return setError('Video must be ' + MAX_VIDEO_SECONDS + ' seconds or less.');
+      if (file.size > MAX_VIDEO_MB * 1048576) return setError('Video is too big (max ' + MAX_VIDEO_MB + ' MB).');
+      upload(file, 'video', 'gallery', Math.round(secs));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  // Camera button: tap = photo, hold = video.
+  function cameraDown() {
+    holdTimer.current = setTimeout(() => { holdTimer.current = null; setCamera(true); }, 450);
+  }
+  function cameraUp() {
+    if (holdTimer.current) {
+      clearTimeout(holdTimer.current);
+      holdTimer.current = null;
+      photoInput.current.click();
+    }
+  }
+
+  // Mic button: hold to record, let go to send (WhatsApp style).
+  async function voiceDown(e) {
+    e.preventDefault();
+    holdingMic.current = true;
+    const type = recorderType('voice');
+    if (type === null || !navigator.mediaDevices) return setError('This phone cannot record voice here.');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chunks = [];
+      const rec = new MediaRecorder(stream, type ? { mimeType: type } : {});
+      const began = Date.now();
+      rec.ondataavailable = ev => { if (ev.data.size) chunks.push(ev.data); };
+      rec.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        clearInterval(rec.timer);
+        setVoice(null);
+        const secs = (Date.now() - began) / 1000;
+        if (rec.cancelled) return;
+        if (secs < 1) return say('Hold the mic to record');
+        upload(new Blob(chunks, { type: (rec.mimeType || type || 'audio/webm').split(';')[0] }), 'voice', 'mic', Math.round(secs));
+      };
+      rec.timer = setInterval(() => {
+        const secs = (Date.now() - began) / 1000;
+        setVoice(secs);
+        if (secs >= MAX_VOICE_SECONDS) rec.stop();
+      }, 250);
+      voiceRec.current = rec;
+      setVoice(0);
+      rec.start();
+      // Let go while the phone was still asking for the microphone: nothing to send.
+      if (!holdingMic.current) voiceUp(true);
+    } catch {
+      setError('Microphone is blocked. Allow the microphone for this site.');
+    }
+  }
+  function voiceUp(cancel) {
+    holdingMic.current = false;
+    const rec = voiceRec.current;
+    voiceRec.current = null;
+    if (!rec || rec.state !== 'recording') return;
+    rec.cancelled = cancel === true;
+    rec.stop();
+  }
+
   function finishWork(w) {
     run(() => api.finishWork(token, w.ROWID));
   }
@@ -206,6 +324,14 @@ export default function PostTimeline({ token, duty, shiftLine }) {
   function showWork(w) {
     const el = document.getElementById('work-' + w.ROWID);
     if (el) el.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  }
+
+  if (camera) {
+    return (
+      <div className="pd">
+        <VideoRecorder onClose={() => setCamera(false)} onSend={(blob, secs) => { setCamera(false); upload(blob, 'video', 'camera', secs); }} />
+      </div>
+    );
   }
 
   if (page === 'work') {
@@ -277,11 +403,26 @@ export default function PostTimeline({ token, duty, shiftLine }) {
         </div>
       )}
 
+      {voice !== null && (
+        <div className="pd-voice-bar">
+          <span className="pd-voice-dot"></span>Recording {clock(voice)} · let go to send
+          <button className="pd-link" onPointerDown={e => { e.stopPropagation(); voiceUp(true); }}>Cancel</button>
+        </div>
+      )}
+
       <form className="pd-composer" onSubmit={send}>
         <button type="button" className="pd-plus" onClick={() => setSheet('menu')} aria-label="Add work update or alert">{Icon.plus}</button>
         <label htmlFor="pd-msg" className="pd-hidden">Write a note</label>
-        <input id="pd-msg" value={text} onChange={e => setText(e.target.value)} placeholder={replyTo ? 'Write a reply' : 'Write a note'} maxLength={255} autoComplete="off" />
-        <button className="pd-send" type="submit" disabled={busy || !text.trim()} aria-label="Send">{Icon.send}</button>
+        <div className="pd-input">
+          <input id="pd-msg" value={text} onChange={e => setText(e.target.value)} placeholder={replyTo ? 'Write a reply' : 'Write a note'} maxLength={255} autoComplete="off" />
+          <button type="button" className="pd-in-btn" onClick={() => galleryInput.current.click()} disabled={busy} aria-label="Attach photo or video from gallery">{Icon.clip}</button>
+          <button type="button" className="pd-in-btn" onPointerDown={cameraDown} onPointerUp={cameraUp} onPointerLeave={() => { clearTimeout(holdTimer.current); holdTimer.current = null; }} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Take photo, hold for video">{Icon.camera}</button>
+        </div>
+        {text.trim()
+          ? <button className="pd-send" type="submit" disabled={busy} aria-label="Send">{Icon.send}</button>
+          : <button type="button" className={'pd-mic' + (voice !== null ? ' pd-mic-on' : '')} onPointerDown={voiceDown} onPointerUp={() => voiceUp(false)} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Hold to record a voice note">{Icon.mic}</button>}
+        <input ref={photoInput} type="file" accept="image/*" capture="environment" className="pd-hidden" onChange={onPhotoTaken} />
+        <input ref={galleryInput} type="file" accept="image/*,video/*" className="pd-hidden" onChange={onGalleryPick} />
       </form>
 
       {sheet && (

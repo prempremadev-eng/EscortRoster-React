@@ -8,7 +8,23 @@
 // PostMessages = the post's notebook; a note pinned by one guard is read by the next guard.
 // Kept in its own file so the escort code stays as it is; it uses the helpers of index.js.
 
+const express = require('express');
+const crypto = require('crypto');
+
 const MAX_TEXT = 255;
+
+// Photos, videos and voice notes live in Stratus (object storage), one folder per post and day.
+// The bucket is private: the timeline hands out links that work for one hour.
+const MEDIA_BUCKET = 'escortcardaccess-media';
+const MEDIA_LINK_SECONDS = 3600;
+const MEDIA = {
+  photo: { max: 8 * 1024 * 1024, types: { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' } },
+  video: { max: 25 * 1024 * 1024, types: { 'video/mp4': 'mp4', 'video/webm': 'webm', 'video/quicktime': 'mov' } },
+  voice: { max: 5 * 1024 * 1024, types: { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/aac': 'aac' } }
+};
+const MEDIA_SOURCES = ['camera', 'gallery', 'mic'];
+const MAX_VIDEO_SECONDS = 30;
+const MAX_VOICE_SECONDS = 180;
 const TIMELINE_LIMIT = 100;
 // ROWIDs are not given out in time order, so lists are sorted by time (CREATEDTIME / *_at).
 
@@ -236,6 +252,25 @@ module.exports = function postRoutes(app, h) {
     return map;
   }
 
+  const mediaLabel = kind => ({ photo: 'Photo', video: 'Video', voice: 'Voice note' }[kind] || '');
+
+  // One-hour download links for the photos / videos / voice notes on screen. Making a link needs
+  // the admin scope. A missing object only loses its own link, not the whole timeline.
+  async function mediaLinks(req, keys) {
+    const links = {};
+    if (!keys.length) return links;
+    const bucket = catalyst.initialize(req, { scope: 'admin' }).stratus().bucket(MEDIA_BUCKET);
+    await Promise.all([...new Set(keys)].map(async key => {
+      try {
+        const r = await bucket.generatePreSignedUrl(key, 'GET', { expiryIn: String(MEDIA_LINK_SECONDS) });
+        links[key] = r.signature;
+      } catch (err) {
+        console.error('Media link failed:', key, err.message || err);
+      }
+    }));
+    return links;
+  }
+
   // Screen 3: the post's latest notes (all shifts), oldest first, with work cards and alerts.
   // No auto-refresh: 🔄 button.
   app.get('/postTimeline', async (req, res) => {
@@ -246,12 +281,13 @@ module.exports = function postRoutes(app, h) {
       const open = await openWorks(zcql, log.post_id);
       await notePermitsExpired(catalystApp, log, open);
 
-      const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, duty_log_id, guard_id, kind, text, pinned, reply_to_id, ref_id, forwarded, CREATEDTIME FROM PostMessages WHERE post_id = ${requireRowId(log.post_id)} ORDER BY CREATEDTIME DESC LIMIT ${TIMELINE_LIMIT}`))
+      const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, duty_log_id, guard_id, kind, text, pinned, reply_to_id, ref_id, forwarded, media_key, media_source, duration, CREATEDTIME FROM PostMessages WHERE post_id = ${requireRowId(log.post_id)} ORDER BY CREATEDTIME DESC LIMIT ${TIMELINE_LIMIT}`))
         .map(r => r.PostMessages).reverse();
-      const [names, works, alerts] = await Promise.all([
+      const [names, works, alerts, links] = await Promise.all([
         namesOf(zcql, rows.map(m => m.guard_id)),
         rowsByIds(zcql, 'WorkUpdates', rows.filter(m => m.kind === 'work').map(m => m.ref_id)),
-        rowsByIds(zcql, 'Alerts', rows.filter(m => m.kind === 'alert').map(m => m.ref_id))
+        rowsByIds(zcql, 'Alerts', rows.filter(m => m.kind === 'alert').map(m => m.ref_id)),
+        mediaLinks(req, rows.filter(m => m.media_key).map(m => m.media_key))
       ]);
       const byId = {};
       rows.forEach(m => { byId[String(m.ROWID)] = m; });
@@ -269,7 +305,8 @@ module.exports = function postRoutes(app, h) {
           myShift: String(m.duty_log_id) === String(log.ROWID),
           author: authorOf(m),
           date: String(m.CREATEDTIME).slice(0, 10), time: String(m.CREATEDTIME).slice(11, 16),
-          reply: q ? { author: authorOf(q), text: q.text } : null,
+          reply: q ? { author: authorOf(q), text: q.text || mediaLabel(q.kind) } : null,
+          media: m.media_key ? { url: links[m.media_key] || '', source: m.media_source || '', duration: parseInt(m.duration, 10) || 0 } : null,
           work: w ? workView(w) : null,
           alert: a ? {
             ROWID: a.ROWID, status: a.status, sent: hhmm(a.sent_at), seenBy: a.seen_by || '', seen: hhmm(a.seen_at),
@@ -298,6 +335,40 @@ module.exports = function postRoutes(app, h) {
       }
       const saved = await addMessage(catalystApp, row);
       res.status(200).json({ status: 'success', data: { ROWID: saved.ROWID, time: String(saved.CREATEDTIME).slice(11, 16) } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // F7 / F8 / F9: photo, video or voice note. The phone sends the file itself as the request
+  // body (made small on the phone first); details come in the query string.
+  app.post('/uploadMedia', express.raw({ type: () => true, limit: '26mb' }), async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req);
+      const zcql = catalystApp.zcql();
+      const { me, log } = await onDutyLog(zcql, req.query.t);
+      const kind = String(req.query.kind || '');
+      const rule = MEDIA[kind];
+      if (!rule) throw new Error('Unknown media type.');
+      const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      const ext = rule.types[type];
+      if (!ext) throw new Error('This file type is not allowed (' + (type || 'unknown') + ').');
+      const body = req.body;
+      if (!Buffer.isBuffer(body) || !body.length) throw new Error('The file is empty.');
+      if (body.length > rule.max) throw new Error('File is too big (max ' + Math.round(rule.max / 1048576) + ' MB).');
+      const source = String(req.query.source || '');
+      if (!MEDIA_SOURCES.includes(source)) throw new Error('Unknown media source.');
+      const duration = Math.max(0, Math.round(Number(req.query.duration) || 0));
+      if (kind === 'video' && duration > MAX_VIDEO_SECONDS + 1) throw new Error('Video must be ' + MAX_VIDEO_SECONDS + ' seconds or less.');
+      if (kind === 'voice' && duration > MAX_VOICE_SECONDS + 1) throw new Error('Voice note is too long.');
+
+      const key = 'post/' + log.post_id + '/' + log.duty_date + '/' + crypto.randomBytes(8).toString('hex') + '.' + ext;
+      const bucket = catalyst.initialize(req, { scope: 'admin' }).stratus().bucket(MEDIA_BUCKET);
+      await bucket.putObject(key, body, { contentType: type });
+      const row = { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, kind, text: '', media_key: key, media_source: source, duration };
+      if (req.query.reply_to) row.reply_to_id = requireRowId(req.query.reply_to);
+      const saved = await addMessage(catalystApp, row);
+      res.status(200).json({ status: 'success', data: { ROWID: saved.ROWID } });
     } catch (err) {
       fail(res, err);
     }

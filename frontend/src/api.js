@@ -20,6 +20,20 @@ async function apiCall(method, endpoint, body) {
 
 const q = encodeURIComponent;
 
+// Photo / video / voice: the file itself is the request body, the details go in the address.
+async function uploadMedia(t, blob, { kind, source, duration, reply_to }) {
+  const qs = 't=' + q(t) + '&kind=' + q(kind) + '&source=' + q(source) + '&duration=' + q(duration || 0) + (reply_to ? '&reply_to=' + q(reply_to) : '');
+  const res = await fetch(API_BASE + '/uploadMedia?' + qs, { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
+  let json;
+  try {
+    json = await res.json();
+  } catch {
+    throw new Error('Upload failed (' + res.status + ')');
+  }
+  if (!res.ok || json.status !== 'success') throw new Error(json.error || 'Upload failed (' + res.status + ')');
+  return json;
+}
+
 export const api = {
   getEscorts: () => apiCall('GET', '/getEscorts'),
   addEscort: escort => apiCall('POST', '/addEscort', escort),
@@ -92,6 +106,7 @@ export const api = {
   addSafety: (t, entry) => apiCall('POST', '/addSafety', { t, ...entry }),
   sendAlert: (t, text) => apiCall('POST', '/sendAlert', { t, text }),
   cancelAlert: (t, rowid) => apiCall('POST', '/cancelAlert', { t, rowid }),
+  uploadMedia,
 
   syncEscortsFromExcel: escorts => apiCall('POST', '/syncEscortsFromExcel', { escorts }),
   getAllLocations: () => apiCall('GET', '/getAllLocations'),
