@@ -7,6 +7,8 @@ import VideoRecorder from './VideoRecorder.jsx';
 import { MAX_VIDEO_MB, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, clock, compressImage, recorderType, videoSeconds } from './media.js';
 
 const QUICK_REPLIES = ['OK', 'Noted', 'Done'];
+// Shown as chat bubbles (with the hold menu and swipe to reply).
+const BUBBLE_KINDS = ['text', 'photo', 'video', 'voice'];
 const ALERT_WAIT_MIN = 5;
 
 // A text bubble: hold it (or right-click) for the menu, swipe it right to reply (WhatsApp style).
@@ -380,7 +382,7 @@ export default function PostTimeline({ token, duty, shiftLine }) {
               {m.kind === 'system_red' && <div className="pd-sys pd-sys-red">{m.text}</div>}
               {m.kind === 'work' && <WorkCard m={m} onFinish={finishWork} busy={busy} />}
               {m.kind === 'alert' && <AlertCard m={m} duty={duty} onCancel={cancelAlert} />}
-              {m.kind === 'text' && <Bubble m={m} onMenu={x => setSheet(x)} onReply={x => setReplyTo(x)} />}
+              {BUBBLE_KINDS.includes(m.kind) && <Bubble m={m} onMenu={x => setSheet(x)} onReply={x => setReplyTo(x)} />}
             </div>
           );
         })}
@@ -396,7 +398,7 @@ export default function PostTimeline({ token, duty, shiftLine }) {
             <div className="pd-quote-name">Replying to {replyTo.mine ? 'yourself' : replyTo.author}</div>
             <button className="pd-x" onClick={() => setReplyTo(null)} aria-label="Cancel reply">×</button>
           </div>
-          <div className="pd-quote-text">{replyTo.text}</div>
+          <div className="pd-quote-text">{replyTo.text || (replyTo.kind === 'voice' ? 'Voice note' : replyTo.kind === 'video' ? 'Video' : 'Photo')}</div>
           <div className="pd-quick">
             {QUICK_REPLIES.map(q => <button key={q} className="pd-chip" onClick={() => send(null, q)} disabled={busy}>{q}</button>)}
           </div>
@@ -421,8 +423,8 @@ export default function PostTimeline({ token, duty, shiftLine }) {
         {text.trim()
           ? <button className="pd-send" type="submit" disabled={busy} aria-label="Send">{Icon.send}</button>
           : <button type="button" className={'pd-mic' + (voice !== null ? ' pd-mic-on' : '')} onPointerDown={voiceDown} onPointerUp={() => voiceUp(false)} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Hold to record a voice note">{Icon.mic}</button>}
-        <input ref={photoInput} type="file" accept="image/*" capture="environment" className="pd-hidden" onChange={onPhotoTaken} />
-        <input ref={galleryInput} type="file" accept="image/*,video/*" className="pd-hidden" onChange={onGalleryPick} />
+        <input ref={photoInput} type="file" accept="image/*" capture="environment" className="pd-file" onChange={onPhotoTaken} />
+        <input ref={galleryInput} type="file" accept="image/*,video/*" className="pd-file" onChange={onGalleryPick} />
       </form>
 
       {sheet && (
@@ -460,13 +462,13 @@ export default function PostTimeline({ token, duty, shiftLine }) {
 
             {typeof sheet === 'object' && (
               <>
-                <div className="pd-sheet-preview">{sheet.text}</div>
+                <div className="pd-sheet-preview">{sheet.text || (sheet.kind === 'voice' ? 'Voice note' : sheet.kind === 'video' ? 'Video' : 'Photo')}</div>
                 {sheet.myShift && (sheet.pinned
                   ? <button className="pd-option" onClick={() => pin(sheet, false)}>{Icon.pin}<span><b>Unpin</b><span>Next guard will not see it</span></span></button>
                   : <button className="pd-option pd-option-primary" onClick={() => pin(sheet, true)}>{Icon.pin}<span><b>Pin for next guard</b><span>Shows on their take over screen</span></span></button>)}
                 <button className="pd-option" onClick={() => { setReplyTo(sheet); setSheet(null); }}>{Icon.reply}<span><b>Reply</b><span>OK / Noted / Done or your words</span></span></button>
                 <button className="pd-option" onClick={() => forward(sheet)} disabled={sheet.forwarded}>{Icon.forward}<span><b>Send to supervisor</b><span>{sheet.forwarded ? 'Already sent' : 'Shows in the supervisor inbox'}</span></span></button>
-                <button className="pd-option" onClick={() => copy(sheet)}>{Icon.copy}<span><b>Copy</b></span></button>
+                {sheet.text && <button className="pd-option" onClick={() => copy(sheet)}>{Icon.copy}<span><b>Copy</b></span></button>}
                 <button className="pd-link" onClick={() => setSheet(null)}>Cancel</button>
               </>
             )}

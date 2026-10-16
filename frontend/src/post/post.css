@@ -225,3 +225,4 @@
 .pd-cam-rec{width:72px;height:72px;border-radius:50%;border:4px solid #fff;background:var(--pd-red);cursor:pointer;}
 .pd-cam-rec-on{border-radius:16px;}
 .pd-cam-send{background:var(--pd-green);color:#fff;border:none;border-radius:12px;height:48px;padding:0 24px;font-size:17px;font-weight:600;font-family:inherit;cursor:pointer;}
+.pd-file{display:none;}
