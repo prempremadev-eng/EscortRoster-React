@@ -5,6 +5,7 @@ import AddWork from './AddWork.jsx';
 import SafetySheet from './SafetySheet.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
 import BreakSheet from './BreakSheet.jsx';
+import PostHistory from './PostHistory.jsx';
 import { MAX_VIDEO_MB, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, clock, compressImage, recorderType, videoSeconds } from './media.js';
 
 const QUICK_REPLIES = ['OK', 'Noted', 'Done'];
@@ -416,6 +417,9 @@ export default function PostTimeline({ token, duty, shiftLine }) {
   }
 
   const hereEarly = bs && bs.coveringHere;
+  if (page === 'history') {
+    return <PostHistory token={token} post={viewPost} postName={hereEarly ? hereEarly.post : duty.post} onClose={() => setPage(null)} />;
+  }
   if (page === 'work') {
     return <AddWork token={token} post={viewPost} postName={hereEarly ? hereEarly.post : duty.post} onClose={saved => { setPage(null); if (saved) load(); }} />;
   }
@@ -444,6 +448,7 @@ export default function PostTimeline({ token, duty, shiftLine }) {
           {here ? <div className="pd-pill pd-amber">Covering</div>
             : onBreak ? <div className="pd-pill pd-amber">{myBreak.typeLabel} break</div>
               : <button className="pd-pill pd-green pd-pill-btn" onClick={() => setSheet('break')} disabled={!!myBreak}>On duty ▾</button>}
+          <button className="pd-icon-btn" onClick={() => setPage('history')} aria-label="Duty history for this post">{Icon.history}</button>
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
         </div>
         {here && here.mode === 'go' && (
