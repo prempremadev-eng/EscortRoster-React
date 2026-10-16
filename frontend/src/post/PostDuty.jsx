@@ -41,7 +41,7 @@ export default function PostDuty({ token }) {
     setBusy(true);
     setError('');
     try {
-      await api.takeOver(token);
+      await (duty.general ? api.startGeneral(token) : api.takeOver(token));
       await load();
     } catch (err) {
       setError(err.message);
@@ -51,7 +51,7 @@ export default function PostDuty({ token }) {
   }
 
   const shift = duty && duty.shift;
-  const shiftLine = shift ? 'Shift ' + shift.code + ' · ' + shift.start + ' – ' + shift.end : '';
+  const shiftLine = shift ? (shift.code === 'G' ? 'General shift' : 'Shift ' + shift.code) + ' · ' + shift.start + ' – ' + shift.end : '';
 
   if (view === 'loading') return <div className="pd pd-page"><div className="pd-muted">Loading...</div></div>;
 
@@ -76,7 +76,7 @@ export default function PostDuty({ token }) {
     );
   }
 
-  if (view === 'timeline') return <PostTimeline token={token} duty={duty} shiftLine={shiftLine} />;
+  if (view === 'timeline') return <PostTimeline token={token} duty={duty} shiftLine={shiftLine} onDutyChange={load} />;
 
   // The next guard took over: today's duty at this post is over.
   if (view === 'done') {
@@ -87,9 +87,9 @@ export default function PostDuty({ token }) {
             <div className="pd-title">{duty.post}</div>
             <div className="pd-muted pd-small">{shiftLine}</div>
           </div>
-          <div className="pd-pill pd-neutral">Handed over</div>
+          <div className="pd-pill pd-neutral">{duty.general ? 'Ended' : 'Handed over'}</div>
         </div>
-        <div className="pd-card"><div>Handed over at <b>{duty.handedOverAt}</b>. Your duty for today is over. You can leave.</div></div>
+        <div className="pd-card"><div>{duty.general ? 'General duty ended' : 'Handed over'} at <b>{duty.handedOverAt}</b>. Your duty for today is over. You can leave.</div></div>
         <div className="pd-grow"></div>
         <button className="pd-btn pd-btn-outline" onClick={load}>Check again</button>
       </div>
@@ -131,6 +131,50 @@ export default function PostDuty({ token }) {
     );
   }
 
+  // G1: general shift, no handover: join the guard already here.
+  if (duty.general) {
+    return (
+      <div className="pd pd-page">
+        <div className="pd-head-row">
+          <div>
+            <div className="pd-title">{duty.post}</div>
+            <div className="pd-muted pd-small">{shiftLine}</div>
+          </div>
+          <div className="pd-pill pd-neutral">Not started</div>
+        </div>
+        <div className="pd-card pd-info">
+          <b>No handover for general shift</b>
+          <div className="pd-small">You join the guard already here. Press Start duty when you reach the post.</div>
+        </div>
+        <div className="pd-card">
+          <div className="pd-label">AT THIS POST NOW</div>
+          {duty.atPost.length === 0 && <div className="pd-muted">No one on duty here now.</div>}
+          {duty.atPost.map((g, i) => (
+            <div key={i} className="pd-from">
+              <div className="pd-avatar pd-avatar-sm">{initials(g.name)}</div>
+              <div><b>{g.name}</b><div className="pd-muted pd-small">Shift {g.shift}{g.onBreak ? ' · on break' : ' · on duty'}{g.since ? ' since ' + g.since : ''}</div></div>
+            </div>
+          ))}
+        </div>
+        <div className="pd-card">
+          <div className="pd-label">PINNED NOTES</div>
+          {duty.notes.length === 0 && <div className="pd-muted">No pinned notes.</div>}
+          {duty.notes.map((n, i) => (
+            <div key={i} className="pd-note">
+              <div>{n.text}</div>
+              <div className="pd-time">{n.by} · {n.time}</div>
+            </div>
+          ))}
+        </div>
+        {error && <div className="pd-card pd-bad">{error}</div>}
+        <div className="pd-grow"></div>
+        <div className="pd-muted pd-small pd-center">Press only after you reach the post</div>
+        <button className="pd-btn pd-btn-primary pd-btn-big" onClick={takeOver} disabled={busy}>{busy ? 'Saving...' : '▶ Start duty'}</button>
+        <button className="pd-link" onClick={() => setView('main')}>Back</button>
+      </div>
+    );
+  }
+
   // Screen 2: Take over
   const from = duty.from;
   return (
@@ -156,7 +200,7 @@ export default function PostDuty({ token }) {
         {duty.notes.map((n, i) => (
           <div key={i} className="pd-note">
             <div>{n.text}</div>
-            <div className="pd-time">{n.time}</div>
+            <div className="pd-time">{n.by} · {n.time}</div>
           </div>
         ))}
       </div>

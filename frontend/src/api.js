@@ -110,6 +110,8 @@ export const api = {
   postHistory: (t, from, to, post) => apiCall('GET', '/postHistory?t=' + q(t) + '&from=' + q(from) + '&to=' + q(to) + (post ? '&post=' + q(post) : '')),
   postWorks: (t, from, to, post) => apiCall('GET', '/postWorks?t=' + q(t) + '&from=' + q(from) + '&to=' + q(to) + (post ? '&post=' + q(post) : '')),
   pastShift: (t, log, post) => apiCall('GET', '/pastShift?t=' + q(t) + '&log=' + q(log) + (post ? '&post=' + q(post) : '')),
+  startGeneral: t => apiCall('POST', '/startGeneral', { t }),
+  endGeneral: (t, note) => apiCall('POST', '/endGeneral', { t, note }),
   coverCandidates: t => apiCall('GET', '/coverCandidates?t=' + q(t)),
   startBreak: (t, type, cover_guard_id) => apiCall('POST', '/startBreak', { t, type, cover_guard_id }),
   cancelBreak: t => apiCall('POST', '/cancelBreak', { t }),

@@ -152,7 +152,8 @@ function AlertCard({ m, duty, onCancel }) {
 }
 
 // Screen 3: the post timeline of the guard on duty.
-export default function PostTimeline({ token, duty, shiftLine }) {
+export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
+  const general = duty.shift && duty.shift.code === 'G';
   const [messages, setMessages] = useState([]);
   const [openWorks, setOpenWorks] = useState([]);
   const [status, setStatus] = useState('loading');
@@ -171,6 +172,7 @@ export default function PostTimeline({ token, duty, shiftLine }) {
   const [bs, setBs] = useState(null);
   const [viewPost, setViewPost] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [endNote, setEndNote] = useState('');
   const autoOpened = useRef({});
   const seen = useRef(null); // what needed attention at the last load, to ring only for new things
   const endRef = useRef(null);
@@ -395,6 +397,19 @@ export default function PostTimeline({ token, duty, shiftLine }) {
   function coverReturned() {
     run(() => api.coverReturned(token), () => say('Welcome back to ' + bs.ownPost));
   }
+  // G3: end the general duty (optional note pinned for the guard staying).
+  async function endGeneral() {
+    setBusy(true);
+    setError('');
+    try {
+      await api.endGeneral(token, endNote);
+      setSheet(null);
+      onDutyChange();
+    } catch (err) {
+      setError(err.message);
+      setBusy(false);
+    }
+  }
   function replyPing(text) {
     run(() => api.replyPing(token, text), () => say('Sent: ' + text));
   }
@@ -447,7 +462,7 @@ export default function PostTimeline({ token, duty, shiftLine }) {
           </div>
           {here ? <div className="pd-pill pd-amber">Covering</div>
             : onBreak ? <div className="pd-pill pd-amber">{myBreak.typeLabel} break</div>
-              : <button className="pd-pill pd-green pd-pill-btn" onClick={() => setSheet('break')} disabled={!!myBreak}>On duty ▾</button>}
+              : <button className="pd-pill pd-green pd-pill-btn" onClick={() => setSheet(general ? 'general' : 'break')} disabled={!!myBreak}>On duty ▾</button>}
           <button className="pd-icon-btn" onClick={() => setPage('history')} aria-label="Duty history for this post">{Icon.history}</button>
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
         </div>
@@ -633,6 +648,26 @@ export default function PostTimeline({ token, duty, shiftLine }) {
                 <button className="pd-btn pd-btn-red" type="submit" disabled={busy || !alertText.trim()}>{busy ? 'Sending...' : 'Send alert'}</button>
                 <button type="button" className="pd-link" onClick={() => setSheet(null)}>Cancel</button>
               </form>
+            )}
+
+            {sheet === 'general' && (
+              <>
+                <button className="pd-option" onClick={() => setSheet('break')}>{Icon.pause}<span><b>Go on break</b><span>Someone covers, or the post shows empty</span></span></button>
+                <div className="pd-sheet-title">End general duty</div>
+                <div className="pd-tiles pd-tiles-3">
+                  <div className="pd-tile"><div className="pd-tile-k">Started</div><div className="pd-tile-v">{duty.takenOverAt}</div></div>
+                  <div className="pd-tile"><div className="pd-tile-k">Works</div><div className="pd-tile-v">{messages.filter(m => m.myShift && m.kind === 'work').length}</div></div>
+                  <div className="pd-tile"><div className="pd-tile-k">Messages</div><div className="pd-tile-v">{messages.filter(m => m.myShift && BUBBLE_KINDS.includes(m.kind)).length}</div></div>
+                </div>
+                <label htmlFor="pd-endnote" className="pd-field-title">Note for the guard staying (optional)</label>
+                <textarea id="pd-endnote" className="pd-search" rows={3} maxLength={255} value={endNote} onChange={e => setEndNote(e.target.value)}
+                  placeholder={bs && bs.atPost.length ? bs.atPost[0].name + ' will see this' : 'The next guard will see this'} />
+                <div className="pd-small pd-muted">
+                  {bs && bs.atPost.length ? bs.atPost.map(g => g.name + ' (Shift ' + g.shift + ')').join(', ') + ' stays at this post. No handover needed.' : 'No other guard at this post now.'}
+                </div>
+                <button className="pd-btn pd-btn-primary" onClick={endGeneral} disabled={busy}>{busy ? 'Saving...' : 'End duty · ' + new Date().toTimeString().slice(0, 5)}</button>
+                <button className="pd-link" onClick={() => setSheet(null)}>Cancel</button>
+              </>
             )}
 
             {sheet === 'break' && (

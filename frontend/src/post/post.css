@@ -298,3 +298,4 @@
 .pd-past-msg{display:flex;flex-direction:column;}
 .pd-past-card{gap:6px;padding:10px 12px;}
 .pd-past-foot{text-align:center;color:var(--pd-faint);font-size:13px;padding:12px 0 24px;}
+.pd-info{background:var(--pd-primary-tint,#EEF2FA);border-color:#C9D6F0;gap:4px;}

@@ -12,6 +12,9 @@ const express = require('express');
 const crypto = require('crypto');
 
 const MAX_TEXT = 255;
+// General shift (09:00–18:00): no handover chain. Start duty / End duty never touch the
+// A / B / C guard of the post, and an A / B / C take over never ends a general duty.
+const GENERAL = 'G';
 
 // Photos, videos and voice notes live in Stratus (object storage), one folder per post and day.
 // The bucket is private: the timeline hands out links that work for one hour.
@@ -111,24 +114,29 @@ module.exports = function postRoutes(app, h) {
         : [];
       const branch = branches.length ? branches[0].Branches : {};
 
-      // Handover notes: what the last guard of this post pinned for the next guard.
+      // Handover notes: what was pinned at this post for the next guard since the guard I take
+      // over from started (a general-shift guard's notes count too); last 24 hours if nobody.
       let from = null;
       let notes = [];
       let works = [];
+      let atPost = [];
+      const general = log.shift_code === GENERAL;
       if (log.status === 'waiting') {
         works = (await openWorks(zcql, log.post_id)).map(workView);
-        // Yesterday's row of the same guard is not "someone else" to take over from.
-        const prev = others.find(o => String(o.guard_id) !== String(me.ROWID)) || null;
+        // Yesterday's row of the same guard is not "someone else"; a general guard is never taken over from.
+        const here = others.filter(o => String(o.guard_id) !== String(me.ROWID));
+        const prev = general ? null : here.find(o => o.shift_code !== GENERAL) || null;
         const lastLogs = prev ? [prev] : (await zcql.executeZCQLQuery(`SELECT * FROM DutyLog WHERE post_id = ${requireRowId(log.post_id)} AND status = 'handed_over' ORDER BY handed_over_at DESC LIMIT 1`)).map(r => r.DutyLog);
         const last = lastLogs[0];
-        if (last) {
-          const pinned = await zcql.executeZCQLQuery(`SELECT ROWID, text, CREATEDTIME FROM PostMessages WHERE duty_log_id = ${requireRowId(last.ROWID)} AND pinned = true ORDER BY CREATEDTIME ASC`);
-          notes = pinned.map(r => ({ text: r.PostMessages.text, time: String(r.PostMessages.CREATEDTIME).slice(11, 16) }));
-        }
-        if (prev) {
-          const names = await namesOf(zcql, [prev.guard_id]);
-          from = { name: (names[String(prev.guard_id)] || {}).guard_name || 'Guard', shift: prev.shift_code, since: (prev.taken_over_at || '').slice(11, 16) };
-        }
+        const dayAgo = new Date(Date.now() + IST_OFFSET_MIN * 60000 - 86400000).toISOString().slice(0, 16).replace('T', ' ');
+        const since = general || !last || !last.taken_over_at ? dayAgo : last.taken_over_at;
+        const pinned = await zcql.executeZCQLQuery(`SELECT ROWID, guard_id, text, CREATEDTIME FROM PostMessages WHERE post_id = ${requireRowId(log.post_id)} AND pinned = true AND CREATEDTIME >= '${since}:00' ORDER BY CREATEDTIME ASC`);
+        const names = await namesOf(zcql, here.map(o => o.guard_id).concat(pinned.map(r => r.PostMessages.guard_id)));
+        const nameOf = id => (names[String(id)] || {}).guard_name || 'Guard';
+        notes = pinned.map(r => ({ text: r.PostMessages.text, time: String(r.PostMessages.CREATEDTIME).slice(11, 16), by: nameOf(r.PostMessages.guard_id) }));
+        if (prev) from = { name: nameOf(prev.guard_id), shift: prev.shift_code, since: (prev.taken_over_at || '').slice(11, 16) };
+        // General shift: who is already standing here (no handover with them).
+        if (general) atPost = here.map(o => ({ name: nameOf(o.guard_id), shift: o.shift_code, since: (o.taken_over_at || '').slice(11, 16), onBreak: o.status === 'on_break' }));
       }
       res.status(200).json({
         status: 'success',
@@ -139,7 +147,7 @@ module.exports = function postRoutes(app, h) {
           post: post.post_name, branch: [branch.branch_name, branch.area].filter(Boolean).join(' · '),
           supervisorPhone: branch.supervisor_phone || '',
           shift: shifts.find(s => s.code === log.shift_code) || { code: log.shift_code, start: '', end: '' },
-          from, notes, works
+          from, notes, works, general, atPost
         }
       });
     } catch (err) {
@@ -156,9 +164,12 @@ module.exports = function postRoutes(app, h) {
       const log = await myLog(zcql, me.ROWID);
       if (!log) throw new Error('Your card IN is not there yet.');
       if (log.status !== 'waiting') throw new Error('You have already taken over.');
+      if (log.shift_code === GENERAL) throw new Error('General shift: press Start duty.');
       const now = nowStamp();
       const table = catalystApp.datastore().table('DutyLog');
-      const prevs = await onDutyAt(zcql, log.post_id, log.ROWID);
+      const onPost = await onDutyAt(zcql, log.post_id, log.ROWID);
+      const prevs = onPost.filter(p => p.shift_code !== GENERAL);
+      const generalHere = onPost.filter(p => p.shift_code === GENERAL);
       for (const p of prevs) {
         await table.updateRow({ ROWID: p.ROWID, status: 'handed_over', handed_over_at: now });
         await closePresence(catalystApp, zcql, log.post_id, p.guard_id, null);
@@ -171,9 +182,11 @@ module.exports = function postRoutes(app, h) {
       const names = await namesOf(zcql, others.map(p => p.guard_id));
       const prevName = others.length ? (names[String(others[0].guard_id)] || {}).guard_name : null;
       const time = now.slice(11, 16);
+      const gNames = generalHere.length ? await namesOf(zcql, generalHere.map(p => p.guard_id)) : {};
+      const stillHere = generalHere.map(p => (gNames[String(p.guard_id)] || {}).guard_name).filter(Boolean);
       await addMessage(catalystApp, {
         post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, kind: 'system',
-        text: me.guard_name + (prevName ? ' took over from ' + prevName : ' took over') + ' · ' + time
+        text: me.guard_name + (prevName ? ' took over from ' + prevName : ' took over') + ' · ' + time + (stillHere.length ? ' · ' + stillHere.join(', ') + ' still on duty' : '')
       });
 
       // "You can leave" to the guard going home. A push problem must not undo the take-over.
@@ -192,6 +205,46 @@ module.exports = function postRoutes(app, h) {
         }
       }
       res.status(200).json({ status: 'success', data: { takenOverAt: time, from: prevName } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // F5: general shift guard starts duty; nobody is handed over.
+  app.post('/startGeneral', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req);
+      const zcql = catalystApp.zcql();
+      const me = await guardByToken(zcql, req.body.t);
+      const log = await myLog(zcql, me.ROWID);
+      if (!log) throw new Error('Your card IN is not there yet.');
+      if (log.shift_code !== GENERAL) throw new Error('Only for the general shift.');
+      if (log.status !== 'waiting') throw new Error('Your duty has already started.');
+      const now = nowStamp();
+      await catalystApp.datastore().table('DutyLog').updateRow({ ROWID: log.ROWID, status: 'on_duty', taken_over_at: now });
+      await openPresence(catalystApp, log.post_id, me.ROWID, log.ROWID, 'main');
+      await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, kind: 'system', text: me.guard_name + ' started general duty · ' + hhmm(now) });
+      res.status(200).json({ status: 'success', data: { started: hhmm(now) } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // F28: general shift guard ends duty. An optional note is pinned for the guard staying.
+  app.post('/endGeneral', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req);
+      const zcql = catalystApp.zcql();
+      const me = await guardByToken(zcql, req.body.t);
+      const log = await myLog(zcql, me.ROWID);
+      if (!log || log.shift_code !== GENERAL || log.status !== 'on_duty') throw new Error('Your general duty is not running.');
+      const note = cleanText(req.body.note, 'Note', MAX_TEXT, false);
+      if (note) await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, kind: 'text', text: note, pinned: true });
+      const now = nowStamp();
+      await catalystApp.datastore().table('DutyLog').updateRow({ ROWID: log.ROWID, status: 'handed_over', handed_over_at: now });
+      await closePresence(catalystApp, zcql, log.post_id, me.ROWID, null);
+      await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, kind: 'system', text: me.guard_name + ' ended general duty · ' + hhmm(now) });
+      res.status(200).json({ status: 'success', data: { ended: hhmm(now) } });
     } catch (err) {
       fail(res, err);
     }
@@ -337,8 +390,12 @@ module.exports = function postRoutes(app, h) {
           } : null
         };
       });
-      const breakState = await breaks.state(zcql, me, own, log.post_id);
-      res.status(200).json({ status: 'success', data: { messages, openWorks: open.map(workView), ...breakState } });
+      const [breakState, others] = await Promise.all([breaks.state(zcql, me, own, log.post_id), onDutyAt(zcql, log.post_id, own.ROWID)]);
+      // Other guards on duty at this post now (general shift guard sees who stays after him).
+      const otherNames = await namesOf(zcql, others.map(o => o.guard_id));
+      const atPost = others.filter(o => String(o.guard_id) !== String(me.ROWID))
+        .map(o => ({ name: (otherNames[String(o.guard_id)] || {}).guard_name || 'Guard', shift: o.shift_code }));
+      res.status(200).json({ status: 'success', data: { messages, openWorks: open.map(workView), atPost, ...breakState } });
     } catch (err) {
       fail(res, err);
     }
