@@ -55,13 +55,16 @@ export default function PastShift({ token, post, logId, onClose }) {
         <button className="pd-icon-btn" onClick={onClose} aria-label="Back to duty history">{Icon.back}</button>
         <span className="pd-avatar">{initials(data.name)}</span>
         <div>
-          <div className="pd-title pd-title-sm">{data.name} · Shift {data.shift.code}</div>
+          <div className="pd-title pd-title-sm">{data.name} · Shift {data.shift.code}{data.open ? ' · now' : ''}</div>
           <div className="pd-muted pd-small">{data.start.slice(0, 10)} {hhmm(data.start)} – {data.open ? 'now' : hhmm(data.end)}</div>
         </div>
       </div>
 
       <div className="pd-card pd-gap8">
-        <div className="pd-label">WHO WAS AT THIS POST</div>
+        <div className="pd-row-between">
+          <div className="pd-label">WHO WAS AT THIS POST</div>
+          {data.open && <span className="pd-pill pd-pill-sm pd-green">Live till now</span>}
+        </div>
         <div className="pd-bar">
           {segs.map((p, i) => (
             <div key={i} className={'pd-bar-seg ' + (p.kind === 'cover' ? 'pd-bar-cover' : 'pd-bar-main')}

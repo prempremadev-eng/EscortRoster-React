@@ -83,7 +83,8 @@ export default function PostHistory({ token, post, postName, onClose }) {
   const shifts = data ? data.shifts.slice().sort((a, b) => SHIFT_ORDER.indexOf(a.code) - SHIFT_ORDER.indexOf(b.code)) : [];
   const counts = c => [c.notes && c.notes + ' notes', c.photos && c.photos + ' photos', c.works && c.works + ' works', c.alerts && c.alerts + ' alerts'].filter(Boolean).join(' · ') || 'No notes';
   const times = r => (r.took ? r.took : 'IN ' + r.in) + ' – ' + (r.handed || (r.status === 'waiting' ? 'not taken over' : 'now'));
-  const openRow = r => (r.mine && r.status !== 'handed_over' ? onClose() : setOpen(r.ROWID));
+  // Any shift opens, the one going on now too (to see breaks and covers so far).
+  const openRow = r => setOpen(r.ROWID);
 
   const rangeButtons = (keys) => (
     <div className="pd-quick pd-wrap">
@@ -138,6 +139,7 @@ export default function PostHistory({ token, post, postName, onClose }) {
         return (
           <div key={date} className="pd-day-group">
             <div className="pd-label">{date === today ? 'TODAY' : nice(date).toUpperCase()}</div>
+            {date === today && <div className="pd-small pd-muted">Touch a shift to see who was at the post, minute by minute.</div>}
             {dayRows.map(r => (
               <button key={r.ROWID} className={'pd-hrow' + (r.status === 'on_duty' || r.status === 'on_break' ? ' pd-hrow-now' : '')} onClick={() => openRow(r)}>
                 <span className="pd-avatar pd-avatar-sm">{initials(r.name)}</span>
