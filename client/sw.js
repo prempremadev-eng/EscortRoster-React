@@ -6,14 +6,25 @@
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
 
+// `urgent` (cover request, "come back", empty post): long buzz and it stays on the screen
+// until the guard touches it, so it is noticed with the phone in a pocket. The sound is the
+// phone's own notification sound (a web app cannot pick its own ringtone).
+// An open app page is also told, so it refreshes itself at once (no polling needed).
 self.addEventListener('push', event => {
   const data = event.data ? event.data.json() : {};
-  event.waitUntil(
+  const urgent = !!data.urgent;
+  event.waitUntil(Promise.all([
     self.registration.showNotification(data.title || 'Escort Duty', {
       body: data.body || '',
-      data: { url: data.url || 'index.html' }
-    })
-  );
+      data: { url: data.url || 'index.html' },
+      tag: data.tag || undefined,
+      renotify: !!data.tag,
+      requireInteraction: urgent,
+      vibrate: urgent ? [500, 200, 500, 200, 500, 200, 800] : [200]
+    }),
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then(tabs => tabs.forEach(tab => tab.postMessage({ type: 'push', urgent })))
+  ]));
 });
 
 // Tapping the notification brings the app to the front at the page the message points to.

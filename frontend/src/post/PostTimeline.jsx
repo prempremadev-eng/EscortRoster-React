@@ -11,6 +11,27 @@ const QUICK_REPLIES = ['OK', 'Noted', 'Done'];
 // Shown as chat bubbles (with the hold menu and swipe to reply).
 const BUBBLE_KINDS = ['text', 'photo', 'video', 'voice'];
 const ALERT_WAIT_MIN = 5;
+const PING_REPLIES = ['Coming now', 'Coming in 2 min', 'Coming in 5 min'];
+
+// Short beep + buzz when something for this guard arrives while the page is open.
+function ring() {
+  try {
+    if (navigator.vibrate) navigator.vibrate([400, 150, 400, 150, 400]);
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.35, 0.7].forEach(at => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = 880;
+      gain.gain.value = 0.25;
+      osc.connect(gain).connect(ctx.destination);
+      osc.start(ctx.currentTime + at);
+      osc.stop(ctx.currentTime + at + 0.2);
+    });
+    setTimeout(() => ctx.close(), 1500);
+  } catch {
+    // No sound allowed here; the notification itself still buzzes.
+  }
+}
 
 // A text bubble: hold it (or right-click) for the menu, swipe it right to reply (WhatsApp style).
 function Bubble({ m, onMenu, onReply }) {
@@ -150,6 +171,7 @@ export default function PostTimeline({ token, duty, shiftLine }) {
   const [viewPost, setViewPost] = useState(null);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const autoOpened = useRef({});
+  const seen = useRef(null); // what needed attention at the last load, to ring only for new things
   const endRef = useRef(null);
   const photoInput = useRef(null);
   const galleryInput = useRef(null);
@@ -165,6 +187,10 @@ export default function PostTimeline({ token, duty, shiftLine }) {
       setOpenWorks(d.openWorks);
       setBs(d);
       setStatus('ok');
+      // Ring for a new cover request or a new "please come back".
+      const marks = d.coverRequests.map(r => 'r' + r.ROWID).concat(d.myBreak && d.myBreak.pinged ? ['p' + d.myBreak.ROWID + d.myBreak.pinged] : []);
+      if (seen.current && marks.some(x => !seen.current.includes(x))) ring();
+      seen.current = marks;
       // "Go to <post>" accepted: the app moves to that post once, by itself.
       const went = !viewPost && d.covering.find(c => c.mode === 'go' && !autoOpened.current[c.ROWID]);
       if (went) {
@@ -180,6 +206,19 @@ export default function PostTimeline({ token, duty, shiftLine }) {
   }, [token, viewPost]);
 
   useEffect(() => { load(); }, [load]);
+
+  // No timer polling (every load costs Data Store reads). The page refreshes itself when a
+  // notification arrives (sw.js tells it) and when the guard comes back to the app.
+  useEffect(() => {
+    const onPush = () => load();
+    const onShow = () => { if (document.visibilityState === 'visible') load(); };
+    window.addEventListener('guard-push', onPush);
+    document.addEventListener('visibilitychange', onShow);
+    return () => {
+      window.removeEventListener('guard-push', onPush);
+      document.removeEventListener('visibilitychange', onShow);
+    };
+  }, [load]);
 
   // New notes appear at the bottom, like a chat.
   useEffect(() => {
@@ -352,6 +391,9 @@ export default function PostTimeline({ token, duty, shiftLine }) {
   function pingBack(b) {
     run(() => api.pingBack(token, b.ROWID), () => say('Asked ' + b.guard + ' to come back'));
   }
+  function replyPing(text) {
+    run(() => api.replyPing(token, text), () => say('Sent: ' + text));
+  }
   function leaveCover(b) {
     setConfirmLeave(false);
     run(() => api.leaveCover(token, b.ROWID), () => setViewPost(null));
@@ -450,7 +492,10 @@ export default function PostTimeline({ token, duty, shiftLine }) {
           </div>
         )}
         {!here && myBreak && myBreak.status === 'accepted' && myBreak.pinged && (
-          <div className="pd-notice"><div><div className="pd-notice-main">{myBreak.cover}: please come back to {duty.post}</div><div className="pd-notice-sub">{myBreak.pinged} · you are on {myBreak.typeLabel.toLowerCase()} break for {myBreak.minutes} min</div></div></div>
+          <div className="pd-notice pd-notice-col">
+            <div><div className="pd-notice-main">{myBreak.cover}: please come back to {duty.post}</div><div className="pd-notice-sub">{myBreak.pinged} · you are on {myBreak.typeLabel.toLowerCase()} break for {myBreak.minutes} min</div></div>
+            <div className="pd-quick pd-wrap">{PING_REPLIES.map(r => <button key={r} className="pd-chip" onClick={() => replyPing(r)} disabled={busy}>{r}</button>)}</div>
+          </div>
         )}
         {!here && myBreak && myBreak.status === 'accepted' && (
           <div className="pd-break-card pd-break-green">

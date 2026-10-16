@@ -34,6 +34,11 @@ function rememberGuard(hash) {
 // Same page again → reload, so the guard sees fresh data.
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('message', e => {
+    // A notification just came in: the open page may refresh its data (see post/PostTimeline.jsx).
+    if (e.data && e.data.type === 'push') {
+      window.dispatchEvent(new CustomEvent('guard-push', { detail: e.data }));
+      return;
+    }
     const url = e.data && e.data.type === 'open' && String(e.data.url || '');
     if (!url || !url.startsWith(window.location.origin + '/')) return;
     if (url === window.location.href) window.location.reload();

@@ -46,11 +46,14 @@ module.exports = function breakRoutes(app, h) {
     return rows[0].Breaks;
   }
 
-  // Push never blocks the action itself.
-  async function tell(catalystApp, guard, title, body) {
+  // Push never blocks the action itself. `urgent` = long buzz, stays on screen till touched.
+  async function tell(catalystApp, guard, title, body, urgent) {
     if (!guard) return;
     try {
-      await sendPushToGuard(catalystApp, guard.ROWID, { title, body, url: guard.guard_token ? 'index.html#guard/' + guard.guard_token : 'index.html' });
+      await sendPushToGuard(catalystApp, guard.ROWID, {
+        title, body, url: guard.guard_token ? 'index.html#guard/' + guard.guard_token : 'index.html',
+        urgent: !!urgent, tag: urgent ? 'break-' + guard.ROWID : undefined
+      });
     } catch (err) {
       console.error('Break push failed:', err);
     }
@@ -148,7 +151,7 @@ module.exports = function breakRoutes(app, h) {
       const row = { post_id: own.post_id, duty_log_id: own.ROWID, guard_id: me.ROWID, type, status: 'asked', cover_guard_id: coverId, cover_post_id: coverLog.post_id, cover_mode: null, asked_at: now };
       const brk = current ? await table.updateRow({ ROWID: current.ROWID, ...row }) : await table.insertRow(row);
       const guards = await guardsById(zcql, [coverId]);
-      await tell(catalystApp, guards[String(coverId)], '☕ Cover request · ' + hhmm(now), me.guard_name + ' asked you to cover ' + postName + ' · ' + label(type) + ' break');
+      await tell(catalystApp, guards[String(coverId)], '☕ Cover request · ' + hhmm(now), me.guard_name + ' asked you to cover ' + postName + ' · ' + label(type) + ' break', true);
       res.status(200).json({ status: 'success', data: { ROWID: brk.ROWID, status: 'asked' } });
     } catch (err) {
       fail(res, err);
@@ -229,8 +232,31 @@ module.exports = function breakRoutes(app, h) {
       const breaker = guards[String(b.guard_id)];
       const postName = (posts[String(b.post_id)] || {}).post_name || 'your post';
       await addMessage(catalystApp, { post_id: b.post_id, duty_log_id: own.ROWID, guard_id: me.ROWID, kind: 'system', text: me.guard_name + ' asked ' + (breaker ? breaker.guard_name : 'the guard') + ' to come back · ' + hhmm(now) });
-      await tell(catalystApp, breaker, '🔔 Please come back', me.guard_name + ': please come back to ' + postName + '.');
+      await tell(catalystApp, breaker, '🔔 Please come back', me.guard_name + ': please come back to ' + postName + '.', true);
       res.status(200).json({ status: 'success', data: { pinged: hhmm(now) } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // The guard on break answers "please come back" (Coming now / 2 min / 5 min).
+  const PING_REPLIES = ['Coming now', 'Coming in 2 min', 'Coming in 5 min', 'Coming in 10 min'];
+  app.post('/replyPing', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req);
+      const zcql = catalystApp.zcql();
+      const me = await guardByToken(zcql, req.body.t);
+      const own = await myLog(zcql, me.ROWID);
+      const b = own && await myActiveBreak(zcql, me.ROWID);
+      if (!b || b.status !== 'accepted' || !b.pinged_at) throw new Error('No one asked you to come back.');
+      const text = String(req.body.text || '');
+      if (!PING_REPLIES.includes(text)) throw new Error('Pick an answer.');
+      const now = nowStamp();
+      await catalystApp.datastore().table('Breaks').updateRow({ ROWID: b.ROWID, pinged_at: null });
+      await addMessage(catalystApp, { post_id: b.post_id, duty_log_id: own.ROWID, guard_id: me.ROWID, kind: 'text', text });
+      const guards = await guardsById(zcql, [b.cover_guard_id]);
+      await tell(catalystApp, guards[String(b.cover_guard_id)], me.guard_name + ': ' + text, text + ' · ' + hhmm(now));
+      res.status(200).json({ status: 'success', data: { replied: text } });
     } catch (err) {
       fail(res, err);
     }
@@ -290,7 +316,7 @@ module.exports = function breakRoutes(app, h) {
         await addMessage(catalystApp, { post_id: own.post_id, duty_log_id: own.ROWID, guard_id: me.ROWID, kind: 'system', text: me.guard_name + ' back at the post · ' + time });
       }
       await addMessage(catalystApp, { post_id: b.post_id, duty_log_id: own.ROWID, guard_id: me.ROWID, kind: 'system_red', text: me.guard_name + ' went back to ' + myPost + ' · post empty · ' + time });
-      await tell(catalystApp, guards[String(b.guard_id)], '⚠️ ' + breakPost + ' is empty', me.guard_name + ' went back to ' + myPost + '. Please come back to ' + breakPost + '.');
+      await tell(catalystApp, guards[String(b.guard_id)], '⚠️ ' + breakPost + ' is empty', me.guard_name + ' went back to ' + myPost + '. Please come back to ' + breakPost + '.', true);
       res.status(200).json({ status: 'success', data: { left: time } });
     } catch (err) {
       fail(res, err);
