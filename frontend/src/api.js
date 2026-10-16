@@ -113,6 +113,7 @@ export const api = {
   respondCover: (t, rowid, answer) => apiCall('POST', '/respondCover', { t, rowid, answer }),
   pingBack: (t, rowid) => apiCall('POST', '/pingBack', { t, rowid }),
   backOnDuty: t => apiCall('POST', '/backOnDuty', { t }),
+  coverReturned: t => apiCall('POST', '/coverReturned', { t }),
   replyPing: (t, text) => apiCall('POST', '/replyPing', { t, text }),
   leaveCover: (t, rowid) => apiCall('POST', '/leaveCover', { t, rowid }),
   uploadMedia,

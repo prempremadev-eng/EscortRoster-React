@@ -5,6 +5,8 @@
 //   asked → accepted (go to the post / stay and watch both) → ended (I'm back)
 //   asked → declined → ask someone else / cancel
 //   "No one yet" → alone (the post is empty until the guard is back)
+//   cover went to the post (go) and the guard is back → returning: the cover guard walks back
+//   (his own post stays empty) until he presses "I'm at <post>" or takes his own break.
 // Breaks has one row per break. Presence (post.js) records who stood where, minute by minute.
 
 const TYPES = { tea: 'Tea', lunch: 'Lunch', restroom: 'Restroom', other: 'Other' };
@@ -63,7 +65,7 @@ module.exports = function breakRoutes(app, h) {
   async function state(zcql, me, own, viewPostId) {
     const [mine, asCover] = await Promise.all([
       myActiveBreak(zcql, me.ROWID),
-      zcql.executeZCQLQuery(`SELECT * FROM Breaks WHERE cover_guard_id = ${requireRowId(me.ROWID)} AND ${statusIn(['asked', 'accepted'])} ORDER BY CREATEDTIME ASC`).then(r => r.map(x => x.Breaks))
+      zcql.executeZCQLQuery(`SELECT * FROM Breaks WHERE cover_guard_id = ${requireRowId(me.ROWID)} AND ${statusIn(['asked', 'accepted', 'returning'])} ORDER BY CREATEDTIME ASC`).then(r => r.map(x => x.Breaks))
     ]);
     const all = [mine, ...asCover].filter(Boolean);
     const [guards, posts] = await Promise.all([
@@ -77,10 +79,11 @@ module.exports = function breakRoutes(app, h) {
       ROWID: b.ROWID, type: b.type, typeLabel: label(b.type), status: b.status, mode: b.cover_mode || '',
       guard: nameOf(b.guard_id), guardPhone: (guards[String(b.guard_id)] || {}).phone || '',
       cover: nameOf(b.cover_guard_id), postId: String(b.post_id), post: postOf(b.post_id), coverPost: postOf(b.cover_post_id),
-      asked: hhmm(b.asked_at), start: hhmm(b.start_at), pinged: hhmm(b.pinged_at),
+      asked: hhmm(b.asked_at), start: hhmm(b.start_at), pinged: hhmm(b.pinged_at), end: hhmm(b.end_at),
       minutes: b.start_at ? Math.max(0, Math.floor(minutesBetween(b.start_at, now))) : 0
     });
     const covering = asCover.filter(b => b.status === 'accepted').map(view);
+    const returning = asCover.filter(b => b.status === 'returning').map(view);
     return {
       ownPostId: String(own.post_id), ownPost: postOf(own.post_id),
       myBreak: mine ? view(mine) : null,
@@ -88,8 +91,10 @@ module.exports = function breakRoutes(app, h) {
       covering,
       // The post on screen is someone else's (I am covering it): what the header shows.
       coveringHere: covering.find(b => b.postId === String(viewPostId)) || null,
+      // The guard I covered is back; I am walking back to my own post.
+      returning,
       // I went to cover another post: my own post is empty until I come back.
-      ownEmpty: covering.some(b => b.mode === 'go')
+      ownEmpty: covering.some(b => b.mode === 'go') || returning.length > 0
     };
   }
 
@@ -126,6 +131,9 @@ module.exports = function breakRoutes(app, h) {
       if (!TYPES[type]) throw new Error('Pick a break type.');
       const current = await myActiveBreak(zcql, me.ROWID);
       if (current && (current.status === 'accepted' || current.status === 'alone')) throw new Error('You are already on break.');
+      // Walking back from a cover and going straight on my own break: the walk is over,
+      // my post stays empty (no presence) until my break ends.
+      await finishReturning(catalystApp, zcql, me, own, false);
       const table = catalystApp.datastore().table('Breaks');
       const now = nowStamp();
       const posts = await postNames(zcql, [own.post_id]);
@@ -273,7 +281,8 @@ module.exports = function breakRoutes(app, h) {
       const b = await myActiveBreak(zcql, me.ROWID);
       const now = nowStamp();
       const time = hhmm(now);
-      if (b) await catalystApp.datastore().table('Breaks').updateRow({ ROWID: b.ROWID, status: 'ended', end_at: now });
+      const walking = b && b.status === 'accepted' && b.cover_mode === 'go' && b.cover_guard_id;
+      if (b) await catalystApp.datastore().table('Breaks').updateRow({ ROWID: b.ROWID, status: walking ? 'returning' : 'ended', end_at: now });
       await catalystApp.datastore().table('DutyLog').updateRow({ ROWID: own.ROWID, status: 'on_duty' });
       await openPresence(catalystApp, own.post_id, me.ROWID, own.ROWID, 'main');
       await addMessage(catalystApp, { post_id: own.post_id, duty_log_id: own.ROWID, guard_id: me.ROWID, kind: 'system', text: me.guard_name + ' back on duty · ' + time });
@@ -281,15 +290,38 @@ module.exports = function breakRoutes(app, h) {
       if (b && b.status === 'accepted' && b.cover_guard_id) {
         await closePresence(catalystApp, zcql, own.post_id, b.cover_guard_id, 'cover');
         const coverLog = await myLog(zcql, b.cover_guard_id);
-        if (b.cover_mode === 'go' && coverLog && b.cover_post_id) {
-          await openPresence(catalystApp, b.cover_post_id, b.cover_guard_id, coverLog.ROWID, 'main');
-          const guards = await guardsById(zcql, [b.cover_guard_id]);
-          await addMessage(catalystApp, { post_id: b.cover_post_id, duty_log_id: coverLog.ROWID, guard_id: b.cover_guard_id, kind: 'system', text: ((guards[String(b.cover_guard_id)] || {}).guard_name || 'Guard') + ' back at the post · ' + time });
-        }
         const guards = await guardsById(zcql, [b.cover_guard_id]);
-        await tell(catalystApp, guards[String(b.cover_guard_id)], '👋 ' + me.guard_name + ' is back', me.guard_name + ' is back on duty' + (b.cover_mode === 'go' ? '. You can go back to your post.' : '.'));
+        const cover = guards[String(b.cover_guard_id)];
+        // Walking back: his own post stays empty until he says he is there.
+        if (walking && coverLog && b.cover_post_id) {
+          await addMessage(catalystApp, { post_id: b.cover_post_id, duty_log_id: coverLog.ROWID, guard_id: b.cover_guard_id, kind: 'system_red', text: me.guard_name + ' is back · ' + ((cover || {}).guard_name || 'Guard') + ' walking back · post still empty · ' + time });
+        }
+        await tell(catalystApp, cover, '👋 ' + me.guard_name + ' is back', me.guard_name + ' is back on duty' + (walking ? '. Walk back to your post, or take your own break now.' : '.'));
       }
       res.status(200).json({ status: 'success', data: { back: time } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // The cover guard is back at their own post after the other guard's break.
+  async function finishReturning(catalystApp, zcql, me, own, atPost) {
+    const rows = await zcql.executeZCQLQuery(`SELECT ROWID FROM Breaks WHERE cover_guard_id = ${requireRowId(me.ROWID)} AND status = 'returning'`);
+    for (const r of rows) await catalystApp.datastore().table('Breaks').updateRow({ ROWID: r.Breaks.ROWID, status: 'ended' });
+    if (rows.length && atPost) {
+      await openPresence(catalystApp, own.post_id, me.ROWID, own.ROWID, 'main');
+      await addMessage(catalystApp, { post_id: own.post_id, duty_log_id: own.ROWID, guard_id: me.ROWID, kind: 'system', text: me.guard_name + ' back at the post · ' + hhmm(nowStamp()) });
+    }
+    return rows.length;
+  }
+
+  app.post('/coverReturned', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req);
+      const zcql = catalystApp.zcql();
+      const { me, own } = await onDutyLog(zcql, req.body.t);
+      if (!await finishReturning(catalystApp, zcql, me, own, true)) throw new Error('You are already at your post.');
+      res.status(200).json({ status: 'success', data: { back: hhmm(nowStamp()) } });
     } catch (err) {
       fail(res, err);
     }

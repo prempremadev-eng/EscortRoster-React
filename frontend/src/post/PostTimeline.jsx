@@ -391,6 +391,9 @@ export default function PostTimeline({ token, duty, shiftLine }) {
   function pingBack(b) {
     run(() => api.pingBack(token, b.ROWID), () => say('Asked ' + b.guard + ' to come back'));
   }
+  function coverReturned() {
+    run(() => api.coverReturned(token), () => say('Welcome back to ' + bs.ownPost));
+  }
   function replyPing(text) {
     run(() => api.replyPing(token, text), () => say('Sent: ' + text));
   }
@@ -470,6 +473,14 @@ export default function PostTimeline({ token, duty, shiftLine }) {
             <button className="pd-btn pd-btn-primary" onClick={() => respond(r, 'go')} disabled={busy}>Go to {r.post}</button>
             <button className="pd-btn pd-btn-light" onClick={() => respond(r, 'stay')} disabled={busy}>Stay here, watch both</button>
             <button className="pd-link pd-link-light" onClick={() => respond(r, 'no')} disabled={busy}>Can't now</button>
+          </div>
+        ))}
+        {!here && bs && bs.returning.map(r => (
+          <div key={r.ROWID} className="pd-break-card pd-break-amber pd-col">
+            <div><b>{r.guard} is back.</b> Walk back to {bs.ownPost}</div>
+            <div className="pd-small">{bs.ownPost} is empty since {r.start} · {r.guard} came back {r.end}</div>
+            <button className="pd-btn pd-btn-primary" onClick={coverReturned} disabled={busy}>{Icon.check}I'm at {bs.ownPost}</button>
+            <button className="pd-btn pd-btn-outline" onClick={() => setSheet('break')} disabled={busy}>Take my break now</button>
           </div>
         ))}
         {!here && covering.map(c => (
