@@ -9,7 +9,7 @@ export default function Rail({ active, name, onChangeName }) {
     <nav className="sup-rail">
       {item('posts', '#supervisor', 'Posts', Icon.chat)}
       {item('board', '#board', 'Live board', Icon.grid)}
-      {item('schedule', '#chart', 'Schedule (Duty Chart)', Icon.calendar)}
+      {item('schedule', '#schedule', 'Schedule', Icon.calendar)}
       {item('guards', '#master', 'Guard Master', Icon.shield)}
       <div className="pd-grow"></div>
       {name && <button className="sup-rail-btn sup-rail-me" title={'Signed as ' + name + ' · change'} onClick={onChangeName}>{initials(name)}</button>}

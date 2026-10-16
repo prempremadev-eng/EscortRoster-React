@@ -9,7 +9,7 @@ const ACTIVE = ['waiting', 'on_duty', 'on_break', 'out'];
 const GENERAL = 'G';
 
 module.exports = function supervisorRoutes(app, h) {
-  const { catalyst, fail, requireRowId, getShifts, shiftDate, weekStartOf, nowStamp, hhmm, minutesBetween, cleanText, MAX_TEXT,
+  const { catalyst, fail, requireRowId, requireDate, getShifts, shiftDate, weekStartOf, nowStamp, hhmm, minutesBetween, cleanText, MAX_TEXT,
     namesOf, addMessage, timelineData, workView, sendPushToGuard, sendPushToRows, getVapidKeys } = h;
 
   const statusIn = list => '(' + list.map(s => `status = '${s}'`).join(' OR ') + ')';
@@ -221,13 +221,16 @@ module.exports = function supervisorRoutes(app, h) {
       const posts = (await zcql.executeZCQLQuery(`SELECT ROWID, post_name FROM Posts WHERE branch_id = ${branch} AND post_type = 'POST' AND is_active = 'true' ORDER BY post_name ASC`)).map(r => r.Posts);
       if (!posts.length) return res.status(200).json({ status: 'success', data: { shift, shifts, date: day, posts: [], kpi: { total: 0, onDuty: 0, waiting: 0, notIn: 0 }, attention: [], works: [] } });
       const ids = idList(posts.map(p => p.ROWID));
-      const [chart, logs, brks, openW, recentW] = await Promise.all([
+      const [weekly, planned, logs, brks, openW, recentW] = await Promise.all([
         zcql.executeZCQLQuery(`SELECT guard_id, post_id FROM DutyChart WHERE week_start = '${weekStartOf(day)}' AND shift_code = '${code}' AND post_id IN (${ids})`).then(r => r.map(x => x.DutyChart)),
+        zcql.executeZCQLQuery(`SELECT guard_id, post_id, shift_code FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${day}' AND published = true`).then(r => r.map(x => x.Schedule)),
         activeLogs(zcql, posts.map(p => p.ROWID)).then(l => l.filter(x => x.shift_code === code)),
         zcql.executeZCQLQuery(`SELECT post_id, status, cover_guard_id, start_at FROM Breaks WHERE post_id IN (${ids}) AND ${statusIn(['accepted', 'alone'])}`).then(r => r.map(x => x.Breaks)),
         zcql.executeZCQLQuery(`SELECT * FROM WorkUpdates WHERE post_id IN (${ids}) AND finished_at IS NULL`).then(r => r.map(x => x.WorkUpdates)),
         zcql.executeZCQLQuery(`SELECT * FROM WorkUpdates WHERE post_id IN (${ids}) AND started_at >= '${day} 00:00' ORDER BY CREATEDTIME DESC LIMIT 6`).then(r => r.map(x => x.WorkUpdates))
       ]);
+      // A published day schedule replaces the weekly chart for that day.
+      const chart = planned.length ? planned.filter(p => p.shift_code === code) : weekly;
       const names = await namesOf(zcql, chart.map(c => c.guard_id).concat(logs.map(l => l.guard_id), brks.map(b => b.cover_guard_id)));
       const nameOf = id => (names[String(id)] || {}).guard_name || 'Guard';
       const postName = id => (posts.find(p => String(p.ROWID) === String(id)) || {}).post_name || 'Post';
@@ -281,6 +284,129 @@ module.exports = function supervisorRoutes(app, h) {
           works: recentW.map(w => ({ ...workView(w), post: postName(w.post_id), postId: String(w.post_id) }))
         }
       });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  /* ---------- SCHEDULE (screen 12) ---------- */
+  // One day of one branch: posts × shifts, one guard per slot and one slot per guard per day.
+  // Changes are drafts until "Publish to guards"; a published slot is what the guard's card IN uses
+  // (otherwise the weekly Duty Chart). About 3 reads per load.
+  const SHIFT_ORDER = ['A', 'G', 'B', 'C'];
+
+  async function branchPosts(zcql, branch) {
+    return (await zcql.executeZCQLQuery(`SELECT ROWID, post_name FROM Posts WHERE branch_id = ${branch} AND post_type = 'POST' AND is_active = 'true' ORDER BY post_name ASC`)).map(r => r.Posts);
+  }
+  async function dayRows(zcql, branch, date) {
+    return (await zcql.executeZCQLQuery(`SELECT ROWID, post_id, shift_code, guard_id, published FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${date}'`)).map(r => r.Schedule);
+  }
+  const isOn = v => v === true || v === 'true';
+
+  app.get('/schedule', async (req, res) => {
+    try {
+      const zcql = catalyst.initialize(req).zcql();
+      const branch = requireRowId(req.query.branch);
+      const date = requireDate(req.query.date);
+      const [posts, shifts, rows, guards] = await Promise.all([
+        branchPosts(zcql, branch), getShifts(zcql), dayRows(zcql, branch, date),
+        zcql.executeZCQLQuery(`SELECT ROWID, id_number, guard_name FROM Guards WHERE branch_id = ${branch} AND is_active = 'true' ORDER BY guard_name ASC`).then(r => r.map(x => x.Guards))
+      ]);
+      res.status(200).json({
+        status: 'success',
+        data: {
+          date, posts: posts.map(p => ({ ROWID: String(p.ROWID), name: p.post_name })),
+          shifts: shifts.slice().sort((a, b) => SHIFT_ORDER.indexOf(a.code) - SHIFT_ORDER.indexOf(b.code)),
+          slots: rows.map(r => ({ ROWID: String(r.ROWID), post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id), published: isOn(r.published) })),
+          guards: guards.map(g => ({ ROWID: String(g.ROWID), name: g.guard_name, id: g.id_number }))
+        }
+      });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // Put a guard in a slot (or empty it with guard = null). The guard leaves any other slot that day.
+  app.post('/scheduleSet', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req);
+      const zcql = catalystApp.zcql();
+      const branch = requireRowId(req.body.branch);
+      const date = requireDate(req.body.date);
+      const post = requireRowId(req.body.post);
+      const shift = String(req.body.shift || '');
+      if (!(await getShifts(zcql)).some(s => s.code === shift)) throw new Error('Pick a shift');
+      const posts = await branchPosts(zcql, branch);
+      if (!posts.some(p => String(p.ROWID) === String(post))) throw new Error('That post is not in this branch.');
+      const rows = await dayRows(zcql, branch, date);
+      const table = catalystApp.datastore().table('Schedule');
+      const cell = rows.find(r => String(r.post_id) === String(post) && r.shift_code === shift);
+      if (!req.body.guard) {
+        if (cell) await table.deleteRow(cell.ROWID);
+        return res.status(200).json({ status: 'success', data: { cleared: true } });
+      }
+      const guard = requireRowId(req.body.guard);
+      const g = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE ROWID = ${guard} AND branch_id = ${branch} AND is_active = 'true'`);
+      if (!g.length) throw new Error('That guard is not in this branch.');
+      for (const r of rows) {
+        if (String(r.guard_id) === String(guard) && (!cell || String(r.ROWID) !== String(cell.ROWID))) await table.deleteRow(r.ROWID);
+      }
+      if (cell) await table.updateRow({ ROWID: cell.ROWID, guard_id: guard, published: false });
+      else await table.insertRow({ branch_id: branch, sched_date: date, post_id: post, shift_code: shift, guard_id: guard, published: false });
+      res.status(200).json({ status: 'success', data: { saved: true } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // Fill empty slots from the day before; if that day has no schedule, from the weekly Duty Chart.
+  app.post('/scheduleCopy', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req);
+      const zcql = catalystApp.zcql();
+      const branch = requireRowId(req.body.branch);
+      const date = requireDate(req.body.date);
+      const d = new Date(date + 'T00:00:00Z');
+      d.setUTCDate(d.getUTCDate() - 1);
+      const yesterday = d.toISOString().slice(0, 10);
+      const posts = await branchPosts(zcql, branch);
+      if (!posts.length) return res.status(200).json({ status: 'success', data: { copied: 0, from: 'nothing' } });
+      let source = (await dayRows(zcql, branch, yesterday)).map(r => ({ post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id) }));
+      let from = 'yesterday';
+      if (!source.length) {
+        from = 'weekly chart';
+        source = (await zcql.executeZCQLQuery(`SELECT guard_id, post_id, shift_code FROM DutyChart WHERE week_start = '${weekStartOf(date)}' AND post_id IN (${idList(posts.map(p => p.ROWID))}) ORDER BY ROWID ASC`))
+          .map(r => ({ post: String(r.DutyChart.post_id), shift: r.DutyChart.shift_code, guard: String(r.DutyChart.guard_id) }));
+      }
+      const rows = await dayRows(zcql, branch, date);
+      const usedCells = new Set(rows.map(r => r.post_id + '|' + r.shift_code));
+      const usedGuards = new Set(rows.map(r => String(r.guard_id)));
+      const table = catalystApp.datastore().table('Schedule');
+      let copied = 0;
+      for (const s of source) {
+        if (usedCells.has(s.post + '|' + s.shift) || usedGuards.has(s.guard)) continue;
+        await table.insertRow({ branch_id: branch, sched_date: date, post_id: s.post, shift_code: s.shift, guard_id: s.guard, published: false });
+        usedCells.add(s.post + '|' + s.shift);
+        usedGuards.add(s.guard);
+        copied++;
+      }
+      res.status(200).json({ status: 'success', data: { copied, from } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // F32: drafts of that day become the guards' duty. Notifications still come only at card IN.
+  app.post('/schedulePublish', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req);
+      const zcql = catalystApp.zcql();
+      const branch = requireRowId(req.body.branch);
+      const date = requireDate(req.body.date);
+      const drafts = (await dayRows(zcql, branch, date)).filter(r => !isOn(r.published));
+      const table = catalystApp.datastore().table('Schedule');
+      for (const r of drafts) await table.updateRow({ ROWID: r.ROWID, published: true });
+      res.status(200).json({ status: 'success', data: { published: drafts.length } });
     } catch (err) {
       fail(res, err);
     }

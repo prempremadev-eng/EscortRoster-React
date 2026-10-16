@@ -567,7 +567,7 @@ function seatOf(escorts, escortId, startDate, dutyDate) {
 async function onCardIn(catalystApp, guard, time, dutyDate) {
   const zcql = catalystApp.zcql();
   const ins = await zcql.executeZCQLQuery(`SELECT ROWID FROM AccessLog WHERE guard_id = ${guard.ROWID} AND duty_date = '${dutyDate}' AND direction = 'IN'`);
-  const duty = await dutyOf(zcql, guard.ROWID, weekStartOf(shiftDate()));
+  const duty = await dutyOf(zcql, guard.ROWID, weekStartOf(shiftDate()), shiftDate());
   // POST guard: their DutyLog row starts "waiting" until they press Taken over (post.js).
   // Made on any IN of the day that finds none (the chart may have changed after the first IN);
   // a new row also means a new notification.
@@ -647,7 +647,8 @@ app.get('/guardDay', async (req, res) => {
     const me = await guardByToken(zcql, req.query.t);
     const dutyDate = dutyDateFor(req, req.query.date);
     // This week's chart decides the page: escort sheet, post, or "not assigned".
-    const duty = await dutyOf(zcql, me.ROWID, weekStartOf(req.query.date && dutyDate === req.query.date ? dutyDate : shiftDate()));
+    const chartDay = req.query.date && dutyDate === req.query.date ? dutyDate : shiftDate();
+    const duty = await dutyOf(zcql, me.ROWID, weekStartOf(chartDay), chartDay);
 
     // First IN time of each guard (by Guards ROWID) on this duty day.
     const ins = await selectAll(zcql, 'AccessLog', `SELECT guard_id, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' AND direction = 'IN' ORDER BY CREATEDTIME ASC`);
@@ -1040,10 +1041,18 @@ async function getShifts(zcql) {
 const shiftText = sh => 'Shift ' + sh.code + ' (' + sh.start + '–' + sh.end + ')';
 
 // One guard's post + shift for a week, or null when the chart has no row for them.
-async function dutyOf(zcql, guardId, week) {
-  const rows = await zcql.executeZCQLQuery(`SELECT post_id, shift_code FROM DutyChart WHERE guard_id = ${requireRowId(guardId)} AND week_start = '${week}'`);
-  if (!rows.length) return null;
-  const c = rows[0].DutyChart;
+// A published day schedule (supervisor's Schedule screen) for that date wins over the weekly chart.
+async function dutyOf(zcql, guardId, week, day) {
+  let c = null;
+  if (day) {
+    const planned = await zcql.executeZCQLQuery(`SELECT post_id, shift_code FROM Schedule WHERE guard_id = ${requireRowId(guardId)} AND sched_date = '${requireDate(day)}' AND published = true`);
+    if (planned.length) c = planned[0].Schedule;
+  }
+  if (!c) {
+    const rows = await zcql.executeZCQLQuery(`SELECT post_id, shift_code FROM DutyChart WHERE guard_id = ${requireRowId(guardId)} AND week_start = '${week}'`);
+    if (!rows.length) return null;
+    c = rows[0].DutyChart;
+  }
   const [posts, shifts] = await Promise.all([
     zcql.executeZCQLQuery(`SELECT ROWID, post_name, post_type FROM Posts WHERE ROWID = ${c.post_id}`),
     getShifts(zcql)

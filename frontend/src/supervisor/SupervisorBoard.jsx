@@ -93,7 +93,7 @@ export default function SupervisorBoard() {
           <div className="pd-quick">
             {shifts.map(s => <button key={s.code} className={'pd-chip' + (shift === s.code ? ' pd-chip-primary' : '')} onClick={() => setShift(s.code)}>Shift {s.code}</button>)}
           </div>
-          <a className="pd-chip" href="#chart">Edit schedule</a>
+          <a className="pd-chip" href="#schedule">Edit schedule</a>
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
         </div>
 

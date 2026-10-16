@@ -720,7 +720,7 @@ module.exports = function postRoutes(app, h) {
 
   // Supervisor inbox (supervisor.js).
   const sup = require('./supervisor.js')(app, {
-    catalyst, fail, requireRowId, getShifts, shiftDate, weekStartOf, nowStamp, hhmm, minutesBetween, cleanText, isTrue, MAX_TEXT,
+    catalyst, fail, requireRowId, requireDate, getShifts, shiftDate, weekStartOf, nowStamp, hhmm, minutesBetween, cleanText, isTrue, MAX_TEXT,
     namesOf, addMessage, timelineData, workView, sendPushToGuard, sendPushToRows, getVapidKeys
   });
 
