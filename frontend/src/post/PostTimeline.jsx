@@ -10,7 +10,7 @@ import { MAX_VIDEO_MB, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, clock, compressImag
 
 const QUICK_REPLIES = ['OK', 'Noted', 'Done'];
 // Shown as chat bubbles (with the hold menu and swipe to reply).
-const BUBBLE_KINDS = ['text', 'photo', 'video', 'voice'];
+const BUBBLE_KINDS = ['text', 'photo', 'video', 'voice', 'supervisor'];
 const ALERT_WAIT_MIN = 5;
 const PING_REPLIES = ['Coming now', 'Coming in 2 min', 'Coming in 5 min'];
 
@@ -57,11 +57,11 @@ function Bubble({ m, onMenu, onReply }) {
 
   return (
     <div
-      className={'pd-bubble ' + (m.mine ? 'pd-bubble-me' : 'pd-bubble-other')}
+      className={'pd-bubble ' + (m.mine ? 'pd-bubble-me' : 'pd-bubble-other') + (m.kind === 'supervisor' ? ' pd-bubble-sup' : '')}
       onTouchStart={start} onTouchMove={move} onTouchEnd={end} onTouchCancel={end}
       onContextMenu={e => { e.preventDefault(); onMenu(m); }}
     >
-      {!m.mine && <div className="pd-author">{m.author}</div>}
+      {!m.mine && <div className={'pd-author' + (m.kind === 'supervisor' ? ' pd-author-sup' : '')}>{m.author}{m.kind === 'supervisor' ? ' · Supervisor' : ''}</div>}
       {m.reply && (
         <div className="pd-quote">
           <div className="pd-quote-name">{m.reply.author}</div>

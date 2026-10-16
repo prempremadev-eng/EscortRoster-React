@@ -42,9 +42,16 @@ module.exports = function postRoutes(app, h) {
   const isTrue = v => v === true || v === 'true';
 
   // The guard's DutyLog row for the running duty day, or null (no card IN yet).
-  async function myLog(zcql, guardId) {
-    const rows = await zcql.executeZCQLQuery(`SELECT * FROM DutyLog WHERE guard_id = ${requireRowId(guardId)} AND duty_date = '${shiftDate()}' ORDER BY CREATEDTIME DESC LIMIT 1`);
-    return rows.length ? rows[0].DutyLog : null;
+  // Shift C (21:00–06:00) is still running after 04:00, when the duty day has already turned:
+  // yesterday's row counts while it is not handed over.
+  const ACTIVE_LOG = ['waiting', 'on_duty', 'on_break', 'out'];
+  async function myLog(zcql, guardId, todayOnly) {
+    const today = shiftDate();
+    const d = new Date(today + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() - 1);
+    const yesterday = d.toISOString().slice(0, 10);
+    const rows = (await zcql.executeZCQLQuery(`SELECT * FROM DutyLog WHERE guard_id = ${requireRowId(guardId)} AND (duty_date = '${today}' OR duty_date = '${yesterday}') ORDER BY CREATEDTIME DESC`)).map(r => r.DutyLog);
+    return rows.find(l => l.duty_date === today) || (todayOnly ? null : rows.find(l => ACTIVE_LOG.includes(l.status))) || null;
   }
 
   // Who is on duty (or on break, or card OUT without a handover) at this post now (other than me):
@@ -85,7 +92,8 @@ module.exports = function postRoutes(app, h) {
   // Makes their DutyLog row (waiting) unless today's row is already there.
   async function onPostIn(catalystApp, guard, duty) {
     const zcql = catalystApp.zcql();
-    const existing = await myLog(zcql, guard.ROWID);
+    // Today's row only: an old row left open yesterday must not swallow today's duty.
+    const existing = await myLog(zcql, guard.ROWID, true);
     if (existing && existing.status === 'out') await backIn(catalystApp, zcql, guard, existing);
     if (existing) return { log: existing, created: false };
     const log = await catalystApp.datastore().table('DutyLog').insertRow({
@@ -391,49 +399,64 @@ module.exports = function postRoutes(app, h) {
     return links;
   }
 
-  // Screen 3: the post's latest notes (all shifts), oldest first, with work cards and alerts.
-  // No auto-refresh: 🔄 button.
+  // The post's latest notes (all shifts), oldest first, with work cards, alerts and media links.
+  // Used by the guard on duty (viewer.guardId / viewer.logId) and by the supervisor (viewer.supervisor).
+  async function timelineData(req, catalystApp, zcql, postId, viewer) {
+    const open = await openWorks(zcql, postId);
+    await notePermitsExpired(catalystApp, { post_id: postId, ROWID: viewer.logId || null }, open);
+
+    const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, duty_log_id, guard_id, kind, text, pinned, reply_to_id, ref_id, forwarded, media_key, media_source, duration, author_name, seen_by, seen_at, CREATEDTIME FROM PostMessages WHERE post_id = ${requireRowId(postId)} ORDER BY CREATEDTIME DESC LIMIT ${TIMELINE_LIMIT}`))
+      .map(r => r.PostMessages).reverse();
+    const [names, works, alerts, links] = await Promise.all([
+      namesOf(zcql, rows.map(m => m.guard_id)),
+      rowsByIds(zcql, 'WorkUpdates', rows.filter(m => m.kind === 'work').map(m => m.ref_id)),
+      rowsByIds(zcql, 'Alerts', rows.filter(m => m.kind === 'alert').map(m => m.ref_id)),
+      mediaLinks(req, rows.filter(m => m.media_key).map(m => m.media_key))
+    ]);
+    const byId = {};
+    rows.forEach(m => { byId[String(m.ROWID)] = m; });
+    const authorOf = m => (m.kind === 'supervisor' ? m.author_name || 'Supervisor' : (names[String(m.guard_id)] || {}).guard_name || '');
+    const now = nowStamp();
+
+    const messages = rows.map(m => {
+      const q = m.reply_to_id ? byId[String(m.reply_to_id)] : null;
+      const a = m.kind === 'alert' ? alerts[String(m.ref_id)] : null;
+      const w = m.kind === 'work' ? works[String(m.ref_id)] : null;
+      return {
+        ROWID: m.ROWID, kind: m.kind, text: m.text, pinned: isTrue(m.pinned), forwarded: isTrue(m.forwarded),
+        mine: viewer.supervisor ? m.kind === 'supervisor' : String(m.guard_id) === String(viewer.guardId),
+        // Only the guard's own shift's notes can be pinned / unpinned.
+        myShift: !viewer.supervisor && String(m.duty_log_id) === String(viewer.logId),
+        author: authorOf(m), seenBy: m.seen_by || '', seen: hhmm(m.seen_at),
+        stamp: String(m.CREATEDTIME).slice(0, 19),
+        date: String(m.CREATEDTIME).slice(0, 10), time: String(m.CREATEDTIME).slice(11, 16),
+        reply: q ? { author: authorOf(q), text: q.text || mediaLabel(q.kind) } : null,
+        media: m.media_key ? { url: links[m.media_key] || '', source: m.media_source || '', duration: parseInt(m.duration, 10) || 0 } : null,
+        work: w ? workView(w) : null,
+        alert: a ? {
+          ROWID: a.ROWID, status: a.status, sent: hhmm(a.sent_at), seenBy: a.seen_by || '', seen: hhmm(a.seen_at),
+          cancelled: hhmm(a.cancelled_at), waitMin: a.status === 'sent' && a.sent_at ? Math.floor(minutesBetween(a.sent_at, now)) : 0
+        } : null
+      };
+    });
+    return { messages, open, rows };
+  }
+
+  // Screen 3 for the guard. No auto-refresh: 🔄 button, push and coming back to the app.
   app.get('/postTimeline', async (req, res) => {
     try {
       const catalystApp = catalyst.initialize(req);
       const zcql = catalystApp.zcql();
       const { me, log, own } = await onDutyLog(zcql, req.query.t, req.query.post, true);
-      const open = await openWorks(zcql, log.post_id);
-      await notePermitsExpired(catalystApp, log, open);
+      const { messages, open, rows } = await timelineData(req, catalystApp, zcql, log.post_id, { guardId: me.ROWID, logId: log.ROWID });
 
-      const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, duty_log_id, guard_id, kind, text, pinned, reply_to_id, ref_id, forwarded, media_key, media_source, duration, CREATEDTIME FROM PostMessages WHERE post_id = ${requireRowId(log.post_id)} ORDER BY CREATEDTIME DESC LIMIT ${TIMELINE_LIMIT}`))
-        .map(r => r.PostMessages).reverse();
-      const [names, works, alerts, links] = await Promise.all([
-        namesOf(zcql, rows.map(m => m.guard_id)),
-        rowsByIds(zcql, 'WorkUpdates', rows.filter(m => m.kind === 'work').map(m => m.ref_id)),
-        rowsByIds(zcql, 'Alerts', rows.filter(m => m.kind === 'alert').map(m => m.ref_id)),
-        mediaLinks(req, rows.filter(m => m.media_key).map(m => m.media_key))
-      ]);
-      const byId = {};
-      rows.forEach(m => { byId[String(m.ROWID)] = m; });
-      const authorOf = m => (names[String(m.guard_id)] || {}).guard_name || '';
-      const now = nowStamp();
+      // F31: supervisor messages are now seen by this guard.
+      const unseen = rows.filter(m => m.kind === 'supervisor' && !m.seen_by);
+      if (unseen.length) {
+        const now = nowStamp();
+        for (const m of unseen) await catalystApp.datastore().table('PostMessages').updateRow({ ROWID: m.ROWID, seen_by: me.guard_name, seen_at: now });
+      }
 
-      const messages = rows.map(m => {
-        const q = m.reply_to_id ? byId[String(m.reply_to_id)] : null;
-        const a = m.kind === 'alert' ? alerts[String(m.ref_id)] : null;
-        const w = m.kind === 'work' ? works[String(m.ref_id)] : null;
-        return {
-          ROWID: m.ROWID, kind: m.kind, text: m.text, pinned: isTrue(m.pinned), forwarded: isTrue(m.forwarded),
-          mine: String(m.guard_id) === String(me.ROWID),
-          // Only my own shift's notes can be pinned / unpinned.
-          myShift: String(m.duty_log_id) === String(log.ROWID),
-          author: authorOf(m),
-          date: String(m.CREATEDTIME).slice(0, 10), time: String(m.CREATEDTIME).slice(11, 16),
-          reply: q ? { author: authorOf(q), text: q.text || mediaLabel(q.kind) } : null,
-          media: m.media_key ? { url: links[m.media_key] || '', source: m.media_source || '', duration: parseInt(m.duration, 10) || 0 } : null,
-          work: w ? workView(w) : null,
-          alert: a ? {
-            ROWID: a.ROWID, status: a.status, sent: hhmm(a.sent_at), seenBy: a.seen_by || '', seen: hhmm(a.seen_at),
-            cancelled: hhmm(a.cancelled_at), waitMin: a.status === 'sent' && a.sent_at ? Math.floor(minutesBetween(a.sent_at, now)) : 0
-          } : null
-        };
-      });
       const [breakState, others] = await Promise.all([breaks.state(zcql, me, own, log.post_id), onDutyAt(zcql, log.post_id, own.ROWID)]);
       // Other guards on duty at this post now (general shift guard sees who stays after him).
       const otherNames = await namesOf(zcql, others.map(o => o.guard_id));
@@ -682,6 +705,12 @@ module.exports = function postRoutes(app, h) {
   require('./history.js')(app, {
     catalyst, fail, requireRowId, requireDate, getShifts, nowStamp, hhmm, minutesBetween, isTrue,
     namesOf, onDutyLog, workView, mediaLinks, mediaLabel
+  });
+
+  // Supervisor inbox (supervisor.js).
+  require('./supervisor.js')(app, {
+    catalyst, fail, requireRowId, getShifts, shiftDate, nowStamp, hhmm, cleanText, isTrue, MAX_TEXT,
+    namesOf, addMessage, timelineData, workView, sendPushToGuard
   });
 
   return { onPostIn, onPostOut };

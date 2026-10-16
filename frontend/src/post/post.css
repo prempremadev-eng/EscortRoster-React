@@ -301,3 +301,5 @@
 .pd-info{background:var(--pd-primary-tint,#EEF2FA);border-color:#C9D6F0;gap:4px;}
 .pd-out{background:var(--pd-ink);color:#fff;border-radius:16px;padding:28px 20px;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:16px;}
 .pd-out-big{font-family:Archivo,sans-serif;font-weight:700;font-size:56px;letter-spacing:.06em;}
+.pd-bubble-sup{background:#E7ECF7;border:1px solid #C9D6F0;}
+.pd-author-sup{color:var(--pd-primary);}
