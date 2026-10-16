@@ -4,6 +4,7 @@ import { Icon, initials } from './icons.jsx';
 import AddWork from './AddWork.jsx';
 import SafetySheet from './SafetySheet.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
+import BreakSheet from './BreakSheet.jsx';
 import { MAX_VIDEO_MB, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, clock, compressImage, recorderType, videoSeconds } from './media.js';
 
 const QUICK_REPLIES = ['OK', 'Noted', 'Done'];
@@ -143,6 +144,12 @@ export default function PostTimeline({ token, duty, shiftLine }) {
   const [alertText, setAlertText] = useState('');
   const [camera, setCamera] = useState(false);
   const [voice, setVoice] = useState(null); // seconds while recording
+  // Breaks: my break, cover requests to me, posts I cover. `viewPost` = the other post on screen
+  // while I cover it (null = my own post).
+  const [bs, setBs] = useState(null);
+  const [viewPost, setViewPost] = useState(null);
+  const [confirmLeave, setConfirmLeave] = useState(false);
+  const autoOpened = useRef({});
   const endRef = useRef(null);
   const photoInput = useRef(null);
   const galleryInput = useRef(null);
@@ -153,15 +160,24 @@ export default function PostTimeline({ token, duty, shiftLine }) {
   const load = useCallback(async () => {
     setError('');
     try {
-      const d = (await api.postTimeline(token)).data;
+      const d = (await api.postTimeline(token, viewPost)).data;
       setMessages(d.messages);
       setOpenWorks(d.openWorks);
+      setBs(d);
       setStatus('ok');
+      // "Go to <post>" accepted: the app moves to that post once, by itself.
+      const went = !viewPost && d.covering.find(c => c.mode === 'go' && !autoOpened.current[c.ROWID]);
+      if (went) {
+        autoOpened.current[went.ROWID] = true;
+        setViewPost(went.postId);
+      }
     } catch (err) {
+      // The cover ended while that post was on screen: back to my own post.
+      if (viewPost) return setViewPost(null);
       setError(err.message);
       setStatus('ok');
     }
-  }, [token]);
+  }, [token, viewPost]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -194,7 +210,7 @@ export default function PostTimeline({ token, duty, shiftLine }) {
     if (e) e.preventDefault();
     const body = quick || text;
     if (!body.trim()) return;
-    run(() => api.postMessage(token, body, replyTo ? replyTo.ROWID : null), () => {
+    run(() => api.postMessage(token, body, replyTo ? replyTo.ROWID : null, viewPost), () => {
       if (!quick) setText('');
       setReplyTo(null);
     });
@@ -202,12 +218,12 @@ export default function PostTimeline({ token, duty, shiftLine }) {
 
   function pin(m, pinned) {
     setSheet(null);
-    run(() => api.pinMessage(token, m.ROWID, pinned));
+    run(() => api.pinMessage(token, m.ROWID, pinned, viewPost));
   }
 
   function forward(m) {
     setSheet(null);
-    run(() => api.forwardMessage(token, m.ROWID), () => say('Sent to supervisor'));
+    run(() => api.forwardMessage(token, m.ROWID, viewPost), () => say('Sent to supervisor'));
   }
 
   async function copy(m) {
@@ -224,7 +240,7 @@ export default function PostTimeline({ token, duty, shiftLine }) {
   function upload(blob, kind, source, duration) {
     const replying = replyTo ? replyTo.ROWID : null;
     say('Sending ' + (kind === 'voice' ? 'voice note' : kind) + '...');
-    run(() => api.uploadMedia(token, blob, { kind, source, duration, reply_to: replying }), () => setReplyTo(null));
+    run(() => api.uploadMedia(token, blob, { kind, source, duration, reply_to: replying, post: viewPost }), () => setReplyTo(null));
   }
 
   async function onPhotoTaken(e) {
@@ -311,16 +327,34 @@ export default function PostTimeline({ token, duty, shiftLine }) {
   }
 
   function finishWork(w) {
-    run(() => api.finishWork(token, w.ROWID));
+    run(() => api.finishWork(token, w.ROWID, viewPost));
   }
 
   function sendAlert(e) {
     e.preventDefault();
-    run(() => api.sendAlert(token, alertText), () => { setAlertText(''); setSheet(null); });
+    run(() => api.sendAlert(token, alertText, viewPost), () => { setAlertText(''); setSheet(null); });
   }
 
   function cancelAlert(a) {
-    run(() => api.cancelAlert(token, a.ROWID));
+    run(() => api.cancelAlert(token, a.ROWID, viewPost));
+  }
+
+  // ---------- breaks and cover ----------
+  function respond(r, answer) {
+    run(() => api.respondCover(token, r.ROWID, answer), () => { if (answer === 'go') autoOpened.current[r.ROWID] = false; });
+  }
+  function backOnDuty() {
+    run(() => api.backOnDuty(token), () => say('Welcome back'));
+  }
+  function cancelBreak() {
+    run(() => api.cancelBreak(token));
+  }
+  function pingBack(b) {
+    run(() => api.pingBack(token, b.ROWID), () => say('Asked ' + b.guard + ' to come back'));
+  }
+  function leaveCover(b) {
+    setConfirmLeave(false);
+    run(() => api.leaveCover(token, b.ROWID), () => setViewPost(null));
   }
 
   function showWork(w) {
@@ -336,25 +370,100 @@ export default function PostTimeline({ token, duty, shiftLine }) {
     );
   }
 
+  const hereEarly = bs && bs.coveringHere;
   if (page === 'work') {
-    return <AddWork token={token} duty={duty} onClose={saved => { setPage(null); if (saved) load(); }} />;
+    return <AddWork token={token} post={viewPost} postName={hereEarly ? hereEarly.post : duty.post} onClose={saved => { setPage(null); if (saved) load(); }} />;
   }
 
   const expired = openWorks.filter(w => w.expired);
   let lastDate = '';
+  const myBreak = bs && bs.myBreak;
+  const onBreak = myBreak && (myBreak.status === 'accepted' || myBreak.status === 'alone');
+  const here = bs && bs.coveringHere;
+  const covering = (bs && bs.covering) || [];
+  const postTitle = here ? here.post : duty.post;
 
   return (
     <div className="pd pd-chat">
       <div className="pd-chat-top">
         <div className="pd-chat-head">
-          <div className="pd-avatar pd-avatar-on">{initials(duty.name)}</div>
+          <div className={'pd-avatar ' + (onBreak ? 'pd-avatar-off' : 'pd-avatar-on')}>{initials(duty.name)}</div>
           <div className="pd-chat-title">
-            <div className="pd-title pd-title-sm">{duty.post}</div>
-            <div className="pd-muted pd-small">{shiftLine} · {duty.name}</div>
+            <div className="pd-title pd-title-sm">{postTitle}</div>
+            <div className="pd-muted pd-small">
+              {here ? duty.name + ' · covering for ' + here.guard
+                : onBreak ? duty.name + ' · ' + myBreak.typeLabel + ' break · since ' + myBreak.start
+                  : shiftLine + ' · ' + duty.name}
+            </div>
           </div>
-          <div className="pd-pill pd-green">On duty</div>
+          {here ? <div className="pd-pill pd-amber">Covering</div>
+            : onBreak ? <div className="pd-pill pd-amber">{myBreak.typeLabel} break</div>
+              : <button className="pd-pill pd-green pd-pill-btn" onClick={() => setSheet('break')} disabled={!!myBreak}>On duty ▾</button>}
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
         </div>
+        {here && here.mode === 'go' && (
+          <div className="pd-strip pd-strip-red pd-strip-col">
+            <span><b>Your post {bs.ownPost} is empty</b> · since {here.start}</span>
+            {confirmLeave
+              ? <span className="pd-row-gap"><button className="pd-chip" onClick={() => setConfirmLeave(false)}>Stay</button><button className="pd-chip pd-chip-red" onClick={() => leaveCover(here)} disabled={busy}>Yes, go back</button></span>
+              : <button className="pd-chip pd-chip-red" onClick={() => setConfirmLeave(true)}>Back to my post</button>}
+          </div>
+        )}
+        {here && (
+          <div className="pd-break-row">
+            <div className="pd-grow">
+              <b>{here.guard} · {here.typeLabel} break</b>
+              <div className="pd-muted pd-small">since {here.start} · {here.minutes} min</div>
+            </div>
+            <button className="pd-chip" onClick={() => pingBack(here)} disabled={busy}>Ask to come back</button>
+            {here.guardPhone && <a className="pd-call" href={'tel:' + here.guardPhone} aria-label={'Call ' + here.guard}>{Icon.phone}</a>}
+          </div>
+        )}
+        {here && here.mode === 'stay' && <button className="pd-link pd-link-left" onClick={() => setViewPost(null)}>‹ Back to {bs.ownPost} (I keep watching both)</button>}
+
+        {!here && bs && bs.coverRequests.map(r => (
+          <div key={r.ROWID} className="pd-request">
+            <b>{r.guard} asked you to cover {r.post}</b>
+            <div className="pd-small pd-request-sub">{r.typeLabel} break · asked {r.asked}</div>
+            <button className="pd-btn pd-btn-primary" onClick={() => respond(r, 'go')} disabled={busy}>Go to {r.post}</button>
+            <button className="pd-btn pd-btn-light" onClick={() => respond(r, 'stay')} disabled={busy}>Stay here, watch both</button>
+            <button className="pd-link pd-link-light" onClick={() => respond(r, 'no')} disabled={busy}>Can't now</button>
+          </div>
+        ))}
+        {!here && covering.map(c => (
+          <button key={c.ROWID} className={'pd-strip ' + (c.mode === 'go' ? 'pd-strip-red' : 'pd-strip-amber')} onClick={() => setViewPost(c.postId)}>
+            <span><b>{c.mode === 'go' ? 'You are covering ' + c.post + ' · this post is empty' : 'Also covering ' + c.post}</b><br />{c.guard} on {c.typeLabel.toLowerCase()} break · since {c.start}</span><b>Open ›</b>
+          </button>
+        ))}
+
+        {!here && myBreak && myBreak.status === 'asked' && (
+          <div className="pd-break-card pd-break-amber">
+            <span className="pd-avatar pd-avatar-sm">{initials(myBreak.cover)}</span>
+            <div className="pd-grow"><b>Waiting for {myBreak.cover}…</b><div className="pd-small">Asked {myBreak.asked} · stay at post till he accepts</div></div>
+            <span className="pd-col-gap"><button className="pd-chip" onClick={() => setSheet('break')}>Someone else</button><button className="pd-link pd-link-sm" onClick={cancelBreak} disabled={busy}>Cancel</button></span>
+          </div>
+        )}
+        {!here && myBreak && myBreak.status === 'declined' && (
+          <div className="pd-break-card pd-break-red">
+            <div className="pd-grow"><b>{myBreak.cover} can't cover now</b><div className="pd-small">Ask someone else, or stay at your post</div></div>
+            <span className="pd-col-gap"><button className="pd-chip" onClick={() => setSheet('break')}>Someone else</button><button className="pd-link pd-link-sm" onClick={cancelBreak} disabled={busy}>Cancel</button></span>
+          </div>
+        )}
+        {!here && myBreak && myBreak.status === 'accepted' && myBreak.pinged && (
+          <div className="pd-notice"><div><div className="pd-notice-main">{myBreak.cover}: please come back to {duty.post}</div><div className="pd-notice-sub">{myBreak.pinged} · you are on {myBreak.typeLabel.toLowerCase()} break for {myBreak.minutes} min</div></div></div>
+        )}
+        {!here && myBreak && myBreak.status === 'accepted' && (
+          <div className="pd-break-card pd-break-green">
+            <span className="pd-avatar pd-avatar-sm">{initials(myBreak.cover)}</span>
+            <div className="pd-grow"><b>{myBreak.cover} is covering your post</b><div className="pd-small">Accepted {myBreak.start} · {myBreak.mode === 'go' ? 'came to ' + duty.post : 'watching from ' + myBreak.coverPost}</div></div>
+          </div>
+        )}
+        {!here && myBreak && myBreak.status === 'alone' && (
+          <div className="pd-break-card pd-break-red">
+            <div className="pd-grow"><b>No one is covering {duty.post}</b><div className="pd-small">The post shows empty to your supervisor till you are back</div></div>
+          </div>
+        )}
+
         <button className="pd-safety-row" onClick={() => setSheet('safety')}>
           <span className="pd-safety-icon">{Icon.shield}</span><span className="pd-grow">Safety</span>{Icon.chevron}
         </button>
@@ -412,7 +521,14 @@ export default function PostTimeline({ token, duty, shiftLine }) {
         </div>
       )}
 
-      <form className="pd-composer" onSubmit={send}>
+      {onBreak && !here && (
+        <div className="pd-back">
+          <button className="pd-btn pd-btn-green pd-btn-big" onClick={backOnDuty} disabled={busy}>{Icon.check}I'm back · Back on duty</button>
+          {myBreak.cover && myBreak.status === 'accepted' && <div className="pd-muted pd-small pd-center">{myBreak.cover} will be told you are back</div>}
+        </div>
+      )}
+
+      {!(onBreak && !here) && <form className="pd-composer" onSubmit={send}>
         <button type="button" className="pd-plus" onClick={() => setSheet('menu')} aria-label="Add work update or alert">{Icon.plus}</button>
         <label htmlFor="pd-msg" className="pd-hidden">Write a note</label>
         <div className="pd-input">
@@ -425,7 +541,7 @@ export default function PostTimeline({ token, duty, shiftLine }) {
           : <button type="button" className={'pd-mic' + (voice !== null ? ' pd-mic-on' : '')} onPointerDown={voiceDown} onPointerUp={() => voiceUp(false)} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Hold to record a voice note">{Icon.mic}</button>}
         <input ref={photoInput} type="file" accept="image/*" capture="environment" className="pd-file" onChange={onPhotoTaken} />
         <input ref={galleryInput} type="file" accept="image/*,video/*" className="pd-file" onChange={onGalleryPick} />
-      </form>
+      </form>}
 
       {sheet && (
         <div className="pd-dim" onClick={() => setSheet(null)}>
@@ -434,7 +550,7 @@ export default function PostTimeline({ token, duty, shiftLine }) {
 
             {sheet === 'menu' && (
               <>
-                <div className="pd-sheet-title">Add to {duty.post}</div>
+                <div className="pd-sheet-title">Add to {postTitle}</div>
                 <button className="pd-option pd-option-primary" onClick={() => { setSheet(null); setPage('work'); }}>
                   {Icon.wrench}<span><b>Work update</b><span>Contractor, persons, permit time</span></span>
                 </button>
@@ -458,7 +574,12 @@ export default function PostTimeline({ token, duty, shiftLine }) {
               </form>
             )}
 
-            {sheet === 'safety' && <SafetySheet token={token} onClose={() => setSheet(null)} />}
+            {sheet === 'break' && (
+              <BreakSheet token={token} branch={duty.branch} current={myBreak && (myBreak.status === 'asked' || myBreak.status === 'declined') ? myBreak : null}
+                onClose={() => setSheet(null)} onDone={() => { setSheet(null); load(); }} />
+            )}
+
+            {sheet === 'safety' && <SafetySheet token={token} post={viewPost} onClose={() => setSheet(null)} />}
 
             {typeof sheet === 'object' && (
               <>

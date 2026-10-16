@@ -27,7 +27,7 @@ export default function PostDuty({ token }) {
       setDuty(d);
       if (d.locked) return setView('locked');
       if (d.status === 'handed_over') return setView('done');
-      if (d.status === 'on_duty') return setView('timeline');
+      if (d.status === 'on_duty' || d.status === 'on_break') return setView('timeline');
       setView(v => (v === 'waiting' ? 'waiting' : 'main'));
     } catch (err) {
       setError(err.message);

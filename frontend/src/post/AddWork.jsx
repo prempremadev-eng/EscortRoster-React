@@ -4,7 +4,7 @@ import { Icon } from './icons.jsx';
 
 // Screen 5: a contractor's work at the post. Time and guard are saved by the server.
 // Photos (permit, work area) come with the photo step.
-export default function AddWork({ token, duty, onClose }) {
+export default function AddWork({ token, post, postName, onClose }) {
   const [form, setForm] = useState({ contractor: '', permit_from: '09:00', permit_to: '17:00', persons: 1, description: '' });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -15,7 +15,7 @@ export default function AddWork({ token, duty, onClose }) {
     setBusy(true);
     setError('');
     try {
-      await api.addWork(token, form);
+      await api.addWork(token, form, post);
       onClose(true);
     } catch (err) {
       setError(err.message);
@@ -29,7 +29,7 @@ export default function AddWork({ token, duty, onClose }) {
         <button type="button" className="pd-icon-btn" onClick={() => onClose(false)} aria-label="Back">{Icon.back}</button>
         <div>
           <div className="pd-title pd-title-sm">Add work update</div>
-          <div className="pd-muted pd-small">{duty.post}</div>
+          <div className="pd-muted pd-small">{postName}</div>
         </div>
       </div>
 

@@ -21,8 +21,8 @@ async function apiCall(method, endpoint, body) {
 const q = encodeURIComponent;
 
 // Photo / video / voice: the file itself is the request body, the details go in the address.
-async function uploadMedia(t, blob, { kind, source, duration, reply_to }) {
-  const qs = 't=' + q(t) + '&kind=' + q(kind) + '&source=' + q(source) + '&duration=' + q(duration || 0) + (reply_to ? '&reply_to=' + q(reply_to) : '');
+async function uploadMedia(t, blob, { kind, source, duration, reply_to, post }) {
+  const qs = 't=' + q(t) + '&kind=' + q(kind) + '&source=' + q(source) + '&duration=' + q(duration || 0) + (reply_to ? '&reply_to=' + q(reply_to) : '') + (post ? '&post=' + q(post) : '');
   const res = await fetch(API_BASE + '/uploadMedia?' + qs, { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
   let json;
   try {
@@ -96,16 +96,24 @@ export const api = {
 
   postDuty: t => apiCall('GET', '/postDuty?t=' + q(t)),
   takeOver: t => apiCall('POST', '/takeOver', { t }),
-  postTimeline: t => apiCall('GET', '/postTimeline?t=' + q(t)),
-  postMessage: (t, text, reply_to) => apiCall('POST', '/postMessage', { t, text, reply_to }),
-  pinMessage: (t, rowid, pinned) => apiCall('POST', '/pinMessage', { t, rowid, pinned }),
-  forwardMessage: (t, rowid) => apiCall('POST', '/forwardMessage', { t, rowid }),
-  addWork: (t, work) => apiCall('POST', '/addWork', { t, ...work }),
-  finishWork: (t, rowid) => apiCall('POST', '/finishWork', { t, rowid }),
-  safety: t => apiCall('GET', '/safety?t=' + q(t)),
-  addSafety: (t, entry) => apiCall('POST', '/addSafety', { t, ...entry }),
-  sendAlert: (t, text) => apiCall('POST', '/sendAlert', { t, text }),
-  cancelAlert: (t, rowid) => apiCall('POST', '/cancelAlert', { t, rowid }),
+  // `post` = another post the guard is covering during a break (empty = their own post).
+  postTimeline: (t, post) => apiCall('GET', '/postTimeline?t=' + q(t) + (post ? '&post=' + q(post) : '')),
+  postMessage: (t, text, reply_to, post) => apiCall('POST', '/postMessage', { t, text, reply_to, post }),
+  pinMessage: (t, rowid, pinned, post) => apiCall('POST', '/pinMessage', { t, rowid, pinned, post }),
+  forwardMessage: (t, rowid, post) => apiCall('POST', '/forwardMessage', { t, rowid, post }),
+  addWork: (t, work, post) => apiCall('POST', '/addWork', { t, ...work, post }),
+  finishWork: (t, rowid, post) => apiCall('POST', '/finishWork', { t, rowid, post }),
+  safety: (t, post) => apiCall('GET', '/safety?t=' + q(t) + (post ? '&post=' + q(post) : '')),
+  addSafety: (t, entry, post) => apiCall('POST', '/addSafety', { t, ...entry, post }),
+  sendAlert: (t, text, post) => apiCall('POST', '/sendAlert', { t, text, post }),
+  cancelAlert: (t, rowid, post) => apiCall('POST', '/cancelAlert', { t, rowid, post }),
+  coverCandidates: t => apiCall('GET', '/coverCandidates?t=' + q(t)),
+  startBreak: (t, type, cover_guard_id) => apiCall('POST', '/startBreak', { t, type, cover_guard_id }),
+  cancelBreak: t => apiCall('POST', '/cancelBreak', { t }),
+  respondCover: (t, rowid, answer) => apiCall('POST', '/respondCover', { t, rowid, answer }),
+  pingBack: (t, rowid) => apiCall('POST', '/pingBack', { t, rowid }),
+  backOnDuty: t => apiCall('POST', '/backOnDuty', { t }),
+  leaveCover: (t, rowid) => apiCall('POST', '/leaveCover', { t, rowid }),
   uploadMedia,
 
   syncEscortsFromExcel: escorts => apiCall('POST', '/syncEscortsFromExcel', { escorts }),

@@ -44,9 +44,9 @@ module.exports = function postRoutes(app, h) {
     return rows.length ? rows[0].DutyLog : null;
   }
 
-  // Who is on duty at this post now (other than me): the guard I take over from.
+  // Who is on duty (or on break) at this post now (other than me): the guard I take over from.
   async function onDutyAt(zcql, postId, myLogId) {
-    const rows = await zcql.executeZCQLQuery(`SELECT * FROM DutyLog WHERE post_id = ${requireRowId(postId)} AND status = 'on_duty' ORDER BY taken_over_at DESC`);
+    const rows = await zcql.executeZCQLQuery(`SELECT * FROM DutyLog WHERE post_id = ${requireRowId(postId)} AND (status = 'on_duty' OR status = 'on_break') ORDER BY taken_over_at DESC`);
     return rows.map(r => r.DutyLog).filter(l => String(l.ROWID) !== String(myLogId));
   }
 
@@ -61,6 +61,20 @@ module.exports = function postRoutes(app, h) {
 
   function addMessage(catalystApp, row) {
     return catalystApp.datastore().table('PostMessages').insertRow({ pinned: false, ...row });
+  }
+
+  // Presence = who stood at a post from when to when (main guard or a cover during a break).
+  // "Who was here at 01:20?" in History reads these rows.
+  function openPresence(catalystApp, postId, guardId, logId, kind) {
+    return catalystApp.datastore().table('Presence').insertRow({
+      post_id: postId, guard_id: guardId, duty_log_id: logId, kind, from_at: nowStamp()
+    });
+  }
+
+  async function closePresence(catalystApp, zcql, postId, guardId, kind) {
+    const rows = await zcql.executeZCQLQuery(`SELECT ROWID FROM Presence WHERE post_id = ${requireRowId(postId)} AND guard_id = ${requireRowId(guardId)}${kind ? ` AND kind = '${kind}'` : ''} AND to_at IS NULL`);
+    const now = nowStamp();
+    for (const r of rows) await catalystApp.datastore().table('Presence').updateRow({ ROWID: r.Presence.ROWID, to_at: now });
   }
 
   // F1: called on a card IN of a guard whose chart row is a POST.
@@ -147,8 +161,10 @@ module.exports = function postRoutes(app, h) {
       const prevs = await onDutyAt(zcql, log.post_id, log.ROWID);
       for (const p of prevs) {
         await table.updateRow({ ROWID: p.ROWID, status: 'handed_over', handed_over_at: now });
+        await closePresence(catalystApp, zcql, log.post_id, p.guard_id, null);
       }
       await table.updateRow({ ROWID: log.ROWID, status: 'on_duty', taken_over_at: now });
+      await openPresence(catalystApp, log.post_id, me.ROWID, log.ROWID, 'main');
 
       // Every older row still on duty at this post is closed; only another guard is named and told.
       const others = prevs.filter(p => String(p.guard_id) !== String(me.ROWID));
@@ -182,11 +198,18 @@ module.exports = function postRoutes(app, h) {
   });
 
   // My log, only once I am on duty (timeline is read and written only by the guard on duty).
-  async function onDutyLog(zcql, token) {
+  // `postId` = another post I am covering during that guard's break: I read and write there,
+  // with my own duty log (so it is known whose shift wrote it). `allowBreak` = reading is fine
+  // while I am on break.
+  async function onDutyLog(zcql, token, postId, allowBreak) {
     const me = await guardByToken(zcql, token);
-    const log = await myLog(zcql, me.ROWID);
-    if (!log || log.status !== 'on_duty') throw new Error('Press Taken over first.');
-    return { me, log };
+    const own = await myLog(zcql, me.ROWID);
+    const ok = own && (own.status === 'on_duty' || (allowBreak && own.status === 'on_break'));
+    if (!ok) throw new Error(own && own.status === 'on_break' ? "You are on break. Press I'm back first." : 'Press Taken over first.');
+    if (!postId || String(postId) === String(own.post_id)) return { me, log: own, own, covering: null };
+    const rows = await zcql.executeZCQLQuery(`SELECT * FROM Breaks WHERE cover_guard_id = ${requireRowId(me.ROWID)} AND post_id = ${requireRowId(postId)} AND status = 'accepted'`);
+    if (!rows.length) throw new Error('You are not covering that post now.');
+    return { me, log: { ...own, post_id: String(postId) }, own, covering: rows[0].Breaks };
   }
 
   // ---------- small helpers for the timeline ----------
@@ -277,7 +300,7 @@ module.exports = function postRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req);
       const zcql = catalystApp.zcql();
-      const { me, log } = await onDutyLog(zcql, req.query.t);
+      const { me, log, own } = await onDutyLog(zcql, req.query.t, req.query.post, true);
       const open = await openWorks(zcql, log.post_id);
       await notePermitsExpired(catalystApp, log, open);
 
@@ -314,7 +337,8 @@ module.exports = function postRoutes(app, h) {
           } : null
         };
       });
-      res.status(200).json({ status: 'success', data: { messages, openWorks: open.map(workView) } });
+      const breakState = await breaks.state(zcql, me, own, log.post_id);
+      res.status(200).json({ status: 'success', data: { messages, openWorks: open.map(workView), ...breakState } });
     } catch (err) {
       fail(res, err);
     }
@@ -325,7 +349,7 @@ module.exports = function postRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req);
       const zcql = catalystApp.zcql();
-      const { me, log } = await onDutyLog(zcql, req.body.t);
+      const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const text = cleanText(req.body.text, 'Note', MAX_TEXT, true);
       const row = { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, kind: 'text', text };
       if (req.body.reply_to) {
@@ -346,7 +370,7 @@ module.exports = function postRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req);
       const zcql = catalystApp.zcql();
-      const { me, log } = await onDutyLog(zcql, req.query.t);
+      const { me, log } = await onDutyLog(zcql, req.query.t, req.query.post);
       const kind = String(req.query.kind || '');
       const rule = MEDIA[kind];
       if (!rule) throw new Error('Unknown media type.');
@@ -387,7 +411,7 @@ module.exports = function postRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req);
       const zcql = catalystApp.zcql();
-      const { log } = await onDutyLog(zcql, req.body.t);
+      const { log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const m = await postTextMessage(zcql, log, req.body.rowid);
       if (String(m.duty_log_id) !== String(log.ROWID) || m.kind !== 'text') {
         throw new Error('You can pin only your own notes of this shift.');
@@ -405,7 +429,7 @@ module.exports = function postRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req);
       const zcql = catalystApp.zcql();
-      const { log } = await onDutyLog(zcql, req.body.t);
+      const { log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const m = await postTextMessage(zcql, log, req.body.rowid);
       await catalystApp.datastore().table('PostMessages').updateRow({ ROWID: m.ROWID, forwarded: true });
       res.status(200).json({ status: 'success', data: { forwarded: true } });
@@ -419,7 +443,7 @@ module.exports = function postRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req);
       const zcql = catalystApp.zcql();
-      const { me, log } = await onDutyLog(zcql, req.body.t);
+      const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const b = req.body;
       const contractor = cleanText(b.contractor, 'Contractor', 100, true);
       const description = cleanText(b.description, 'What work', MAX_TEXT, false);
@@ -444,7 +468,7 @@ module.exports = function postRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req);
       const zcql = catalystApp.zcql();
-      const { me, log } = await onDutyLog(zcql, req.body.t);
+      const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const rows = await zcql.executeZCQLQuery(`SELECT * FROM WorkUpdates WHERE ROWID = ${requireRowId(req.body.rowid)}`);
       const w = rows.length ? rows[0].WorkUpdates : null;
       if (!w || String(w.post_id) !== String(log.post_id)) throw new Error('That work is not at this post.');
@@ -468,7 +492,7 @@ module.exports = function postRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req);
       const zcql = catalystApp.zcql();
-      const { log } = await onDutyLog(zcql, req.query.t);
+      const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
       const [shifts, rows] = await Promise.all([
         getShifts(zcql),
         zcql.executeZCQLQuery(`SELECT shift_code, name, phone, CREATEDTIME FROM SafetyEntries WHERE post_id = ${requireRowId(log.post_id)} AND duty_date = '${log.duty_date}' ORDER BY CREATEDTIME ASC`)
@@ -491,7 +515,7 @@ module.exports = function postRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req);
       const zcql = catalystApp.zcql();
-      const { me, log } = await onDutyLog(zcql, req.body.t);
+      const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const shifts = await getShifts(zcql);
       const code = String(req.body.shift_code || '').toUpperCase();
       if (!shifts.some(s => s.code === code)) throw new Error('Pick a shift');
@@ -513,7 +537,7 @@ module.exports = function postRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req);
       const zcql = catalystApp.zcql();
-      const { me, log } = await onDutyLog(zcql, req.body.t);
+      const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const text = cleanText(req.body.text, 'Alert message', MAX_TEXT, true);
       const alert = await catalystApp.datastore().table('Alerts').insertRow({
         post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, status: 'sent', sent_at: nowStamp()
@@ -530,7 +554,7 @@ module.exports = function postRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req);
       const zcql = catalystApp.zcql();
-      const { me, log } = await onDutyLog(zcql, req.body.t);
+      const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const rows = await zcql.executeZCQLQuery(`SELECT ROWID, post_id, status FROM Alerts WHERE ROWID = ${requireRowId(req.body.rowid)}`);
       const a = rows.length ? rows[0].Alerts : null;
       if (!a || String(a.post_id) !== String(log.post_id)) throw new Error('That alert is not on this post.');
@@ -545,6 +569,12 @@ module.exports = function postRoutes(app, h) {
     } catch (err) {
       fail(res, err);
     }
+  });
+
+  // Breaks and cover (breaks.js) use the same helpers.
+  const breaks = require('./breaks.js')(app, {
+    catalyst, fail, requireRowId, guardByToken, sendPushToGuard, shiftDate, nowStamp, hhmm, minutesBetween,
+    myLog, namesOf, addMessage, openPresence, closePresence, onDutyLog
   });
 
   return { onPostIn };

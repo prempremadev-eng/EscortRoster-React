@@ -6,7 +6,7 @@ const fmtDate = d => new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { we
 
 // Screen 5j: "Safety today", the safety person of each shift at this post.
 // Adding again makes a new entry (old ones are kept); the latest one is shown.
-export default function SafetySheet({ token, onClose }) {
+export default function SafetySheet({ token, post, onClose }) {
   const [data, setData] = useState(null);
   const [adding, setAdding] = useState(null);
   const [form, setForm] = useState({ name: '', phone: '' });
@@ -15,11 +15,11 @@ export default function SafetySheet({ token, onClose }) {
 
   const load = useCallback(async () => {
     try {
-      setData((await api.safety(token)).data);
+      setData((await api.safety(token, post)).data);
     } catch (err) {
       setError(err.message);
     }
-  }, [token]);
+  }, [token, post]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -28,7 +28,7 @@ export default function SafetySheet({ token, onClose }) {
     setBusy(true);
     setError('');
     try {
-      await api.addSafety(token, { shift_code: adding, ...form });
+      await api.addSafety(token, { shift_code: adding, ...form }, post);
       setAdding(null);
       setForm({ name: '', phone: '' });
       await load();
