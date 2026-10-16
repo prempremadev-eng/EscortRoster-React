@@ -5,7 +5,6 @@ import { clock } from '../post/media.js';
 import '../post/post.css';
 import './supervisor.css';
 
-const LIST_REFRESH_MS = 60000;
 const STATUS = {
   alert: { label: 'Alert', cls: 'pd-red' },
   empty: { label: 'Empty', cls: 'pd-red' },
@@ -144,14 +143,13 @@ export default function SupervisorInbox() {
   useEffect(() => { if (openId) { setPost(null); loadPost(openId).then(loadList); } }, [openId, loadPost, loadList]);
   useEffect(() => { if (endRef.current) endRef.current.scrollIntoView({ block: 'end' }); }, [post]);
 
-  // The list refreshes itself every minute while this tab is on screen (alerts must not wait),
-  // and at once when the supervisor comes back to the tab.
+  // No timer: every list load costs Data Store reads (the free tier is small and shared).
+  // The list refreshes when the supervisor comes back to the tab, or with the refresh button.
   useEffect(() => {
-    const tick = setInterval(() => { if (document.visibilityState === 'visible') loadList(); }, LIST_REFRESH_MS);
-    const onShow = () => { if (document.visibilityState === 'visible') { loadList(); if (openId) loadPost(openId); } };
+    const onShow = () => { if (document.visibilityState === 'visible') loadList(); };
     document.addEventListener('visibilitychange', onShow);
-    return () => { clearInterval(tick); document.removeEventListener('visibilitychange', onShow); };
-  }, [loadList, loadPost, openId]);
+    return () => document.removeEventListener('visibilitychange', onShow);
+  }, [loadList]);
 
   async function send(e) {
     e.preventDefault();
