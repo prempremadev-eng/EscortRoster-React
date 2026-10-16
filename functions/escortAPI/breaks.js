@@ -14,7 +14,7 @@ const ACTIVE = ['asked', 'declined', 'accepted', 'alone'];
 
 module.exports = function breakRoutes(app, h) {
   const { catalyst, fail, requireRowId, guardByToken, sendPushToGuard, shiftDate, nowStamp, hhmm, minutesBetween,
-    myLog, namesOf, addMessage, openPresence, closePresence, onDutyLog } = h;
+    myLog, namesOf, addMessage, openPresence, closePresence, onDutyLog, notifySupervisors } = h;
 
   const statusIn = list => '(' + list.map(s => `status = '${s}'`).join(' OR ') + ')';
   const label = type => TYPES[type] || 'Break';
@@ -145,6 +145,7 @@ module.exports = function breakRoutes(app, h) {
         await catalystApp.datastore().table('DutyLog').updateRow({ ROWID: own.ROWID, status: 'on_break' });
         await closePresence(catalystApp, zcql, own.post_id, me.ROWID, 'main');
         await addMessage(catalystApp, { post_id: own.post_id, duty_log_id: own.ROWID, guard_id: me.ROWID, kind: 'system_red', text: me.guard_name + ' on ' + label(type).toLowerCase() + ' break · no one covering · post empty · ' + hhmm(now) });
+        await notifySupervisors(catalystApp, own.post_id, 'Post empty', me.guard_name + ' on ' + label(type).toLowerCase() + ' break, no cover · ' + hhmm(now), true);
         return res.status(200).json({ status: 'success', data: { ROWID: brk.ROWID, status: 'alone' } });
       }
 
@@ -348,6 +349,7 @@ module.exports = function breakRoutes(app, h) {
         await addMessage(catalystApp, { post_id: own.post_id, duty_log_id: own.ROWID, guard_id: me.ROWID, kind: 'system', text: me.guard_name + ' back at the post · ' + time });
       }
       await addMessage(catalystApp, { post_id: b.post_id, duty_log_id: own.ROWID, guard_id: me.ROWID, kind: 'system_red', text: me.guard_name + ' went back to ' + myPost + ' · post empty · ' + time });
+      await notifySupervisors(catalystApp, b.post_id, 'Post empty', me.guard_name + ' went back to ' + myPost + ' · ' + time, true);
       await tell(catalystApp, guards[String(b.guard_id)], '⚠️ ' + breakPost + ' is empty', me.guard_name + ' went back to ' + myPost + '. Please come back to ' + breakPost + '.', true);
       res.status(200).json({ status: 'success', data: { left: time } });
     } catch (err) {

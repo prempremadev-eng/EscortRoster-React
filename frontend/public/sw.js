@@ -18,7 +18,8 @@ self.addEventListener('push', event => {
       body: data.body || '',
       data: { url: data.url || 'index.html' },
       tag: data.tag || undefined,
-      renotify: !!data.tag,
+      // Same tag = replaces the last one; it buzzes again only when renotify is on.
+      renotify: !!data.tag && (data.renotify === undefined ? true : !!data.renotify),
       requireInteraction: urgent,
       vibrate: urgent ? [500, 200, 500, 200, 500, 200, 800] : [200]
     }),

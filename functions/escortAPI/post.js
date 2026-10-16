@@ -32,7 +32,8 @@ const TIMELINE_LIMIT = 100;
 // ROWIDs are not given out in time order, so lists are sorted by time (CREATEDTIME / *_at).
 
 module.exports = function postRoutes(app, h) {
-  const { catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN } = h;
+  const { catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, sendPushToRows, getVapidKeys,
+    getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN } = h;
 
   // "2026-10-16 05:58" in India time. Date and time together, because Shift C runs past midnight.
   function nowStamp() {
@@ -123,6 +124,7 @@ module.exports = function postRoutes(app, h) {
     if (log.status === 'waiting') return;
     await closePresence(catalystApp, zcql, log.post_id, guard.ROWID, 'main');
     await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: guard.ROWID, kind: 'system_red', text: guard.guard_name + ' card OUT · post empty · ' + hhmm(nowStamp()) });
+    await sup.notify(catalystApp, log.post_id, 'Post empty', guard.guard_name + ' card OUT · ' + hhmm(nowStamp()), true);
   }
 
   // Card IN again the same duty day: back to where they were.
@@ -482,6 +484,7 @@ module.exports = function postRoutes(app, h) {
         row.reply_to_id = req.body.reply_to;
       }
       const saved = await addMessage(catalystApp, row);
+      await sup.notify(catalystApp, log.post_id, me.guard_name, text, false);
       res.status(200).json({ status: 'success', data: { ROWID: saved.ROWID, time: String(saved.CREATEDTIME).slice(11, 16) } });
     } catch (err) {
       fail(res, err);
@@ -516,6 +519,7 @@ module.exports = function postRoutes(app, h) {
       const row = { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, kind, text: '', media_key: key, media_source: source, duration };
       if (req.query.reply_to) row.reply_to_id = requireRowId(req.query.reply_to);
       const saved = await addMessage(catalystApp, row);
+      await sup.notify(catalystApp, log.post_id, me.guard_name, mediaLabel(kind) + (source === 'gallery' ? ' (from gallery)' : ''), false);
       res.status(200).json({ status: 'success', data: { ROWID: saved.ROWID } });
     } catch (err) {
       fail(res, err);
@@ -553,9 +557,12 @@ module.exports = function postRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req);
       const zcql = catalystApp.zcql();
-      const { log } = await onDutyLog(zcql, req.body.t, req.body.post);
+      const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const m = await postTextMessage(zcql, log, req.body.rowid);
       await catalystApp.datastore().table('PostMessages').updateRow({ ROWID: m.ROWID, forwarded: true });
+      const full = await zcql.executeZCQLQuery(`SELECT text, kind FROM PostMessages WHERE ROWID = ${requireRowId(m.ROWID)}`);
+      const fwd = full.length ? full[0].PostMessages : {};
+      await sup.notify(catalystApp, log.post_id, me.guard_name + ' sent you', fwd.text || mediaLabel(fwd.kind), true);
       res.status(200).json({ status: 'success', data: { forwarded: true } });
     } catch (err) {
       fail(res, err);
@@ -667,6 +674,7 @@ module.exports = function postRoutes(app, h) {
         post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, status: 'sent', sent_at: nowStamp()
       });
       await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, kind: 'alert', ref_id: alert.ROWID, text });
+      await sup.notify(catalystApp, log.post_id, 'Alert from ' + me.guard_name, text, true);
       res.status(200).json({ status: 'success', data: { ROWID: alert.ROWID } });
     } catch (err) {
       fail(res, err);
@@ -698,7 +706,8 @@ module.exports = function postRoutes(app, h) {
   // Breaks and cover (breaks.js) use the same helpers.
   const breaks = require('./breaks.js')(app, {
     catalyst, fail, requireRowId, guardByToken, sendPushToGuard, shiftDate, nowStamp, hhmm, minutesBetween,
-    myLog, namesOf, addMessage, openPresence, closePresence, onDutyLog
+    myLog, namesOf, addMessage, openPresence, closePresence, onDutyLog,
+    notifySupervisors: (...args) => sup.notify(...args)
   });
 
   // Post history (history.js): read only.
@@ -708,9 +717,9 @@ module.exports = function postRoutes(app, h) {
   });
 
   // Supervisor inbox (supervisor.js).
-  require('./supervisor.js')(app, {
+  const sup = require('./supervisor.js')(app, {
     catalyst, fail, requireRowId, getShifts, shiftDate, weekStartOf, nowStamp, hhmm, minutesBetween, cleanText, isTrue, MAX_TEXT,
-    namesOf, addMessage, timelineData, workView, sendPushToGuard
+    namesOf, addMessage, timelineData, workView, sendPushToGuard, sendPushToRows, getVapidKeys
   });
 
   return { onPostIn, onPostOut };

@@ -115,6 +115,8 @@ export const api = {
   supInbox: (branch, seen) => apiCall('POST', '/supInbox', { branch, seen }),
   supPost: (post, name) => apiCall('GET', '/supPost?post=' + q(post) + (name ? '&name=' + q(name) : '')),
   supBoard: (branch, shift) => apiCall('GET', '/supBoard?branch=' + q(branch) + (shift ? '&shift=' + q(shift) : '')),
+  supVapid: () => apiCall('GET', '/supVapid'),
+  supSubscribe: (branch, name, subscription, device) => apiCall('POST', '/supSubscribe', { branch, name, subscription, device }),
   supMessage: (post, name, text) => apiCall('POST', '/supMessage', { post, name, text }),
   coverCandidates: t => apiCall('GET', '/coverCandidates?t=' + q(t)),
   startBreak: (t, type, cover_guard_id) => apiCall('POST', '/startBreak', { t, type, cover_guard_id }),

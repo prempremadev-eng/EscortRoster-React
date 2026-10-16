@@ -10,7 +10,7 @@ const GENERAL = 'G';
 
 module.exports = function supervisorRoutes(app, h) {
   const { catalyst, fail, requireRowId, getShifts, shiftDate, weekStartOf, nowStamp, hhmm, minutesBetween, cleanText, MAX_TEXT,
-    namesOf, addMessage, timelineData, workView, sendPushToGuard } = h;
+    namesOf, addMessage, timelineData, workView, sendPushToGuard, sendPushToRows, getVapidKeys } = h;
 
   const statusIn = list => '(' + list.map(s => `status = '${s}'`).join(' OR ') + ')';
   const idList = ids => [...new Set(ids.map(String))].map(requireRowId).join(', ');
@@ -139,6 +139,58 @@ module.exports = function supervisorRoutes(app, h) {
     }
   });
 
+  /* ---------- SUPERVISOR NOTIFICATIONS ---------- */
+  // A supervisor's browser (laptop or phone) subscribes for one branch. Guard messages, alerts and
+  // empty posts of that branch are pushed to it, and an open supervisor page refreshes itself on
+  // them: no timer polling. Normal messages replace the post's last notification quietly;
+  // alerts and empty posts buzz again.
+
+  app.get('/supVapid', async (req, res) => {
+    try {
+      const keys = await getVapidKeys(catalyst.initialize(req));
+      res.status(200).json({ status: 'success', data: { vapidPublicKey: keys.publicKey } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  app.post('/supSubscribe', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req);
+      const zcql = catalystApp.zcql();
+      const branch = requireRowId(req.body.branch);
+      const name = supName(req.body.name);
+      const sub = req.body.subscription;
+      if (!sub || typeof sub.endpoint !== 'string' || !sub.endpoint.startsWith('https://') || !sub.keys) throw new Error('Invalid subscription');
+      const device = ['android', 'iphone'].includes(req.body.device) ? req.body.device : 'other';
+      const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, subscription_json FROM SupervisorSubs WHERE branch_id = ${branch}`)).map(r => r.SupervisorSubs);
+      const same = rows.find(r => { try { return JSON.parse(r.subscription_json).endpoint === sub.endpoint; } catch { return false; } });
+      const table = catalystApp.datastore().table('SupervisorSubs');
+      if (same) await table.updateRow({ ROWID: same.ROWID, sup_name: name });
+      else await table.insertRow({ branch_id: branch, sup_name: name, subscription_json: JSON.stringify(sub), device });
+      res.status(200).json({ status: 'success', data: { saved: true } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // Called by the guard routes. Never fails the guard's own action.
+  async function notify(catalystApp, postId, title, body, urgent) {
+    try {
+      const zcql = catalystApp.zcql();
+      const posts = await zcql.executeZCQLQuery(`SELECT post_name, branch_id FROM Posts WHERE ROWID = ${requireRowId(postId)}`);
+      if (!posts.length || !posts[0].Posts.branch_id) return;
+      const post = posts[0].Posts;
+      const subs = (await zcql.executeZCQLQuery(`SELECT ROWID, subscription_json, device FROM SupervisorSubs WHERE branch_id = ${requireRowId(post.branch_id)}`)).map(r => r.SupervisorSubs);
+      await sendPushToRows(catalystApp, 'SupervisorSubs', subs, {
+        title: (urgent ? '🚨 ' : '') + post.post_name + ' · ' + title, body,
+        url: 'index.html#supervisor/' + postId, urgent: !!urgent, tag: 'sup-' + postId, renotify: !!urgent
+      });
+    } catch (err) {
+      console.error('Supervisor push failed:', err);
+    }
+  }
+
   /* ---------- LIVE BOARD (screen 10) ---------- */
   // One branch, one shift: every post with who should be there (Duty Chart) and what really
   // happened (DutyLog), plus what needs the supervisor now. About 7 reads per load; no timer.
@@ -259,4 +311,6 @@ module.exports = function supervisorRoutes(app, h) {
       fail(res, err);
     }
   });
+
+  return { notify };
 };

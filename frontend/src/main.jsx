@@ -68,7 +68,8 @@ function Root() {
   if (hash === '#chart') return <DutyChart />;
   if (hash === '#simulator') return <CardSimulator />;
   if (hash === '#links') return <GuardLinks />;
-  if (hash === '#supervisor') return <SupervisorInbox />;
+  // #supervisor/<post> comes from a supervisor notification: opens that post.
+  if (hash === '#supervisor' || hash.startsWith('#supervisor/')) return <SupervisorInbox key={hash} initialPost={hash.split('/')[1] || null} />;
   if (hash === '#board') return <SupervisorBoard />;
   if (hash.startsWith('#setup/')) return <GuardSetup token={hash.slice('#setup/'.length)} />;
   if (hash.startsWith('#guard/')) {

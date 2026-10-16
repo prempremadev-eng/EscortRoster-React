@@ -33,6 +33,12 @@ function keep(key, value) {
   }
 }
 
+function keyToBytes(base64url) {
+  const base64 = (base64url + '='.repeat((4 - (base64url.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
+  return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+}
+const deviceType = () => (/iPhone|iPad|iPod/.test(navigator.userAgent) ? 'iphone' : /Android/.test(navigator.userAgent) ? 'android' : 'other');
+
 function Message({ m }) {
   if (m.kind === 'system') return <div className="pd-sys pd-sys-green">{Icon.check}{m.text}</div>;
   if (m.kind === 'system_red') return <div className="pd-sys pd-sys-red">{m.text}</div>;
@@ -91,7 +97,7 @@ function Message({ m }) {
 
 // Screen 13: supervisor home. Posts on the left (alerts / empty first), the chosen post's timeline
 // on the right with a message box.
-export default function SupervisorInbox() {
+export default function SupervisorInbox({ initialPost }) {
   const [name, setName] = useState(() => remember('sup_name', ''));
   const [nameInput, setNameInput] = useState('');
   const [branches, setBranches] = useState([]);
@@ -101,7 +107,7 @@ export default function SupervisorInbox() {
   const [search, setSearch] = useState('');
   // A post picked on the live board opens here once.
   const [openId, setOpenId] = useState(() => {
-    const id = remember('sup_open', null);
+    const id = initialPost || remember('sup_open', null);
     keep('sup_open', null);
     return id;
   });
@@ -155,13 +161,37 @@ export default function SupervisorInbox() {
   useEffect(() => { if (openId) { setPost(null); loadPost(openId).then(loadList); } }, [openId, loadPost, loadList]);
   useEffect(() => { if (endRef.current) endRef.current.scrollIntoView({ block: 'end' }); }, [post]);
 
-  // No timer: every list load costs Data Store reads (the free tier is small and shared).
-  // The list refreshes when the supervisor comes back to the tab, or with the refresh button.
+  // No timer: every list load costs Data Store reads. The page refreshes when a notification
+  // for this branch arrives (sw.js tells it), when the supervisor comes back to the tab, or with 🔄.
   useEffect(() => {
-    const onShow = () => { if (document.visibilityState === 'visible') loadList(); };
+    const onPush = () => { loadList(); if (openId) loadPost(openId); };
+    const onShow = () => { if (document.visibilityState === 'visible') onPush(); };
+    window.addEventListener('guard-push', onPush);
     document.addEventListener('visibilitychange', onShow);
-    return () => document.removeEventListener('visibilitychange', onShow);
-  }, [loadList]);
+    return () => { window.removeEventListener('guard-push', onPush); document.removeEventListener('visibilitychange', onShow); };
+  }, [loadList, loadPost, openId]);
+
+  // Notifications for this branch on this browser (asked once per branch).
+  const pushKey = 'sup_push_' + branch;
+  const [pushOn, setPushOn] = useState(() => remember(pushKey, false));
+  useEffect(() => { setPushOn(remember(pushKey, false)); }, [pushKey]);
+  async function turnOnPush() {
+    setError('');
+    try {
+      if (!('serviceWorker' in navigator) || !('PushManager' in window)) throw new Error('This browser cannot get notifications.');
+      if (await Notification.requestPermission() !== 'granted') throw new Error('Notifications are blocked. Allow them for this site in the browser settings.');
+      const reg = await navigator.serviceWorker.register('sw.js');
+      await navigator.serviceWorker.ready;
+      const { vapidPublicKey } = (await api.supVapid()).data;
+      const subscription = await reg.pushManager.getSubscription()
+        || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(vapidPublicKey) });
+      await api.supSubscribe(branch, name, subscription.toJSON(), deviceType());
+      keep(pushKey, true);
+      setPushOn(true);
+    } catch (err) {
+      setError(err.message);
+    }
+  }
 
   async function send(e) {
     e.preventDefault();
@@ -216,6 +246,7 @@ export default function SupervisorInbox() {
         <div className="sup-list-head">
           <div className="pd-row-between">
             <div className="pd-title">Posts</div>
+            {!pushOn && branch && <button className="pd-chip pd-chip-primary" onClick={turnOnPush}>{Icon.bell} Turn on notifications</button>}
             <button className="pd-icon-btn" onClick={loadList} aria-label="Refresh">{Icon.refresh}</button>
           </div>
           <select className="pd-search" value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">

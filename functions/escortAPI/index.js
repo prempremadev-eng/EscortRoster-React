@@ -954,9 +954,15 @@ async function guardByToken(zcql, token) {
 // "sent" only means the push service (Google / Apple / Mozilla) took it; the phone's own
 // settings still decide whether it is shown.
 async function sendPushToGuard(catalystApp, guardId, payload) {
-  const keys = await getVapidKeys(catalystApp);
   const subs = await selectAll(catalystApp.zcql(), 'PushSubscriptions', `SELECT ROWID, subscription_json, device FROM PushSubscriptions WHERE guard_id = ${requireRowId(guardId)} ORDER BY ROWID ASC`);
-  const table = catalystApp.datastore().table('PushSubscriptions');
+  return sendPushToRows(catalystApp, 'PushSubscriptions', subs, payload);
+}
+
+// Same for any list of saved subscription rows (guards' phones or supervisors' browsers).
+async function sendPushToRows(catalystApp, tableName, subs, payload) {
+  if (!subs.length) return { phones: 0, sent: 0, devices: [] };
+  const keys = await getVapidKeys(catalystApp);
+  const table = catalystApp.datastore().table(tableName);
   const devices = [];
   for (const s of subs) {
     const device = s.device || 'other';
@@ -1494,7 +1500,8 @@ app.post('/wipeAllData', async (req, res) => {
 /* ---------------- POST HANDOVER (post.js) ---------------- */
 
 const post = require('./post.js')(app, {
-  catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN
+  catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, sendPushToRows, getVapidKeys,
+  getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN
 });
 
 module.exports = app;
