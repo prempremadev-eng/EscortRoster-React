@@ -25,7 +25,7 @@ export default function PostDuty({ token }) {
     try {
       const d = (await api.postDuty(token)).data;
       setDuty(d);
-      if (d.locked) return setView('locked');
+      if (d.locked) return setView(d.out ? 'out' : 'locked');
       if (d.status === 'handed_over') return setView('done');
       if (d.status === 'on_duty' || d.status === 'on_break') return setView('timeline');
       setView(v => (v === 'waiting' ? 'waiting' : 'main'));
@@ -70,6 +70,22 @@ export default function PostDuty({ token }) {
         <div className="pd-top"><div className="pd-brand">Duty</div></div>
         <div className="pd-muted">Hi {duty.name}</div>
         <div className="pd-card"><div>Your post opens after your access card shows <b>IN</b> for today's duty.</div></div>
+        <div className="pd-grow"></div>
+        <button className="pd-btn pd-btn-outline" onClick={load}>Check again</button>
+      </div>
+    );
+  }
+
+  // Card OUT: nothing of the duty is shown until the card is IN again.
+  if (view === 'out') {
+    return (
+      <div className="pd pd-page">
+        <div className="pd-top"><div className="pd-brand">Duty</div></div>
+        <div className="pd-out">
+          <div className="pd-out-big">OUT</div>
+          <div>Card OUT{duty.outAt ? ' · ' + duty.outAt : ''}</div>
+        </div>
+        <div className="pd-card"><div>Hi {duty.name}, you are out of the site. Your duty page opens again after your card shows <b>IN</b>.</div></div>
         <div className="pd-grow"></div>
         <button className="pd-btn pd-btn-outline" onClick={load}>Check again</button>
       </div>

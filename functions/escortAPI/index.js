@@ -621,6 +621,13 @@ app.post('/addAccessLog', async (req, res) => {
         console.error('Card IN push failed:', err);
         push = { error: err.message || String(err) };
       }
+    } else {
+      // Post guard: card OUT locks their duty page and marks the post empty (post.js).
+      try {
+        await post.onPostOut(catalystApp, guard);
+      } catch (err) {
+        console.error('Card OUT update failed:', err);
+      }
     }
     res.status(200).json({ status: 'success', data: result, push });
   } catch (err) {

@@ -203,6 +203,8 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
     } catch (err) {
       // The cover ended while that post was on screen: back to my own post.
       if (viewPost) return setViewPost(null);
+      // Card OUT while the page was open: the duty page closes.
+      if (/card OUT/.test(err.message)) return onDutyChange();
       setError(err.message);
       setStatus('ok');
     }

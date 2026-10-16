@@ -47,9 +47,10 @@ module.exports = function postRoutes(app, h) {
     return rows.length ? rows[0].DutyLog : null;
   }
 
-  // Who is on duty (or on break) at this post now (other than me): the guard I take over from.
+  // Who is on duty (or on break, or card OUT without a handover) at this post now (other than me):
+  // the guard I take over from.
   async function onDutyAt(zcql, postId, myLogId) {
-    const rows = await zcql.executeZCQLQuery(`SELECT * FROM DutyLog WHERE post_id = ${requireRowId(postId)} AND (status = 'on_duty' OR status = 'on_break') ORDER BY taken_over_at DESC`);
+    const rows = await zcql.executeZCQLQuery(`SELECT * FROM DutyLog WHERE post_id = ${requireRowId(postId)} AND (status = 'on_duty' OR status = 'on_break' OR status = 'out') ORDER BY taken_over_at DESC`);
     return rows.map(r => r.DutyLog).filter(l => String(l.ROWID) !== String(myLogId));
   }
 
@@ -85,12 +86,35 @@ module.exports = function postRoutes(app, h) {
   async function onPostIn(catalystApp, guard, duty) {
     const zcql = catalystApp.zcql();
     const existing = await myLog(zcql, guard.ROWID);
+    if (existing && existing.status === 'out') await backIn(catalystApp, zcql, guard, existing);
     if (existing) return { log: existing, created: false };
     const log = await catalystApp.datastore().table('DutyLog').insertRow({
       guard_id: guard.ROWID, post_id: duty.post.ROWID, shift_code: duty.shift.code,
       duty_date: shiftDate(), status: 'waiting', in_at: nowStamp()
     });
     return { log, created: true };
+  }
+
+  // Card OUT: the guard left the site. Their page is locked and the post is empty until they
+  // come back (card IN again) or the next guard takes over.
+  async function onPostOut(catalystApp, guard) {
+    const zcql = catalystApp.zcql();
+    const log = await myLog(zcql, guard.ROWID);
+    if (!log || !['waiting', 'on_duty', 'on_break'].includes(log.status)) return;
+    await catalystApp.datastore().table('DutyLog').updateRow({ ROWID: log.ROWID, status: 'out' });
+    if (log.status === 'waiting') return;
+    await closePresence(catalystApp, zcql, log.post_id, guard.ROWID, 'main');
+    await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: guard.ROWID, kind: 'system_red', text: guard.guard_name + ' card OUT · post empty · ' + hhmm(nowStamp()) });
+  }
+
+  // Card IN again the same duty day: back to where they were.
+  async function backIn(catalystApp, zcql, guard, log) {
+    const started = !!log.taken_over_at;
+    await catalystApp.datastore().table('DutyLog').updateRow({ ROWID: log.ROWID, status: started ? 'on_duty' : 'waiting' });
+    log.status = started ? 'on_duty' : 'waiting';
+    if (!started) return;
+    await openPresence(catalystApp, log.post_id, guard.ROWID, log.ROWID, 'main');
+    await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: guard.ROWID, kind: 'system', text: guard.guard_name + ' card IN again · ' + hhmm(nowStamp()) });
   }
 
   // Screens 1 and 2: my post, my shift, who I take over from, and their pinned notes.
@@ -102,6 +126,12 @@ module.exports = function postRoutes(app, h) {
       const log = await myLog(zcql, me.ROWID);
       if (!log) {
         return res.status(200).json({ status: 'success', data: { name: me.guard_name, locked: true } });
+      }
+      // Last swipe was OUT (after this duty's IN): the page shows only that.
+      const last = await zcql.executeZCQLQuery(`SELECT direction, punch_time, CREATEDTIME FROM AccessLog WHERE guard_id = ${requireRowId(me.ROWID)} ORDER BY CREATEDTIME DESC LIMIT 1`);
+      const swipe = last.length ? last[0].AccessLog : null;
+      if (log.status === 'out' || (swipe && swipe.direction === 'OUT' && String(swipe.CREATEDTIME).slice(0, 16) >= String(log.in_at || ''))) {
+        return res.status(200).json({ status: 'success', data: { name: me.guard_name, locked: true, out: true, outAt: swipe ? swipe.punch_time : '' } });
       }
       const [posts, shifts, others] = await Promise.all([
         zcql.executeZCQLQuery(`SELECT ROWID, post_name, branch_id FROM Posts WHERE ROWID = ${requireRowId(log.post_id)}`),
@@ -258,7 +288,10 @@ module.exports = function postRoutes(app, h) {
     const me = await guardByToken(zcql, token);
     const own = await myLog(zcql, me.ROWID);
     const ok = own && (own.status === 'on_duty' || (allowBreak && own.status === 'on_break'));
-    if (!ok) throw new Error(own && own.status === 'on_break' ? "You are on break. Press I'm back first." : 'Press Taken over first.');
+    if (!ok) {
+      throw new Error(own && own.status === 'out' ? 'You are card OUT. Your page opens after card IN.'
+        : own && own.status === 'on_break' ? "You are on break. Press I'm back first." : 'Press Taken over first.');
+    }
     if (!postId || String(postId) === String(own.post_id)) return { me, log: own, own, covering: null };
     const rows = await zcql.executeZCQLQuery(`SELECT * FROM Breaks WHERE cover_guard_id = ${requireRowId(me.ROWID)} AND post_id = ${requireRowId(postId)} AND status = 'accepted'`);
     if (!rows.length) throw new Error('You are not covering that post now.');
@@ -640,5 +673,5 @@ module.exports = function postRoutes(app, h) {
     namesOf, onDutyLog, workView, mediaLinks, mediaLabel
   });
 
-  return { onPostIn };
+  return { onPostIn, onPostOut };
 };
