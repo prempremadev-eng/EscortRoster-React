@@ -32,7 +32,7 @@ const TIMELINE_LIMIT = 100;
 // ROWIDs are not given out in time order, so lists are sorted by time (CREATEDTIME / *_at).
 
 module.exports = function postRoutes(app, h) {
-  const { catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, getShifts, shiftDate, IST_OFFSET_MIN } = h;
+  const { catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN } = h;
 
   // "2026-10-16 05:58" in India time. Date and time together, because Shift C runs past midnight.
   function nowStamp() {
@@ -709,7 +709,7 @@ module.exports = function postRoutes(app, h) {
 
   // Supervisor inbox (supervisor.js).
   require('./supervisor.js')(app, {
-    catalyst, fail, requireRowId, getShifts, shiftDate, nowStamp, hhmm, cleanText, isTrue, MAX_TEXT,
+    catalyst, fail, requireRowId, getShifts, shiftDate, weekStartOf, nowStamp, hhmm, minutesBetween, cleanText, isTrue, MAX_TEXT,
     namesOf, addMessage, timelineData, workView, sendPushToGuard
   });
 

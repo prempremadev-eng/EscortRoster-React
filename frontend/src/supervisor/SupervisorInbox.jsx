@@ -4,6 +4,7 @@ import { Icon, initials } from '../post/icons.jsx';
 import { clock } from '../post/media.js';
 import '../post/post.css';
 import './supervisor.css';
+import Rail from './Rail.jsx';
 
 const STATUS = {
   alert: { label: 'Alert', cls: 'pd-red' },
@@ -98,7 +99,12 @@ export default function SupervisorInbox() {
   const [list, setList] = useState(null);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
-  const [openId, setOpenId] = useState(null);
+  // A post picked on the live board opens here once.
+  const [openId, setOpenId] = useState(() => {
+    const id = remember('sup_open', null);
+    keep('sup_open', null);
+    return id;
+  });
   const [post, setPost] = useState(null);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
@@ -139,7 +145,13 @@ export default function SupervisorInbox() {
     }
   }, [name]);
 
-  useEffect(() => { keep('sup_branch', branch); setOpenId(null); setPost(null); loadList(); }, [branch, loadList]);
+  const firstBranch = useRef(true);
+  useEffect(() => {
+    keep('sup_branch', branch);
+    if (!firstBranch.current) { setOpenId(null); setPost(null); }
+    if (branch) firstBranch.current = false;
+    loadList();
+  }, [branch, loadList]);
   useEffect(() => { if (openId) { setPost(null); loadPost(openId).then(loadList); } }, [openId, loadPost, loadList]);
   useEffect(() => { if (endRef.current) endRef.current.scrollIntoView({ block: 'end' }); }, [post]);
 
@@ -198,13 +210,7 @@ export default function SupervisorInbox() {
 
   return (
     <div className="pd sup">
-      <nav className="sup-rail">
-        <button className="sup-rail-btn sup-rail-on" aria-label="Posts" title="Posts">{Icon.chat}</button>
-        <a className="sup-rail-btn" href="#chart" aria-label="Schedule" title="Schedule (Duty Chart)">{Icon.calendar}</a>
-        <a className="sup-rail-btn" href="#master" aria-label="Guards" title="Guard Master">{Icon.shield}</a>
-        <div className="pd-grow"></div>
-        <button className="sup-rail-btn sup-rail-me" title={'Signed as ' + name + ' · change'} onClick={() => { setName(''); keep('sup_name', ''); setNameInput(name); }}>{initials(name)}</button>
-      </nav>
+      <Rail active="posts" name={name} onChangeName={() => { setName(''); keep('sup_name', ''); setNameInput(name); }} />
 
       <aside className="sup-list">
         <div className="sup-list-head">

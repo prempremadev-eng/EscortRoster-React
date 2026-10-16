@@ -114,6 +114,7 @@ export const api = {
   endGeneral: (t, note) => apiCall('POST', '/endGeneral', { t, note }),
   supInbox: (branch, seen) => apiCall('POST', '/supInbox', { branch, seen }),
   supPost: (post, name) => apiCall('GET', '/supPost?post=' + q(post) + (name ? '&name=' + q(name) : '')),
+  supBoard: (branch, shift) => apiCall('GET', '/supBoard?branch=' + q(branch) + (shift ? '&shift=' + q(shift) : '')),
   supMessage: (post, name, text) => apiCall('POST', '/supMessage', { post, name, text }),
   coverCandidates: t => apiCall('GET', '/coverCandidates?t=' + q(t)),
   startBreak: (t, type, cover_guard_id) => apiCall('POST', '/startBreak', { t, type, cover_guard_id }),

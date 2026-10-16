@@ -1494,7 +1494,7 @@ app.post('/wipeAllData', async (req, res) => {
 /* ---------------- POST HANDOVER (post.js) ---------------- */
 
 const post = require('./post.js')(app, {
-  catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, getShifts, shiftDate, IST_OFFSET_MIN
+  catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN
 });
 
 module.exports = app;
