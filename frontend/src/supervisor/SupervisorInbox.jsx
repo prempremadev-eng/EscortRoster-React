@@ -164,7 +164,20 @@ export default function SupervisorInbox({ initialPost }) {
   // No timer: every list load costs Data Store reads. The page refreshes when a notification
   // for this branch arrives (sw.js tells it), when the supervisor comes back to the tab, or with 🔄.
   useEffect(() => {
-    const onPush = () => { loadList(); if (openId) loadPost(openId); };
+    // The open chat first (it marks alerts seen and messages read), then the list, so the list
+    // does not show "1 alert / 1 unread" for what is already on screen. Its notification closes too.
+    const onPush = async () => {
+      if (openId) {
+        await loadPost(openId);
+        try {
+          const reg = await navigator.serviceWorker.ready;
+          (await reg.getNotifications({ tag: 'sup-' + openId })).forEach(n => n.close());
+        } catch {
+          // no service worker here: nothing to close
+        }
+      }
+      loadList();
+    };
     const onShow = () => { if (document.visibilityState === 'visible') onPush(); };
     window.addEventListener('guard-push', onPush);
     document.addEventListener('visibilitychange', onShow);
