@@ -37,6 +37,19 @@ export default function PostDuty({ token }) {
 
   useEffect(() => { load(); }, [load]);
 
+  // Card IN / OUT notifications: the open page refreshes itself (the timeline screen does its own).
+  useEffect(() => {
+    if (view === 'timeline') return undefined;
+    const onPush = () => load();
+    const onShow = () => { if (document.visibilityState === 'visible') load(); };
+    window.addEventListener('guard-push', onPush);
+    document.addEventListener('visibilitychange', onShow);
+    return () => {
+      window.removeEventListener('guard-push', onPush);
+      document.removeEventListener('visibilitychange', onShow);
+    };
+  }, [load, view]);
+
   async function takeOver() {
     setBusy(true);
     setError('');

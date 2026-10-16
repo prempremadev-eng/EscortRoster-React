@@ -95,6 +95,15 @@ module.exports = function postRoutes(app, h) {
     return { log, created: true };
   }
 
+  // OUT / IN again notice to the guard's own phone; an open page refreshes itself on it.
+  async function tellGuard(catalystApp, guard, title, body) {
+    try {
+      await sendPushToGuard(catalystApp, guard.ROWID, { title, body, url: guard.guard_token ? 'index.html#guard/' + guard.guard_token : 'index.html' });
+    } catch (err) {
+      console.error('OUT / IN push failed:', err);
+    }
+  }
+
   // Card OUT: the guard left the site. Their page is locked and the post is empty until they
   // come back (card IN again) or the next guard takes over.
   async function onPostOut(catalystApp, guard) {
@@ -102,6 +111,7 @@ module.exports = function postRoutes(app, h) {
     const log = await myLog(zcql, guard.ROWID);
     if (!log || !['waiting', 'on_duty', 'on_break'].includes(log.status)) return;
     await catalystApp.datastore().table('DutyLog').updateRow({ ROWID: log.ROWID, status: 'out' });
+    await tellGuard(catalystApp, guard, '🚪 Card OUT · ' + hhmm(nowStamp()), 'Your duty page is closed till your card is IN again.');
     if (log.status === 'waiting') return;
     await closePresence(catalystApp, zcql, log.post_id, guard.ROWID, 'main');
     await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: guard.ROWID, kind: 'system_red', text: guard.guard_name + ' card OUT · post empty · ' + hhmm(nowStamp()) });
@@ -112,6 +122,7 @@ module.exports = function postRoutes(app, h) {
     const started = !!log.taken_over_at;
     await catalystApp.datastore().table('DutyLog').updateRow({ ROWID: log.ROWID, status: started ? 'on_duty' : 'waiting' });
     log.status = started ? 'on_duty' : 'waiting';
+    await tellGuard(catalystApp, guard, '✅ Card IN again · ' + hhmm(nowStamp()), 'Your duty page is open again.');
     if (!started) return;
     await openPresence(catalystApp, log.post_id, guard.ROWID, log.ROWID, 'main');
     await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: guard.ROWID, kind: 'system', text: guard.guard_name + ' card IN again · ' + hhmm(nowStamp()) });
