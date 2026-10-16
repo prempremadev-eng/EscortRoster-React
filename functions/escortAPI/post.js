@@ -583,11 +583,13 @@ module.exports = function postRoutes(app, h) {
       if (!TIME_RE.test(from) || !TIME_RE.test(to)) throw new Error('Pick the permit time From and To.');
       const persons = parseInt(b.persons, 10);
       if (!(persons >= 1 && persons <= 500)) throw new Error('Number of persons must be 1 or more.');
+      if (permitEnd(from, to) <= nowStamp()) throw new Error('This permit time is already over (ends ' + to + '). Check From and To.');
       const work = await catalystApp.datastore().table('WorkUpdates').insertRow({
         post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, contractor, persons, description,
         permit_from: from, permit_to: to, permit_end: permitEnd(from, to), started_at: nowStamp(), expired_noted: false
       });
       await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, kind: 'work', ref_id: work.ROWID, text: contractor });
+      await sup.notify(catalystApp, log.post_id, me.guard_name, 'Work update: ' + contractor + ' · ' + persons + ' persons · permit ' + from + '–' + to, false);
       res.status(200).json({ status: 'success', data: workView(work) });
     } catch (err) {
       fail(res, err);

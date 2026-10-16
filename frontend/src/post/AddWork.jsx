@@ -5,7 +5,12 @@ import { Icon } from './icons.jsx';
 // Screen 5: a contractor's work at the post. Time and guard are saved by the server.
 // Photos (permit, work area) come with the photo step.
 export default function AddWork({ token, post, postName, onClose }) {
-  const [form, setForm] = useState({ contractor: '', permit_from: '09:00', permit_to: '17:00', persons: 1, description: '' });
+  // Permit starts now and runs 2 hours by default (a fixed 09:00–17:00 was already over in the evening).
+  const [form, setForm] = useState(() => {
+    const now = new Date();
+    const hhmm = d => String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+    return { contractor: '', permit_from: hhmm(now), permit_to: hhmm(new Date(now.getTime() + 2 * 3600000)), persons: 1, description: '' };
+  });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));

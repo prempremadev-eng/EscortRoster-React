@@ -37,7 +37,12 @@ self.addEventListener('notificationclick', event => {
   const url = new URL(event.notification.data.url, self.registration.scope).href;
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then(tabs => {
-      const tab = tabs[0];
+      // The tab already on that page (the supervisor tab, or that guard's tab) first.
+      const page = url.split('#')[1] || '';
+      const kind = page.split('/')[0];
+      const tab = tabs.find(t => t.url.split('#')[1] === page)
+        || tabs.find(t => (t.url.split('#')[1] || '').split('/')[0] === kind)
+        || tabs[0];
       if (!tab) return self.clients.openWindow(url);
       tab.postMessage({ type: 'open', url });
       return tab.focus().catch(() => self.clients.openWindow(url));
