@@ -1003,9 +1003,10 @@ a.btn{text-decoration:none;display:inline-block;}
 .agency-branches .master-check{display:flex;align-items:center;gap:6px;font-size:14px;}
 /* Admin tables (admin/AdminPage.jsx): On/Off switch + small icon buttons */
 .adm-table td{vertical-align:middle;}
-.adm-toggle{display:inline-flex;align-items:center;gap:8px;min-width:76px;height:30px;padding:3px 10px 3px 3px;border-radius:999px;border:1px solid #cbd5e1;background:#e2e8f0;color:#475569;font-weight:600;font-size:13px;font-family:inherit;cursor:pointer;}
-.adm-toggle .adm-knob{width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s;}
-.adm-toggle.adm-on{background:#16a34a;border-color:#15803d;color:#fff;flex-direction:row-reverse;padding:3px 3px 3px 10px;}
+.adm-toggle{display:inline-flex;align-items:center;gap:5px;height:22px;padding:2px 8px 2px 2px;border-radius:999px;border:1px solid #e2e8f0;background:#f1f5f9;color:#64748b;font-weight:500;font-size:12px;font-family:inherit;cursor:pointer;}
+.adm-toggle .adm-knob{width:16px;height:16px;border-radius:50%;background:#cbd5e1;}
+.adm-toggle.adm-on{background:#f0fdf4;border-color:#bbf7d0;color:#15803d;flex-direction:row-reverse;padding:2px 2px 2px 8px;}
+.adm-toggle.adm-on .adm-knob{background:#4ade80;}
 .adm-toggle:disabled{cursor:default;opacity:.6;}
 .adm-actions{white-space:nowrap;width:1%;}
 .adm-icon{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:16px;margin-left:4px;}
