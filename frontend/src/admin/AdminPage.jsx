@@ -12,7 +12,7 @@ const ROLE_HELP = {
 };
 const MAIL_TEXT = { invited: 'Invite mail sent.', already: 'Already a user, so no mail (they sign in with their password).', reset: 'Password link sent.' };
 const BLANK_USER = { email: '', name: '', role: '', city: '', branch_id: '', agency_id: '' };
-const BLANK_BRANCH = { branch_code: '', branch_name: '', company: 'Nokia', state_id: '', city_id: '', area: '', supervisor_phone: '' };
+const BLANK_BRANCH = { branch_code: '', branch_name: '', state_id: '', city_id: '' };
 const isOn = v => v === true || v === 'true';
 const uniq = list => [...new Set(list.filter(Boolean))].sort();
 
@@ -188,9 +188,6 @@ export default function AdminPage() {
               </label>
               <label>Branch name<input value={form.branch_name} onChange={e => set('branch_name', e.target.value)} placeholder="Beach" required /></label>
               <label>Branch code<input value={form.branch_code} onChange={e => set('branch_code', e.target.value.toUpperCase())} placeholder="TN-CHN-BCH" required /></label>
-              <label>Area (optional)<input value={form.area || ''} onChange={e => set('area', e.target.value)} /></label>
-              <label>Company<input value={form.company || ''} onChange={e => set('company', e.target.value)} required /></label>
-              <label>Supervisor phone (guards call it)<input value={form.supervisor_phone || ''} onChange={e => set('supervisor_phone', e.target.value)} inputMode="tel" /></label>
             </div>
             <div className="link-actions">
               <button className="btn" type="submit" disabled={busy}>{busy ? 'Saving...' : 'Save branch'}</button>
@@ -333,19 +330,17 @@ export default function AdminPage() {
         {data && tab === 'branches' && (
           <div className="dash-scroll">
             <table className="dash-table">
-              <thead><tr><th>State</th><th>City</th><th>Branch</th><th>Code</th><th>Company</th><th>Supervisor phone</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>State</th><th>City</th><th>Branch</th><th>Code</th><th>Status</th><th></th></tr></thead>
               <tbody>
-                {data.branches.length === 0 && <tr><td colSpan="8">{data.cities.length ? 'No branches yet. Press ➕ Add branch.' : 'Add a state and a city first (tabs 1 and 2).'}</td></tr>}
+                {data.branches.length === 0 && <tr><td colSpan="6">{data.cities.length ? 'No branches yet. Press ➕ Add branch.' : 'Add a state and a city first (tabs 1 and 2).'}</td></tr>}
                 {data.branches.slice().sort((x, y) => (x.state + x.city + x.branch_name).localeCompare(y.state + y.city + y.branch_name)).map(b => {
                   const off = !isOn(b.is_active);
                   return (
                     <tr key={b.ROWID} className={off ? 'master-left' : ''}>
                       <td>{b.state}</td>
                       <td>{b.city}</td>
-                      <td className="left">{b.branch_name}{b.area ? ' (' + b.area + ')' : ''}</td>
+                      <td className="left">{b.branch_name}</td>
                       <td>{b.branch_code}</td>
-                      <td>{b.company}</td>
-                      <td>{b.supervisor_phone || '—'}</td>
                       <td>{off ? '🚫 Off' : '✅ Open'}</td>
                       <td className="master-actions">
                         <button className="btn secondary" onClick={() => { const c = cityOf(b.city_id); open('branch', { ...BLANK_BRANCH, ...b, city_id: c ? String(c.ROWID) : '', state_id: c ? String(c.state_id) : '' }); }}>✏️ Edit</button>
