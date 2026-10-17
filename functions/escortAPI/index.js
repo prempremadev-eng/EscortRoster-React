@@ -1117,10 +1117,11 @@ async function checkPost(req, zcql, row, selfId) {
   const [branch, same, agency] = await Promise.all([
     zcql.executeZCQLQuery(`SELECT ROWID FROM Branches WHERE ROWID = ${row.branch_id} AND is_active = 'true'`),
     selectAll(zcql, 'Posts', `SELECT ROWID, post_name, branch_id, agency_id FROM Posts WHERE branch_id = ${row.branch_id} ORDER BY ROWID ASC`),
-    zcql.executeZCQLQuery(`SELECT ROWID FROM Agencies WHERE ROWID = ${row.agency_id} AND is_active = true`)
+    zcql.executeZCQLQuery(`SELECT ROWID, branch_ids FROM Agencies WHERE ROWID = ${row.agency_id} AND is_active = true`)
   ]);
   if (!branch.length) throw new Error('Branch not found');
   if (!agency.length) throw new Error('Pick the agency of this post');
+  if (!admin.worksIn(agency[0].Agencies, row.branch_id)) throw new Error('This agency does not work in this branch. Tick the branch in Admin → Agencies.');
   const lower = row.post_name.toLowerCase();
   if (same.some(p => p.post_name.toLowerCase() === lower && String(p.ROWID) !== String(selfId || ''))) {
     throw new Error('This branch already has a post called ' + row.post_name);
@@ -1331,8 +1332,9 @@ function guardFromBody(b) {
 async function checkGuard(req, zcql, row, selfId) {
   if (req.scope.agency) row.agency_id = req.scope.agency;
   auth.requireRow(req, row, 'guard');
-  const agency = await zcql.executeZCQLQuery(`SELECT agency_name FROM Agencies WHERE ROWID = ${row.agency_id} AND is_active = true`);
+  const agency = await zcql.executeZCQLQuery(`SELECT agency_name, branch_ids FROM Agencies WHERE ROWID = ${row.agency_id} AND is_active = true`);
   if (!agency.length) throw new Error('Pick the agency');
+  if (!admin.worksIn(agency[0].Agencies, row.branch_id)) throw new Error('This agency does not work in this branch. Tick the branch in Admin → Agencies.');
   row.agency = agency[0].Agencies.agency_name;
   const other = rows => rows.some(r => String(r.Guards.ROWID) !== String(selfId || ''));
   const checks = [

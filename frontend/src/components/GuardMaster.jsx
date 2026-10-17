@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
+import { worksIn } from '../agency.js';
 
 const NO_FILTERS = { state: '', city: '', branch: '', agency: '', duty: '', status: '', q: '' };
 const BLANK_GUARD = { id_number: '', guard_name: '', agency_id: '', branch_id: '', escort_id: '', phone: '' };
@@ -210,7 +211,7 @@ export default function GuardMaster() {
               <label>Agency
                 <select id="g-agency" value={form.agency_id} onChange={e => setFormField('agency_id', e.target.value)} required>
                   <option value="">Pick the agency</option>
-                  {data.agencies.filter(a => a.is_active === true || a.is_active === 'true' || String(a.ROWID) === String(form.agency_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+                  {data.agencies.filter(a => ((a.is_active === true || a.is_active === 'true') && worksIn(a, form.branch_id)) || String(a.ROWID) === String(form.agency_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
                 </select>
               </label>
               <label>Branch

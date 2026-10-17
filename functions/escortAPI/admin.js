@@ -31,8 +31,11 @@ module.exports = function adminRoutes(app, h) {
 
   // Agencies are a short list everybody signed in may read (dropdowns).
   async function agencyList(zcql) {
-    return selectAll(zcql, 'Agencies', 'SELECT ROWID, agency_name, is_active FROM Agencies ORDER BY agency_name ASC');
+    return selectAll(zcql, 'Agencies', 'SELECT ROWID, agency_name, contact_name, contact_phone, contact_email, address, license_no, license_till, branch_ids, is_active FROM Agencies ORDER BY agency_name ASC');
   }
+  // branch_ids is a comma list of the branches the agency works in.
+  const branchIdsOf = a => String((a && a.branch_ids) || '').split(',').map(x => x.trim()).filter(Boolean);
+  const worksIn = (a, branchId) => branchIdsOf(a).includes(String(branchId));
   // States and cities: short lists, read with the admin page.
   async function placeList(zcql) {
     const [states, cities] = await Promise.all([
@@ -107,8 +110,9 @@ module.exports = function adminRoutes(app, h) {
     }
     if (role === 'supervisor') {
       row.agency_id = requireRowId(b.agency_id);
-      const a = await zcql.executeZCQLQuery(`SELECT ROWID FROM Agencies WHERE ROWID = ${row.agency_id} AND is_active = true`);
+      const a = await zcql.executeZCQLQuery(`SELECT ROWID, branch_ids FROM Agencies WHERE ROWID = ${row.agency_id} AND is_active = true`);
       if (!a.length) throw new Error('Agency not found');
+      if (!worksIn(a[0].Agencies, row.branch_id)) throw new Error('This agency does not work in this branch. Tick the branch in Agencies.');
     }
     return row;
   }
@@ -327,7 +331,29 @@ module.exports = function adminRoutes(app, h) {
       const self = b.ROWID ? String(requireRowId(b.ROWID)) : '';
       const all = await agencyList(zcql);
       if (all.some(a => a.agency_name.toLowerCase() === name.toLowerCase() && String(a.ROWID) !== self)) throw new Error('Agency ' + name + ' already exists');
-      const row = { agency_name: name, is_active: b.is_active !== false };
+      const phone = String(b.contact_phone || '').trim();
+      if (phone && !/^[0-9+ ]{6,15}$/.test(phone)) throw new Error('Phone: numbers only (6 to 15)');
+      const email = String(b.contact_email || '').trim().toLowerCase();
+      if (email && !EMAIL_RE.test(email)) throw new Error('Enter a valid email');
+      const till = String(b.license_till || '').trim();
+      if (till && !/^\d{4}-\d{2}-\d{2}$/.test(till)) throw new Error('Licence date: pick a date');
+      // Branch ticks: a city admin changes only the ticks of their own branches.
+      const branches = await branchList(zcql);
+      const known = new Set(branches.map(x => String(x.ROWID)));
+      const given = (Array.isArray(b.branch_ids) ? b.branch_ids : []).map(String).filter(id => known.has(id) && branchOk(req, id));
+      const old = all.find(a => String(a.ROWID) === self);
+      const kept = branchIdsOf(old).filter(id => !branchOk(req, id));
+      const row = {
+        agency_name: name,
+        contact_name: String(b.contact_name || '').trim().slice(0, 100) || null,
+        contact_phone: phone || null,
+        contact_email: email || null,
+        address: String(b.address || '').trim().slice(0, 255) || null,
+        license_no: String(b.license_no || '').trim().slice(0, 50) || null,
+        license_till: till || null,
+        branch_ids: [...new Set(kept.concat(given))].join(','),
+        is_active: b.is_active !== false
+      };
       const table = catalystApp.datastore().table('Agencies');
       const saved = self ? await table.updateRow({ ROWID: self, ...row }) : await table.insertRow(row);
       // Guards keep the agency name as text too (older screens show it): keep it in step.
@@ -342,5 +368,5 @@ module.exports = function adminRoutes(app, h) {
     }
   });
 
-  return { agencyList };
+  return { agencyList, worksIn };
 };

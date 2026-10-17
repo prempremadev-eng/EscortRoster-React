@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useUser, atLeast } from '../auth/user.js';
+import { worksIn } from '../agency.js';
 
 const BLANK_POST = { post_name: '', post_type: 'POST', agency_id: '', vehicle_entry: false };
 const isOn = v => v === true || v === 'true';
@@ -118,7 +119,7 @@ export default function PostsPage() {
               <label>Agency (one agency per post)
                 <select id="p-agency" value={form.agency_id || ''} onChange={e => setForm(f => ({ ...f, agency_id: e.target.value }))} required>
                   <option value="">Pick the agency</option>
-                  {data.agencies.filter(a => isOn(a.is_active) || String(a.ROWID) === String(form.agency_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+                  {data.agencies.filter(a => (isOn(a.is_active) && worksIn(a, branch)) || String(a.ROWID) === String(form.agency_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
                 </select>
               </label>
               <label className="master-check">

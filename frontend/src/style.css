@@ -999,3 +999,5 @@ a.btn{text-decoration:none;display:inline-block;}
 .userbar-me{color:#94a3b8;}
 .userbar-out{background:transparent;border:1px solid #475569;color:#e2e8f0;border-radius:6px;padding:4px 10px;cursor:pointer;font-family:inherit;}
 .master-grid label.master-check{flex-direction:row;align-items:center;gap:8px;font-size:14px;color:#0f172a;}
+.agency-branches{display:flex;flex-wrap:wrap;gap:6px 18px;margin:4px 0 10px;}
+.agency-branches .master-check{display:flex;align-items:center;gap:6px;font-size:14px;}
