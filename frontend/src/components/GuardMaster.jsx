@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { worksIn } from '../agency.js';
-import { IconBtn } from './RowControls.jsx';
+import { Toggle, IconBtn } from './RowControls.jsx';
 
 const NO_FILTERS = { state: '', city: '', branch: '', agency: '', q: '' };
 const BLANK_GUARD = { id_number: '', card_number: '', guard_name: '', agency_id: '', branch_id: '', escort_id: '', phone: '' };
@@ -289,7 +289,7 @@ export default function GuardMaster() {
             </div>
 
             <div className="dash-scroll">
-              <table className="dash-table">
+              <table className="dash-table adm-table">
                 <thead>
                   <tr><th>ID</th><th>Card</th><th>Guard</th><th>Agency</th><th>Branch</th><th>Phone</th><th>Status</th><th></th></tr>
                 </thead>
@@ -305,12 +305,12 @@ export default function GuardMaster() {
                         <td>{g.agency}</td>
                         <td className="left">{b ? branchLabel(b) : '—'}<div className="master-sub">{b ? b.city + ', ' + b.state : ''}</div></td>
                         <td>{g.phone || '—'}</td>
-                        <td>{left ? '🚫 Left' : '✅ Working'}</td>
-                        <td className="adm-actions">
-                          {left
-                            ? <IconBtn icon="↩️" label={'Re-activate ' + g.guard_name} disabled={saving} onClick={() => setActive(g, true)} />
-                            : <IconBtn icon="✏️" label={'Edit ' + g.guard_name} onClick={() => openForm(g)} />}
+                        <td>
+                          {/* Off = the guard left: their link and phone stop working (asked first). */}
+                          <Toggle on={!left} label={g.guard_name} disabled={saving}
+                            onChange={() => (left || window.confirm(g.guard_name + ' left? Their link and phone stop working.')) && setActive(g, left)} />
                         </td>
+                        <td className="adm-actions">{!left && <IconBtn icon="✏️" label={'Edit ' + g.guard_name} onClick={() => openForm(g)} />}</td>
                       </tr>
                     );
                   })}
