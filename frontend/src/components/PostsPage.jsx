@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useUser, atLeast } from '../auth/user.js';
 import { worksIn } from '../agency.js';
+import { Toggle, IconBtn } from './RowControls.jsx';
 
 const BLANK_POST = { post_name: '', post_type: 'POST', agency_id: '', vehicle_entry: false };
 const isOn = v => v === true || v === 'true';
@@ -139,7 +140,7 @@ export default function PostsPage() {
 
         {status === 'ok' && (
           <div className="dash-scroll">
-            <table className="dash-table">
+            <table className="dash-table adm-table">
               <thead>
                 <tr><th>Post</th><th>Type</th><th>Agency</th><th>Vehicle entry</th><th>Status</th><th></th></tr>
               </thead>
@@ -152,15 +153,8 @@ export default function PostsPage() {
                       <td>{p.post_type === 'ESCORT' ? '🚐 ESCORT' : '📍 POST'}</td>
                       <td>{agencyName(p.agency_id)}</td>
                       <td>{isOn(p.vehicle_entry) ? '🚗 Yes' : '—'}</td>
-                      <td>{off ? '🚫 Off' : '✅ Open'}</td>
-                      <td className="master-actions">
-                        {!canEdit ? null : off
-                          ? <button className="btn secondary" onClick={() => setActive(p, true)}>↩️ Open again</button>
-                          : <>
-                              <button className="btn secondary" onClick={() => { setError(''); setNote(''); setForm({ ...p }); }}>✏️ Edit</button>
-                              <button className="btn secondary master-danger" onClick={() => setActive(p, false)}>🚫 Switch off</button>
-                            </>}
-                      </td>
+                      <td><Toggle on={!off} label={p.post_name} disabled={!canEdit} onChange={() => setActive(p, off)} /></td>
+                      <td className="adm-actions">{canEdit && !off && <IconBtn icon="✏️" label={'Edit ' + p.post_name} onClick={() => { setError(''); setNote(''); setForm({ ...p }); window.scrollTo({ top: 0 }); }} />}</td>
                     </tr>
                   );
                 })}

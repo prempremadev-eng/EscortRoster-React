@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useUser, atLeast } from '../auth/user.js';
 import { agencyBranches, worksIn } from '../agency.js';
+import { Toggle, IconBtn } from '../components/RowControls.jsx';
 
 const ROLE_NAME = { super_admin: 'Super Admin', admin: 'Admin', city_admin: 'City Admin', branch_admin: 'Branch Admin', supervisor: 'Supervisor' };
 const ROLE_HELP = {
@@ -17,20 +18,6 @@ const BLANK_AGENCY = { agency_name: '', branch_ids: [] };
 const BLANK_BRANCH = { branch_code: '', branch_name: '', state_id: '', city_id: '' };
 const isOn = v => v === true || v === 'true';
 const uniq = list => [...new Set(list.filter(Boolean))].sort();
-
-// On / Off switch for a row (tap to flip). `disabled` = shown but cannot be changed.
-function Toggle({ on, onChange, disabled, label }) {
-  return (
-    <button type="button" role="switch" aria-checked={on} aria-label={label} title={disabled ? '' : on ? 'Tap to switch off' : 'Tap to switch on'}
-      className={'adm-toggle' + (on ? ' adm-on' : '')} onClick={onChange} disabled={disabled}>
-      <span className="adm-knob"></span>{on ? 'On' : 'Off'}
-    </button>
-  );
-}
-// Small icon button (edit, mail).
-const IconBtn = ({ icon, label, onClick, disabled }) => (
-  <button type="button" className="adm-icon" title={label} aria-label={label} onClick={onClick} disabled={disabled}>{icon}</button>
-);
 
 // #admin, in the order things are made: States → Cities → Branches → Agencies → Users.
 export default function AdminPage() {
