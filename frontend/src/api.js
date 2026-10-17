@@ -80,6 +80,13 @@ export const api = {
   addGuard: guard => apiCall('POST', '/addGuard', guard),
   updateGuard: guard => apiCall('PUT', '/updateGuard', guard),
   setGuardActive: (ROWID, active) => apiCall('PUT', '/setGuardActive', { ROWID, active }),
+  guardPhotoUrl: guard => apiCall('GET', '/guardPhotoUrl?guard=' + q(guard)),
+  guardPhoto: async (guard, file) => {
+    const res = await fetch(API_BASE + '/guardPhoto?guard=' + q(guard), { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.status !== 'success') throw new Error(json.error || 'Photo upload failed (' + res.status + ')');
+    return json;
+  },
   addAccessLog: (guard_id, direction) => apiCall('POST', '/addAccessLog', { guard_id, direction }),
   getAccessLog: date => apiCall('GET', '/getAccessLog?date=' + q(date)),
 

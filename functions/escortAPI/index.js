@@ -1270,14 +1270,19 @@ app.get('/getMaster', async (req, res) => {
     const { dutyDate } = istNow();
     const week = weekStartOf(shiftDate());
     const [guards, branches, swipes, duties] = await Promise.all([
-      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, guard_name, agency, agency_id, branch_id, escort_id, phone, is_active FROM Guards ORDER BY id_number ASC').then(g => auth.inArea(req, g)),
+      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, card_number, guard_name, agency, agency_id, branch_id, escort_id, phone, aadhaar_last4, photo_key, created_by, modified_by, CREATEDTIME, MODIFIEDTIME, is_active FROM Guards ORDER BY id_number ASC').then(g => auth.inArea(req, g)),
       activeBranches(req, zcql),
       selectAll(zcql, 'AccessLog', `SELECT guard_id, direction, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' ORDER BY CREATEDTIME ASC`),
       weekDuties(zcql, week)
     ]);
-    const agencies = await admin.agencyList(zcql);
+    const [agencies, escortPosts] = await Promise.all([
+      admin.agencyList(zcql),
+      selectAll(zcql, 'Posts', "SELECT branch_id FROM Posts WHERE post_type = 'ESCORT' AND is_active = 'true' ORDER BY ROWID ASC")
+    ]);
     const mine = new Set(guards.map(g => String(g.ROWID)));
-    res.status(200).json({ status: 'success', data: { dutyDate, week, guards, branches, agencies, swipes: swipes.filter(s => mine.has(String(s.guard_id))), duties } });
+    // Branches with an escort post: only there the form asks for the escort duty sheet name.
+    const escortBranches = [...new Set(escortPosts.map(p => String(p.branch_id)))];
+    res.status(200).json({ status: 'success', data: { dutyDate, week, guards, branches, agencies, escortBranches, swipes: swipes.filter(s => mine.has(String(s.guard_id))), duties } });
   } catch (err) {
     fail(res, err);
   }
@@ -1312,19 +1317,38 @@ function requireText(value, label, max) {
 // Form fields -> a clean Guards row: the guard's own details only. Their post and shift are
 // set week by week in the Duty Chart. `escort_id` (optional) says which escort duty sheet row is
 // this same person, for guards who do escort duty.
+// Aadhaar is kept in an encrypted column and never sent back: screens get the last 4 digits only.
+// An empty Aadhaar box on edit keeps the saved number.
 function guardFromBody(b) {
   const id_number = String(b.id_number || '').trim().toUpperCase();
   if (!ID_NUMBER_RE.test(id_number)) throw new Error('ID number: letters, numbers and - only (max 20)');
+  const card_number = String(b.card_number || '').trim().toUpperCase();
+  if (card_number && !CARD_RE.test(card_number)) throw new Error('Card number: letters, numbers and - only (max 30)');
   const phone = String(b.phone || '').trim();
   if (phone && !/^[0-9+ ]{6,15}$/.test(phone)) throw new Error('Phone: numbers only (6 to 15)');
-  return {
+  const row = {
     id_number,
+    card_number: card_number || null,
     guard_name: requireText(b.guard_name, 'Name', 100),
     agency_id: requireRowId(b.agency_id || fail.missing('Pick the agency')),
     branch_id: requireRowId(b.branch_id),
     escort_id: b.escort_id ? requireRowId(b.escort_id) : null,
     phone: phone || null
   };
+  const aadhaar = String(b.aadhaar || '').replace(/[\s-]/g, '');
+  if (aadhaar) {
+    if (!/^[2-9]\d{11}$/.test(aadhaar)) throw new Error('Aadhaar: 12 digits');
+    row.aadhaar_enc = aadhaar;
+    row.aadhaar_last4 = aadhaar.slice(-4);
+  }
+  return row;
+}
+
+const CARD_RE = /^[A-Z0-9-]{1,30}$/;
+// What the screens may see of a saved guard row.
+function publicGuard(g) {
+  const { aadhaar_enc, ...rest } = g || {};
+  return rest;
 }
 
 // Rules shared by add and edit. `selfId` is the guard being edited (it may keep its own ID / escort).
@@ -1339,14 +1363,16 @@ async function checkGuard(req, zcql, row, selfId) {
   const other = rows => rows.some(r => String(r.Guards.ROWID) !== String(selfId || ''));
   const checks = [
     zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE id_number = '${row.id_number}'`),
-    zcql.executeZCQLQuery(`SELECT ROWID FROM Branches WHERE ROWID = ${row.branch_id} AND is_active = 'true'`)
+    zcql.executeZCQLQuery(`SELECT ROWID FROM Branches WHERE ROWID = ${row.branch_id} AND is_active = 'true'`),
+    row.card_number ? zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE card_number = '${row.card_number}'`) : Promise.resolve([])
   ];
   if (row.escort_id) {
     checks.push(zcql.executeZCQLQuery(`SELECT ROWID FROM Escorts WHERE ROWID = ${row.escort_id} AND is_active = 'true'`));
     checks.push(zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE escort_id = ${row.escort_id} AND is_active = 'true'`));
   }
-  const [sameId, branch, escort, escortTaken] = await Promise.all(checks);
+  const [sameId, branch, sameCard, escort, escortTaken] = await Promise.all(checks);
   if (other(sameId)) throw new Error('ID number ' + row.id_number + ' is already used');
+  if (other(sameCard)) throw new Error('Card number ' + row.card_number + ' is already used');
   if (!branch.length) throw new Error('Branch not found');
   if (row.escort_id && !escort.length) throw new Error('Escort not found');
   if (row.escort_id && other(escortTaken)) throw new Error('This escort is already linked to another guard');
@@ -1357,8 +1383,8 @@ app.post('/addGuard', async (req, res) => {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const row = guardFromBody(req.body || {});
     await checkGuard(req, catalystApp.zcql(), row, null);
-    const result = await catalystApp.datastore().table('Guards').insertRow(row);
-    res.status(200).json({ status: 'success', data: result });
+    const result = await catalystApp.datastore().table('Guards').insertRow({ ...row, created_by: req.user.name, modified_by: req.user.name });
+    res.status(200).json({ status: 'success', data: publicGuard(result) });
   } catch (err) {
     fail(res, err);
   }
@@ -1371,8 +1397,8 @@ app.put('/updateGuard', async (req, res) => {
     const current = auth.requireRow(req, await guardById(zcql, req.body && req.body.ROWID), 'guard');
     const row = guardFromBody(req.body);
     await checkGuard(req, zcql, row, current.ROWID);
-    const result = await catalystApp.datastore().table('Guards').updateRow({ ROWID: current.ROWID, ...row });
-    res.status(200).json({ status: 'success', data: result });
+    const result = await catalystApp.datastore().table('Guards').updateRow({ ROWID: current.ROWID, ...row, modified_by: req.user.name });
+    res.status(200).json({ status: 'success', data: publicGuard(result) });
   } catch (err) {
     fail(res, err);
   }
@@ -1390,8 +1416,51 @@ app.put('/setGuardActive', async (req, res) => {
       const taken = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE escort_id = ${guard.escort_id} AND is_active = 'true'`);
       if (taken.length) throw new Error('Another active guard is linked to this escort now. Edit one of them first.');
     }
-    const result = await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, is_active: active ? 'true' : 'false' });
-    res.status(200).json({ status: 'success', data: result });
+    const result = await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, is_active: active ? 'true' : 'false', modified_by: req.user.name });
+    res.status(200).json({ status: 'success', data: publicGuard(result) });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Guard photo (optional): one picture per guard in the media bucket; the page gets a link valid
+// for one hour. A new photo replaces the old one.
+const GUARD_PHOTO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const GUARD_PHOTO_MAX = 5 * 1048576;
+
+app.post('/guardPhoto', express.raw({ type: () => true, limit: '6mb' }), async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const guard = auth.requireRow(req, await guardById(catalystApp.zcql(), req.query.guard), 'guard');
+    const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    const ext = GUARD_PHOTO_TYPES[type];
+    if (!ext) throw new Error('Photo must be JPG, PNG or WEBP.');
+    if (!Buffer.isBuffer(req.body) || !req.body.length) throw new Error('The photo is empty.');
+    if (req.body.length > GUARD_PHOTO_MAX) throw new Error('Photo is too big (max 5 MB).');
+    const bucket = catalystApp.stratus().bucket('escortcardaccess-media');
+    const key = 'guards/' + guard.ROWID + '-' + crypto.randomBytes(6).toString('hex') + '.' + ext;
+    await bucket.putObject(key, req.body, { contentType: type });
+    const old = (await catalystApp.zcql().executeZCQLQuery(`SELECT photo_key FROM Guards WHERE ROWID = ${guard.ROWID}`))[0].Guards.photo_key;
+    await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, photo_key: key, modified_by: req.user.name });
+    if (old) {
+      try { await bucket.deleteObject(old); } catch (err) { console.error('Old guard photo not removed:', err.message || err); }
+    }
+    res.status(200).json({ status: 'success', data: { photo_key: key } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+app.get('/guardPhotoUrl', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    // One read: the photo key and what the area check needs.
+    const rows = await catalystApp.zcql().executeZCQLQuery(`SELECT photo_key, branch_id, agency_id FROM Guards WHERE ROWID = ${requireRowId(req.query.guard)}`);
+    if (!rows.length) throw new Error('Guard not found');
+    const key = auth.requireRow(req, rows[0].Guards, 'guard').photo_key;
+    if (!key) return res.status(200).json({ status: 'success', data: { url: null } });
+    const r = await catalystApp.stratus().bucket('escortcardaccess-media').generatePreSignedUrl(key, 'GET', { expiryIn: '3600' });
+    res.status(200).json({ status: 'success', data: { url: r.signature } });
   } catch (err) {
     fail(res, err);
   }

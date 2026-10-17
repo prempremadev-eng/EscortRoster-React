@@ -1011,3 +1011,4 @@ a.btn{text-decoration:none;display:inline-block;}
 .adm-icon{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:16px;margin-left:4px;}
 .adm-icon:hover{background:#eff6ff;border-color:#93c5fd;}
 .adm-icon:disabled{opacity:.5;cursor:default;}
+.guard-photo{width:88px;height:88px;object-fit:cover;border-radius:10px;border:1px solid var(--border);align-self:end;}
