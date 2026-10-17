@@ -7,6 +7,9 @@
 
 const APP_URL = 'https://escortcardaccess-60086856508.development.catalystserverless.in/app/index.html';
 const CODE_RE = /^[A-Z0-9-]{2,20}$/;
+// The first Super Admin (added at setup, created_by = 'setup') is the owner: nobody can change
+// or switch off that login, so the app can never lose its owner.
+const isOwner = u => u.created_by === 'setup';
 
 module.exports = function adminRoutes(app, h) {
   const { catalyst, selectAll, requireRowId, requireText, fail, auth } = h;
@@ -42,6 +45,7 @@ module.exports = function adminRoutes(app, h) {
   // and inside my area.
   function canManage(req, u) {
     const me = req.user;
+    if (isOwner(u)) return false;
     if (!(RANK[u.role] < me.rank || me.role === 'super_admin')) return false;
     if (req.scope.all) return true;
     if (u.role === 'city_admin') return false;
@@ -63,7 +67,7 @@ module.exports = function adminRoutes(app, h) {
         roles: ROLES.filter(r => RANK[r] < req.user.rank || req.user.role === 'super_admin').reverse().map(r => ({ code: r, name: ROLE_NAME[r] })),
         branches: branches.filter(b => branchOk(req, b.ROWID)),
         agencies,
-        users: users.filter(u => canManage(req, u) || u.email === req.user.email)
+        users: users.filter(u => canManage(req, u) || u.email === req.user.email || isOwner(u)).map(u => ({ ...u, owner: isOwner(u), canEdit: canManage(req, u) && u.email !== req.user.email }))
       });
     } catch (err) {
       fail(res, err);
@@ -133,6 +137,7 @@ module.exports = function adminRoutes(app, h) {
     const rows = await zcql.executeZCQLQuery(`SELECT * FROM UserRoles WHERE ROWID = ${requireRowId(rowid)}`);
     if (!rows.length) throw new Error('User not found');
     const u = rows[0].UserRoles;
+    if (isOwner(u)) throw new Error('This is the owner login. Nobody can change it.');
     if (!canManage(req, u)) throw new Error('You cannot change this user.');
     return u;
   }

@@ -198,11 +198,11 @@ export default function AdminPage() {
                     <tr key={u.ROWID} className={off ? 'master-left' : ''}>
                       <td className="left">{u.name}{self ? ' (you)' : ''}</td>
                       <td className="left">{u.email}</td>
-                      <td>{ROLE_NAME[u.role]}</td>
+                      <td>{u.owner ? '👑 Owner · ' : ''}{ROLE_NAME[u.role]}</td>
                       <td className="left">{area(u)}</td>
                       <td>{off ? '🚫 Off' : '✅ On'}</td>
                       <td className="master-actions">
-                        {!self && (off
+                        {u.canEdit && (off
                           ? <button className="btn secondary" disabled={busy} onClick={() => run(() => api.userActive(u.ROWID, true), () => '↩️ ' + u.name + ' can sign in again.')}>↩️ Switch on</button>
                           : <>
                               <button className="btn secondary" onClick={() => open('user', { ...BLANK_USER, ...u, city: u.city || '', branch_id: u.branch_id || '', agency_id: u.agency_id || '' })}>✏️ Edit</button>
