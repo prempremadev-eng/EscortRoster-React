@@ -1,8 +1,8 @@
 "use strict"
 
 /* ---------------- ADMIN: USERS, BRANCHES, AGENCIES (#admin) ---------------- */
-// Who may log in and what they see (UserRoles), the branches (country → state → city → branch)
-// and the security agencies. One post belongs to one agency; a supervisor sees only their
+// Who may log in and what they see (UserRoles), the places (States → Cities → Branches, picked
+// from lists so "Chennai" is never typed two ways) and the security agencies. One post belongs to one agency; a supervisor sees only their
 // agency's posts and guards in their branch.
 
 const APP_URL = 'https://escortcardaccess-60086856508.development.catalystserverless.in/app/index.html';
@@ -33,6 +33,15 @@ module.exports = function adminRoutes(app, h) {
   async function agencyList(zcql) {
     return selectAll(zcql, 'Agencies', 'SELECT ROWID, agency_name, is_active FROM Agencies ORDER BY agency_name ASC');
   }
+  // States and cities: short lists, read with the admin page.
+  async function placeList(zcql) {
+    const [states, cities] = await Promise.all([
+      selectAll(zcql, 'States', 'SELECT ROWID, state_name, country, is_active FROM States ORDER BY state_name ASC'),
+      selectAll(zcql, 'Cities', 'SELECT ROWID, city_name, state_id, is_active FROM Cities ORDER BY city_name ASC')
+    ]);
+    return { states, cities };
+  }
+
   app.get('/agencies', async (req, res) => {
     try {
       ok(res, await agencyList(admin(req).zcql()));
@@ -57,9 +66,10 @@ module.exports = function adminRoutes(app, h) {
     try {
       need(req, 'branch_admin');
       const zcql = admin(req).zcql();
-      const [branches, agencies, users] = await Promise.all([
+      const [branches, agencies, places, users] = await Promise.all([
         branchList(zcql),
         agencyList(zcql),
+        placeList(zcql),
         selectAll(zcql, 'UserRoles', 'SELECT ROWID, email, name, role, city, branch_id, agency_id, is_active, created_by, CREATEDTIME FROM UserRoles ORDER BY name ASC')
       ]);
       ok(res, {
@@ -67,6 +77,9 @@ module.exports = function adminRoutes(app, h) {
         roles: ROLES.filter(r => RANK[r] < req.user.rank || req.user.role === 'super_admin').reverse().map(r => ({ code: r, name: ROLE_NAME[r] })),
         branches: branches.filter(b => branchOk(req, b.ROWID)),
         agencies,
+        states: places.states,
+        // A city admin sees only their own city.
+        cities: req.scope.all ? places.cities : places.cities.filter(c => c.city_name.toLowerCase() === req.user.city.toLowerCase()),
         users: users.filter(u => canManage(req, u) || u.email === req.user.email || isOwner(u)).map(u => ({ ...u, owner: isOwner(u), canEdit: canManage(req, u) && u.email !== req.user.email }))
       });
     } catch (err) {
@@ -84,8 +97,8 @@ module.exports = function adminRoutes(app, h) {
     const row = { name: requireText(b.name, 'Name', 100), role, city: null, branch_id: null, agency_id: null };
     if (role === 'city_admin') {
       const city = requireText(b.city, 'City', 100);
-      const branches = await branchList(zcql);
-      if (!branches.some(x => String(x.city || '').toLowerCase() === city.toLowerCase())) throw new Error('No branch in the city ' + city + '. Add the branch first.');
+      const { cities } = await placeList(zcql);
+      if (!cities.some(x => x.city_name.toLowerCase() === city.toLowerCase())) throw new Error('City ' + city + ' not found. Add it in Cities first.');
       if (!req.scope.all && city.toLowerCase() !== req.user.city.toLowerCase()) throw new Error('This city is not in your area.');
       row.city = city;
     }
@@ -202,26 +215,100 @@ module.exports = function adminRoutes(app, h) {
       if (phone && !/^[0-9+ ]{6,15}$/.test(phone)) throw new Error('Supervisor phone: numbers only (6 to 15)');
       const code = String(b.branch_code || '').trim().toUpperCase();
       if (!CODE_RE.test(code)) throw new Error('Branch code: capital letters, numbers and - (e.g. TN-CHN-BCH)');
+      // State and city come from the lists (Cities row → its State); kept as text too for the older screens.
+      const zcql = catalystApp.zcql();
+      const { states, cities } = await placeList(zcql);
+      const cityRow = cities.find(c => String(c.ROWID) === String(b.city_id || ''));
+      if (!cityRow) throw new Error('Pick the city');
+      const stateRow = states.find(x => String(x.ROWID) === String(cityRow.state_id)) || {};
       const row = {
         branch_code: code,
         branch_name: requireText(b.branch_name, 'Branch name', 100),
         company: requireText(b.company || 'Nokia', 'Company', 100),
-        country: requireText(b.country || 'India', 'Country', 100),
-        state: requireText(b.state, 'State', 100),
-        city: requireText(b.city, 'City', 100),
+        country: stateRow.country || 'India',
+        state: stateRow.state_name || '',
+        city: cityRow.city_name,
+        city_id: cityRow.ROWID,
         area: String(b.area || '').trim().slice(0, 100) || null,
         supervisor_phone: phone || null,
         is_active: b.is_active === false ? 'false' : 'true'
       };
       if (!req.scope.all && row.city.toLowerCase() !== req.user.city.toLowerCase()) throw new Error('You can add branches only in ' + req.user.city + '.');
-      const zcql = catalystApp.zcql();
-      const branches = await branchList(zcql);
       const self = b.ROWID ? String(requireRowId(b.ROWID)) : '';
       if (self) requireBranch(req, self);
-      if (branches.some(x => x.branch_code === code && String(x.ROWID) !== self)) throw new Error('Branch code ' + code + ' is already used');
+      // Read fresh (not the 5-minute cache), so a code freed a moment ago can be used again.
+      const same = await zcql.executeZCQLQuery(`SELECT ROWID FROM Branches WHERE branch_code = '${code}'`);
+      if (same.some(x => String(x.Branches.ROWID) !== self)) throw new Error('Branch code ' + code + ' is already used');
       const table = catalystApp.datastore().table('Branches');
       const saved = self ? await table.updateRow({ ROWID: self, ...row }) : await table.insertRow(row);
       forgetBranches();
+      ok(res, { ROWID: saved.ROWID });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  /* ---------- states and cities (admin and higher) ---------- */
+
+  // A rename is copied into the text columns the older screens read (Branches.state / city, UserRoles.city).
+  app.post('/stateSave', async (req, res) => {
+    try {
+      need(req, 'admin');
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const b = req.body || {};
+      const name = requireText(b.state_name, 'State name', 100);
+      const self = b.ROWID ? String(requireRowId(b.ROWID)) : '';
+      const { states, cities } = await placeList(zcql);
+      if (states.some(x => x.state_name.toLowerCase() === name.toLowerCase() && String(x.ROWID) !== self)) throw new Error('State ' + name + ' already exists');
+      const row = { state_name: name, country: requireText(b.country || 'India', 'Country', 100), is_active: b.is_active !== false };
+      const table = catalystApp.datastore().table('States');
+      const saved = self ? await table.updateRow({ ROWID: self, ...row }) : await table.insertRow(row);
+      if (self) {
+        const ids = new Set(cities.filter(c => String(c.state_id) === self).map(c => String(c.ROWID)));
+        const bt = catalystApp.datastore().table('Branches');
+        for (const br of await branchList(zcql)) {
+          if (ids.has(String(br.city_id))) await bt.updateRow({ ROWID: br.ROWID, state: name, country: row.country });
+        }
+        forgetBranches();
+      }
+      ok(res, { ROWID: saved.ROWID });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  app.post('/citySave', async (req, res) => {
+    try {
+      need(req, 'admin');
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const b = req.body || {};
+      const name = requireText(b.city_name, 'City name', 100);
+      const self = b.ROWID ? String(requireRowId(b.ROWID)) : '';
+      const { states, cities } = await placeList(zcql);
+      const state = states.find(x => String(x.ROWID) === String(b.state_id || ''));
+      if (!state) throw new Error('Pick the state');
+      if (cities.some(x => x.city_name.toLowerCase() === name.toLowerCase() && String(x.ROWID) !== self)) throw new Error('City ' + name + ' already exists');
+      const old = cities.find(x => String(x.ROWID) === self);
+      const row = { city_name: name, state_id: state.ROWID, is_active: b.is_active !== false };
+      const table = catalystApp.datastore().table('Cities');
+      const saved = self ? await table.updateRow({ ROWID: self, ...row }) : await table.insertRow(row);
+      if (old) {
+        const bt = catalystApp.datastore().table('Branches');
+        for (const br of await branchList(zcql)) {
+          if (String(br.city_id) === self) await bt.updateRow({ ROWID: br.ROWID, city: name, state: state.state_name, country: state.country || 'India' });
+        }
+        if (old.city_name !== name) {
+          const ut = catalystApp.datastore().table('UserRoles');
+          const admins = await selectAll(zcql, 'UserRoles', "SELECT ROWID, email, city FROM UserRoles WHERE role = 'city_admin' ORDER BY ROWID ASC");
+          for (const u of admins.filter(x => String(x.city || '').toLowerCase() === old.city_name.toLowerCase())) {
+            await ut.updateRow({ ROWID: u.ROWID, city: name });
+            forgetUser(u.email);
+          }
+        }
+        forgetBranches();
+      }
       ok(res, { ROWID: saved.ROWID });
     } catch (err) {
       fail(res, err);

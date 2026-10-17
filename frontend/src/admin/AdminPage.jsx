@@ -12,14 +12,15 @@ const ROLE_HELP = {
 };
 const MAIL_TEXT = { invited: 'Invite mail sent.', already: 'Already a user, so no mail (they sign in with their password).', reset: 'Password link sent.' };
 const BLANK_USER = { email: '', name: '', role: '', city: '', branch_id: '', agency_id: '' };
-const BLANK_BRANCH = { branch_code: '', branch_name: '', company: 'Nokia', country: 'India', state: '', city: '', area: '', supervisor_phone: '' };
+const BLANK_BRANCH = { branch_code: '', branch_name: '', company: 'Nokia', state_id: '', city_id: '', area: '', supervisor_phone: '' };
 const isOn = v => v === true || v === 'true';
 const uniq = list => [...new Set(list.filter(Boolean))].sort();
 
-// #admin: who may sign in (and what they see), the branches and the agencies.
+// #admin, in the order things are made: States → Cities → Branches → Agencies → Users.
 export default function AdminPage() {
   const me = useUser();
-  const [tab, setTab] = useState('users');
+  const canAll = atLeast(me, 'admin');
+  const [tab, setTab] = useState(() => (atLeast(me, 'admin') ? 'states' : atLeast(me, 'city_admin') ? 'branches' : 'users'));
   const [data, setData] = useState(null);
   const [form, setForm] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -77,12 +78,23 @@ export default function AdminPage() {
     const { kind, ...body } = form;
     run(() => api.branchSave({ ...body, is_active: form.is_active === undefined ? true : isOn(form.is_active) }), () => '✅ ' + form.branch_name + ' saved.');
   }
+  function saveState(e) {
+    e.preventDefault();
+    run(() => api.stateSave({ ROWID: form.ROWID, state_name: form.state_name, country: form.country || 'India', is_active: form.is_active === undefined ? true : isOn(form.is_active) }), () => '✅ ' + form.state_name + ' saved.');
+  }
+  function saveCity(e) {
+    e.preventDefault();
+    run(() => api.citySave({ ROWID: form.ROWID, city_name: form.city_name, state_id: form.state_id, is_active: form.is_active === undefined ? true : isOn(form.is_active) }), () => '✅ ' + form.city_name + ' saved.');
+  }
   function saveAgency(e) {
     e.preventDefault();
     run(() => api.agencySave({ ROWID: form.ROWID, agency_name: form.agency_name, is_active: form.is_active === undefined ? true : isOn(form.is_active) }), () => '✅ ' + form.agency_name + ' saved.');
   }
 
-  const cities = data ? uniq(data.branches.map(b => b.city)) : [];
+  const cities = data ? uniq(data.cities.filter(c => isOn(c.is_active)).map(c => c.city_name)) : [];
+  const stateName = id => ((data && data.states.find(x => String(x.ROWID) === String(id))) || {}).state_name || '';
+  const cityOf = id => (data && data.cities.find(c => String(c.ROWID) === String(id))) || null;
+  const tabBtn = (key, label) => <button className={'btn' + (tab === key ? '' : ' secondary')} onClick={() => { setTab(key); setForm(null); }}>{label}</button>;
   const activeBranches = data ? data.branches.filter(b => isOn(b.is_active)) : [];
 
   return (
@@ -92,12 +104,19 @@ export default function AdminPage() {
       </div>
 
       <div className="toolbar no-print">
-        <button className={'btn' + (tab === 'users' ? '' : ' secondary')} onClick={() => { setTab('users'); setForm(null); }}>👤 Users</button>
-        {canCity && <button className={'btn' + (tab === 'branches' ? '' : ' secondary')} onClick={() => { setTab('branches'); setForm(null); }}>🏢 Branches</button>}
-        {canCity && <button className={'btn' + (tab === 'agencies' ? '' : ' secondary')} onClick={() => { setTab('agencies'); setForm(null); }}>🛡️ Agencies</button>}
+        {canAll && tabBtn('states', '1 🗺️ States')}
+        {canAll && tabBtn('cities', '2 🏙️ Cities')}
+        {canCity && tabBtn('branches', (canAll ? '3 ' : '') + '🏢 Branches')}
+        {canCity && tabBtn('agencies', (canAll ? '4 ' : '') + '🛡️ Agencies')}
+        {tabBtn('users', (canAll ? '5 ' : '') + '👤 Users')}
         <div className="spacer"></div>
+        {tab === 'states' && <button className="btn secondary" onClick={() => open('state', { state_name: '', country: 'India' })}>➕ Add state</button>}
+        {tab === 'cities' && <button className="btn secondary" onClick={() => open('city', { city_name: '', state_id: '' })} disabled={!data || !data.states.length}>➕ Add city</button>}
         {tab === 'users' && <button className="btn secondary" onClick={() => open('user', { ...BLANK_USER, role: data && data.roles.length ? data.roles[data.roles.length - 1].code : '' })} disabled={!data}>➕ Add user</button>}
-        {tab === 'branches' && <button className="btn secondary" onClick={() => open('branch', { ...BLANK_BRANCH, city: me.role === 'city_admin' ? me.city : '' })}>➕ Add branch</button>}
+        {tab === 'branches' && <button className="btn secondary" disabled={!data || !data.cities.length} onClick={() => {
+          const own = me.role === 'city_admin' && data.cities[0];
+          open('branch', { ...BLANK_BRANCH, state_id: own ? String(own.state_id) : '', city_id: own ? String(own.ROWID) : '' });
+        }}>➕ Add branch</button>}
         {tab === 'agencies' && <button className="btn secondary" onClick={() => open('agency', { agency_name: '' })}>➕ Add agency</button>}
         <button className="btn" onClick={load}>🔄 Refresh</button>
       </div>
@@ -158,19 +177,111 @@ export default function AdminPage() {
               <label>Branch code<input value={form.branch_code} onChange={e => set('branch_code', e.target.value.toUpperCase())} placeholder="TN-CHN-BCH" required /></label>
               <label>Branch name<input value={form.branch_name} onChange={e => set('branch_name', e.target.value)} placeholder="Beach" required /></label>
               <label>Company<input value={form.company || ''} onChange={e => set('company', e.target.value)} required /></label>
-              <label>Country<input value={form.country || ''} onChange={e => set('country', e.target.value)} required /></label>
-              <label>State<input value={form.state || ''} onChange={e => set('state', e.target.value)} list="a-states" required /></label>
-              <label>City<input value={form.city || ''} onChange={e => set('city', e.target.value)} list="a-cities" disabled={me.role === 'city_admin'} required /></label>
+              <label>State
+                <select value={form.state_id} onChange={e => setForm(f => ({ ...f, state_id: e.target.value, city_id: '' }))} disabled={me.role === 'city_admin'} required>
+                  <option value="">Pick the state</option>
+                  {data.states.filter(x => isOn(x.is_active) || String(x.ROWID) === String(form.state_id)).map(x => <option key={x.ROWID} value={x.ROWID}>{x.state_name}</option>)}
+                </select>
+              </label>
+              <label>City
+                <select value={form.city_id} onChange={e => set('city_id', e.target.value)} disabled={me.role === 'city_admin' || !form.state_id} required>
+                  <option value="">{form.state_id ? 'Pick the city' : 'Pick the state first'}</option>
+                  {data.cities.filter(c => String(c.state_id) === String(form.state_id) && (isOn(c.is_active) || String(c.ROWID) === String(form.city_id))).map(c => <option key={c.ROWID} value={c.ROWID}>{c.city_name}</option>)}
+                </select>
+              </label>
               <label>Area (optional)<input value={form.area || ''} onChange={e => set('area', e.target.value)} /></label>
               <label>Supervisor phone (guards call it)<input value={form.supervisor_phone || ''} onChange={e => set('supervisor_phone', e.target.value)} inputMode="tel" /></label>
             </div>
-            <datalist id="a-states">{uniq(data.branches.map(b => b.state)).map(s => <option key={s} value={s} />)}</datalist>
-            <datalist id="a-cities">{cities.map(c => <option key={c} value={c} />)}</datalist>
             <div className="link-actions">
               <button className="btn" type="submit" disabled={busy}>{busy ? 'Saving...' : 'Save branch'}</button>
               <button className="btn secondary" type="button" onClick={() => setForm(null)}>Cancel</button>
             </div>
           </form>
+        )}
+
+        {data && form && form.kind === 'state' && (
+          <form className="master-form" onSubmit={saveState}>
+            <div className="master-form-title">{form.ROWID ? '✏️ Edit ' + form.state_name : '➕ New state'}</div>
+            <div className="master-grid">
+              <label>State name<input value={form.state_name} onChange={e => set('state_name', e.target.value)} placeholder="Tamil Nadu" maxLength={100} required /></label>
+              <label>Country<input value={form.country || ''} onChange={e => set('country', e.target.value)} required /></label>
+            </div>
+            <div className="link-actions">
+              <button className="btn" type="submit" disabled={busy}>{busy ? 'Saving...' : 'Save state'}</button>
+              <button className="btn secondary" type="button" onClick={() => setForm(null)}>Cancel</button>
+            </div>
+          </form>
+        )}
+
+        {data && form && form.kind === 'city' && (
+          <form className="master-form" onSubmit={saveCity}>
+            <div className="master-form-title">{form.ROWID ? '✏️ Edit ' + form.city_name : '➕ New city'}</div>
+            <div className="master-grid">
+              <label>State
+                <select value={form.state_id} onChange={e => set('state_id', e.target.value)} required>
+                  <option value="">Pick the state</option>
+                  {data.states.filter(x => isOn(x.is_active) || String(x.ROWID) === String(form.state_id)).map(x => <option key={x.ROWID} value={x.ROWID}>{x.state_name}</option>)}
+                </select>
+              </label>
+              <label>City name<input value={form.city_name} onChange={e => set('city_name', e.target.value)} placeholder="Chennai" maxLength={100} required /></label>
+            </div>
+            <div className="link-actions">
+              <button className="btn" type="submit" disabled={busy}>{busy ? 'Saving...' : 'Save city'}</button>
+              <button className="btn secondary" type="button" onClick={() => setForm(null)}>Cancel</button>
+            </div>
+          </form>
+        )}
+
+        {data && tab === 'states' && (
+          <div className="dash-scroll">
+            <table className="dash-table">
+              <thead><tr><th>State</th><th>Country</th><th>Cities</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                {data.states.map(x => {
+                  const off = !isOn(x.is_active);
+                  return (
+                    <tr key={x.ROWID} className={off ? 'master-left' : ''}>
+                      <td className="left">{x.state_name}</td>
+                      <td>{x.country}</td>
+                      <td>{data.cities.filter(c => String(c.state_id) === String(x.ROWID)).length}</td>
+                      <td>{off ? '🚫 Off' : '✅ On'}</td>
+                      <td className="master-actions">
+                        <button className="btn secondary" onClick={() => open('state', { ...x })}>✏️ Edit</button>
+                        <button className={'btn secondary' + (off ? '' : ' master-danger')} disabled={busy} onClick={() => run(() => api.stateSave({ ...x, is_active: off }), () => x.state_name + (off ? ' is on again.' : ' is switched off.'))}>{off ? '↩️ Switch on' : '🚫 Switch off'}</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {data.states.length === 0 && <tr><td colSpan="5">No states yet. Press ➕ Add state (e.g. Tamil Nadu).</td></tr>}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        {data && tab === 'cities' && (
+          <div className="dash-scroll">
+            <table className="dash-table">
+              <thead><tr><th>City</th><th>State</th><th>Branches</th><th>Status</th><th></th></tr></thead>
+              <tbody>
+                {data.cities.map(c => {
+                  const off = !isOn(c.is_active);
+                  return (
+                    <tr key={c.ROWID} className={off ? 'master-left' : ''}>
+                      <td className="left">{c.city_name}</td>
+                      <td>{stateName(c.state_id)}</td>
+                      <td>{data.branches.filter(b => String(b.city_id) === String(c.ROWID)).length}</td>
+                      <td>{off ? '🚫 Off' : '✅ On'}</td>
+                      <td className="master-actions">
+                        <button className="btn secondary" onClick={() => open('city', { ...c, state_id: String(c.state_id) })}>✏️ Edit</button>
+                        <button className={'btn secondary' + (off ? '' : ' master-danger')} disabled={busy} onClick={() => run(() => api.citySave({ ...c, is_active: off }), () => c.city_name + (off ? ' is on again.' : ' is switched off.'))}>{off ? '↩️ Switch on' : '🚫 Switch off'}</button>
+                      </td>
+                    </tr>
+                  );
+                })}
+                {data.cities.length === 0 && <tr><td colSpan="5">{data.states.length ? 'No cities yet. Press ➕ Add city.' : 'Add a state first (tab 1).'}</td></tr>}
+              </tbody>
+            </table>
+          </div>
         )}
 
         {data && form && form.kind === 'agency' && (
@@ -224,6 +335,7 @@ export default function AdminPage() {
             <table className="dash-table">
               <thead><tr><th>Code</th><th>Branch</th><th>City</th><th>State</th><th>Company</th><th>Supervisor phone</th><th>Status</th><th></th></tr></thead>
               <tbody>
+                {data.branches.length === 0 && <tr><td colSpan="8">{data.cities.length ? 'No branches yet. Press ➕ Add branch.' : 'Add a state and a city first (tabs 1 and 2).'}</td></tr>}
                 {data.branches.map(b => {
                   const off = !isOn(b.is_active);
                   return (
@@ -236,8 +348,8 @@ export default function AdminPage() {
                       <td>{b.supervisor_phone || '—'}</td>
                       <td>{off ? '🚫 Off' : '✅ Open'}</td>
                       <td className="master-actions">
-                        <button className="btn secondary" onClick={() => open('branch', { ...BLANK_BRANCH, ...b })}>✏️ Edit</button>
-                        <button className={'btn secondary' + (off ? '' : ' master-danger')} disabled={busy} onClick={() => run(() => api.branchSave({ ...b, is_active: off }), () => b.branch_name + (off ? ' is open again.' : ' is switched off.'))}>{off ? '↩️ Open again' : '🚫 Switch off'}</button>
+                        <button className="btn secondary" onClick={() => { const c = cityOf(b.city_id); open('branch', { ...BLANK_BRANCH, ...b, city_id: c ? String(c.ROWID) : '', state_id: c ? String(c.state_id) : '' }); }}>✏️ Edit</button>
+                        <button className={'btn secondary' + (off ? '' : ' master-danger')} disabled={busy} onClick={() => run(() => api.branchSave({ ...b, city_id: b.city_id, is_active: off }), () => b.branch_name + (off ? ' is open again.' : ' is switched off.'))}>{off ? '↩️ Open again' : '🚫 Switch off'}</button>
                       </td>
                     </tr>
                   );

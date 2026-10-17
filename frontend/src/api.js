@@ -146,5 +146,7 @@ export const api = {
   userActive: (ROWID, active) => apiCall('PUT', '/userActive', { ROWID, active }),
   userMail: ROWID => apiCall('POST', '/userMail', { ROWID }),
   branchSave: branch => apiCall('POST', '/branchSave', branch),
-  agencySave: agency => apiCall('POST', '/agencySave', agency)
+  agencySave: agency => apiCall('POST', '/agencySave', agency),
+  stateSave: state => apiCall('POST', '/stateSave', state),
+  citySave: city => apiCall('POST', '/citySave', city)
 };

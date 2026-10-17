@@ -39,7 +39,7 @@ module.exports = function auth(catalyst, selectAll) {
 
   async function branchList(zcql) {
     if (Date.now() - branchCache.at > 5 * CACHE_MS) {
-      const rows = await selectAll(zcql, 'Branches', 'SELECT ROWID, branch_code, branch_name, company, country, state, city, area, supervisor_phone, is_active FROM Branches ORDER BY branch_code ASC');
+      const rows = await selectAll(zcql, 'Branches', 'SELECT ROWID, branch_code, branch_name, company, country, state, city, city_id, area, supervisor_phone, is_active FROM Branches ORDER BY branch_code ASC');
       branchCache = { at: Date.now(), rows };
     }
     return branchCache.rows;
