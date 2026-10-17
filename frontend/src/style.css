@@ -926,6 +926,8 @@ a.btn{text-decoration:none;display:inline-block;}
 .setup-btn{width:100%;padding:14px;font-size:17px;margin-top:12px;}
 .setup-ok{color:#15803d;font-weight:bold;margin-top:12px;}
 .setup-msg{margin-top:12px;color:#334155;}
+.setup-steps{margin:8px 0 0;padding-left:22px;}
+.setup-steps li{margin-bottom:4px;}
 .sim-push{background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:8px 12px;margin-bottom:12px;}
 .guard-lock{font-size:48px;text-align:center;margin:10px 0;}
 .guard-head{text-align:center;margin-bottom:12px;}

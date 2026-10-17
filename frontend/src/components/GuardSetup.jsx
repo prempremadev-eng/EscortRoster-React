@@ -50,6 +50,23 @@ export default function GuardSetup({ token }) {
       });
   }, [token]);
 
+  // After the guard allows it in Chrome's settings and comes back, notice it without a reload.
+  useEffect(() => {
+    if (step !== 'blocked') return;
+    const onShow = () => { if (document.visibilityState === 'visible') recheck(); };
+    document.addEventListener('visibilitychange', onShow);
+    return () => document.removeEventListener('visibilitychange', onShow);
+  }, [step]);
+
+  function recheck() {
+    if (Notification.permission === 'denied') {
+      setMessage('Still blocked. Follow the steps above.');
+    } else {
+      setMessage('');
+      setStep('ready');
+    }
+  }
+
   async function allow() {
     setStep('working');
     setMessage('');
@@ -108,9 +125,26 @@ export default function GuardSetup({ token }) {
             )}
 
             {step === 'blocked' && (
-              <div className="setup-card bad">
-                Notifications are blocked for this site. Open the browser's site settings, allow Notifications, then reload this page.
-              </div>
+              <>
+                <div className="setup-card bad">
+                  <b>Notifications are blocked on this phone.</b> To allow them:
+                  {deviceType() === 'iphone' ? (
+                    <ol className="setup-steps">
+                      <li>Open <b>Settings</b> → <b>Notifications</b>.</li>
+                      <li>Find this app and turn <b>Allow Notifications</b> on.</li>
+                      <li>Come back here.</li>
+                    </ol>
+                  ) : (
+                    <ol className="setup-steps">
+                      <li>Tap the small icon on the <b>left of the web address</b> at the top.</li>
+                      <li>Tap <b>Permissions</b> (or <b>Site settings</b>).</li>
+                      <li>Turn <b>Notifications</b> on.</li>
+                      <li>Come back here and tap <b>Check again</b>.</li>
+                    </ol>
+                  )}
+                </div>
+                <button className="btn setup-btn" onClick={recheck}>🔄 Check again</button>
+              </>
             )}
             {step === 'iphoneHome' && (
               <div className="setup-card bad">
