@@ -104,7 +104,7 @@ module.exports = function adminRoutes(app, h) {
     } catch (err) {
       const msg = String((err && err.message) || err);
       // Already a user of this app (invited before, or the project owner): nothing to send.
-      if (/exist|already/i.test(msg)) return 'already';
+      if (/exist|already|duplicate/i.test(msg)) return 'already';
       throw new Error('Saved, but the invite mail failed: ' + msg);
     }
   }
