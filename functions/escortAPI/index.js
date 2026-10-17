@@ -1111,20 +1111,24 @@ function postFromBody(b) {
   };
 }
 
-// Same branch rule as before, plus: the branch is in my area and the agency exists.
+// The branch is in my area, the agency works there, and the post name is used nowhere else:
+// one name = one post in the whole app (any branch, any agency).
 async function checkPost(req, zcql, row, selfId) {
   auth.requireBranch(req, row.branch_id);
   const [branch, same, agency] = await Promise.all([
     zcql.executeZCQLQuery(`SELECT ROWID FROM Branches WHERE ROWID = ${row.branch_id} AND is_active = 'true'`),
-    selectAll(zcql, 'Posts', `SELECT ROWID, post_name, branch_id, agency_id FROM Posts WHERE branch_id = ${row.branch_id} ORDER BY ROWID ASC`),
+    selectAll(zcql, 'Posts', 'SELECT ROWID, post_name, branch_id FROM Posts ORDER BY ROWID ASC'),
     zcql.executeZCQLQuery(`SELECT ROWID, branch_ids FROM Agencies WHERE ROWID = ${row.agency_id} AND is_active = true`)
   ]);
   if (!branch.length) throw new Error('Branch not found');
   if (!agency.length) throw new Error('Pick the agency of this post');
   if (!admin.worksIn(agency[0].Agencies, row.branch_id)) throw new Error('This agency does not work in this branch. Tick the branch in Admin → Agencies.');
-  const lower = row.post_name.toLowerCase();
-  if (same.some(p => p.post_name.toLowerCase() === lower && String(p.ROWID) !== String(selfId || ''))) {
-    throw new Error('This branch already has a post called ' + row.post_name);
+  // "Kitchen-1", "kitchen - 1" and "KITCHEN 1" count as the same name.
+  const key = name => String(name || '').toLowerCase().replace(/[\s-]+/g, '');
+  const taken = same.find(p => key(p.post_name) === key(row.post_name) && String(p.ROWID) !== String(selfId || ''));
+  if (taken) {
+    const b = (await auth.branchList(zcql)).find(x => String(x.ROWID) === String(taken.branch_id));
+    throw new Error('The post name ' + taken.post_name + ' is already used' + (b ? ' in ' + b.branch_name : '') + '. Post names must be unique.');
   }
 }
 
