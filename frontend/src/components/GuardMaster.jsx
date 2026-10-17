@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { worksIn } from '../agency.js';
 import { IconBtn } from './RowControls.jsx';
 
-const NO_FILTERS = { state: '', city: '', branch: '', agency: '', duty: '', status: '', q: '' };
+const NO_FILTERS = { state: '', city: '', branch: '', agency: '', status: '', q: '' };
 const BLANK_GUARD = { id_number: '', card_number: '', guard_name: '', agency_id: '', branch_id: '', escort_id: '', phone: '', aadhaar: '' };
 const when = t => String(t || '').slice(0, 16);
 const STATUS_LABEL = { IN: '✅ IN', OUT: '🚪 OUT', NONE: '⏳ Not yet' };
@@ -73,9 +73,6 @@ export default function GuardMaster() {
   const guards = showLeft ? allGuards : allGuards.filter(g => g.is_active === 'true');
 
   const statusOf = g => (today[String(g.ROWID)] || { status: 'NONE' }).status;
-  // This week's post + shift from the Duty Chart (null = not assigned).
-  const dutyOf = g => (data && data.duties[String(g.ROWID)]) || null;
-  const dutyKind = g => (dutyOf(g) ? dutyOf(g).post_type : 'NONE');
   const q = filters.q.trim().toLowerCase();
   // Everything except the status filter, so the summary boxes count the same group.
   const base = guards.filter(g => {
@@ -85,7 +82,6 @@ export default function GuardMaster() {
       && (!filters.city || b.city === filters.city)
       && (!filters.branch || String(b.ROWID) === filters.branch)
       && (!filters.agency || g.agency === filters.agency)
-      && (!filters.duty || dutyKind(g) === filters.duty)
       && (!q || g.guard_name.toLowerCase().includes(q) || g.id_number.toLowerCase().includes(q) || String(g.card_number || '').toLowerCase().includes(q));
   });
   const shown = base.filter(g => !filters.status || statusOf(g) === filters.status);
@@ -123,7 +119,7 @@ export default function GuardMaster() {
     setConfirmLeft(false);
     const next = g
       ? { ...BLANK_GUARD, ...g, card_number: g.card_number || '', agency_id: g.agency_id || '', escort_id: g.escort_id || '', phone: g.phone || '', aadhaar: '' }
-      : { ...BLANK_GUARD, branch_id: filters.branch || '' };
+      : { ...BLANK_GUARD, branch_id: filters.branch || (branches.length === 1 ? String(branches[0].ROWID) : '') };
     setForm(next);
     setFreeEscorts(null);
     setPhotoFile(null);
@@ -300,14 +296,6 @@ export default function GuardMaster() {
                   {uniq(guards.map(g => g.agency)).sort().map(a => <option key={a}>{a}</option>)}
                 </select>
               </label>
-              <label>Duty
-                <select id="f-duty" value={filters.duty} onChange={e => setFilter('duty', e.target.value)}>
-                  <option value="">All duties</option>
-                  <option value="POST">📍 POST</option>
-                  <option value="ESCORT">🚐 ESCORT</option>
-                  <option value="NONE">⏳ Not assigned</option>
-                </select>
-              </label>
               <label className="master-search">Search name / ID / card
                 <input id="f-q" type="search" value={filters.q} onChange={e => setFilter('q', e.target.value)} placeholder="Name, ID or card no." />
               </label>
@@ -315,7 +303,6 @@ export default function GuardMaster() {
 
             <div className="master-bar">
               <div className="master-trail">Showing: <b>{trail.join(' › ')}</b></div>
-              <button className={'btn' + (filters.duty === 'ESCORT' ? '' : ' secondary')} onClick={() => toggle('duty', 'ESCORT')}>🚐 Escorts</button>
               <button className="btn secondary" onClick={() => setFilters(NO_FILTERS)}>Clear filters</button>
               {leftCount > 0 && (
                 <label className="master-left-toggle">
@@ -336,7 +323,7 @@ export default function GuardMaster() {
             <div className="dash-scroll">
               <table className="dash-table">
                 <thead>
-                  <tr><th>ID</th><th>Card</th><th>Guard</th><th>Agency</th><th>Branch</th><th>This week</th><th>IN</th><th>OUT</th><th>Status</th><th></th></tr>
+                  <tr><th>ID</th><th>Card</th><th>Guard</th><th>Agency</th><th>Branch</th><th>IN</th><th>OUT</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody>
                   {shown.map(g => {
@@ -350,7 +337,6 @@ export default function GuardMaster() {
                         <td className="left">{g.photo_key ? '📷 ' : ''}{g.guard_name}<div className="master-sub">{g.modified_by ? 'by ' + g.modified_by : ''}</div></td>
                         <td>{g.agency}</td>
                         <td className="left">{b ? branchLabel(b) : '—'}<div className="master-sub">{b ? b.city + ', ' + b.state : ''}</div></td>
-                        <td>{dutyLabel(dutyOf(g))}</td>
                         <td>{t.firstIn || '—'}</td>
                         <td>{t.lastOut || '—'}</td>
                         <td className={t.status === 'IN' && !left ? 'sim-in' : ''}>{left ? '🚫 Left' : STATUS_LABEL[t.status]}</td>
@@ -362,7 +348,7 @@ export default function GuardMaster() {
                       </tr>
                     );
                   })}
-                  {shown.length === 0 && <tr><td colSpan="10">No guards match these filters.</td></tr>}
+                  {shown.length === 0 && <tr><td colSpan="9">No guards match these filters.</td></tr>}
                 </tbody>
               </table>
             </div>
