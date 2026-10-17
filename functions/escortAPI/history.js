@@ -37,7 +37,7 @@ module.exports = function historyRoutes(app, h) {
   // Screens 6 + 7: who was on duty, shift by shift, in the dates picked.
   app.get('/postHistory', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
       const { from, to } = range(req);
@@ -76,7 +76,7 @@ module.exports = function historyRoutes(app, h) {
   // Screen 8: contractor works at this post in the dates picked.
   app.get('/postWorks', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
       const { from, to } = range(req);
@@ -95,7 +95,7 @@ module.exports = function historyRoutes(app, h) {
   // Screen 9: one past shift, view only: who stood at the post minute by minute + its timeline.
   app.get('/pastShift', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
       const rows = await zcql.executeZCQLQuery(`SELECT * FROM DutyLog WHERE ROWID = ${requireRowId(req.query.log)}`);

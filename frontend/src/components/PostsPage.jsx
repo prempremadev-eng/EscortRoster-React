@@ -1,11 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { useUser, atLeast } from '../auth/user.js';
 
-const BLANK_POST = { post_name: '', post_type: 'POST' };
+const BLANK_POST = { post_name: '', post_type: 'POST', agency_id: '', vehicle_entry: false };
+const isOn = v => v === true || v === 'true';
 
 // The places of each branch where a guard can be put: Gate 3, Lobby, Escort…
 // A post is switched off, never deleted, because old duty charts point to it.
 export default function PostsPage() {
+  // Supervisors only look; a branch admin or higher adds and changes posts.
+  const canEdit = atLeast(useUser(), 'branch_admin');
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('loading');
   const [branch, setBranch] = useState('');
@@ -45,7 +49,7 @@ export default function PostsPage() {
     setSaving(true);
     setError('');
     try {
-      const body = { branch_id: branch, post_name: form.post_name, post_type: form.post_type };
+      const body = { branch_id: branch, post_name: form.post_name, post_type: form.post_type, agency_id: form.agency_id, vehicle_entry: isOn(form.vehicle_entry) };
       const saved = form.ROWID
         ? (await api.updatePost({ ...body, ROWID: form.ROWID, is_active: form.is_active !== 'false' })).data
         : (await api.addPost(body)).data;
@@ -63,13 +67,14 @@ export default function PostsPage() {
     setError('');
     setNote('');
     try {
-      putRow((await api.updatePost({ ...p, is_active: active })).data);
+      putRow((await api.updatePost({ ...p, vehicle_entry: isOn(p.vehicle_entry), is_active: active })).data);
       setNote((active ? '↩️ ' : '🚫 ') + p.post_name + (active ? ' is open again.' : ' is switched off.'));
     } catch (err) {
       setError(err.message);
     }
   }
 
+  const agencyName = id => ((data && data.agencies.find(a => String(a.ROWID) === String(id))) || {}).agency_name || '⚠️ Not set';
   const branchLabel = b => b.branch_name + (b.area ? ' (' + b.area + ')' : '') + ' · ' + b.city;
 
   return (
@@ -90,7 +95,7 @@ export default function PostsPage() {
           </div>
         )}
         <div className="spacer"></div>
-        <button className="btn secondary" onClick={() => { setError(''); setNote(''); setForm({ ...BLANK_POST }); }}>➕ Add post</button>
+        {canEdit && <button className="btn secondary" onClick={() => { setError(''); setNote(''); setForm({ ...BLANK_POST }); }}>➕ Add post</button>}
         <button className="btn" onClick={load}>🔄 Refresh</button>
       </div>
 
@@ -110,6 +115,16 @@ export default function PostsPage() {
                   <option value="ESCORT">🚐 ESCORT (cab trips, escort duty sheet)</option>
                 </select>
               </label>
+              <label>Agency (one agency per post)
+                <select id="p-agency" value={form.agency_id || ''} onChange={e => setForm(f => ({ ...f, agency_id: e.target.value }))} required>
+                  <option value="">Pick the agency</option>
+                  {data.agencies.filter(a => isOn(a.is_active) || String(a.ROWID) === String(form.agency_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+                </select>
+              </label>
+              <label className="master-check">
+                <input type="checkbox" checked={isOn(form.vehicle_entry)} onChange={e => setForm(f => ({ ...f, vehicle_entry: e.target.checked }))} />
+                🚗 Visitor / vehicle entry at this post
+              </label>
             </div>
             <div className="link-actions">
               <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save post'}</button>
@@ -125,7 +140,7 @@ export default function PostsPage() {
           <div className="dash-scroll">
             <table className="dash-table">
               <thead>
-                <tr><th>Post</th><th>Type</th><th>Status</th><th></th></tr>
+                <tr><th>Post</th><th>Type</th><th>Agency</th><th>Vehicle entry</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
                 {posts.map(p => {
@@ -134,9 +149,11 @@ export default function PostsPage() {
                     <tr key={p.ROWID} className={off ? 'master-left' : ''}>
                       <td className="left">{p.post_name}</td>
                       <td>{p.post_type === 'ESCORT' ? '🚐 ESCORT' : '📍 POST'}</td>
+                      <td>{agencyName(p.agency_id)}</td>
+                      <td>{isOn(p.vehicle_entry) ? '🚗 Yes' : '—'}</td>
                       <td>{off ? '🚫 Off' : '✅ Open'}</td>
                       <td className="master-actions">
-                        {off
+                        {!canEdit ? null : off
                           ? <button className="btn secondary" onClick={() => setActive(p, true)}>↩️ Open again</button>
                           : <>
                               <button className="btn secondary" onClick={() => { setError(''); setNote(''); setForm({ ...p }); }}>✏️ Edit</button>
@@ -146,7 +163,7 @@ export default function PostsPage() {
                     </tr>
                   );
                 })}
-                {posts.length === 0 && <tr><td colSpan="4">No posts in this branch yet. Press ➕ Add post.</td></tr>}
+                {posts.length === 0 && <tr><td colSpan="6">No posts in this branch yet. Press ➕ Add post.</td></tr>}
               </tbody>
             </table>
           </div>

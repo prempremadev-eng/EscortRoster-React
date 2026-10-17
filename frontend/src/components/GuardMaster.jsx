@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 
 const NO_FILTERS = { state: '', city: '', branch: '', agency: '', duty: '', status: '', q: '' };
-const BLANK_GUARD = { id_number: '', guard_name: '', agency: '', branch_id: '', escort_id: '', phone: '' };
+const BLANK_GUARD = { id_number: '', guard_name: '', agency_id: '', branch_id: '', escort_id: '', phone: '' };
 const STATUS_LABEL = { IN: '✅ IN', OUT: '🚪 OUT', NONE: '⏳ Not yet' };
 
 const uniq = list => [...new Set(list)];
@@ -116,7 +116,7 @@ export default function GuardMaster() {
     setNote('');
     setConfirmLeft(false);
     const next = g
-      ? { ...BLANK_GUARD, ...g, escort_id: g.escort_id || '', phone: g.phone || '' }
+      ? { ...BLANK_GUARD, ...g, agency_id: g.agency_id || '', escort_id: g.escort_id || '', phone: g.phone || '' }
       : { ...BLANK_GUARD, branch_id: filters.branch || '' };
     setForm(next);
     setFreeEscorts(null);
@@ -144,7 +144,7 @@ export default function GuardMaster() {
     setSaving(true);
     setError('');
     try {
-      const fields = ['id_number', 'guard_name', 'agency', 'branch_id', 'phone', 'escort_id'];
+      const fields = ['id_number', 'guard_name', 'agency_id', 'branch_id', 'phone', 'escort_id'];
       const payload = {};
       fields.forEach(k => { payload[k] = form[k]; });
       const saved = form.ROWID
@@ -207,7 +207,12 @@ export default function GuardMaster() {
             <div className="master-grid">
               <label>ID number<input id="g-id" value={form.id_number} onChange={e => setFormField('id_number', e.target.value)} placeholder="SG-1009" required /></label>
               <label>Name<input id="g-name" value={form.guard_name} onChange={e => setFormField('guard_name', e.target.value)} required /></label>
-              <label>Agency<input id="g-agency" value={form.agency} onChange={e => setFormField('agency', e.target.value)} list="g-agencies" required /></label>
+              <label>Agency
+                <select id="g-agency" value={form.agency_id} onChange={e => setFormField('agency_id', e.target.value)} required>
+                  <option value="">Pick the agency</option>
+                  {data.agencies.filter(a => a.is_active === true || a.is_active === 'true' || String(a.ROWID) === String(form.agency_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+                </select>
+              </label>
               <label>Branch
                 <select id="g-branch" value={form.branch_id} onChange={e => setFormField('branch_id', e.target.value)} required>
                   <option value="">Pick a branch</option>
@@ -223,7 +228,6 @@ export default function GuardMaster() {
               </label>
               <label>Phone (optional)<input id="g-phone" value={form.phone} onChange={e => setFormField('phone', e.target.value)} inputMode="tel" /></label>
             </div>
-            <datalist id="g-agencies">{uniq(guards.map(g => g.agency)).map(a => <option key={a} value={a} />)}</datalist>
             <div className="sim-note">Only the guard's own details here. Post and shift are set week by week in 📅 Duty Chart.</div>
             <div className="link-actions">
               <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save guard'}</button>

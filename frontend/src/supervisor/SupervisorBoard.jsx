@@ -31,21 +31,27 @@ function keep(key, value) {
   }
 }
 
+// The branch this browser used last, if this login may see it; else the first one.
+function pickBranch(list) {
+  const last = String(remember('sup_branch', ''));
+  return list.some(b => String(b.ROWID) === last) ? last : (list[0] ? String(list[0].ROWID) : '');
+}
+
 const niceDate = d => new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
 
 // Screen 10: live board of one branch and one shift. A post opens in the inbox.
 export default function SupervisorBoard() {
   const [branches, setBranches] = useState([]);
-  const [branch, setBranch] = useState(() => remember('sup_branch', ''));
+  // Starts empty: the remembered branch is used only if it is in this login's area.
+  const [branch, setBranch] = useState('');
   const [shift, setShift] = useState('');
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  const name = remember('sup_name', '');
 
   useEffect(() => {
     api.getPosts().then(r => {
       setBranches(r.data.branches);
-      setBranch(cur => cur || (r.data.branches[0] ? String(r.data.branches[0].ROWID) : ''));
+      setBranch(pickBranch(r.data.branches));
     }).catch(err => setError(err.message));
   }, []);
 
@@ -62,7 +68,7 @@ export default function SupervisorBoard() {
     }
   }, [branch, shift]);
 
-  useEffect(() => { keep('sup_branch', branch); load(); }, [branch, load]);
+  useEffect(() => { if (branch) keep('sup_branch', branch); load(); }, [branch, load]);
   useEffect(() => {
     const onShow = () => { if (document.visibilityState === 'visible') load(); };
     document.addEventListener('visibilitychange', onShow);
@@ -79,7 +85,7 @@ export default function SupervisorBoard() {
 
   return (
     <div className="pd sup">
-      <Rail active="board" name={name} />
+      <Rail active="board" />
       <main className="sb">
         <div className="sb-head">
           <div>

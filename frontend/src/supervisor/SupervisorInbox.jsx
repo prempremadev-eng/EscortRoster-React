@@ -33,6 +33,12 @@ function keep(key, value) {
   }
 }
 
+// The branch this browser used last, if this login may see it; else the first one.
+function pickBranch(list) {
+  const last = String(remember('sup_branch', ''));
+  return list.some(b => String(b.ROWID) === last) ? last : (list[0] ? String(list[0].ROWID) : '');
+}
+
 function keyToBytes(base64url) {
   const base64 = (base64url + '='.repeat((4 - (base64url.length % 4)) % 4)).replace(/-/g, '+').replace(/_/g, '/');
   return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
@@ -98,10 +104,9 @@ function Message({ m }) {
 // Screen 13: supervisor home. Posts on the left (alerts / empty first), the chosen post's timeline
 // on the right with a message box.
 export default function SupervisorInbox({ initialPost }) {
-  const [name, setName] = useState(() => remember('sup_name', ''));
-  const [nameInput, setNameInput] = useState('');
   const [branches, setBranches] = useState([]);
-  const [branch, setBranch] = useState(() => remember('sup_branch', ''));
+  // Starts empty: the remembered branch is used only if it is in this login's area.
+  const [branch, setBranch] = useState('');
   const [list, setList] = useState(null);
   const [filter, setFilter] = useState('all');
   const [search, setSearch] = useState('');
@@ -122,7 +127,7 @@ export default function SupervisorInbox({ initialPost }) {
     api.getPosts().then(r => {
       const b = r.data.branches;
       setBranches(b);
-      setBranch(cur => cur || (b[0] ? String(b[0].ROWID) : ''));
+      setBranch(pickBranch(b));
     }).catch(err => setError(err.message));
   }, []);
 
@@ -138,7 +143,7 @@ export default function SupervisorInbox({ initialPost }) {
   const loadPost = useCallback(async id => {
     if (!id) return;
     try {
-      const d = (await api.supPost(id, name)).data;
+      const d = (await api.supPost(id)).data;
       setPost(d);
       // Everything on screen now counts as read.
       const lastStamp = d.messages.length ? d.messages[d.messages.length - 1].stamp : '';
@@ -149,11 +154,11 @@ export default function SupervisorInbox({ initialPost }) {
     } catch (err) {
       setError(err.message);
     }
-  }, [name]);
+  }, []);
 
   const firstBranch = useRef(true);
   useEffect(() => {
-    keep('sup_branch', branch);
+    if (branch) keep('sup_branch', branch);
     if (!firstBranch.current) { setOpenId(null); setPost(null); }
     if (branch) firstBranch.current = false;
     loadList();
@@ -198,7 +203,7 @@ export default function SupervisorInbox({ initialPost }) {
       const { vapidPublicKey } = (await api.supVapid()).data;
       const subscription = await reg.pushManager.getSubscription()
         || await reg.pushManager.subscribe({ userVisibleOnly: true, applicationServerKey: keyToBytes(vapidPublicKey) });
-      await api.supSubscribe(branch, name, subscription.toJSON(), deviceType());
+      await api.supSubscribe(branch, subscription.toJSON(), deviceType());
       keep(pushKey, true);
       setPushOn(true);
     } catch (err) {
@@ -212,7 +217,7 @@ export default function SupervisorInbox({ initialPost }) {
     setBusy(true);
     setError('');
     try {
-      await api.supMessage(openId, name, text);
+      await api.supMessage(openId, text);
       setText('');
       await loadPost(openId);
       loadList();
@@ -221,20 +226,6 @@ export default function SupervisorInbox({ initialPost }) {
     } finally {
       setBusy(false);
     }
-  }
-
-  if (!name) {
-    return (
-      <div className="sup-name">
-        <form className="pd pd-card sup-name-card" onSubmit={e => { e.preventDefault(); const n = nameInput.trim(); if (n) { setName(n); keep('sup_name', n); } }}>
-          <div className="pd-title pd-title-sm">Supervisor</div>
-          <label htmlFor="sup-name" className="pd-field-title">Your name</label>
-          <input id="sup-name" className="pd-search" value={nameInput} onChange={e => setNameInput(e.target.value)} placeholder="Murugan" maxLength={100} autoFocus />
-          <div className="pd-small pd-muted">Guards see this name on your messages and on "Seen by". It is kept on this computer until login comes.</div>
-          <button className="pd-btn pd-btn-primary" type="submit" disabled={!nameInput.trim()}>Continue</button>
-        </form>
-      </div>
-    );
   }
 
   const counts = {
@@ -253,7 +244,7 @@ export default function SupervisorInbox({ initialPost }) {
 
   return (
     <div className="pd sup">
-      <Rail active="posts" name={name} onChangeName={() => { setName(''); keep('sup_name', ''); setNameInput(name); }} />
+      <Rail active="posts" />
 
       <aside className="sup-list">
         <div className="sup-list-head">

@@ -12,6 +12,8 @@ import GuardPage from './components/GuardPage.jsx';
 import SupervisorInbox from './supervisor/SupervisorInbox.jsx';
 import SupervisorBoard from './supervisor/SupervisorBoard.jsx';
 import SupervisorSchedule from './supervisor/SupervisorSchedule.jsx';
+import AdminPage from './admin/AdminPage.jsx';
+import AuthGate from './auth/AuthGate.jsx';
 import './style.css';
 
 const GUARD_TOKEN_KEY = 'guard_token';
@@ -49,7 +51,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Pages without a router: the duty sheet, #dashboard, #master, #posts, #chart, #simulator, #links, #supervisor, #board, #schedule (supervisor)
+// Pages without a router: the duty sheet, #dashboard, #master, #posts, #chart, #simulator, #links, #admin, #supervisor, #board, #schedule (supervisor)
 // and #setup/<token>, #guard/<token> (guard's phone).
 // The browser Back button works because each page is a URL hash.
 function Root() {
@@ -63,21 +65,30 @@ function Root() {
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
+  // Guard's phone: the secret link is the key, no login.
+  if (hash.startsWith('#setup/')) return <GuardSetup token={hash.slice('#setup/'.length)} />;
+  if (hash.startsWith('#guard/')) {
+    const [token, query] = hash.slice('#guard/'.length).split('?');
+    return <GuardPage token={token} testDate={new URLSearchParams(query || '').get('date')} />;
+  }
+  // Everything else: signed in, with a role (auth/AuthGate.jsx). The supervisor screens have
+  // their own side rail, so no top bar there.
+  const supScreen = hash === '#supervisor' || hash.startsWith('#supervisor/') || hash === '#board' || hash === '#schedule';
+  return <AuthGate bar={!supScreen}>{page(hash)}</AuthGate>;
+}
+
+function page(hash) {
   if (hash === '#dashboard') return <Dashboard />;
   if (hash === '#master') return <GuardMaster />;
   if (hash === '#posts') return <PostsPage />;
   if (hash === '#chart') return <DutyChart />;
   if (hash === '#simulator') return <CardSimulator />;
   if (hash === '#links') return <GuardLinks />;
+  if (hash === '#admin') return <AdminPage />;
   // #supervisor/<post> comes from a supervisor notification: opens that post.
   if (hash === '#supervisor' || hash.startsWith('#supervisor/')) return <SupervisorInbox key={hash} initialPost={hash.split('/')[1] || null} />;
   if (hash === '#board') return <SupervisorBoard />;
   if (hash === '#schedule') return <SupervisorSchedule />;
-  if (hash.startsWith('#setup/')) return <GuardSetup token={hash.slice('#setup/'.length)} />;
-  if (hash.startsWith('#guard/')) {
-    const [token, query] = hash.slice('#guard/'.length).split('?');
-    return <GuardPage token={token} testDate={new URLSearchParams(query || '').get('date')} />;
-  }
   return <App />;
 }
 

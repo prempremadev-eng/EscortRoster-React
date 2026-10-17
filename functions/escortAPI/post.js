@@ -33,7 +33,7 @@ const TIMELINE_LIMIT = 100;
 
 module.exports = function postRoutes(app, h) {
   const { catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, sendPushToRows, getVapidKeys,
-    getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN } = h;
+    getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN, auth } = h;
 
   // "2026-10-16 05:58" in India time. Date and time together, because Shift C runs past midnight.
   function nowStamp() {
@@ -141,7 +141,7 @@ module.exports = function postRoutes(app, h) {
   // Screens 1 and 2: my post, my shift, who I take over from, and their pinned notes.
   app.get('/postDuty', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const me = await guardByToken(zcql, req.query.t);
       const log = await myLog(zcql, me.ROWID);
@@ -209,7 +209,7 @@ module.exports = function postRoutes(app, h) {
   // F4: only the incoming guard presses it. The guard on duty before is handed over at once.
   app.post('/takeOver', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const me = await guardByToken(zcql, req.body.t);
       const log = await myLog(zcql, me.ROWID);
@@ -264,7 +264,7 @@ module.exports = function postRoutes(app, h) {
   // F5: general shift guard starts duty; nobody is handed over.
   app.post('/startGeneral', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const me = await guardByToken(zcql, req.body.t);
       const log = await myLog(zcql, me.ROWID);
@@ -284,7 +284,7 @@ module.exports = function postRoutes(app, h) {
   // F28: general shift guard ends duty. An optional note is pinned for the guard staying.
   app.post('/endGeneral', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const me = await guardByToken(zcql, req.body.t);
       const log = await myLog(zcql, me.ROWID);
@@ -447,7 +447,7 @@ module.exports = function postRoutes(app, h) {
   // Screen 3 for the guard. No auto-refresh: 🔄 button, push and coming back to the app.
   app.get('/postTimeline', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, log, own } = await onDutyLog(zcql, req.query.t, req.query.post, true);
       const { messages, open, rows } = await timelineData(req, catalystApp, zcql, log.post_id, { guardId: me.ROWID, logId: log.ROWID });
@@ -473,7 +473,7 @@ module.exports = function postRoutes(app, h) {
   // F6 / F12: a text note on the timeline, or a reply to one message (OK / Noted / Done / text).
   app.post('/postMessage', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const text = cleanText(req.body.text, 'Note', MAX_TEXT, true);
@@ -495,7 +495,7 @@ module.exports = function postRoutes(app, h) {
   // body (made small on the phone first); details come in the query string.
   app.post('/uploadMedia', express.raw({ type: () => true, limit: '26mb' }), async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, log } = await onDutyLog(zcql, req.query.t, req.query.post);
       const kind = String(req.query.kind || '');
@@ -537,7 +537,7 @@ module.exports = function postRoutes(app, h) {
   // F10: pin / unpin one of my own notes of this shift for the next guard.
   app.post('/pinMessage', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const m = await postTextMessage(zcql, log, req.body.rowid);
@@ -555,7 +555,7 @@ module.exports = function postRoutes(app, h) {
   // F11: mark a message for the supervisor. It shows in the supervisor inbox (built later).
   app.post('/forwardMessage', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const m = await postTextMessage(zcql, log, req.body.rowid);
@@ -572,7 +572,7 @@ module.exports = function postRoutes(app, h) {
   // F13: a contractor's work at the post; shows as a card "In progress" until Work finished.
   app.post('/addWork', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const b = req.body;
@@ -599,7 +599,7 @@ module.exports = function postRoutes(app, h) {
   // F14: any guard on duty at the post can close a work.
   app.post('/finishWork', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const rows = await zcql.executeZCQLQuery(`SELECT * FROM WorkUpdates WHERE ROWID = ${requireRowId(req.body.rowid)}`);
@@ -623,7 +623,7 @@ module.exports = function postRoutes(app, h) {
   const SHIFT_ORDER = ['A', 'G', 'B', 'C'];
   app.get('/safety', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
       const [shifts, rows] = await Promise.all([
@@ -646,7 +646,7 @@ module.exports = function postRoutes(app, h) {
 
   app.post('/addSafety', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const shifts = await getShifts(zcql);
@@ -668,7 +668,7 @@ module.exports = function postRoutes(app, h) {
   // to the next supervisor) comes with the supervisor inbox; the guard sees "Not seen yet" after 5 min.
   app.post('/sendAlert', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const text = cleanText(req.body.text, 'Alert message', MAX_TEXT, true);
@@ -686,7 +686,7 @@ module.exports = function postRoutes(app, h) {
   // F20: the guard cancels the alert (problem solved). Name and time are saved, no reason asked.
   app.post('/cancelAlert', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
       const rows = await zcql.executeZCQLQuery(`SELECT ROWID, post_id, status FROM Alerts WHERE ROWID = ${requireRowId(req.body.rowid)}`);
@@ -721,7 +721,7 @@ module.exports = function postRoutes(app, h) {
   // Supervisor inbox (supervisor.js).
   const sup = require('./supervisor.js')(app, {
     catalyst, fail, requireRowId, requireDate, getShifts, shiftDate, weekStartOf, nowStamp, hhmm, minutesBetween, cleanText, isTrue, MAX_TEXT,
-    namesOf, addMessage, timelineData, workView, sendPushToGuard, sendPushToRows, getVapidKeys
+    namesOf, addMessage, timelineData, workView, sendPushToGuard, sendPushToRows, getVapidKeys, auth
   });
 
   return { onPostIn, onPostOut };

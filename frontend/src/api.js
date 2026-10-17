@@ -11,6 +11,8 @@ async function apiCall(method, endpoint, body) {
   } catch {
     throw new Error('Server returned ' + res.status);
   }
+  // Signed out (session ended): AuthGate shows the login again.
+  if (res.status === 401 && json.login) window.dispatchEvent(new Event('need-login'));
   // The function answers 400 + { status: 'failure' } on errors; treat that as a failed call.
   if (!res.ok || json.status !== 'success') {
     throw new Error(json.error || 'Request failed (' + res.status + ')');
@@ -113,15 +115,15 @@ export const api = {
   startGeneral: t => apiCall('POST', '/startGeneral', { t }),
   endGeneral: (t, note) => apiCall('POST', '/endGeneral', { t, note }),
   supInbox: (branch, seen) => apiCall('POST', '/supInbox', { branch, seen }),
-  supPost: (post, name) => apiCall('GET', '/supPost?post=' + q(post) + (name ? '&name=' + q(name) : '')),
+  supPost: post => apiCall('GET', '/supPost?post=' + q(post)),
   supBoard: (branch, shift) => apiCall('GET', '/supBoard?branch=' + q(branch) + (shift ? '&shift=' + q(shift) : '')),
   supVapid: () => apiCall('GET', '/supVapid'),
-  supSubscribe: (branch, name, subscription, device) => apiCall('POST', '/supSubscribe', { branch, name, subscription, device }),
+  supSubscribe: (branch, subscription, device) => apiCall('POST', '/supSubscribe', { branch, subscription, device }),
   schedule: (branch, date) => apiCall('GET', '/schedule?branch=' + q(branch) + '&date=' + q(date)),
   scheduleSet: (branch, date, post, shift, guard) => apiCall('POST', '/scheduleSet', { branch, date, post, shift, guard }),
   scheduleCopy: (branch, date) => apiCall('POST', '/scheduleCopy', { branch, date }),
   schedulePublish: (branch, date) => apiCall('POST', '/schedulePublish', { branch, date }),
-  supMessage: (post, name, text) => apiCall('POST', '/supMessage', { post, name, text }),
+  supMessage: (post, text) => apiCall('POST', '/supMessage', { post, text }),
   coverCandidates: t => apiCall('GET', '/coverCandidates?t=' + q(t)),
   startBreak: (t, type, cover_guard_id) => apiCall('POST', '/startBreak', { t, type, cover_guard_id }),
   cancelBreak: t => apiCall('POST', '/cancelBreak', { t }),
@@ -135,5 +137,14 @@ export const api = {
 
   syncEscortsFromExcel: escorts => apiCall('POST', '/syncEscortsFromExcel', { escorts }),
   getAllLocations: () => apiCall('GET', '/getAllLocations'),
-  wipeAllData: () => apiCall('POST', '/wipeAllData')
+
+  me: () => apiCall('GET', '/me'),
+  agencies: () => apiCall('GET', '/agencies'),
+  adminData: () => apiCall('GET', '/adminData'),
+  userAdd: user => apiCall('POST', '/userAdd', user),
+  userUpdate: user => apiCall('PUT', '/userUpdate', user),
+  userActive: (ROWID, active) => apiCall('PUT', '/userActive', { ROWID, active }),
+  userMail: ROWID => apiCall('POST', '/userMail', { ROWID }),
+  branchSave: branch => apiCall('POST', '/branchSave', branch),
+  agencySave: agency => apiCall('POST', '/agencySave', agency)
 };

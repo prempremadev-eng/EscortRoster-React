@@ -546,21 +546,6 @@ export default function App() {
     }]);
   }
 
-  async function wipeAll() {
-    if (!window.confirm('இது Escorts + DutyRecords data முழுசையும் Database-லேர்ந்து நிரந்தரமாக நீக்கிடும். Confirm பண்றீர்களா?')) return;
-    try {
-      const result = await api.wipeAllData();
-      alert('Deleted: ' + result.deleted.escorts + ' escorts, ' + result.deleted.dutyRecords + ' duty records.');
-      updateEscorts([]);
-      updateDuty({});
-      updateStops({});
-      updateExtras([]);
-    } catch (err) {
-      console.error('Wipe failed:', err);
-      alert('Wipe பண்ண முடியல. Console log பாருங்க.');
-    }
-  }
-
   /* ---------- excel upload ---------- */
 
   function continueUpload(newStart) {
@@ -669,7 +654,6 @@ export default function App() {
       <div className="addrow-bar no-print">
         <button className="btn secondary" onClick={addEscort}>+ Add Escort</button>
         <button className="btn secondary" onClick={addExtra}>+ Add Extra (Today Only)</button>
-        <button className="btn danger" onClick={wipeAll}>🗑 Wipe All Data (Testing)</button>
       </div>
 
       <datalist id="locationSuggestions">

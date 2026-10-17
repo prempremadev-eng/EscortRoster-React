@@ -101,7 +101,7 @@ module.exports = function breakRoutes(app, h) {
   // Guards on duty now in the same branch, for "Who is covering?".
   app.get('/coverCandidates', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, own } = await onDutyLog(zcql, req.query.t);
       const logs = (await zcql.executeZCQLQuery(`SELECT guard_id, post_id FROM DutyLog WHERE duty_date = '${shiftDate()}' AND status = 'on_duty'`))
@@ -124,7 +124,7 @@ module.exports = function breakRoutes(app, h) {
   // Asking again while asked / declined = "Someone else".
   app.post('/startBreak', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, own } = await onDutyLog(zcql, req.body.t);
       const type = String(req.body.type || '');
@@ -170,7 +170,7 @@ module.exports = function breakRoutes(app, h) {
   // Not on break after all (still waiting for an answer, or nobody could come).
   app.post('/cancelBreak', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me } = await onDutyLog(zcql, req.body.t);
       const b = await myActiveBreak(zcql, me.ROWID);
@@ -185,7 +185,7 @@ module.exports = function breakRoutes(app, h) {
   // F22 / F23 / F24: the cover guard answers: go (walks to that post), stay (watches both), no.
   app.post('/respondCover', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, own } = await onDutyLog(zcql, req.body.t);
       const b = await breakById(zcql, req.body.rowid);
@@ -230,7 +230,7 @@ module.exports = function breakRoutes(app, h) {
   // F25: the cover guard asks the guard on break to come back.
   app.post('/pingBack', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, own } = await onDutyLog(zcql, req.body.t);
       const b = await breakById(zcql, req.body.rowid);
@@ -252,7 +252,7 @@ module.exports = function breakRoutes(app, h) {
   const PING_REPLIES = ['Coming now', 'Coming in 2 min', 'Coming in 5 min', 'Coming in 10 min'];
   app.post('/replyPing', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const me = await guardByToken(zcql, req.body.t);
       const own = await myLog(zcql, me.ROWID);
@@ -274,7 +274,7 @@ module.exports = function breakRoutes(app, h) {
   // F26: the guard is back from break. The cover guard goes back to their own post.
   app.post('/backOnDuty', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const me = await guardByToken(zcql, req.body.t);
       const own = await myLog(zcql, me.ROWID);
@@ -318,7 +318,7 @@ module.exports = function breakRoutes(app, h) {
 
   app.post('/coverReturned', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, own } = await onDutyLog(zcql, req.body.t);
       if (!await finishReturning(catalystApp, zcql, me, own, true)) throw new Error('You are already at your post.');
@@ -332,7 +332,7 @@ module.exports = function breakRoutes(app, h) {
   // The post on break is now empty.
   app.post('/leaveCover', async (req, res) => {
     try {
-      const catalystApp = catalyst.initialize(req);
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const { me, own } = await onDutyLog(zcql, req.body.t);
       const b = await breakById(zcql, req.body.rowid);

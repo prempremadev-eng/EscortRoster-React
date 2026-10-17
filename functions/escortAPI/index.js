@@ -20,6 +20,10 @@ app.use((req, res, next) => {
   next();
 });
 
+// Login + roles (auth.js): guard routes pass with their secret link, the rest need a login.
+const auth = require('./auth.js')(catalyst, selectAll);
+app.use(auth.middleware);
+
 /* ---------------- HELPERS ---------------- */
 
 const ZCQL_PAGE = 300;
@@ -85,12 +89,14 @@ async function saveSetting(catalystApp, key, value) {
 function fail(res, err) {
   res.status(400).json({ status: 'failure', error: (err && err.message) || String(err) || 'Unknown error' });
 }
+// For "value || fail.missing('Pick …')": a clear message instead of "Invalid rowid".
+fail.missing = message => { throw new Error(message); };
 
 /* ---------------- ESCORTS ---------------- */
 
 app.get('/getEscorts', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const escorts = await selectAll(zcql, 'Escorts', "SELECT * FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC");
     res.status(200).json({ status: 'success', data: escorts });
@@ -101,7 +107,7 @@ app.get('/getEscorts', async (req, res) => {
 
 app.post('/addEscort', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('Escorts');
     const { escort_name, agency, mobile, id_no, sort_order } = req.body;
     const result = await table.insertRow({ escort_name, agency, mobile, id_no, sort_order: sort_order || 0, is_active: 'true' });
@@ -113,7 +119,7 @@ app.post('/addEscort', async (req, res) => {
 
 app.put('/updateEscort', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('Escorts');
     const { ROWID, escort_name, agency, mobile, id_no } = req.body;
     const result = await table.updateRow({ ROWID, escort_name, agency, mobile, id_no });
@@ -125,7 +131,7 @@ app.put('/updateEscort', async (req, res) => {
 
 app.delete('/deleteEscort', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('Escorts');
     const rowid = requireRowId(req.query.rowid);
     const result = await table.deleteRow(rowid);
@@ -139,7 +145,7 @@ app.delete('/deleteEscort', async (req, res) => {
 
 app.get('/getDutyRecords', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const date = requireDate(req.query.date);
     const records = await selectAll(zcql, 'DutyRecords', `SELECT * FROM DutyRecords WHERE duty_date = '${date}' ORDER BY ROWID ASC`);
@@ -151,7 +157,7 @@ app.get('/getDutyRecords', async (req, res) => {
 
 app.post('/addDutyRecord', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('DutyRecords');
     const { duty_date, escort_id, seat_no, route_no, location, out_time, in_time, remarks } = req.body;
     const result = await table.insertRow({
@@ -165,7 +171,7 @@ app.post('/addDutyRecord', async (req, res) => {
 
 app.put('/updateDutyRecord', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('DutyRecords');
     const { ROWID, location, out_time, in_time, remarks } = req.body;
     const row = { ROWID, location, out_time, in_time };
@@ -180,7 +186,7 @@ app.put('/updateDutyRecord', async (req, res) => {
 
 app.delete('/deleteDutyRecord', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('DutyRecords');
     const rowid = requireRowId(req.query.rowid);
     const result = await table.deleteRow(rowid);
@@ -199,7 +205,7 @@ app.delete('/deleteDutyRecord', async (req, res) => {
 // Cab details live on the trip (DutyRecords row) — one copy per trip.
 app.put('/updateTripCab', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('DutyRecords');
     const { ROWID, vehicle_no, driver_name } = req.body;
     const result = await table.updateRow({ ROWID: requireRowId(ROWID), vehicle_no, driver_name });
@@ -211,7 +217,7 @@ app.put('/updateTripCab', async (req, res) => {
 
 app.get('/getTripStops', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const date = requireDate(req.query.date);
     const records = await selectAll(zcql, 'TripStops', `SELECT * FROM TripStops WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`);
@@ -225,7 +231,7 @@ app.get('/getTripStops', async (req, res) => {
 // Extra rows are DutyRecords too, so the frontend splits them out of `duty`.
 app.get('/getDayData', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const date = requireDate(req.query.date);
     const [escorts, duty, stops] = await Promise.all([
@@ -243,7 +249,7 @@ app.get('/getDayData', async (req, res) => {
 // Escorts includes inactive ones so old trips still show the guard's name.
 app.get('/getDashboard', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const from = requireDate(req.query.from);
     const to = requireDate(req.query.to);
@@ -260,7 +266,7 @@ app.get('/getDashboard', async (req, res) => {
 
 app.post('/addTripStop', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('TripStops');
     const { duty_record_id, duty_date, escort_id, emp_id, location, trip_type, stop_time } = req.body;
     const result = await table.insertRow({
@@ -275,7 +281,7 @@ app.post('/addTripStop', async (req, res) => {
 
 app.put('/updateTripStop', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('TripStops');
     const { ROWID, emp_id, location, trip_type, stop_time } = req.body;
     const result = await table.updateRow({ ROWID: requireRowId(ROWID), emp_id, location, trip_type, stop_time });
@@ -287,7 +293,7 @@ app.put('/updateTripStop', async (req, res) => {
 
 app.delete('/deleteTripStop', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('TripStops');
     const result = await table.deleteRow(requireRowId(req.query.rowid));
     res.status(200).json({ status: 'success', data: result });
@@ -300,7 +306,7 @@ app.delete('/deleteTripStop', async (req, res) => {
 
 app.get('/getExtraDutyRecords', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const date = requireDate(req.query.date);
     const records = await selectAll(zcql, 'DutyRecords', `SELECT * FROM DutyRecords WHERE duty_date = '${date}' AND is_extra = 'true' ORDER BY ROWID ASC`);
@@ -312,7 +318,7 @@ app.get('/getExtraDutyRecords', async (req, res) => {
 
 app.post('/addExtraDutyRecord', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('DutyRecords');
     const {
       duty_date, seat_no, route_no, location, out_time, in_time, remarks,
@@ -330,7 +336,7 @@ app.post('/addExtraDutyRecord', async (req, res) => {
 
 app.put('/updateExtraDutyRecord', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('DutyRecords');
     const {
       ROWID, location, out_time, in_time, remarks,
@@ -350,7 +356,7 @@ app.put('/updateExtraDutyRecord', async (req, res) => {
 
 app.get('/getSundayPickupRecords', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const date = requireDate(req.query.date);
     const records = await selectAll(zcql, 'DutyRecords', `SELECT * FROM DutyRecords WHERE duty_date = '${date}' AND is_sunday_pickup = 'true' ORDER BY seat_no ASC`);
@@ -362,7 +368,7 @@ app.get('/getSundayPickupRecords', async (req, res) => {
 
 app.post('/addSundayPickupRecord', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('DutyRecords');
     const {
       duty_date, seat_no, location, out_time, in_time, remarks,
@@ -380,7 +386,7 @@ app.post('/addSundayPickupRecord', async (req, res) => {
 
 app.put('/updateSundayPickupRecord', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('DutyRecords');
     const {
       ROWID, location, out_time, in_time, remarks,
@@ -400,7 +406,7 @@ app.put('/updateSundayPickupRecord', async (req, res) => {
 
 app.get('/getStartDate', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const row = await getSetting(catalystApp.zcql(), 'start_date');
     res.status(200).json({ status: 'success', data: row ? row.setting_value : null });
   } catch (err) {
@@ -410,7 +416,7 @@ app.get('/getStartDate', async (req, res) => {
 
 app.post('/saveStartDate', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     await saveSetting(catalystApp, 'start_date', requireDate(req.body.value));
     res.status(200).json({ status: 'success' });
   } catch (err) {
@@ -420,7 +426,7 @@ app.post('/saveStartDate', async (req, res) => {
 
 app.get('/getLastUploadDate', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const row = await getSetting(catalystApp.zcql(), 'last_upload_date');
     res.status(200).json({ status: 'success', data: row ? row.setting_value : null });
   } catch (err) {
@@ -430,7 +436,7 @@ app.get('/getLastUploadDate', async (req, res) => {
 
 app.post('/markUploadDone', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     await saveSetting(catalystApp, 'last_upload_date', requireDate(req.body.value));
     res.status(200).json({ status: 'success' });
   } catch (err) {
@@ -442,7 +448,7 @@ app.post('/markUploadDone', async (req, res) => {
 
 app.post('/syncEscortsFromExcel', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const table = catalystApp.datastore().table('Escorts');
     const zcql = catalystApp.zcql();
 
@@ -520,7 +526,7 @@ app.post('/syncEscortsFromExcel', async (req, res) => {
 
 app.get('/getAllLocations', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const rows = await selectAll(zcql, 'DutyRecords', "SELECT DISTINCT location FROM DutyRecords WHERE location != ''");
     const locations = rows.map(r => r.location).filter(Boolean);
@@ -602,7 +608,8 @@ async function onCardIn(catalystApp, guard, time, dutyDate) {
 // One door: the Card Simulator posts here today; the real access system can post here later.
 app.post('/addAccessLog', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    auth.need(req, 'admin');
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const guard = await guardById(catalystApp.zcql(), req.body.guard_id);
     if (guard.is_active !== 'true') throw new Error(guard.guard_name + ' is not active');
     const direction = String(req.body.direction || '').toUpperCase();
@@ -642,7 +649,7 @@ app.post('/addAccessLog', async (req, res) => {
 // Seats never shift: a guard who is not IN yet stays as an EMPTY row, and their name is not sent.
 app.get('/guardDay', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const me = await guardByToken(zcql, req.query.t);
     const dutyDate = dutyDateFor(req, req.query.date);
@@ -773,7 +780,7 @@ const routeOf = (routes, n) => routes.find(r => (parseInt(r.route_no, 10) || 1) 
 // Save one route: Location → Out → In, in that order (same locks as the duty sheet).
 app.post('/guardSaveRoute', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const ctx = await guardOnDuty(zcql, req);
     const b = req.body;
@@ -820,7 +827,7 @@ function tripFor(ctx, routeNo) {
 
 app.post('/guardSaveCab', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const ctx = await guardOnDuty(catalystApp.zcql(), req);
     const rec = tripFor(ctx, req.body.route_no);
     const vehicle_no = String(req.body.vehicle_no || '').trim().toUpperCase().slice(0, 20);
@@ -834,7 +841,7 @@ app.post('/guardSaveCab', async (req, res) => {
 
 app.post('/guardAddStop', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const ctx = await guardOnDuty(catalystApp.zcql(), req);
     const rec = tripFor(ctx, req.body.route_no);
     const b = req.body;
@@ -855,7 +862,7 @@ app.post('/guardAddStop', async (req, res) => {
 // Fix a mistake in an employee stop of the guard's own trips today.
 app.post('/guardUpdateStop', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const ctx = await guardOnDuty(catalystApp.zcql(), req);
     const b = req.body;
     const rowid = String(requireRowId(b.rowid));
@@ -875,7 +882,7 @@ app.post('/guardUpdateStop', async (req, res) => {
 // Fix a mistake: the guard can remove an employee stop of their own trips today (not a whole trip).
 app.post('/guardDeleteStop', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const ctx = await guardOnDuty(catalystApp.zcql(), req);
     const rowid = String(requireRowId(req.body.rowid));
     if (!ctx.stops.some(x => String(x.ROWID) === rowid)) throw new Error('Employee entry not found');
@@ -888,7 +895,8 @@ app.post('/guardDeleteStop', async (req, res) => {
 
 app.get('/getAccessLog', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    auth.need(req, 'admin');
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const date = requireDate(req.query.date);
     const rows = await selectAll(zcql, 'AccessLog', `SELECT * FROM AccessLog WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`);
@@ -933,7 +941,7 @@ async function getVapidKeys(catalystApp) {
 }
 
 // Access lives on the Guards master only. Escorts is read (seat list) but never written here.
-const GUARD_COLS = 'ROWID, guard_name, agency, branch_id, escort_id, guard_token, is_active';
+const GUARD_COLS = 'ROWID, guard_name, agency, agency_id, branch_id, escort_id, guard_token, is_active';
 
 async function guardById(zcql, guardId) {
   const rows = await zcql.executeZCQLQuery(`SELECT ${GUARD_COLS} FROM Guards WHERE ROWID = ${requireRowId(guardId)}`);
@@ -989,13 +997,13 @@ async function sendPushToRows(catalystApp, tableName, subs, payload) {
 // Card Simulator: every active guard from the master (POST and ESCORT).
 app.get('/getGuards', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const [guards, duties] = await Promise.all([
-      selectAll(zcql, 'Guards', "SELECT ROWID, id_number, guard_name, agency, branch_id FROM Guards WHERE is_active = 'true' ORDER BY id_number ASC"),
+      selectAll(zcql, 'Guards', "SELECT ROWID, id_number, guard_name, agency, agency_id, branch_id FROM Guards WHERE is_active = 'true' ORDER BY id_number ASC"),
       weekDuties(zcql, weekStartOf(shiftDate()))
     ]);
-    res.status(200).json({ status: 'success', data: guards.map(g => ({ ...g, duty: duties[String(g.ROWID)] || null })) });
+    res.status(200).json({ status: 'success', data: auth.inArea(req, guards).map(g => ({ ...g, duty: duties[String(g.ROWID)] || null })) });
   } catch (err) {
     fail(res, err);
   }
@@ -1081,13 +1089,14 @@ async function weekDuties(zcql, week) {
 // Posts page: every post (switched-off ones too) and the branches to pick from.
 app.get('/getPosts', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
-    const [posts, branches] = await Promise.all([
-      selectAll(zcql, 'Posts', 'SELECT ROWID, branch_id, post_name, post_type, is_active FROM Posts ORDER BY post_name ASC'),
-      selectAll(zcql, 'Branches', "SELECT ROWID, branch_code, branch_name, city, area FROM Branches WHERE is_active = 'true' ORDER BY branch_code ASC")
+    const [posts, branches, agencies] = await Promise.all([
+      selectAll(zcql, 'Posts', 'SELECT ROWID, branch_id, agency_id, post_name, post_type, vehicle_entry, is_active FROM Posts ORDER BY post_name ASC'),
+      activeBranches(req, zcql),
+      admin.agencyList(zcql)
     ]);
-    res.status(200).json({ status: 'success', data: { posts, branches } });
+    res.status(200).json({ status: 'success', data: { posts: auth.inArea(req, posts), branches, agencies } });
   } catch (err) {
     fail(res, err);
   }
@@ -1096,15 +1105,22 @@ app.get('/getPosts', async (req, res) => {
 function postFromBody(b) {
   const post_type = String(b.post_type || '').toUpperCase();
   if (!POST_TYPES.includes(post_type)) throw new Error('Type must be POST or ESCORT');
-  return { branch_id: requireRowId(b.branch_id), post_name: requireText(b.post_name, 'Post name', 50), post_type };
+  return {
+    branch_id: requireRowId(b.branch_id), agency_id: requireRowId(b.agency_id || fail.missing('Pick the agency of this post')), post_name: requireText(b.post_name, 'Post name', 50), post_type,
+    vehicle_entry: b.vehicle_entry === true
+  };
 }
 
-async function checkPost(zcql, row, selfId) {
-  const [branch, same] = await Promise.all([
+// Same branch rule as before, plus: the branch is in my area and the agency exists.
+async function checkPost(req, zcql, row, selfId) {
+  auth.requireBranch(req, row.branch_id);
+  const [branch, same, agency] = await Promise.all([
     zcql.executeZCQLQuery(`SELECT ROWID FROM Branches WHERE ROWID = ${row.branch_id} AND is_active = 'true'`),
-    selectAll(zcql, 'Posts', `SELECT ROWID, post_name FROM Posts WHERE branch_id = ${row.branch_id} ORDER BY ROWID ASC`)
+    selectAll(zcql, 'Posts', `SELECT ROWID, post_name, branch_id, agency_id FROM Posts WHERE branch_id = ${row.branch_id} ORDER BY ROWID ASC`),
+    zcql.executeZCQLQuery(`SELECT ROWID FROM Agencies WHERE ROWID = ${row.agency_id} AND is_active = true`)
   ]);
   if (!branch.length) throw new Error('Branch not found');
+  if (!agency.length) throw new Error('Pick the agency of this post');
   const lower = row.post_name.toLowerCase();
   if (same.some(p => p.post_name.toLowerCase() === lower && String(p.ROWID) !== String(selfId || ''))) {
     throw new Error('This branch already has a post called ' + row.post_name);
@@ -1113,9 +1129,10 @@ async function checkPost(zcql, row, selfId) {
 
 app.post('/addPost', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    auth.need(req, 'branch_admin');
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const row = postFromBody(req.body || {});
-    await checkPost(catalystApp.zcql(), row, null);
+    await checkPost(req, catalystApp.zcql(), row, null);
     const result = await catalystApp.datastore().table('Posts').insertRow(row);
     res.status(200).json({ status: 'success', data: result });
   } catch (err) {
@@ -1126,11 +1143,16 @@ app.post('/addPost', async (req, res) => {
 // Rename / change type, or switch a post off (never deleted: old charts point to it).
 app.put('/updatePost', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    auth.need(req, 'branch_admin');
     const b = req.body || {};
     const rowid = requireRowId(b.ROWID);
     const row = postFromBody(b);
-    await checkPost(catalystApp.zcql(), row, rowid);
+    const zcql = catalystApp.zcql();
+    const old = await zcql.executeZCQLQuery(`SELECT ROWID, branch_id FROM Posts WHERE ROWID = ${rowid}`);
+    if (!old.length) throw new Error('Post not found');
+    auth.requireBranch(req, old[0].Posts.branch_id);
+    await checkPost(req, zcql, row, rowid);
     const result = await catalystApp.datastore().table('Posts').updateRow({
       ROWID: rowid, ...row, is_active: b.is_active === false ? 'false' : 'true'
     });
@@ -1144,17 +1166,15 @@ app.put('/updatePost', async (req, res) => {
 // chart rows of that week (4 to 5 SELECTs).
 app.get('/getChart', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const week = requireMonday(req.query.week || weekStartOf(shiftDate()));
-    const [branches, shifts] = await Promise.all([
-      selectAll(zcql, 'Branches', "SELECT ROWID, branch_code, branch_name, city, area FROM Branches WHERE is_active = 'true' ORDER BY branch_code ASC"),
-      getShifts(zcql)
-    ]);
-    const branchId = req.query.branch ? requireRowId(req.query.branch) : (branches[0] && branches[0].ROWID);
+    const [branches, shifts] = await Promise.all([activeBranches(req, zcql), getShifts(zcql)]);
+    const branchId = req.query.branch ? auth.requireBranch(req, requireRowId(req.query.branch)) : (branches[0] && branches[0].ROWID);
+    if (!branchId) throw new Error('No branch in your area yet.');
     const [guards, posts, chart] = await Promise.all([
-      selectAll(zcql, 'Guards', `SELECT ROWID, id_number, guard_name, escort_id FROM Guards WHERE branch_id = ${branchId} AND is_active = 'true' ORDER BY id_number ASC`),
-      selectAll(zcql, 'Posts', `SELECT ROWID, post_name, post_type FROM Posts WHERE branch_id = ${branchId} AND is_active = 'true' ORDER BY post_name ASC`),
+      selectAll(zcql, 'Guards', `SELECT ROWID, id_number, guard_name, escort_id FROM Guards WHERE branch_id = ${branchId} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY id_number ASC`),
+      selectAll(zcql, 'Posts', `SELECT ROWID, post_name, post_type FROM Posts WHERE branch_id = ${branchId} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY post_name ASC`),
       selectAll(zcql, 'DutyChart', `SELECT ROWID, guard_id, post_id, shift_code FROM DutyChart WHERE week_start = '${week}' ORDER BY ROWID ASC`)
     ]);
     const ids = new Set(guards.map(g => String(g.ROWID)));
@@ -1170,11 +1190,11 @@ app.get('/getChart', async (req, res) => {
 // Set one guard's post + shift for a week (one row per guard per week). No post = not assigned.
 app.post('/saveChart', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const b = req.body || {};
     const week = requireMonday(requireDate(b.week));
-    const guard = await guardById(zcql, b.guard_id);
+    const guard = auth.requireRow(req, await guardById(zcql, b.guard_id), 'guard');
     if (guard.is_active !== 'true') throw new Error(guard.guard_name + ' is not active');
     const table = catalystApp.datastore().table('DutyChart');
     const existing = await zcql.executeZCQLQuery(`SELECT ROWID FROM DutyChart WHERE guard_id = ${guard.ROWID} AND week_start = '${week}'`);
@@ -1183,11 +1203,12 @@ app.post('/saveChart', async (req, res) => {
       return res.status(200).json({ status: 'success', data: null });
     }
     const [posts, shifts] = await Promise.all([
-      zcql.executeZCQLQuery(`SELECT ROWID, branch_id, post_type, is_active FROM Posts WHERE ROWID = ${requireRowId(b.post_id)}`),
+      zcql.executeZCQLQuery(`SELECT ROWID, branch_id, agency_id, post_type, is_active FROM Posts WHERE ROWID = ${requireRowId(b.post_id)}`),
       getShifts(zcql)
     ]);
     const post = posts.length && posts[0].Posts;
     if (!post || post.is_active !== 'true') throw new Error('Post not found');
+    auth.requireRow(req, post, 'post');
     if (String(post.branch_id) !== String(guard.branch_id)) throw new Error('This post is in another branch');
     if (post.post_type === 'ESCORT' && !guard.escort_id) {
       throw new Error(guard.guard_name + ' is not linked to the escort duty sheet. Guard Master → Edit → Escort duty sheet name.');
@@ -1208,17 +1229,17 @@ app.post('/saveChart', async (req, res) => {
 // only for guards who have no row yet (nothing already set is changed).
 app.post('/copyChart', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const b = req.body || {};
     const week = requireMonday(requireDate(b.week));
     const prev = new Date(week + 'T00:00:00Z');
     prev.setUTCDate(prev.getUTCDate() - 7);
     const lastWeek = prev.toISOString().slice(0, 10);
-    const branchId = requireRowId(b.branch_id);
+    const branchId = auth.requireBranch(req, requireRowId(b.branch_id));
     const [guards, posts, chart] = await Promise.all([
-      selectAll(zcql, 'Guards', `SELECT ROWID FROM Guards WHERE branch_id = ${branchId} AND is_active = 'true' ORDER BY ROWID ASC`),
-      selectAll(zcql, 'Posts', `SELECT ROWID FROM Posts WHERE branch_id = ${branchId} AND is_active = 'true' ORDER BY ROWID ASC`),
+      selectAll(zcql, 'Guards', `SELECT ROWID FROM Guards WHERE branch_id = ${branchId} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`),
+      selectAll(zcql, 'Posts', `SELECT ROWID FROM Posts WHERE branch_id = ${branchId} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`),
       selectAll(zcql, 'DutyChart', `SELECT guard_id, post_id, shift_code, week_start FROM DutyChart WHERE week_start = '${lastWeek}' OR week_start = '${week}' ORDER BY ROWID ASC`)
     ]);
     const ids = new Set(guards.map(g => String(g.ROWID)));
@@ -1243,17 +1264,19 @@ const ID_NUMBER_RE = /^[A-Za-z0-9-]{1,20}$/;
 // is the only time it reads again.
 app.get('/getMaster', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const { dutyDate } = istNow();
     const week = weekStartOf(shiftDate());
     const [guards, branches, swipes, duties] = await Promise.all([
-      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, guard_name, agency, branch_id, escort_id, phone, is_active FROM Guards ORDER BY id_number ASC'),
-      selectAll(zcql, 'Branches', "SELECT ROWID, branch_code, branch_name, company, country, state, city, area FROM Branches WHERE is_active = 'true' ORDER BY branch_code ASC"),
+      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, guard_name, agency, agency_id, branch_id, escort_id, phone, is_active FROM Guards ORDER BY id_number ASC').then(g => auth.inArea(req, g)),
+      activeBranches(req, zcql),
       selectAll(zcql, 'AccessLog', `SELECT guard_id, direction, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' ORDER BY CREATEDTIME ASC`),
       weekDuties(zcql, week)
     ]);
-    res.status(200).json({ status: 'success', data: { dutyDate, week, guards, branches, swipes, duties } });
+    const agencies = await admin.agencyList(zcql);
+    const mine = new Set(guards.map(g => String(g.ROWID)));
+    res.status(200).json({ status: 'success', data: { dutyDate, week, guards, branches, agencies, swipes: swipes.filter(s => mine.has(String(s.guard_id))), duties } });
   } catch (err) {
     fail(res, err);
   }
@@ -1263,7 +1286,7 @@ app.get('/getMaster', async (req, res) => {
 // ?keep=<escort ROWID> keeps the escort of the guard being edited in the list.
 app.get('/getFreeEscorts', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const keep = req.query.keep ? String(requireRowId(req.query.keep)) : '';
     const [escorts, linked] = await Promise.all([
@@ -1296,7 +1319,7 @@ function guardFromBody(b) {
   return {
     id_number,
     guard_name: requireText(b.guard_name, 'Name', 100),
-    agency: requireText(b.agency, 'Agency', 100),
+    agency_id: requireRowId(b.agency_id || fail.missing('Pick the agency')),
     branch_id: requireRowId(b.branch_id),
     escort_id: b.escort_id ? requireRowId(b.escort_id) : null,
     phone: phone || null
@@ -1304,7 +1327,13 @@ function guardFromBody(b) {
 }
 
 // Rules shared by add and edit. `selfId` is the guard being edited (it may keep its own ID / escort).
-async function checkGuard(zcql, row, selfId) {
+// A supervisor's guards are always of their own agency; the agency name is kept as text too.
+async function checkGuard(req, zcql, row, selfId) {
+  if (req.scope.agency) row.agency_id = req.scope.agency;
+  auth.requireRow(req, row, 'guard');
+  const agency = await zcql.executeZCQLQuery(`SELECT agency_name FROM Agencies WHERE ROWID = ${row.agency_id} AND is_active = true`);
+  if (!agency.length) throw new Error('Pick the agency');
+  row.agency = agency[0].Agencies.agency_name;
   const other = rows => rows.some(r => String(r.Guards.ROWID) !== String(selfId || ''));
   const checks = [
     zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE id_number = '${row.id_number}'`),
@@ -1323,9 +1352,9 @@ async function checkGuard(zcql, row, selfId) {
 
 app.post('/addGuard', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const row = guardFromBody(req.body || {});
-    await checkGuard(catalystApp.zcql(), row, null);
+    await checkGuard(req, catalystApp.zcql(), row, null);
     const result = await catalystApp.datastore().table('Guards').insertRow(row);
     res.status(200).json({ status: 'success', data: result });
   } catch (err) {
@@ -1335,11 +1364,11 @@ app.post('/addGuard', async (req, res) => {
 
 app.put('/updateGuard', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
-    const current = await guardById(zcql, req.body && req.body.ROWID);
+    const current = auth.requireRow(req, await guardById(zcql, req.body && req.body.ROWID), 'guard');
     const row = guardFromBody(req.body);
-    await checkGuard(zcql, row, current.ROWID);
+    await checkGuard(req, zcql, row, current.ROWID);
     const result = await catalystApp.datastore().table('Guards').updateRow({ ROWID: current.ROWID, ...row });
     res.status(200).json({ status: 'success', data: result });
   } catch (err) {
@@ -1351,9 +1380,9 @@ app.put('/updateGuard', async (req, res) => {
 // Switched off: their link and phone stop working and the Card Simulator hides them.
 app.put('/setGuardActive', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
-    const guard = await guardById(zcql, req.body && req.body.ROWID);
+    const guard = auth.requireRow(req, await guardById(zcql, req.body && req.body.ROWID), 'guard');
     const active = req.body.active === true;
     if (active && guard.escort_id) {
       const taken = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE escort_id = ${guard.escort_id} AND is_active = 'true'`);
@@ -1369,10 +1398,10 @@ app.put('/setGuardActive', async (req, res) => {
 // Supervisor page: every active guard, their link token and how many phones are set up.
 app.get('/getGuardLinks', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const [guards, subs] = await Promise.all([
-      selectAll(zcql, 'Guards', "SELECT ROWID, id_number, guard_name, agency, guard_token FROM Guards WHERE is_active = 'true' ORDER BY id_number ASC"),
+      selectAll(zcql, 'Guards', "SELECT ROWID, id_number, guard_name, agency, agency_id, branch_id, guard_token FROM Guards WHERE is_active = 'true' ORDER BY id_number ASC").then(g => auth.inArea(req, g)),
       selectAll(zcql, 'PushSubscriptions', 'SELECT guard_id FROM PushSubscriptions ORDER BY ROWID ASC')
     ]);
     const phones = {};
@@ -1387,8 +1416,8 @@ app.get('/getGuardLinks', async (req, res) => {
 // Gives the guard a secret token once; pressing again returns the same link.
 app.post('/createGuardLink', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
-    const guard = await guardById(catalystApp.zcql(), req.body.guard_id);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const guard = auth.requireRow(req, await guardById(catalystApp.zcql(), req.body.guard_id), 'guard');
     let token = guard.guard_token;
     if (!token) {
       token = crypto.randomBytes(16).toString('hex');
@@ -1405,9 +1434,9 @@ app.post('/createGuardLink', async (req, res) => {
 // so the guard sets up their phone again with the new link.
 app.post('/resetGuardLink', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
-    const guard = await guardById(zcql, req.body.guard_id);
+    const guard = auth.requireRow(req, await guardById(zcql, req.body.guard_id), 'guard');
     const token = crypto.randomBytes(16).toString('hex');
     await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, guard_token: token });
     const subs = await selectAll(zcql, 'PushSubscriptions', `SELECT ROWID FROM PushSubscriptions WHERE guard_id = ${guard.ROWID} ORDER BY ROWID ASC`);
@@ -1422,7 +1451,7 @@ app.post('/resetGuardLink', async (req, res) => {
 // Guard setup page: whose link is this + the public key the phone needs to subscribe.
 app.get('/guardInfo', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const guard = await guardByToken(catalystApp.zcql(), req.query.t);
     const keys = await getVapidKeys(catalystApp);
     res.status(200).json({ status: 'success', data: { guard_name: guard.guard_name, vapidPublicKey: keys.publicKey } });
@@ -1434,7 +1463,7 @@ app.get('/guardInfo', async (req, res) => {
 // Saves the phone's push address. The same phone pressing Allow again is not saved twice.
 app.post('/saveSubscription', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const guard = await guardByToken(zcql, req.body.t);
     const sub = req.body.subscription;
@@ -1461,7 +1490,7 @@ app.post('/saveSubscription', async (req, res) => {
 // Tapping it opens the guard's duty page, the same page a real duty notification opens.
 app.post('/testPush', async (req, res) => {
   try {
-    const catalystApp = catalyst.initialize(req);
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const guard = await guardByToken(catalystApp.zcql(), req.body.t);
     const result = await sendPushToGuard(catalystApp, guard.ROWID, {
       title: '🔔 Test notification',
@@ -1474,43 +1503,20 @@ app.post('/testPush', async (req, res) => {
   }
 });
 
-/* ---------------- TEMPORARY TESTING UTILITY ---------------- */
+/* ---------------- ADMIN (admin.js) ---------------- */
 
-// POST (not GET) so a link preview, prefetch or browser history visit can never wipe the data.
-app.post('/wipeAllData', async (req, res) => {
-  try {
-    const catalystApp = catalyst.initialize(req);
-    const zcql = catalystApp.zcql();
-    const escortTable = catalystApp.datastore().table('Escorts');
-    const dutyTable = catalystApp.datastore().table('DutyRecords');
-    const stopTable = catalystApp.datastore().table('TripStops');
+const admin = require('./admin.js')(app, { catalyst, selectAll, requireRowId, requireText, fail, auth });
 
-    const escorts = (await selectAll(zcql, 'Escorts', 'SELECT ROWID FROM Escorts ORDER BY ROWID ASC')).map(r => r.ROWID);
-    const dutyRecords = (await selectAll(zcql, 'DutyRecords', 'SELECT ROWID FROM DutyRecords ORDER BY ROWID ASC')).map(r => r.ROWID);
-    const tripStops = (await selectAll(zcql, 'TripStops', 'SELECT ROWID FROM TripStops ORDER BY ROWID ASC')).map(r => r.ROWID);
-
-    await runInBatches(escorts, 10, id => escortTable.deleteRow(id));
-    await runInBatches(dutyRecords, 10, id => dutyTable.deleteRow(id));
-    await runInBatches(tripStops, 10, id => stopTable.deleteRow(id));
-
-    res.status(200).json({
-      status: 'success',
-      deleted: { escorts: escorts.length, dutyRecords: dutyRecords.length, tripStops: tripStops.length }
-    });
-  } catch (err) {
-    res.status(400).json({
-      status: 'failure',
-      error: err.message || err.toString() || 'Unknown error',
-      fullError: JSON.stringify(err, Object.getOwnPropertyNames(err))
-    });
-  }
-});
+// Switched-on branches of my area (from the warm cache, so usually no read).
+async function activeBranches(req, zcql) {
+  return (await auth.branchList(zcql)).filter(b => b.is_active === 'true' && auth.branchOk(req, b.ROWID));
+}
 
 /* ---------------- POST HANDOVER (post.js) ---------------- */
 
 const post = require('./post.js')(app, {
   catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, sendPushToRows, getVapidKeys,
-  getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN
+  getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN, auth
 });
 
 module.exports = app;

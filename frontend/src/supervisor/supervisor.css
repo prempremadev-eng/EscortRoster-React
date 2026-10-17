@@ -80,3 +80,4 @@
 .sc-cell-picked{outline:3px solid var(--pd-primary);outline-offset:1px;}
 .sc-key{display:inline-block;width:18px;height:12px;border-radius:4px;min-height:0;padding:0;margin-left:10px;}
 .sc-person-off{opacity:.6;}
+.sup-rail-txt{font-size:11px;font-weight:600;width:52px;}

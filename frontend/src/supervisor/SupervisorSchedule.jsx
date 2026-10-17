@@ -21,6 +21,12 @@ function keep(key, value) {
   }
 }
 
+// The branch this browser used last, if this login may see it; else the first one.
+function pickBranch(list) {
+  const last = String(remember('sup_branch', ''));
+  return list.some(b => String(b.ROWID) === last) ? last : (list[0] ? String(list[0].ROWID) : '');
+}
+
 const ymd = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
 function addDays(date, n) {
   const d = new Date(date + 'T00:00:00');
@@ -34,7 +40,8 @@ const hours = s => s.start.slice(0, 2).replace(/^0/, '') + '–' + s.end.slice(0
 // empty it. "Publish to guards" makes the day's drafts the guards' duty for their card IN.
 export default function SupervisorSchedule() {
   const [branches, setBranches] = useState([]);
-  const [branch, setBranch] = useState(() => remember('sup_branch', ''));
+  // Starts empty: the remembered branch is used only if it is in this login's area.
+  const [branch, setBranch] = useState('');
   const [date, setDate] = useState(() => ymd(new Date()));
   const [data, setData] = useState(null);
   const [pick, setPick] = useState(null); // { post, shift }
@@ -42,12 +49,11 @@ export default function SupervisorSchedule() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
-  const name = remember('sup_name', '');
 
   useEffect(() => {
     api.getPosts().then(r => {
       setBranches(r.data.branches);
-      setBranch(cur => cur || (r.data.branches[0] ? String(r.data.branches[0].ROWID) : ''));
+      setBranch(pickBranch(r.data.branches));
     }).catch(err => setError(err.message));
   }, []);
 
@@ -61,7 +67,7 @@ export default function SupervisorSchedule() {
     }
   }, [branch, date]);
 
-  useEffect(() => { keep('sup_branch', branch); setPick(null); setNote(''); load(); }, [branch, date, load]);
+  useEffect(() => { if (branch) keep('sup_branch', branch); setPick(null); setNote(''); load(); }, [branch, date, load]);
 
   async function run(task, done) {
     setBusy(true);
@@ -101,7 +107,7 @@ export default function SupervisorSchedule() {
 
   return (
     <div className="pd sup">
-      <Rail active="schedule" name={name} />
+      <Rail active="schedule" />
       <main className="sb">
         <div className="sb-head">
           <div>
