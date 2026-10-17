@@ -31,7 +31,7 @@ module.exports = function adminRoutes(app, h) {
 
   // Agencies are a short list everybody signed in may read (dropdowns).
   async function agencyList(zcql) {
-    return selectAll(zcql, 'Agencies', 'SELECT ROWID, agency_name, contact_name, contact_phone, contact_email, address, license_no, license_till, branch_ids, is_active FROM Agencies ORDER BY agency_name ASC');
+    return selectAll(zcql, 'Agencies', 'SELECT ROWID, agency_name, branch_ids, is_active FROM Agencies ORDER BY agency_name ASC');
   }
   // branch_ids is a comma list of the branches the agency works in.
   const branchIdsOf = a => String((a && a.branch_ids) || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -331,12 +331,6 @@ module.exports = function adminRoutes(app, h) {
       const self = b.ROWID ? String(requireRowId(b.ROWID)) : '';
       const all = await agencyList(zcql);
       if (all.some(a => a.agency_name.toLowerCase() === name.toLowerCase() && String(a.ROWID) !== self)) throw new Error('Agency ' + name + ' already exists');
-      const phone = String(b.contact_phone || '').trim();
-      if (phone && !/^[0-9+ ]{6,15}$/.test(phone)) throw new Error('Phone: numbers only (6 to 15)');
-      const email = String(b.contact_email || '').trim().toLowerCase();
-      if (email && !EMAIL_RE.test(email)) throw new Error('Enter a valid email');
-      const till = String(b.license_till || '').trim();
-      if (till && !/^\d{4}-\d{2}-\d{2}$/.test(till)) throw new Error('Licence date: pick a date');
       // Branch ticks: a city admin changes only the ticks of their own branches.
       const branches = await branchList(zcql);
       const known = new Set(branches.map(x => String(x.ROWID)));
@@ -345,12 +339,6 @@ module.exports = function adminRoutes(app, h) {
       const kept = branchIdsOf(old).filter(id => !branchOk(req, id));
       const row = {
         agency_name: name,
-        contact_name: String(b.contact_name || '').trim().slice(0, 100) || null,
-        contact_phone: phone || null,
-        contact_email: email || null,
-        address: String(b.address || '').trim().slice(0, 255) || null,
-        license_no: String(b.license_no || '').trim().slice(0, 50) || null,
-        license_till: till || null,
         branch_ids: [...new Set(kept.concat(given))].join(','),
         is_active: b.is_active !== false
       };

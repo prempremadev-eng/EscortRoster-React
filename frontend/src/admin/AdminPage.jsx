@@ -13,8 +13,7 @@ const ROLE_HELP = {
 };
 const MAIL_TEXT = { invited: 'Invite mail sent.', already: 'Already a user, so no mail (they sign in with their password).', reset: 'Password link sent.' };
 const BLANK_USER = { email: '', name: '', role: '', city: '', branch_id: '', agency_id: '' };
-const BLANK_AGENCY = { agency_name: '', contact_name: '', contact_phone: '', contact_email: '', address: '', license_no: '', license_till: '', branch_ids: [] };
-const today = () => new Date().toISOString().slice(0, 10);
+const BLANK_AGENCY = { agency_name: '', branch_ids: [] };
 const BLANK_BRANCH = { branch_code: '', branch_name: '', state_id: '', city_id: '' };
 const isOn = v => v === true || v === 'true';
 const uniq = list => [...new Set(list.filter(Boolean))].sort();
@@ -290,12 +289,6 @@ export default function AdminPage() {
             <div className="master-form-title">{form.ROWID ? '✏️ Edit ' + form.agency_name : '➕ New agency'}</div>
             <div className="master-grid">
               <label>Agency name<input value={form.agency_name} onChange={e => set('agency_name', e.target.value)} placeholder="Eagle Eye Services" maxLength={100} required /></label>
-              <label>Contact person<input value={form.contact_name || ''} onChange={e => set('contact_name', e.target.value)} placeholder="Ramesh K" maxLength={100} /></label>
-              <label>Phone<input value={form.contact_phone || ''} onChange={e => set('contact_phone', e.target.value)} inputMode="tel" placeholder="9876543210" /></label>
-              <label>Email<input type="email" value={form.contact_email || ''} onChange={e => set('contact_email', e.target.value)} placeholder="ops@agency.in" /></label>
-              <label>Address<input value={form.address || ''} onChange={e => set('address', e.target.value)} maxLength={255} /></label>
-              <label>PSARA licence no.<input value={form.license_no || ''} onChange={e => set('license_no', e.target.value)} placeholder="PSARA/TN/1234" maxLength={50} /></label>
-              <label>Licence valid till<input type="date" value={form.license_till || ''} onChange={e => set('license_till', e.target.value)} /></label>
             </div>
             <div className="master-form-title">Works in these branches</div>
             <div className="agency-branches">
@@ -379,25 +372,23 @@ export default function AdminPage() {
         {data && tab === 'agencies' && (
           <div className="dash-scroll">
             <table className="dash-table">
-              <thead><tr><th>Agency</th><th>Contact</th><th>Licence</th><th>Branches</th><th>Status</th><th></th></tr></thead>
+              <thead><tr><th>Agency</th><th>Branches</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {data.agencies.map(a => {
                   const off = !isOn(a.is_active);
                   return (
                     <tr key={a.ROWID} className={off ? 'master-left' : ''}>
                       <td className="left">{a.agency_name}</td>
-                      <td className="left">{[a.contact_name, a.contact_phone].filter(Boolean).join(' · ') || '—'}</td>
-                      <td>{a.license_no || '—'}{a.license_till ? (a.license_till < today() ? ' · ⚠️ expired ' : ' · till ') + a.license_till : ''}</td>
                       <td className="left">{agencyBranches(a).map(branchName).filter(Boolean).join(', ') || '⚠️ None ticked'}</td>
                       <td>{off ? '🚫 Off' : '✅ On'}</td>
                       <td className="master-actions">
-                        <button className="btn secondary" onClick={() => open('agency', { ...BLANK_AGENCY, ...a, license_till: a.license_till || '', branch_ids: agencyBranches(a) })}>✏️ Edit</button>
+                        <button className="btn secondary" onClick={() => open('agency', { ...BLANK_AGENCY, ...a, branch_ids: agencyBranches(a) })}>✏️ Edit</button>
                         <button className={'btn secondary' + (off ? '' : ' master-danger')} disabled={busy} onClick={() => run(() => api.agencySave({ ...a, is_active: off }), () => a.agency_name + (off ? ' is on again.' : ' is switched off.'))}>{off ? '↩️ Switch on' : '🚫 Switch off'}</button>
                       </td>
                     </tr>
                   );
                 })}
-                {data.agencies.length === 0 && <tr><td colSpan="6">No agencies yet. Press ➕ Add agency.</td></tr>}
+                {data.agencies.length === 0 && <tr><td colSpan="4">No agencies yet. Press ➕ Add agency.</td></tr>}
               </tbody>
             </table>
           </div>
