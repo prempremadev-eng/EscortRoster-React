@@ -4,7 +4,7 @@ import { worksIn } from '../agency.js';
 import { IconBtn } from './RowControls.jsx';
 
 const NO_FILTERS = { state: '', city: '', branch: '', agency: '', status: '', q: '' };
-const BLANK_GUARD = { id_number: '', card_number: '', guard_name: '', agency_id: '', branch_id: '', escort_id: '', phone: '', aadhaar: '' };
+const BLANK_GUARD = { id_number: '', card_number: '', guard_name: '', agency_id: '', branch_id: '', escort_id: '', phone: '' };
 const when = t => String(t || '').slice(0, 16);
 const STATUS_LABEL = { IN: '✅ IN', OUT: '🚪 OUT', NONE: '⏳ Not yet' };
 
@@ -118,7 +118,7 @@ export default function GuardMaster() {
     setNote('');
     setConfirmLeft(false);
     const next = g
-      ? { ...BLANK_GUARD, ...g, card_number: g.card_number || '', agency_id: g.agency_id || '', escort_id: g.escort_id || '', phone: g.phone || '', aadhaar: '' }
+      ? { ...BLANK_GUARD, ...g, card_number: g.card_number || '', agency_id: g.agency_id || '', escort_id: g.escort_id || '', phone: g.phone || '' }
       : { ...BLANK_GUARD, branch_id: filters.branch || (branches.length === 1 ? String(branches[0].ROWID) : '') };
     setForm(next);
     setFreeEscorts(null);
@@ -150,7 +150,7 @@ export default function GuardMaster() {
     setSaving(true);
     setError('');
     try {
-      const fields = ['id_number', 'card_number', 'guard_name', 'agency_id', 'branch_id', 'phone', 'escort_id', 'aadhaar'];
+      const fields = ['id_number', 'card_number', 'guard_name', 'agency_id', 'branch_id', 'phone', 'escort_id'];
       const payload = {};
       fields.forEach(k => { payload[k] = form[k]; });
       let saved = form.ROWID
@@ -228,10 +228,6 @@ export default function GuardMaster() {
                   {data.agencies.filter(a => ((a.is_active === true || a.is_active === 'true') && worksIn(a, form.branch_id)) || String(a.ROWID) === String(form.agency_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
                 </select>
               </label>
-              <label>Aadhaar number
-                <input id="g-aadhaar" value={form.aadhaar} onChange={e => setFormField('aadhaar', e.target.value)} inputMode="numeric" maxLength={14} autoComplete="off"
-                  placeholder={form.aadhaar_last4 ? 'XXXX XXXX ' + form.aadhaar_last4 + ' (type to change)' : '12 digits'} />
-              </label>
               <label>Phone (optional)<input id="g-phone" value={form.phone} onChange={e => setFormField('phone', e.target.value)} inputMode="tel" /></label>
               <label>Photo (optional)
                 <input id="g-photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setPhotoFile(e.target.files[0] || null)} />
@@ -245,7 +241,7 @@ export default function GuardMaster() {
                 </select>
               </label>}
             </div>
-            <div className="sim-note">Only the guard's own details here. Post and shift are set in 📅 Duty Chart. Aadhaar is stored encrypted; screens show only the last 4 digits.</div>
+            <div className="sim-note">Only the guard's own details here. Post and shift are set in 📅 Duty Chart.</div>
             {form.ROWID && <div className="master-sub">Added by {form.created_by || '—'} · {when(form.CREATEDTIME)} &nbsp;|&nbsp; Last change by {form.modified_by || '—'} · {when(form.MODIFIEDTIME)}</div>}
             <div className="link-actions">
               <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save guard'}</button>

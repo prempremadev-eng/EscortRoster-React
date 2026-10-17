@@ -1270,7 +1270,7 @@ app.get('/getMaster', async (req, res) => {
     const { dutyDate } = istNow();
     const week = weekStartOf(shiftDate());
     const [guards, branches, swipes, duties] = await Promise.all([
-      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, card_number, guard_name, agency, agency_id, branch_id, escort_id, phone, aadhaar_last4, photo_key, created_by, modified_by, CREATEDTIME, MODIFIEDTIME, is_active FROM Guards ORDER BY id_number ASC').then(g => auth.inArea(req, g)),
+      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, card_number, guard_name, agency, agency_id, branch_id, escort_id, phone, photo_key, created_by, modified_by, CREATEDTIME, MODIFIEDTIME, is_active FROM Guards ORDER BY id_number ASC').then(g => auth.inArea(req, g)),
       activeBranches(req, zcql),
       selectAll(zcql, 'AccessLog', `SELECT guard_id, direction, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' ORDER BY CREATEDTIME ASC`),
       weekDuties(zcql, week)
@@ -1317,8 +1317,6 @@ function requireText(value, label, max) {
 // Form fields -> a clean Guards row: the guard's own details only. Their post and shift are
 // set week by week in the Duty Chart. `escort_id` (optional) says which escort duty sheet row is
 // this same person, for guards who do escort duty.
-// Aadhaar is kept in an encrypted column and never sent back: screens get the last 4 digits only.
-// An empty Aadhaar box on edit keeps the saved number.
 function guardFromBody(b) {
   const id_number = String(b.id_number || '').trim().toUpperCase();
   if (!ID_NUMBER_RE.test(id_number)) throw new Error('ID number: letters, numbers and - only (max 20)');
@@ -1326,7 +1324,7 @@ function guardFromBody(b) {
   if (card_number && !CARD_RE.test(card_number)) throw new Error('Card number: letters, numbers and - only (max 30)');
   const phone = String(b.phone || '').trim();
   if (phone && !/^[0-9+ ]{6,15}$/.test(phone)) throw new Error('Phone: numbers only (6 to 15)');
-  const row = {
+  return {
     id_number,
     card_number: card_number || null,
     guard_name: requireText(b.guard_name, 'Name', 100),
@@ -1335,17 +1333,10 @@ function guardFromBody(b) {
     escort_id: b.escort_id ? requireRowId(b.escort_id) : null,
     phone: phone || null
   };
-  const aadhaar = String(b.aadhaar || '').replace(/[\s-]/g, '');
-  if (aadhaar) {
-    if (!/^[2-9]\d{11}$/.test(aadhaar)) throw new Error('Aadhaar: 12 digits');
-    row.aadhaar_enc = aadhaar;
-    row.aadhaar_last4 = aadhaar.slice(-4);
-  }
-  return row;
 }
 
 const CARD_RE = /^[A-Z0-9-]{1,30}$/;
-// What the screens may see of a saved guard row.
+// What the screens may see of a saved guard row (the unused aadhaar_enc column stays out).
 function publicGuard(g) {
   const { aadhaar_enc, ...rest } = g || {};
   return rest;
