@@ -1001,3 +1001,13 @@ a.btn{text-decoration:none;display:inline-block;}
 .master-grid label.master-check{flex-direction:row;align-items:center;gap:8px;font-size:14px;color:#0f172a;}
 .agency-branches{display:flex;flex-wrap:wrap;gap:6px 18px;margin:4px 0 10px;}
 .agency-branches .master-check{display:flex;align-items:center;gap:6px;font-size:14px;}
+/* Admin tables (admin/AdminPage.jsx): On/Off switch + small icon buttons */
+.adm-table td{vertical-align:middle;}
+.adm-toggle{display:inline-flex;align-items:center;gap:8px;min-width:76px;height:30px;padding:3px 10px 3px 3px;border-radius:999px;border:1px solid #cbd5e1;background:#e2e8f0;color:#475569;font-weight:600;font-size:13px;font-family:inherit;cursor:pointer;}
+.adm-toggle .adm-knob{width:24px;height:24px;border-radius:50%;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .15s;}
+.adm-toggle.adm-on{background:#16a34a;border-color:#15803d;color:#fff;flex-direction:row-reverse;padding:3px 3px 3px 10px;}
+.adm-toggle:disabled{cursor:default;opacity:.6;}
+.adm-actions{white-space:nowrap;width:1%;}
+.adm-icon{width:34px;height:34px;border-radius:8px;border:1px solid var(--border);background:#fff;cursor:pointer;font-size:16px;margin-left:4px;}
+.adm-icon:hover{background:#eff6ff;border-color:#93c5fd;}
+.adm-icon:disabled{opacity:.5;cursor:default;}

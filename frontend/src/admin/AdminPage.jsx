@@ -18,6 +18,20 @@ const BLANK_BRANCH = { branch_code: '', branch_name: '', state_id: '', city_id: 
 const isOn = v => v === true || v === 'true';
 const uniq = list => [...new Set(list.filter(Boolean))].sort();
 
+// On / Off switch for a row (tap to flip). `disabled` = shown but cannot be changed.
+function Toggle({ on, onChange, disabled, label }) {
+  return (
+    <button type="button" role="switch" aria-checked={on} aria-label={label} title={disabled ? '' : on ? 'Tap to switch off' : 'Tap to switch on'}
+      className={'adm-toggle' + (on ? ' adm-on' : '')} onClick={onChange} disabled={disabled}>
+      <span className="adm-knob"></span>{on ? 'On' : 'Off'}
+    </button>
+  );
+}
+// Small icon button (edit, mail).
+const IconBtn = ({ icon, label, onClick, disabled }) => (
+  <button type="button" className="adm-icon" title={label} aria-label={label} onClick={onClick} disabled={disabled}>{icon}</button>
+);
+
 // #admin, in the order things are made: States → Cities → Branches → Agencies → Users.
 export default function AdminPage() {
   const me = useUser();
@@ -234,7 +248,7 @@ export default function AdminPage() {
 
         {data && tab === 'states' && (
           <div className="dash-scroll">
-            <table className="dash-table">
+            <table className="dash-table adm-table">
               <thead><tr><th>State</th><th>Country</th><th>Cities</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {data.states.map(x => {
@@ -244,11 +258,8 @@ export default function AdminPage() {
                       <td className="left">{x.state_name}</td>
                       <td>{x.country}</td>
                       <td>{data.cities.filter(c => String(c.state_id) === String(x.ROWID)).length}</td>
-                      <td>{off ? '🚫 Off' : '✅ On'}</td>
-                      <td className="master-actions">
-                        <button className="btn secondary" onClick={() => open('state', { ...x })}>✏️ Edit</button>
-                        <button className={'btn secondary' + (off ? '' : ' master-danger')} disabled={busy} onClick={() => run(() => api.stateSave({ ...x, is_active: off }), () => x.state_name + (off ? ' is on again.' : ' is switched off.'))}>{off ? '↩️ Switch on' : '🚫 Switch off'}</button>
-                      </td>
+                      <td><Toggle on={!off} label={x.state_name} disabled={busy} onChange={() => run(() => api.stateSave({ ...x, is_active: off }), () => x.state_name + (off ? ' is on again.' : ' is switched off.'))} /></td>
+                      <td className="adm-actions"><IconBtn icon="✏️" label={'Edit ' + x.state_name} onClick={() => open('state', { ...x })} /></td>
                     </tr>
                   );
                 })}
@@ -260,7 +271,7 @@ export default function AdminPage() {
 
         {data && tab === 'cities' && (
           <div className="dash-scroll">
-            <table className="dash-table">
+            <table className="dash-table adm-table">
               <thead><tr><th>City</th><th>State</th><th>Branches</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {data.cities.map(c => {
@@ -270,11 +281,8 @@ export default function AdminPage() {
                       <td className="left">{c.city_name}</td>
                       <td>{stateName(c.state_id)}</td>
                       <td>{data.branches.filter(b => String(b.city_id) === String(c.ROWID)).length}</td>
-                      <td>{off ? '🚫 Off' : '✅ On'}</td>
-                      <td className="master-actions">
-                        <button className="btn secondary" onClick={() => open('city', { ...c, state_id: String(c.state_id) })}>✏️ Edit</button>
-                        <button className={'btn secondary' + (off ? '' : ' master-danger')} disabled={busy} onClick={() => run(() => api.citySave({ ...c, is_active: off }), () => c.city_name + (off ? ' is on again.' : ' is switched off.'))}>{off ? '↩️ Switch on' : '🚫 Switch off'}</button>
-                      </td>
+                      <td><Toggle on={!off} label={c.city_name} disabled={busy} onChange={() => run(() => api.citySave({ ...c, is_active: off }), () => c.city_name + (off ? ' is on again.' : ' is switched off.'))} /></td>
+                      <td className="adm-actions"><IconBtn icon="✏️" label={'Edit ' + c.city_name} onClick={() => open('city', { ...c, state_id: String(c.state_id) })} /></td>
                     </tr>
                   );
                 })}
@@ -311,7 +319,7 @@ export default function AdminPage() {
 
         {data && tab === 'users' && (
           <div className="dash-scroll">
-            <table className="dash-table">
+            <table className="dash-table adm-table">
               <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Area</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {data.users.map(u => {
@@ -323,15 +331,12 @@ export default function AdminPage() {
                       <td className="left">{u.email}</td>
                       <td>{u.owner ? '👑 Owner · ' : ''}{ROLE_NAME[u.role]}</td>
                       <td className="left">{area(u)}</td>
-                      <td>{off ? '🚫 Off' : '✅ On'}</td>
-                      <td className="master-actions">
-                        {u.canEdit && (off
-                          ? <button className="btn secondary" disabled={busy} onClick={() => run(() => api.userActive(u.ROWID, true), () => '↩️ ' + u.name + ' can sign in again.')}>↩️ Switch on</button>
-                          : <>
-                              <button className="btn secondary" onClick={() => open('user', { ...BLANK_USER, ...u, city: u.city || '', branch_id: u.branch_id || '', agency_id: u.agency_id || '' })}>✏️ Edit</button>
-                              <button className="btn secondary" disabled={busy} onClick={() => run(() => api.userMail(u.ROWID), r => '📧 ' + u.name + ': ' + MAIL_TEXT[r.data.mail])}>📧 Mail again</button>
-                              <button className="btn secondary master-danger" disabled={busy} onClick={() => run(() => api.userActive(u.ROWID, false), () => '🚫 ' + u.name + ' cannot sign in now.')}>🚫 Switch off</button>
-                            </>)}
+                      <td><Toggle on={!off} label={u.name} disabled={busy || !u.canEdit} onChange={() => run(() => api.userActive(u.ROWID, off), () => off ? '↩️ ' + u.name + ' can sign in again.' : '🚫 ' + u.name + ' cannot sign in now.')} /></td>
+                      <td className="adm-actions">
+                        {u.canEdit && !off && <>
+                          <IconBtn icon="✏️" label={'Edit ' + u.name} onClick={() => open('user', { ...BLANK_USER, ...u, city: u.city || '', branch_id: u.branch_id || '', agency_id: u.agency_id || '' })} />
+                          <IconBtn icon="📧" label={'Mail ' + u.name + ' again'} disabled={busy} onClick={() => run(() => api.userMail(u.ROWID), r => '📧 ' + u.name + ': ' + MAIL_TEXT[r.data.mail])} />
+                        </>}
                       </td>
                     </tr>
                   );
@@ -344,7 +349,7 @@ export default function AdminPage() {
 
         {data && tab === 'branches' && (
           <div className="dash-scroll">
-            <table className="dash-table">
+            <table className="dash-table adm-table">
               <thead><tr><th>State</th><th>City</th><th>Branch</th><th>Code</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {data.branches.length === 0 && <tr><td colSpan="6">{data.cities.length ? 'No branches yet. Press ➕ Add branch.' : 'Add a state and a city first (tabs 1 and 2).'}</td></tr>}
@@ -356,11 +361,8 @@ export default function AdminPage() {
                       <td>{b.city}</td>
                       <td className="left">{b.branch_name}</td>
                       <td>{b.branch_code}</td>
-                      <td>{off ? '🚫 Off' : '✅ Open'}</td>
-                      <td className="master-actions">
-                        <button className="btn secondary" onClick={() => { const c = cityOf(b.city_id); open('branch', { ...BLANK_BRANCH, ...b, city_id: c ? String(c.ROWID) : '', state_id: c ? String(c.state_id) : '' }); }}>✏️ Edit</button>
-                        <button className={'btn secondary' + (off ? '' : ' master-danger')} disabled={busy} onClick={() => run(() => api.branchSave({ ...b, city_id: b.city_id, is_active: off }), () => b.branch_name + (off ? ' is open again.' : ' is switched off.'))}>{off ? '↩️ Open again' : '🚫 Switch off'}</button>
-                      </td>
+                      <td><Toggle on={!off} label={b.branch_name} disabled={busy} onChange={() => run(() => api.branchSave({ ...b, city_id: b.city_id, is_active: off }), () => b.branch_name + (off ? ' is open again.' : ' is switched off.'))} /></td>
+                      <td className="adm-actions"><IconBtn icon="✏️" label={'Edit ' + b.branch_name} onClick={() => { const c = cityOf(b.city_id); open('branch', { ...BLANK_BRANCH, ...b, city_id: c ? String(c.ROWID) : '', state_id: c ? String(c.state_id) : '' }); }} /></td>
                     </tr>
                   );
                 })}
@@ -371,7 +373,7 @@ export default function AdminPage() {
 
         {data && tab === 'agencies' && (
           <div className="dash-scroll">
-            <table className="dash-table">
+            <table className="dash-table adm-table">
               <thead><tr><th>Agency</th><th>Branches</th><th>Status</th><th></th></tr></thead>
               <tbody>
                 {data.agencies.map(a => {
@@ -380,11 +382,8 @@ export default function AdminPage() {
                     <tr key={a.ROWID} className={off ? 'master-left' : ''}>
                       <td className="left">{a.agency_name}</td>
                       <td className="left">{agencyBranches(a).map(branchName).filter(Boolean).join(', ') || '⚠️ None ticked'}</td>
-                      <td>{off ? '🚫 Off' : '✅ On'}</td>
-                      <td className="master-actions">
-                        <button className="btn secondary" onClick={() => open('agency', { ...BLANK_AGENCY, ...a, branch_ids: agencyBranches(a) })}>✏️ Edit</button>
-                        <button className={'btn secondary' + (off ? '' : ' master-danger')} disabled={busy} onClick={() => run(() => api.agencySave({ ...a, is_active: off }), () => a.agency_name + (off ? ' is on again.' : ' is switched off.'))}>{off ? '↩️ Switch on' : '🚫 Switch off'}</button>
-                      </td>
+                      <td><Toggle on={!off} label={a.agency_name} disabled={busy} onChange={() => run(() => api.agencySave({ ...a, is_active: off }), () => a.agency_name + (off ? ' is on again.' : ' is switched off.'))} /></td>
+                      <td className="adm-actions"><IconBtn icon="✏️" label={'Edit ' + a.agency_name} onClick={() => open('agency', { ...BLANK_AGENCY, ...a, branch_ids: agencyBranches(a) })} /></td>
                     </tr>
                   );
                 })}
