@@ -3,31 +3,17 @@ import { api } from '../api.js';
 import { worksIn } from '../agency.js';
 import { IconBtn } from './RowControls.jsx';
 
-const NO_FILTERS = { state: '', city: '', branch: '', agency: '', status: '', q: '' };
+const NO_FILTERS = { state: '', city: '', branch: '', agency: '', q: '' };
 const BLANK_GUARD = { id_number: '', card_number: '', guard_name: '', agency_id: '', branch_id: '', escort_id: '', phone: '' };
 const when = t => String(t || '').slice(0, 16);
-const STATUS_LABEL = { IN: '✅ IN', OUT: '🚪 OUT', NONE: '⏳ Not yet' };
 
 const uniq = list => [...new Set(list)];
 
 // "📍 Gate 3 · A", "🚐 Escort · C" or "⏳ Not assigned" (this week's Duty Chart).
 export const dutyLabel = d => (d ? (d.post_type === 'ESCORT' ? '🚐 ' : '📍 ') + d.post_name + ' · ' + d.shift_code : '⏳ Not assigned');
 
-// Today's swipes (oldest first) -> { guard ROWID: { status, firstIn, lastOut } }.
-function todayStatus(swipes) {
-  const map = {};
-  swipes.forEach(s => {
-    const id = String(s.guard_id);
-    const m = map[id] || (map[id] = { status: 'NONE', firstIn: '', lastOut: '' });
-    m.status = s.direction;
-    if (s.direction === 'IN' && !m.firstIn) m.firstIn = s.punch_time;
-    if (s.direction === 'OUT') m.lastOut = s.punch_time;
-  });
-  return map;
-}
-
-// Head-office register: every guard of every branch, today's card status, filters,
-// add / edit a guard, and switch off a guard who left (never deleted).
+// Guard details register: every guard of my area, filters, add / edit a guard, and switch off a
+// guard who left (never deleted). Card IN / OUT lives in the supervisor screens, not here.
 export default function GuardMaster() {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('loading');
@@ -63,7 +49,6 @@ export default function GuardMaster() {
     branches.forEach(b => { map[String(b.ROWID)] = b; });
     return map;
   }, [branches]);
-  const today = useMemo(() => todayStatus(data ? data.swipes : []), [data]);
 
   // Cascading: picking a state narrows the city list, picking a city narrows the branch list.
   const inState = branches.filter(b => !filters.state || b.state === filters.state);
@@ -72,7 +57,6 @@ export default function GuardMaster() {
   const leftCount = allGuards.filter(g => g.is_active !== 'true').length;
   const guards = showLeft ? allGuards : allGuards.filter(g => g.is_active === 'true');
 
-  const statusOf = g => (today[String(g.ROWID)] || { status: 'NONE' }).status;
   const q = filters.q.trim().toLowerCase();
   // Everything except the status filter, so the summary boxes count the same group.
   const base = guards.filter(g => {
@@ -84,8 +68,7 @@ export default function GuardMaster() {
       && (!filters.agency || g.agency === filters.agency)
       && (!q || g.guard_name.toLowerCase().includes(q) || g.id_number.toLowerCase().includes(q) || String(g.card_number || '').toLowerCase().includes(q));
   });
-  const shown = base.filter(g => !filters.status || statusOf(g) === filters.status);
-  const count = s => base.filter(g => statusOf(g) === s).length;
+  const shown = base;
 
   function setFilter(key, value) {
     setFilters(prev => {
@@ -95,7 +78,6 @@ export default function GuardMaster() {
       return next;
     });
   }
-  const toggle = (key, value) => setFilter(key, filters[key] === value ? '' : value);
 
   const trail = ['All companies'];
   if (filters.state) trail.push(filters.state);
@@ -199,7 +181,6 @@ export default function GuardMaster() {
         <a className="btn secondary" href="#chart">📅 Duty Chart</a>
         <a className="btn secondary" href="#simulator">🪪 Card Simulator</a>
         <a className="btn secondary" href="#links">🔗 Guard Links</a>
-        {data && <div><label>Duty day:</label> {data.dutyDate}</div>}
         <div className="spacer"></div>
         <button className="btn secondary" onClick={() => openForm()}>➕ Add guard</button>
         <button className="btn" onClick={load}>🔄 Refresh</button>
@@ -307,24 +288,14 @@ export default function GuardMaster() {
               )}
             </div>
 
-            <div className="dash-cards">
-              {[['', 'Guards', base.length], ['IN', '✅ IN now', count('IN')], ['OUT', '🚪 OUT', count('OUT')], ['NONE', '⏳ Not yet IN', count('NONE')]].map(([key, label, n]) => (
-                <button key={label} className={'dash-card master-card' + (filters.status === key && key ? ' on' : '')} onClick={() => key && toggle('status', key)}>
-                  <div className="dash-card-label">{label}</div>
-                  <div className="dash-card-value">{n}</div>
-                </button>
-              ))}
-            </div>
-
             <div className="dash-scroll">
               <table className="dash-table">
                 <thead>
-                  <tr><th>ID</th><th>Card</th><th>Guard</th><th>Agency</th><th>Branch</th><th>IN</th><th>OUT</th><th>Status</th><th></th></tr>
+                  <tr><th>ID</th><th>Card</th><th>Guard</th><th>Agency</th><th>Branch</th><th>Phone</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody>
                   {shown.map(g => {
                     const b = branchById[String(g.branch_id)];
-                    const t = today[String(g.ROWID)] || { status: 'NONE' };
                     const left = g.is_active !== 'true';
                     return (
                       <tr key={g.ROWID} className={left ? 'master-left' : ''}>
@@ -333,9 +304,8 @@ export default function GuardMaster() {
                         <td className="left">{g.photo_key ? '📷 ' : ''}{g.guard_name}<div className="master-sub">{g.modified_by ? 'by ' + g.modified_by : ''}</div></td>
                         <td>{g.agency}</td>
                         <td className="left">{b ? branchLabel(b) : '—'}<div className="master-sub">{b ? b.city + ', ' + b.state : ''}</div></td>
-                        <td>{t.firstIn || '—'}</td>
-                        <td>{t.lastOut || '—'}</td>
-                        <td className={t.status === 'IN' && !left ? 'sim-in' : ''}>{left ? '🚫 Left' : STATUS_LABEL[t.status]}</td>
+                        <td>{g.phone || '—'}</td>
+                        <td>{left ? '🚫 Left' : '✅ Working'}</td>
                         <td className="adm-actions">
                           {left
                             ? <IconBtn icon="↩️" label={'Re-activate ' + g.guard_name} disabled={saving} onClick={() => setActive(g, true)} />
@@ -348,7 +318,7 @@ export default function GuardMaster() {
                 </tbody>
               </table>
             </div>
-            <div className="dash-legend">{shown.length} of {guards.length} guards · IN = first card IN of the duty day, OUT = last card OUT.</div>
+            <div className="dash-legend">{shown.length} of {guards.length} guards</div>
           </>
         )}
       </div>

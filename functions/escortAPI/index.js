@@ -1260,29 +1260,23 @@ app.post('/copyChart', async (req, res) => {
 
 const ID_NUMBER_RE = /^[A-Za-z0-9-]{1,20}$/;
 
-// Master page in one call: all guards (left ones too, the page hides them), branches,
-// today's swipes and this week's duties (5 SELECTs). The page joins them itself, so Refresh
-// is the only time it reads again.
+// Master page in one call: all guards of my area (left ones too, the page hides them), branches,
+// agencies and which branches have an escort post (about 4 SELECTs). Refresh is the only reread.
 app.get('/getMaster', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
-    const { dutyDate } = istNow();
-    const week = weekStartOf(shiftDate());
-    const [guards, branches, swipes, duties] = await Promise.all([
+    const [guards, branches] = await Promise.all([
       selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, card_number, guard_name, agency, agency_id, branch_id, escort_id, phone, photo_key, created_by, modified_by, CREATEDTIME, MODIFIEDTIME, is_active FROM Guards ORDER BY id_number ASC').then(g => auth.inArea(req, g)),
-      activeBranches(req, zcql),
-      selectAll(zcql, 'AccessLog', `SELECT guard_id, direction, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' ORDER BY CREATEDTIME ASC`),
-      weekDuties(zcql, week)
+      activeBranches(req, zcql)
     ]);
     const [agencies, escortPosts] = await Promise.all([
       admin.agencyList(zcql),
       selectAll(zcql, 'Posts', "SELECT branch_id FROM Posts WHERE post_type = 'ESCORT' AND is_active = 'true' ORDER BY ROWID ASC")
     ]);
-    const mine = new Set(guards.map(g => String(g.ROWID)));
     // Branches with an escort post: only there the form asks for the escort duty sheet name.
     const escortBranches = [...new Set(escortPosts.map(p => String(p.branch_id)))];
-    res.status(200).json({ status: 'success', data: { dutyDate, week, guards, branches, agencies, escortBranches, swipes: swipes.filter(s => mine.has(String(s.guard_id))), duties } });
+    res.status(200).json({ status: 'success', data: { guards, branches, agencies, escortBranches } });
   } catch (err) {
     fail(res, err);
   }
