@@ -73,7 +73,8 @@ export default function GuardSetup({ token }) {
     try {
       const permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        setStep('blocked');
+        // 'default' = Chrome hid the question (quiet "collapse" mode) or it was closed without an answer.
+        setStep(permission === 'denied' ? 'blocked' : 'quiet');
         return;
       }
       const reg = await navigator.serviceWorker.register('sw.js');
@@ -84,7 +85,10 @@ export default function GuardSetup({ token }) {
       setStep('done');
     } catch (err) {
       console.error('Push setup failed:', err);
-      setMessage(err.message);
+      // Phones without Google Play services cannot get Chrome push at all.
+      setMessage(/push service|registration/i.test(err.message)
+        ? '❌ This phone could not register for notifications (' + err.message + '). Update Google Play services and Chrome, or try another phone.'
+        : '❌ ' + err.message);
       setStep('ready');
     }
   }
@@ -144,6 +148,19 @@ export default function GuardSetup({ token }) {
                   )}
                 </div>
                 <button className="btn setup-btn" onClick={recheck}>🔄 Check again</button>
+              </>
+            )}
+            {step === 'quiet' && (
+              <>
+                <div className="setup-card bad">
+                  <b>Chrome hid the "Allow" question.</b> To see it:
+                  <ol className="setup-steps">
+                    <li>Look at the <b>web address</b> at the top. Tap the small <b>bell</b> icon there, then <b>Allow</b>.</li>
+                    <li>No bell? Open Chrome <b>⋮ → Settings → Site settings → Notifications</b>, choose <b>Expand all requests</b>.</li>
+                    <li>Come back here and tap the button below.</li>
+                  </ol>
+                </div>
+                <button className="btn setup-btn" onClick={allow}>🔔 Allow notifications</button>
               </>
             )}
             {step === 'iphoneHome' && (
