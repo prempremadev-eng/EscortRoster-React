@@ -33,3 +33,15 @@
 |---|---|
 | 11:21 | ▶️ Start |
 | 20:49 | 🍽️ Dinner |
+| ~21:11 | ⏹️ Done (no "done" message; last activity of the day) |
+
+**Total:** ~9 h 50 min span (11:21 → ~21:11), dinner break not timed
+
+## 2026-10-17 (Saturday)
+
+| Time | Event |
+|---|---|
+| ~12:11 | ▶️ Start (no "start" message; first message "good morning") |
+| 00:29 (18 Oct) | ⏹️ Done ("naalaikku pannalam") |
+
+**Total:** ~12 h 20 min span (12:11 → 00:29), breaks not logged
