@@ -17,6 +17,7 @@ const BLANK_USER = { email: '', name: '', role: '', city: '', branch_id: '', age
 const BLANK_AGENCY = { agency_name: '', branch_ids: [] };
 const BLANK_BRANCH = { branch_code: '', branch_name: '', state_id: '', city_id: '' };
 const isOn = v => v === true || v === 'true';
+const needsBranch = role => role === 'supervisor' || role === 'branch_admin';
 const uniq = list => [...new Set(list.filter(Boolean))].sort();
 
 // #admin, in the order things are made: States → Cities → Branches → Agencies → Users.
@@ -134,8 +135,20 @@ export default function AdminPage() {
           <form className="master-form" onSubmit={saveUser}>
             <div className="master-form-title">{form.ROWID ? '✏️ Edit ' + form.name : '➕ New user'}</div>
             <div className="master-grid">
-              <label>Email (they sign in with it)<input type="email" value={form.email} onChange={e => set('email', e.target.value)} disabled={!!form.ROWID} required /></label>
-              <label>Name (guards see it)<input value={form.name} onChange={e => set('name', e.target.value)} maxLength={100} required /></label>
+              {/* Order asked for: Branch → Agency → Role → Name → Email. Branch and agency matter for a
+                  Supervisor (both) and a Branch Admin (branch); the higher roles ignore them. */}
+              <label>Branch{needsBranch(form.role) ? '' : ' (not needed for ' + ROLE_NAME[form.role] + ')'}
+                <select value={form.branch_id} onChange={e => setForm(f => ({ ...f, branch_id: e.target.value, agency_id: '' }))} required={needsBranch(form.role)} disabled={!needsBranch(form.role)}>
+                  <option value="">Pick the branch</option>
+                  {activeBranches.map(b => <option key={b.ROWID} value={b.ROWID}>{branchName(b.ROWID)}</option>)}
+                </select>
+              </label>
+              <label>Agency{form.role === 'supervisor' ? '' : ' (only for Supervisor)'}
+                <select value={form.agency_id} onChange={e => set('agency_id', e.target.value)} required={form.role === 'supervisor'} disabled={form.role !== 'supervisor' || !form.branch_id}>
+                  <option value="">{form.branch_id ? 'Pick the agency' : 'Pick the branch first'}</option>
+                  {data.agencies.filter(a => isOn(a.is_active) && worksIn(a, form.branch_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+                </select>
+              </label>
               <label>Role
                 <select value={form.role} onChange={e => set('role', e.target.value)} required>
                   {data.roles.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}
@@ -149,22 +162,8 @@ export default function AdminPage() {
                   </select>
                 </label>
               )}
-              {(form.role === 'branch_admin' || form.role === 'supervisor') && (
-                <label>Branch
-                  <select value={form.branch_id} onChange={e => set('branch_id', e.target.value)} required>
-                    <option value="">Pick the branch</option>
-                    {activeBranches.map(b => <option key={b.ROWID} value={b.ROWID}>{branchName(b.ROWID)}</option>)}
-                  </select>
-                </label>
-              )}
-              {form.role === 'supervisor' && (
-                <label>Agency
-                  <select value={form.agency_id} onChange={e => set('agency_id', e.target.value)} required>
-                    <option value="">Pick the agency</option>
-                    {data.agencies.filter(a => isOn(a.is_active) && worksIn(a, form.branch_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
-                  </select>
-                </label>
-              )}
+              <label>Name (guards see it)<input value={form.name} onChange={e => set('name', e.target.value)} maxLength={100} required /></label>
+              <label>Email (they sign in with it)<input type="email" value={form.email} onChange={e => set('email', e.target.value)} disabled={!!form.ROWID} required /></label>
             </div>
             <div className="sim-note">{ROLE_HELP[form.role]}{form.ROWID ? '' : ' A new user gets a mail to set their password.'}</div>
             <div className="link-actions">
