@@ -130,6 +130,7 @@ export const api = {
   scheduleSet: (branch, date, post, shift, guard) => apiCall('POST', '/scheduleSet', { branch, date, post, shift, guard }),
   scheduleCopy: (branch, date) => apiCall('POST', '/scheduleCopy', { branch, date }),
   schedulePublish: (branch, date) => apiCall('POST', '/schedulePublish', { branch, date }),
+  scheduleAuto: (branch, date) => apiCall('POST', '/scheduleAuto', { branch, date }),
   escortPoint: (branch, date, guard_id, point) => apiCall('POST', '/escortPoint', { branch, date, guard_id, point }),
   supMessage: (post, text) => apiCall('POST', '/supMessage', { post, text }),
   coverCandidates: t => apiCall('GET', '/coverCandidates?t=' + q(t)),

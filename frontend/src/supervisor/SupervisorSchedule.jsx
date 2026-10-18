@@ -210,6 +210,8 @@ export default function SupervisorSchedule() {
           <select className="pd-search sb-branch" value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">
             {branches.map(x => <option key={x.ROWID} value={x.ROWID}>{x.branch_name}{x.area ? ' (' + x.area + ')' : ''} · {x.city}</option>)}
           </select>
+          <button className="pd-chip pd-chip-primary" onClick={() => run(() => api.scheduleAuto(branch, date), r => setNote('⚡ Auto fill: ' + r.data.filled + ' filled · ' + r.data.unplaced + ' guard(s) on the roster not placed · ' + r.data.empty + ' slot(s) still empty. Check, fix and then Publish.' + (r.data.history ? '' : ' (No schedule in the last 14 days to learn from: only Shift Incharge could be filled.)')))} disabled={busy}
+            title="Fill empty slots from the month roster and where each guard stood last">⚡ Auto fill</button>
           <button className="pd-chip" onClick={() => run(() => api.scheduleCopy(branch, date), r => setNote(r.data.copied ? 'Copied ' + r.data.copied + ' slot(s) from the ' + r.data.from + '.' : 'Nothing to copy (no schedule yesterday, and the weekly chart has no free slots).'))} disabled={busy}>Copy from yesterday</button>
           <button className="pd-chip pd-chip-primary" onClick={() => run(() => api.schedulePublish(branch, date), r => setNote(r.data.published ? 'Published · ' + r.data.published + ' slot(s). Guards get it at card IN.' : 'Everything is already published.'))} disabled={busy || !drafts}>Publish to guards</button>
           <button className="pd-chip" onClick={() => window.print()} title="Print or save as PDF to share">🖨️ Print</button>
