@@ -321,10 +321,16 @@ module.exports = function supervisorRoutes(app, h) {
       const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
       const branch = auth.requireBranch(req, requireRowId(req.query.branch));
       const date = requireDate(req.query.date);
-      const [posts, shifts, guards] = await Promise.all([
+      const [posts, shifts, guards, roster] = await Promise.all([
         branchPosts(req, zcql, branch), getShifts(zcql),
-        zcql.executeZCQLQuery(`SELECT ROWID, id_number, guard_name FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`).then(r => r.map(x => x.Guards))
+        zcql.executeZCQLQuery(`SELECT ROWID, id_number, guard_name, area FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC LIMIT 0, 300`).then(r => r.map(x => x.Guards)),
+        // The month roster's letter for this date (A / B / C / G / O / L), so the page offers the
+        // guards of the picked shift first and keeps those on week off or leave apart.
+        zcql.executeZCQLQuery(`SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${date.slice(0, 7)}' LIMIT 0, 300`).then(r => r.map(x => x.MonthRoster))
       ]);
+      const dayIndex = Number(date.slice(8, 10)) - 1;
+      const rosterOf = {};
+      roster.forEach(r => { const c = String(r.codes || '')[dayIndex]; if (c && c !== '-') rosterOf[String(r.guard_id)] = c; });
       const rows = await dayRows(zcql, branch, date, posts);
       res.status(200).json({
         status: 'success',
@@ -332,7 +338,8 @@ module.exports = function supervisorRoutes(app, h) {
           date, posts: posts.map(p => ({ ROWID: String(p.ROWID), name: p.post_name })),
           shifts: shifts.slice().sort((a, b) => SHIFT_ORDER.indexOf(a.code) - SHIFT_ORDER.indexOf(b.code)),
           slots: rows.map(r => ({ ROWID: String(r.ROWID), post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id), published: isOn(r.published) })),
-          guards: guards.map(g => ({ ROWID: String(g.ROWID), name: g.guard_name, id: g.id_number }))
+          guards: guards.map(g => ({ ROWID: String(g.ROWID), name: g.guard_name, id: g.id_number, area: g.area || '', roster: rosterOf[String(g.ROWID)] || '' })),
+          hasRoster: roster.length > 0
         }
       });
     } catch (err) {

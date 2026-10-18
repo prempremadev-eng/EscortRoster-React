@@ -46,6 +46,7 @@ export default function SupervisorSchedule() {
   const [data, setData] = useState(null);
   const [pick, setPick] = useState(null); // { post, shift }
   const [search, setSearch] = useState('');
+  const [showOthers, setShowOthers] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -102,8 +103,21 @@ export default function SupervisorSchedule() {
   const filled = data ? data.slots.length : 0;
   const drafts = data ? data.slots.filter(s => !s.published).length : 0;
   const usedIds = new Set(data ? data.slots.map(s => s.guard) : []);
-  const free = data ? data.guards.filter(g => !usedIds.has(g.ROWID) && (g.name + ' ' + (g.id || '')).toLowerCase().includes(search.trim().toLowerCase())) : [];
+  const free = data ? data.guards.filter(g => !usedIds.has(g.ROWID) && (g.name + ' ' + (g.id || '') + ' ' + (g.area || '')).toLowerCase().includes(search.trim().toLowerCase())) : [];
+  // With a month roster: the picked shift's guards first; the rest (other shift, week off, leave,
+  // no roster) behind "Other guards".
+  const onShift = pick && data && data.hasRoster ? free.filter(g => g.roster === pick.shift) : free;
+  const others = pick && data && data.hasRoster ? free.filter(g => g.roster !== pick.shift) : [];
   const b = branches.find(x => String(x.ROWID) === String(branch));
+  const ROSTER_TAG = { A: 'A', B: 'B', C: 'C', G: 'G', O: 'Off', L: 'Leave' };
+  // One free guard in the side list: tap to put them in the picked slot.
+  const Person = ({ g }) => (
+    <button className={'pd-person' + (pick ? '' : ' sc-person-off')} onClick={() => assign(g)} disabled={busy}>
+      <span className="pd-avatar pd-avatar-sm">{initials(g.name)}</span>
+      <span><b>{g.name}</b><span>{g.id}{g.area ? ' · ' + g.area : ''}</span></span>
+      {g.roster && <span className={'rs-cell rs-' + g.roster + ' sc-roster'}>{ROSTER_TAG[g.roster]}</span>}
+    </button>
+  );
 
   return (
     <div className="pd sup">
@@ -168,13 +182,13 @@ export default function SupervisorSchedule() {
             <aside className="sb-side">
               <div className="pd-label">FREE GUARDS{pick ? ' · SHIFT ' + pick.shift : ''}</div>
               <input className="pd-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search guard" aria-label="Search guard" />
-              {free.map(g => (
-                <button key={g.ROWID} className={'pd-person' + (pick ? '' : ' sc-person-off')} onClick={() => assign(g)} disabled={busy}>
-                  <span className="pd-avatar pd-avatar-sm">{initials(g.name)}</span>
-                  <span><b>{g.name}</b><span>{g.id}</span></span>
-                </button>
-              ))}
-              {free.length === 0 && <div className="pd-muted pd-small">No free guards.</div>}
+              {pick && data.hasRoster && <div className="pd-small pd-muted">Month roster: {onShift.length} free guard(s) on Shift {pick.shift} this day.</div>}
+              {onShift.map(g => <Person key={g.ROWID} g={g} />)}
+              {onShift.length === 0 && <div className="pd-muted pd-small">{pick && data.hasRoster ? 'No free guard has Shift ' + pick.shift + ' on the roster.' : 'No free guards.'}</div>}
+              {others.length > 0 && (
+                <button className="pd-chip" onClick={() => setShowOthers(v => !v)}>{showOthers ? 'Hide' : 'Show'} other guards ({others.length})</button>
+              )}
+              {showOthers && others.map(g => <Person key={g.ROWID} g={g} />)}
               <div className="pd-small pd-muted">Tap an empty slot, then a guard. Publish sends each guard their post when they swipe IN.</div>
             </aside>
           </div>
