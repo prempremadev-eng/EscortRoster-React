@@ -3,8 +3,8 @@ import { api } from '../api.js';
 import { worksIn } from '../agency.js';
 import { Toggle, IconBtn } from './RowControls.jsx';
 
-const NO_FILTERS = { state: '', city: '', branch: '', agency: '', q: '' };
-const BLANK_GUARD = { id_number: '', card_number: '', guard_name: '', agency_id: '', branch_id: '', escort_id: '', phone: '' };
+const NO_FILTERS = { state: '', city: '', branch: '', agency: '', area: '', q: '' };
+const BLANK_GUARD = { id_number: '', card_number: '', guard_name: '', agency_id: '', branch_id: '', area: '', escort_id: '', phone: '' };
 const when = t => String(t || '').slice(0, 16);
 
 const uniq = list => [...new Set(list)];
@@ -66,6 +66,7 @@ export default function GuardMaster() {
       && (!filters.city || b.city === filters.city)
       && (!filters.branch || String(b.ROWID) === filters.branch)
       && (!filters.agency || g.agency === filters.agency)
+      && (!filters.area || (g.area || '') === filters.area)
       && (!q || g.guard_name.toLowerCase().includes(q) || g.id_number.toLowerCase().includes(q) || String(g.card_number || '').toLowerCase().includes(q));
   });
   const shown = base;
@@ -100,7 +101,7 @@ export default function GuardMaster() {
     setNote('');
     setConfirmLeft(false);
     const next = g
-      ? { ...BLANK_GUARD, ...g, card_number: g.card_number || '', agency_id: g.agency_id || '', escort_id: g.escort_id || '', phone: g.phone || '' }
+      ? { ...BLANK_GUARD, ...g, card_number: g.card_number || '', area: g.area || '', agency_id: g.agency_id || '', escort_id: g.escort_id || '', phone: g.phone || '' }
       : { ...BLANK_GUARD, branch_id: filters.branch || (branches.length === 1 ? String(branches[0].ROWID) : '') };
     setForm(next);
     setFreeEscorts(null);
@@ -132,7 +133,7 @@ export default function GuardMaster() {
     setSaving(true);
     setError('');
     try {
-      const fields = ['id_number', 'card_number', 'guard_name', 'agency_id', 'branch_id', 'phone', 'escort_id'];
+      const fields = ['id_number', 'card_number', 'guard_name', 'agency_id', 'branch_id', 'area', 'phone', 'escort_id'];
       const payload = {};
       fields.forEach(k => { payload[k] = form[k]; });
       let saved = form.ROWID
@@ -209,6 +210,8 @@ export default function GuardMaster() {
                   {data.agencies.filter(a => ((a.is_active === true || a.is_active === 'true') && worksIn(a, form.branch_id)) || String(a.ROWID) === String(form.agency_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
                 </select>
               </label>
+              <label>Area (PKL, MLCP, Escort…)<input id="g-area" value={form.area} onChange={e => setFormField('area', e.target.value)} list="g-areas" maxLength={30} /></label>
+              <datalist id="g-areas">{uniq(allGuards.map(g => g.area).filter(Boolean)).sort().map(a => <option key={a} value={a} />)}</datalist>
               <label>Phone (optional)<input id="g-phone" value={form.phone} onChange={e => setFormField('phone', e.target.value)} inputMode="tel" /></label>
               <label>Photo (optional)
                 <input id="g-photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setPhotoFile(e.target.files[0] || null)} />
@@ -273,6 +276,12 @@ export default function GuardMaster() {
                   {uniq(guards.map(g => g.agency)).sort().map(a => <option key={a}>{a}</option>)}
                 </select>
               </label>
+              <label>Area
+                <select id="f-area" value={filters.area} onChange={e => setFilter('area', e.target.value)}>
+                  <option value="">All areas</option>
+                  {uniq(guards.map(g => g.area).filter(Boolean)).sort().map(a => <option key={a}>{a}</option>)}
+                </select>
+              </label>
               <label className="master-search">Search name / ID / card
                 <input id="f-q" type="search" value={filters.q} onChange={e => setFilter('q', e.target.value)} placeholder="Name, ID or card no." />
               </label>
@@ -291,7 +300,7 @@ export default function GuardMaster() {
             <div className="dash-scroll">
               <table className="dash-table adm-table">
                 <thead>
-                  <tr><th>S.No</th><th>ID</th><th>Card</th><th>Guard</th><th>Agency</th><th>Branch</th><th>Phone</th><th>Created by</th><th>Status</th><th></th></tr>
+                  <tr><th>S.No</th><th>ID</th><th>Card</th><th>Guard</th><th>Agency</th><th>Area</th><th>Branch</th><th>Phone</th><th>Created by</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody>
                   {shown.map((g, i) => {
@@ -304,6 +313,7 @@ export default function GuardMaster() {
                         <td>{g.card_number || '—'}</td>
                         <td className="left">{g.photo_key ? '📷 ' : ''}{g.guard_name}</td>
                         <td>{g.agency}</td>
+                        <td>{g.area || '—'}</td>
                         <td className="left">{b ? branchLabel(b) : '—'}<div className="master-sub">{b ? b.city + ', ' + b.state : ''}</div></td>
                         <td>{g.phone || '—'}</td>
                         <td className="left">
@@ -319,7 +329,7 @@ export default function GuardMaster() {
                       </tr>
                     );
                   })}
-                  {shown.length === 0 && <tr><td colSpan="11">No guards match these filters.</td></tr>}
+                  {shown.length === 0 && <tr><td colSpan="12">No guards match these filters.</td></tr>}
                 </tbody>
               </table>
             </div>

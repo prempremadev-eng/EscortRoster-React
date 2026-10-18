@@ -1271,7 +1271,7 @@ app.get('/getMaster', async (req, res) => {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const [guards, branches] = await Promise.all([
-      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, card_number, guard_name, agency, agency_id, branch_id, escort_id, phone, photo_key, created_by, modified_by, CREATEDTIME, MODIFIEDTIME, is_active FROM Guards ORDER BY id_number ASC').then(g => auth.inArea(req, g)),
+      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, card_number, guard_name, agency, agency_id, branch_id, area, escort_id, phone, photo_key, created_by, modified_by, CREATEDTIME, MODIFIEDTIME, is_active FROM Guards ORDER BY id_number ASC').then(g => auth.inArea(req, g)),
       activeBranches(req, zcql)
     ]);
     const [agencies, escortPosts] = await Promise.all([
@@ -1328,6 +1328,8 @@ function guardFromBody(b) {
     guard_name: requireText(b.guard_name, 'Name', 100),
     agency_id: requireRowId(b.agency_id || fail.missing('Pick the agency')),
     branch_id: requireRowId(b.branch_id),
+    // Work area inside the branch (PKL, MLCP, Escort, Hospital…), from the agency's monthly file.
+    area: String(b.area || '').trim().slice(0, 30) || null,
     escort_id: b.escort_id ? requireRowId(b.escort_id) : null,
     phone: phone || null
   };
