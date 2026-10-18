@@ -143,8 +143,8 @@ export default function SupervisorSchedule() {
     <table className="sh-t">
       <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code" /><col className="w-point" /></colgroup>
       <thead>
-        <tr className={'sh-head' + (code === 'G' ? ' sh-head-g' : '')}><th colSpan={2}>{code} SHIFT · {title}</th><th colSpan={2}>{sheetDate}</th></tr>
-        <tr className="sh-cols"><th>S.No</th><th>NAME</th><th>SHIFT</th><th>POINT</th></tr>
+        <tr className={'sh-head' + (code === 'G' ? ' sh-head-g' : '')} title={title}><th colSpan={2}>{code} SHIFT</th><th colSpan={2}>{sheetDate}</th></tr>
+        <tr className="sh-cols"><th>S No</th><th>NAME</th><th>SHIFT</th><th>POINT</th></tr>
       </thead>
       <tbody>
         {posts.map((p, i) => {
@@ -239,7 +239,7 @@ export default function SupervisorSchedule() {
                     <colgroup><col className="w-no" /><col /><col className="w-code2" /></colgroup>
                     <thead>
                       <tr className="sh-head sh-head-off"><th colSpan={3}>WEEK OFF / LEAVE · {sheetDate}</th></tr>
-                      <tr className="sh-cols"><th>S.No</th><th>NAME</th><th>CODE</th></tr>
+                      <tr className="sh-cols"><th>S No</th><th>NAME</th><th>CODE</th></tr>
                     </thead>
                     <tbody>
                       {data.off.map((o, i) => (
@@ -252,7 +252,7 @@ export default function SupervisorSchedule() {
                     <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code2" /><col /></colgroup>
                     <thead>
                       <tr className="sh-head sh-head-esc"><th colSpan={4}>ESCORT · {sheetDate}</th></tr>
-                      <tr className="sh-cols"><th>S.No</th><th>NAME</th><th>TIME</th><th>POINT</th></tr>
+                      <tr className="sh-cols"><th>S No</th><th>NAME</th><th>TIME</th><th>POINT</th></tr>
                     </thead>
                     <tbody>
                       {data.escort.batch.map((e, i) => (

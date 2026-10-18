@@ -113,8 +113,8 @@
 }
 
 /* Compact sheet: one block per shift (S.No · NAME · SHIFT · POINT), A/B/C side by side, little gap */
-.sh-page{display:flex;flex-direction:column;gap:6px;}
-.sh-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:start;}
+.sh-page{display:flex;flex-direction:column;gap:10px;}
+.sh-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;align-items:start;}
 .sh-t{width:100%;border-collapse:collapse;background:#fff;font-size:11.5px;line-height:1.15;table-layout:fixed;}
 .sh-t th,.sh-t td{border:1px solid #9CA3AF;padding:1px 4px;height:19px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
 .sh-head th{background:#FCD5B4;color:#111;font-weight:700;text-align:center;font-size:11.5px;}
@@ -122,14 +122,15 @@
 .sh-head-off th{background:#E5E7EB;}
 .sh-head-esc th{background:#C9DAF8;}
 .sh-cols th{background:#B4A7D6;color:#111;font-weight:700;text-align:center;}
-.sh-t .w-no{width:30px;}
-.sh-t .w-name{width:44%;}
-.sh-t .w-code{width:38px;}
+.sh-t .w-no{width:34px;}
+.sh-t .w-name{width:42%;}
+.sh-t .w-code{width:44px;}
 .sh-t .w-code2{width:58px;}
 .sh-no,.sh-code{text-align:center;}
-.sh-point{font-weight:600;text-transform:uppercase;font-size:10.5px;}
+.sh-point{font-weight:700;text-transform:uppercase;font-size:10.5px;}
+.sh-t td.sh-name{text-align:center;font-weight:700;text-transform:uppercase;}
 .sh-muted{color:#6B7280;text-transform:none;font-weight:400;}
-.sh-slot{all:unset;display:block;width:100%;cursor:pointer;font-weight:600;text-transform:uppercase;font-size:11px;overflow:hidden;text-overflow:ellipsis;}
+.sh-slot{all:unset;display:block;width:100%;cursor:pointer;font-weight:700;text-transform:uppercase;font-size:11px;text-align:center;overflow:hidden;text-overflow:ellipsis;}
 .sh-open{color:#CBD5E1;text-align:center;}
 .sh-open:hover{color:#2563EB;}
 .sh-draft{color:#1D4ED8;}
