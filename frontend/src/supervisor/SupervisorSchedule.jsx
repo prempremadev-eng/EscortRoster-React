@@ -89,9 +89,13 @@ export default function SupervisorSchedule() {
   const guardName = id => ((data && data.guards.find(g => g.ROWID === id)) || {}).name || 'Guard';
 
   function tapCell(post, shift) {
-    const slot = slotOf(post, shift);
-    if (slot) return run(() => api.scheduleSet(branch, date, post, shift, null), () => setNote(guardName(slot.guard) + ' removed.'));
     setPick(p => (p && p.post === post && p.shift === shift ? null : { post, shift }));
+  }
+  function removePicked() {
+    const slot = pick && slotOf(pick.post, pick.shift);
+    if (!slot) return;
+    const p = pick;
+    run(() => api.scheduleSet(branch, date, p.post, p.shift, null), () => { setPick(null); setNote(guardName(slot.guard) + ' removed.'); });
   }
 
   function assign(guard) {
@@ -133,6 +137,35 @@ export default function SupervisorSchedule() {
   const pickedExtra = !!(pick && data && (data.posts.find(p => p.ROWID === pick.post) || {}).extraDuty);
   const others = pick ? free.filter(g => !onShift.includes(g) && (!otherShift[g.ROWID] || pickedExtra || data.slots.some(s => s.guard === g.ROWID && (data.posts.find(p => p.ROWID === s.post) || {}).extraDuty))) : [];
   const b = branches.find(x => String(x.ROWID) === String(branch));
+  const sheetDate = date.split('-').reverse().join('-');
+  // One shift block of the daily sheet: S.No · NAME · SHIFT · POINT (the order the team writes it).
+  const ShiftTable = ({ code, title, posts }) => (
+    <table className="sh-t">
+      <thead>
+        <tr className={'sh-head' + (code === 'G' ? ' sh-head-g' : '')}><th colSpan={2}>{code} SHIFT · {title}</th><th colSpan={2}>{sheetDate}</th></tr>
+        <tr className="sh-cols"><th>S.No</th><th>NAME</th><th>SHIFT</th><th>POINT</th></tr>
+      </thead>
+      <tbody>
+        {posts.map((p, i) => {
+          const slot = slotOf(p.ROWID, code);
+          const picked = pick && pick.post === p.ROWID && pick.shift === code;
+          return (
+            <tr key={p.ROWID} className={picked ? 'sh-picked' : ''}>
+              <td className="sh-no">{i + 1}</td>
+              <td className="sh-name">
+                <button className={'sh-slot' + (slot ? (slot.published ? ' sh-pub' : ' sh-draft') : ' sh-open')} onClick={() => tapCell(p.ROWID, code)} disabled={busy}
+                  title={slot ? 'Tap to change or remove' : 'Tap, then pick a guard'}>
+                  {slot ? guardName(slot.guard) : '+'}
+                </button>
+              </td>
+              <td className="sh-code">{code}</td>
+              <td className="sh-point">{p.name}{p.extraDuty ? ' ⭐' : ''}</td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
   // One slot of the sheet: a dash when the post has no such shift.
   const Cell = ({ p, code }) => {
     if (!hasShift(p, code)) return <td className="sc-none">—</td>;
@@ -189,78 +222,52 @@ export default function SupervisorSchedule() {
         {data && (
           <div className="sb-body">
             <div className="sb-main">
-              <div className="sc-sheet">
+              <div className="sh-page">
                 <div className="sc-print-title">{b ? (b.company || 'Nokia') + ' ' + b.branch_name : ''} · Duty schedule · {niceDate(date)}</div>
                 {sections.map(sec => (
-                  <div className="sc-block" key={sec.name}>
-                    <table className="sc-table sc-sheet-table">
-                      <thead>
-                        <tr className="sc-sec"><th colSpan={2 + ABC.length}>{sec.name}</th></tr>
-                        <tr><th className="sc-no">#</th><th>Point</th>{ABC.map(s => <th key={s.code}>{s.code} shift · {hours(s)}</th>)}</tr>
-                      </thead>
-                      <tbody>
-                        {sec.posts.map((p, i) => (
-                          <tr key={p.ROWID}>
-                            <td className="sc-no">{i + 1}</td>
-                            <td className="sc-post">{p.name}{p.extraDuty ? ' ⭐' : ''}</td>
-                            {ABC.map(s => <Cell key={s.code} p={p} code={s.code} />)}
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
+                  <div className="sh-row" key={sec.name}>
+                    {ABC.map(s => (
+                      <ShiftTable key={s.code} code={s.code} title={sec.name} posts={sec.posts.filter(p => hasShift(p, s.code))} />
+                    ))}
                   </div>
                 ))}
 
-                {shiftG && gPosts.length > 0 && (
-                  <div className="sc-block sc-two">
-                    <table className="sc-table sc-sheet-table">
-                      <thead>
-                        <tr className="sc-sec sc-sec-g"><th colSpan={3}>G shift · {hours(shiftG)}</th></tr>
-                        <tr><th className="sc-no">#</th><th>Point</th><th>Guard</th></tr>
-                      </thead>
-                      <tbody>
-                        {gPosts.map((p, i) => (
-                          <tr key={p.ROWID}><td className="sc-no">{i + 1}</td><td className="sc-post">{p.name}</td><Cell p={p} code="G" /></tr>
-                        ))}
-                      </tbody>
-                    </table>
-                    <table className="sc-table sc-sheet-table">
-                      <thead>
-                        <tr className="sc-sec sc-sec-off"><th colSpan={2}>Week off / leave · from the month roster</th></tr>
-                      </thead>
-                      <tbody>
-                        {data.off.map((o, i) => (
-                          <tr key={o.guard}><td className="sc-no">{i + 1}</td><td className="sc-post">{nameOf(o.guard)} <span className={'rs-cell rs-' + o.code + ' sc-roster'}>{o.code === 'O' ? 'Off' : 'Leave'}</span></td></tr>
-                        ))}
-                        {data.off.length === 0 && <tr><td colSpan={2} className="pd-muted">{data.hasRoster ? 'Nobody is off today.' : 'No month roster for this month.'}</td></tr>}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-
-                <div className="sc-block">
-                  <table className="sc-table sc-sheet-table">
+                <div className="sh-row">
+                  {shiftG && gPosts.length > 0 && <ShiftTable code="G" title="G shift" posts={gPosts} />}
+                  <table className="sh-t">
                     <thead>
-                      <tr className="sc-sec sc-sec-esc"><th colSpan={3}>Escort</th></tr>
-                      <tr><th className="sc-no">#</th><th>Guard</th><th>Time · support point</th></tr>
+                      <tr className="sh-head sh-head-off"><th colSpan={3}>WEEK OFF / LEAVE · {sheetDate}</th></tr>
+                      <tr className="sh-cols"><th>S.No</th><th>NAME</th><th>CODE</th></tr>
+                    </thead>
+                    <tbody>
+                      {data.off.map((o, i) => (
+                        <tr key={o.guard}><td className="sh-no">{i + 1}</td><td className="sh-name">{nameOf(o.guard)}</td><td className={'sh-code sh-' + o.code}>{o.code === 'O' ? 'OFF' : 'LEAVE'}</td></tr>
+                      ))}
+                      {data.off.length === 0 && <tr><td colSpan={3} className="sh-empty">{data.hasRoster ? 'Nobody is off' : 'No month roster'}</td></tr>}
+                    </tbody>
+                  </table>
+                  <table className="sh-t">
+                    <thead>
+                      <tr className="sh-head sh-head-esc"><th colSpan={4}>ESCORT · {sheetDate}</th></tr>
+                      <tr className="sh-cols"><th>S.No</th><th>NAME</th><th>TIME</th><th>POINT</th></tr>
                     </thead>
                     <tbody>
                       {data.escort.batch.map((e, i) => (
                         <tr key={e.guard}>
-                          <td className="sc-no">{i + 1}</td>
-                          <td className="sc-post">{nameOf(e.guard)}</td>
-                          <td className="sc-esc">
-                            <span className="sc-time">6 to 5</span>
-                            <input className="pd-search sc-point" list="sc-points" placeholder="Support point 18:00–20:30"
+                          <td className="sh-no">{i + 1}</td>
+                          <td className="sh-name">{nameOf(e.guard)}</td>
+                          <td className="sh-code sh-early">6 to 5</td>
+                          <td className="sh-point">
+                            <input className="sh-input" list="sc-points" placeholder="support point"
                               value={pointDraft[e.guard] ?? e.point} onChange={ev => setPointDraft(d => ({ ...d, [e.guard]: ev.target.value }))}
                               onBlur={ev => { const v = ev.target.value.trim(); if (v !== e.point) savePoint(e.guard, v); }} disabled={busy} />
                           </td>
                         </tr>
                       ))}
                       {data.escort.night.map((id, i) => (
-                        <tr key={id}><td className="sc-no">{data.escort.batch.length + i + 1}</td><td className="sc-post">{nameOf(id)}</td><td className="sc-esc"><span className="sc-time sc-time-night">9 to 6</span> Escort cab</td></tr>
+                        <tr key={id}><td className="sh-no">{data.escort.batch.length + i + 1}</td><td className="sh-name">{nameOf(id)}</td><td className="sh-code sh-night">9 to 6</td><td className="sh-point sh-muted">Escort cab</td></tr>
                       ))}
-                      {!data.escort.batch.length && !data.escort.night.length && <tr><td colSpan={3} className="pd-muted">No escort guard on the roster for this day (6-to-5 runs Monday to Friday).</td></tr>}
+                      {!data.escort.batch.length && !data.escort.night.length && <tr><td colSpan={4} className="sh-empty">No escort on the roster (6 to 5 is Mon–Fri)</td></tr>}
                     </tbody>
                   </table>
                   <datalist id="sc-points">
@@ -272,8 +279,15 @@ export default function SupervisorSchedule() {
               <div className="pd-legend"><span className="sc-key sc-cell-pub"></span>Published <span className="sc-key sc-cell-draft"></span>Not published yet <span className="sc-key sc-cell-empty"></span>Empty</div>
             </div>
 
-            <aside className="sb-side">
-              <div className="pd-label">FREE GUARDS{pick ? ' · SHIFT ' + pick.shift : ''}</div>
+            {pick && <aside className="sb-side sh-drawer">
+              <div className="pd-row-between">
+                <div className="pd-label">{(data.posts.find(x => x.ROWID === pick.post) || {}).name} · SHIFT {pick.shift}</div>
+                <button className="pd-chip" onClick={() => setPick(null)}>✕</button>
+              </div>
+              {slotOf(pick.post, pick.shift) && (
+                <div className="sh-current">Now: <b>{guardName(slotOf(pick.post, pick.shift).guard)}</b> <button className="pd-chip" onClick={removePicked} disabled={busy}>Remove</button></div>
+              )}
+              <div className="pd-label">FREE GUARDS · SHIFT {pick.shift}</div>
               <input className="pd-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search guard" aria-label="Search guard" />
               {pick && data.hasRoster && <div className="pd-small pd-muted">Month roster: {onShift.length} free guard(s) on Shift {pick.shift} this day.</div>}
               {onShift.map(g => <Person key={g.ROWID} g={g} />)}
@@ -282,8 +296,8 @@ export default function SupervisorSchedule() {
                 <button className="pd-chip" onClick={() => setShowOthers(v => !v)}>{showOthers ? 'Hide' : 'Show'} other guards ({others.length})</button>
               )}
               {showOthers && others.map(g => <Person key={g.ROWID} g={g} />)}
-              <div className="pd-small pd-muted">Tap an empty slot, then a guard. Publish sends each guard their post when they swipe IN.</div>
-            </aside>
+              <div className="pd-small pd-muted">Pick a guard to put here (or to replace). Publish sends each guard their post when they swipe IN.</div>
+            </aside>}
           </div>
         )}
       </main>

@@ -111,3 +111,43 @@
   .sc-cell-empty{color:transparent !important;}
   .sc-point{border:none;padding:0;}
 }
+
+/* Compact sheet: one block per shift (S.No · NAME · SHIFT · POINT), A/B/C side by side, little gap */
+.sh-page{display:flex;flex-direction:column;gap:6px;}
+.sh-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:4px;align-items:start;}
+.sh-t{width:100%;border-collapse:collapse;background:#fff;font-size:11.5px;line-height:1.15;table-layout:fixed;}
+.sh-t th,.sh-t td{border:1px solid #9CA3AF;padding:1px 4px;height:19px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+.sh-head th{background:#FCD5B4;color:#111;font-weight:700;text-align:center;font-size:11.5px;}
+.sh-head-g th{background:#D9EAD3;}
+.sh-head-off th{background:#E5E7EB;}
+.sh-head-esc th{background:#C9DAF8;}
+.sh-cols th{background:#B4A7D6;color:#111;font-weight:700;text-align:center;}
+.sh-t th:nth-child(1),.sh-t td.sh-no{width:34px;text-align:center;}
+.sh-cols th:nth-child(3),.sh-t td.sh-code{width:44px;text-align:center;}
+.sh-name{width:42%;}
+.sh-point{font-weight:600;text-transform:uppercase;font-size:10.5px;}
+.sh-muted{color:#6B7280;text-transform:none;font-weight:400;}
+.sh-slot{all:unset;display:block;width:100%;cursor:pointer;font-weight:600;text-transform:uppercase;font-size:11px;overflow:hidden;text-overflow:ellipsis;}
+.sh-open{color:#CBD5E1;text-align:center;}
+.sh-open:hover{color:#2563EB;}
+.sh-draft{color:#1D4ED8;}
+.sh-pub{color:#111;}
+.sh-picked td{background:#FEF9C3;}
+.sh-O{color:#475569;font-weight:600;}
+.sh-L{color:#B91C1C;font-weight:600;}
+.sh-early{background:#FDE68A;font-weight:600;}
+.sh-night{background:#C7D2FE;font-weight:600;}
+.sh-input{all:unset;width:100%;font-size:10.5px;text-transform:uppercase;font-weight:600;}
+.sh-input::placeholder{color:#CBD5E1;text-transform:none;font-weight:400;}
+.sh-empty{color:#9CA3AF;text-align:center;}
+.sh-drawer{position:fixed;right:12px;top:80px;bottom:12px;width:340px;overflow-y:auto;background:var(--pd-surface);border:1px solid var(--pd-border);border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.18);padding:12px;z-index:20;}
+.sh-current{display:flex;align-items:center;gap:8px;font-size:14px;background:#FEF9C3;border-radius:8px;padding:6px 10px;}
+@media (max-width:1100px){.sh-row{grid-template-columns:1fr;}}
+@media print{
+  .sh-drawer{display:none !important;}
+  .sh-t{font-size:9px;}
+  .sh-t th,.sh-t td{height:14px;}
+  .sh-open{color:transparent;}
+  .sh-input::placeholder{color:transparent;}
+  @page{size:A4 portrait;margin:6mm;}
+}
