@@ -160,3 +160,10 @@
 .sh-t .sh-cols th{font-size:10.5px;padding:1px 2px;}
 .sh-t .w-no{width:38px;}
 .sh-t .w-code{width:46px;}
+/* Narrower NAME and POINT: fixed widths like the printed sheet, blocks sit left to right */
+.sh-row{grid-template-columns:repeat(3,max-content);}
+.sh-t{width:auto;}
+.sh-t .w-name{width:150px;}
+.sh-t .w-point{width:175px;}
+@media (max-width:1250px){.sh-row{grid-template-columns:repeat(2,max-content);}}
+@media (max-width:850px){.sh-row{grid-template-columns:max-content;}}

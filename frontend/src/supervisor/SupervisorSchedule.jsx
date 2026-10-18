@@ -236,7 +236,7 @@ export default function SupervisorSchedule() {
                 <div className="sh-row">
                   {shiftG && gPosts.length > 0 && <ShiftTable code="G" title="G shift" posts={gPosts} />}
                   <table className="sh-t">
-                    <colgroup><col className="w-no" /><col /><col className="w-code2" /></colgroup>
+                    <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code2" /></colgroup>
                     <thead>
                       <tr className="sh-head sh-head-off"><th colSpan={3}>WEEK OFF / LEAVE · {sheetDate}</th></tr>
                       <tr className="sh-cols"><th>S No</th><th>NAME</th><th>CODE</th></tr>
@@ -249,7 +249,7 @@ export default function SupervisorSchedule() {
                     </tbody>
                   </table>
                   <table className="sh-t">
-                    <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code2" /><col /></colgroup>
+                    <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code2" /><col className="w-point" /></colgroup>
                     <thead>
                       <tr className="sh-head sh-head-esc"><th colSpan={4}>ESCORT · {sheetDate}</th></tr>
                       <tr className="sh-cols"><th>S No</th><th>NAME</th><th>TIME</th><th>POINT</th></tr>
