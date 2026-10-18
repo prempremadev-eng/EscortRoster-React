@@ -122,9 +122,11 @@
 .sh-head-off th{background:#E5E7EB;}
 .sh-head-esc th{background:#C9DAF8;}
 .sh-cols th{background:#B4A7D6;color:#111;font-weight:700;text-align:center;}
-.sh-t th:nth-child(1),.sh-t td.sh-no{width:34px;text-align:center;}
-.sh-cols th:nth-child(3),.sh-t td.sh-code{width:44px;text-align:center;}
-.sh-name{width:42%;}
+.sh-t .w-no{width:30px;}
+.sh-t .w-name{width:44%;}
+.sh-t .w-code{width:38px;}
+.sh-t .w-code2{width:58px;}
+.sh-no,.sh-code{text-align:center;}
 .sh-point{font-weight:600;text-transform:uppercase;font-size:10.5px;}
 .sh-muted{color:#6B7280;text-transform:none;font-weight:400;}
 .sh-slot{all:unset;display:block;width:100%;cursor:pointer;font-weight:600;text-transform:uppercase;font-size:11px;overflow:hidden;text-overflow:ellipsis;}
