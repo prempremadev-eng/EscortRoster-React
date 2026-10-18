@@ -4,7 +4,7 @@ import { useUser, atLeast } from '../auth/user.js';
 import { worksIn } from '../agency.js';
 import { Toggle, IconBtn } from './RowControls.jsx';
 
-const BLANK_POST = { post_name: '', post_type: 'POST', agency_id: '', vehicle_entry: false, extra_duty: false };
+const BLANK_POST = { post_name: '', post_type: 'POST', agency_id: '', vehicle_entry: false, extra_duty: false, section: '', sort_order: '', shift_codes: 'ABC' };
 const isOn = v => v === true || v === 'true';
 
 // The places of each branch where a guard can be put: Gate 3, Lobby, Escort…
@@ -36,7 +36,11 @@ export default function PostsPage() {
 
   useEffect(() => { load(); }, [load]);
 
-  const posts = data ? data.posts.filter(p => String(p.branch_id) === branch) : [];
+  // Same order as the daily roster sheet: section, then place in it.
+  const SECS = ['PKL / Main', 'Hospital Block', 'MLCP'];
+  const secRank = p => { const i = SECS.indexOf(p.section); return i < 0 ? 99 : i; };
+  const posts = data ? data.posts.filter(p => String(p.branch_id) === branch)
+    .sort((a, b) => secRank(a) - secRank(b) || (Number(a.sort_order) || 999) - (Number(b.sort_order) || 999) || a.post_name.localeCompare(b.post_name)) : [];
 
   function putRow(saved) {
     setData(d => ({
@@ -51,7 +55,7 @@ export default function PostsPage() {
     setSaving(true);
     setError('');
     try {
-      const body = { branch_id: branch, post_name: form.post_name, post_type: form.post_type, agency_id: form.agency_id, vehicle_entry: isOn(form.vehicle_entry), extra_duty: isOn(form.extra_duty) };
+      const body = { branch_id: branch, post_name: form.post_name, post_type: form.post_type, agency_id: form.agency_id, vehicle_entry: isOn(form.vehicle_entry), extra_duty: isOn(form.extra_duty), section: form.section, sort_order: form.sort_order, shift_codes: form.shift_codes };
       const saved = form.ROWID
         ? (await api.updatePost({ ...body, ROWID: form.ROWID, is_active: form.is_active !== 'false' })).data
         : (await api.addPost(body)).data;
@@ -123,6 +127,18 @@ export default function PostsPage() {
                   {data.agencies.filter(a => (isOn(a.is_active) && worksIn(a, branch)) || String(a.ROWID) === String(form.agency_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
                 </select>
               </label>
+              <label>Section (on the daily sheet)
+                <input value={form.section || ''} onChange={e => setForm(f => ({ ...f, section: e.target.value }))} list="p-sections" placeholder="PKL / Main" maxLength={30} />
+              </label>
+              <datalist id="p-sections">{[...new Set(data.posts.map(p => p.section).filter(Boolean))].map(s => <option key={s} value={s} />)}</datalist>
+              <label>Order in the section<input type="number" min="1" value={form.sort_order ?? ''} onChange={e => setForm(f => ({ ...f, sort_order: e.target.value }))} /></label>
+              <div className="p-shifts">Shifts
+                <div>{['A', 'B', 'C', 'G'].map(c => (
+                  <label key={c} className="master-check">
+                    <input type="checkbox" checked={String(form.shift_codes || '').includes(c)} onChange={e => setForm(f => ({ ...f, shift_codes: ['A', 'B', 'C', 'G'].filter(x => x === c ? e.target.checked : String(f.shift_codes || '').includes(x)).join('') }))} /> {c}
+                  </label>
+                ))}</div>
+              </div>
               <label className="master-check">
                 <input type="checkbox" checked={isOn(form.vehicle_entry)} onChange={e => setForm(f => ({ ...f, vehicle_entry: e.target.checked }))} />
                 🚗 Visitor / vehicle entry at this post
@@ -146,7 +162,7 @@ export default function PostsPage() {
           <div className="dash-scroll">
             <table className="dash-table adm-table">
               <thead>
-                <tr><th>Post</th><th>Type</th><th>Agency</th><th>Vehicle entry</th><th>Extra duty</th><th>Status</th><th></th></tr>
+                <tr><th>Post</th><th>Section</th><th>Shifts</th><th>Type</th><th>Agency</th><th>Vehicle entry</th><th>Extra duty</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
                 {posts.map(p => {
@@ -154,6 +170,8 @@ export default function PostsPage() {
                   return (
                     <tr key={p.ROWID} className={off ? 'master-left' : ''}>
                       <td className="left">{p.post_name}</td>
+                      <td>{p.section ? p.section + (p.sort_order ? ' · ' + p.sort_order : '') : '—'}</td>
+                      <td>{p.shift_codes || 'All'}</td>
                       <td>{p.post_type === 'ESCORT' ? '🚐 ESCORT' : '📍 POST'}</td>
                       <td>{agencyName(p.agency_id)}</td>
                       <td>{isOn(p.vehicle_entry) ? '🚗 Yes' : '—'}</td>
@@ -163,7 +181,7 @@ export default function PostsPage() {
                     </tr>
                   );
                 })}
-                {posts.length === 0 && <tr><td colSpan="7">No posts in this branch yet. Press ➕ Add post.</td></tr>}
+                {posts.length === 0 && <tr><td colSpan="9">No posts in this branch yet. Press ➕ Add post.</td></tr>}
               </tbody>
             </table>
           </div>

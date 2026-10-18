@@ -303,10 +303,17 @@ module.exports = function supervisorRoutes(app, h) {
   // Changes are drafts until "Publish to guards"; a published slot is what the guard's card IN uses
   // (otherwise the weekly Duty Chart). About 3 reads per load.
   const SHIFT_ORDER = ['A', 'G', 'B', 'C'];
+  const SECTION_ORDER = ['PKL / Main', 'Hospital Block', 'MLCP'];
+  // A post's shifts ("ABC", "G" …); empty = every shift.
+  const postShifts = p => String((p && p.shift_codes) || '').toUpperCase();
+  const plusDays = (date, n) => { const d = new Date(date + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
   // Posts of a branch in my area (an agency supervisor: only their agency's posts).
   async function branchPosts(req, zcql, branch) {
-    return (await zcql.executeZCQLQuery(`SELECT ROWID, post_name, extra_duty FROM Posts WHERE branch_id = ${branch} AND post_type = 'POST' AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY post_name ASC`)).map(r => r.Posts);
+    const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, post_name, extra_duty, section, sort_order, shift_codes FROM Posts WHERE branch_id = ${branch} AND post_type = 'POST' AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY post_name ASC`)).map(r => r.Posts);
+    // The order of the daily roster sheet: section, then the post's place in it.
+    const sec = p => { const i = SECTION_ORDER.indexOf(p.section); return i < 0 ? 99 : i; };
+    return rows.sort((a, b) => sec(a) - sec(b) || (Number(a.sort_order) || 999) - (Number(b.sort_order) || 999) || a.post_name.localeCompare(b.post_name));
   }
   // Slots of that day, only of the given posts.
   async function dayRows(zcql, branch, date, posts) {
@@ -332,14 +339,39 @@ module.exports = function supervisorRoutes(app, h) {
       const rosterOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[dayIndex]; if (c && c !== '-') rosterOf[String(r.guard_id)] = c; });
       const rows = await dayRows(zcql, branch, date, posts);
+
+      // Escorts. Mon–Fri: the week's 6-to-5 batch = escorts whose roster has the coming Saturday
+      // AND Sunday off (18:00–20:30 at a support point, then escort cab till 05:00). The other
+      // escorts on Shift C go 21:00–06:00. A support point is saved per guard per day.
+      const dow = new Date(date + 'T00:00:00Z').getUTCDay();
+      let batch = [];
+      if (dow >= 1 && dow <= 5) {
+        const sat = plusDays(date, 6 - dow), sun = plusDays(sat, 1);
+        const codesFor = {};
+        const months = [...new Set([sat.slice(0, 7), sun.slice(0, 7)])];
+        for (const m of months) {
+          const list = m === date.slice(0, 7) ? roster : (await zcql.executeZCQLQuery(`SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${m}' LIMIT 0, 300`)).map(x => x.MonthRoster);
+          list.forEach(r => { (codesFor[m] = codesFor[m] || {})[String(r.guard_id)] = String(r.codes || ''); });
+        }
+        const codeOn = (id, d) => ((codesFor[d.slice(0, 7)] || {})[id] || '')[Number(d.slice(8, 10)) - 1];
+        batch = guards.filter(g => String(g.area || '').toLowerCase() === 'escort' && codeOn(String(g.ROWID), sat) === 'O' && codeOn(String(g.ROWID), sun) === 'O').map(g => String(g.ROWID));
+      }
+      const points = (await zcql.executeZCQLQuery(`SELECT guard_id, support_point FROM EscortDay WHERE branch_id = ${branch} AND sched_date = '${date}' LIMIT 0, 300`)).map(x => x.EscortDay);
+      const pointOf = {};
+      points.forEach(p => { pointOf[String(p.guard_id)] = p.support_point || ''; });
+      const inSlot = new Set(rows.map(r => String(r.guard_id)));
+      const night = guards.filter(g => String(g.area || '').toLowerCase() === 'escort' && rosterOf[String(g.ROWID)] === 'C' && !batch.includes(String(g.ROWID)) && !inSlot.has(String(g.ROWID))).map(g => String(g.ROWID));
+      const off = guards.filter(g => ['O', 'L'].includes(rosterOf[String(g.ROWID)])).map(g => ({ guard: String(g.ROWID), code: rosterOf[String(g.ROWID)] }));
       res.status(200).json({
         status: 'success',
         data: {
-          date, posts: posts.map(p => ({ ROWID: String(p.ROWID), name: p.post_name, extraDuty: isOn(p.extra_duty) })),
+          date, posts: posts.map(p => ({ ROWID: String(p.ROWID), name: p.post_name, extraDuty: isOn(p.extra_duty), section: p.section || 'Other posts', shifts: postShifts(p) })),
           shifts: shifts.slice().sort((a, b) => SHIFT_ORDER.indexOf(a.code) - SHIFT_ORDER.indexOf(b.code)),
           slots: rows.map(r => ({ ROWID: String(r.ROWID), post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id), published: isOn(r.published) })),
           guards: guards.map(g => ({ ROWID: String(g.ROWID), name: g.guard_name, id: g.id_number, area: g.area || '', roster: rosterOf[String(g.ROWID)] || '' })),
-          hasRoster: roster.length > 0
+          hasRoster: roster.length > 0,
+          escort: { batch: batch.map(id => ({ guard: id, point: pointOf[id] || '' })), night },
+          off
         }
       });
     } catch (err) {
@@ -358,7 +390,9 @@ module.exports = function supervisorRoutes(app, h) {
       const shift = String(req.body.shift || '');
       if (!(await getShifts(zcql)).some(s => s.code === shift)) throw new Error('Pick a shift');
       const posts = await branchPosts(req, zcql, branch);
-      if (!posts.some(p => String(p.ROWID) === String(post))) throw new Error('That post is not in your area.');
+      const thePost = posts.find(p => String(p.ROWID) === String(post));
+      if (!thePost) throw new Error('That post is not in your area.');
+      if (postShifts(thePost) && !postShifts(thePost).includes(shift)) throw new Error(thePost.post_name + ' has no Shift ' + shift + '.');
       const rows = await dayRows(zcql, branch, date, posts);
       const table = catalystApp.datastore().table('Schedule');
       const cell = rows.find(r => String(r.post_id) === String(post) && r.shift_code === shift);
@@ -439,6 +473,27 @@ module.exports = function supervisorRoutes(app, h) {
       const table = catalystApp.datastore().table('Schedule');
       for (const r of drafts) await table.updateRow({ ROWID: r.ROWID, published: true });
       res.status(200).json({ status: 'success', data: { published: drafts.length } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // 6-to-5 escort: where they support 18:00–20:30 today (changes every day). Empty = removed.
+  app.post('/escortPoint', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const branch = auth.requireBranch(req, requireRowId(req.body.branch));
+      const date = requireDate(req.body.date);
+      const g = (await zcql.executeZCQLQuery(`SELECT ROWID, branch_id, agency_id FROM Guards WHERE ROWID = ${requireRowId(req.body.guard_id)}`))[0];
+      const guard = auth.requireRow(req, g && g.Guards, 'guard');
+      if (String(guard.branch_id) !== String(branch)) throw new Error('This guard is in another branch.');
+      const point = cleanText(req.body.point || '', 'Support point', 100, false) || '';
+      const table = catalystApp.datastore().table('EscortDay');
+      const old = await zcql.executeZCQLQuery(`SELECT ROWID FROM EscortDay WHERE guard_id = ${guard.ROWID} AND sched_date = '${date}'`);
+      if (old.length) await table.updateRow({ ROWID: old[0].EscortDay.ROWID, support_point: point, updated_by: req.user.name });
+      else await table.insertRow({ sched_date: date, guard_id: guard.ROWID, support_point: point, branch_id: branch, updated_by: req.user.name });
+      res.status(200).json({ status: 'success', data: { point } });
     } catch (err) {
       fail(res, err);
     }

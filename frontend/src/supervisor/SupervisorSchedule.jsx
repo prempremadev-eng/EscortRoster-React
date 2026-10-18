@@ -47,6 +47,7 @@ export default function SupervisorSchedule() {
   const [pick, setPick] = useState(null); // { post, shift }
   const [search, setSearch] = useState('');
   const [showOthers, setShowOthers] = useState(false);
+  const [pointDraft, setPointDraft] = useState({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -99,7 +100,24 @@ export default function SupervisorSchedule() {
     run(() => api.scheduleSet(branch, date, p.post, p.shift, guard.ROWID), () => { setPick(null); setNote(guard.name + ' → ' + data.posts.find(x => x.ROWID === p.post).name + ' · Shift ' + p.shift); });
   }
 
-  const total = data ? data.posts.length * data.shifts.length : 0;
+  // A post works only its own shifts ("ABC", "G" …; empty = every shift).
+  const hasShift = (p, code) => !p.shifts || p.shifts.includes(code);
+  const total = data ? data.posts.reduce((n, p) => n + data.shifts.filter(s => hasShift(p, s.code)).length, 0) : 0;
+  // The daily sheet: one table per section with A / B / C side by side, then the G shift posts.
+  const ABC = data ? data.shifts.filter(s => s.code !== 'G') : [];
+  const shiftG = data ? data.shifts.find(s => s.code === 'G') : null;
+  const sections = [];
+  if (data) data.posts.forEach(p => {
+    if (!ABC.some(s => hasShift(p, s.code))) return;
+    let sec = sections.find(x => x.name === p.section);
+    if (!sec) sections.push(sec = { name: p.section, posts: [] });
+    sec.posts.push(p);
+  });
+  const gPosts = data && shiftG ? data.posts.filter(p => hasShift(p, 'G') && p.shifts) : [];
+  const nameOf = id => ((data && data.guards.find(g => g.ROWID === id)) || {}).name || 'Guard';
+  function savePoint(guard, value) {
+    run(() => api.escortPoint(branch, date, guard, value), () => setNote(nameOf(guard) + ': support point ' + (value ? 'saved.' : 'removed.')));
+  }
   const filled = data ? data.slots.length : 0;
   const drafts = data ? data.slots.filter(s => !s.published).length : 0;
   // Taken = already in a slot of the picked shift. A guard in another shift that day can still be
@@ -115,12 +133,26 @@ export default function SupervisorSchedule() {
   const pickedExtra = !!(pick && data && (data.posts.find(p => p.ROWID === pick.post) || {}).extraDuty);
   const others = pick ? free.filter(g => !onShift.includes(g) && (!otherShift[g.ROWID] || pickedExtra || data.slots.some(s => s.guard === g.ROWID && (data.posts.find(p => p.ROWID === s.post) || {}).extraDuty))) : [];
   const b = branches.find(x => String(x.ROWID) === String(branch));
+  // One slot of the sheet: a dash when the post has no such shift.
+  const Cell = ({ p, code }) => {
+    if (!hasShift(p, code)) return <td className="sc-none">—</td>;
+    const slot = slotOf(p.ROWID, code);
+    const picked = pick && pick.post === p.ROWID && pick.shift === code;
+    return (
+      <td>
+        <button className={'sc-cell' + (slot ? (slot.published ? ' sc-cell-pub' : ' sc-cell-draft') : ' sc-cell-empty') + (picked ? ' sc-cell-picked' : '')}
+          onClick={() => tapCell(p.ROWID, code)} disabled={busy} title={slot ? 'Tap to remove' : 'Tap, then pick a guard'}>
+          {slot ? guardName(slot.guard) : picked ? 'Pick a guard →' : '+ Assign'}
+        </button>
+      </td>
+    );
+  };
   const ROSTER_TAG = { A: 'A', B: 'B', C: 'C', G: 'G', O: 'Off', L: 'Leave' };
   // One free guard in the side list: tap to put them in the picked slot.
   const Person = ({ g }) => (
     <button className={'pd-person' + (pick ? '' : ' sc-person-off')} onClick={() => assign(g)} disabled={busy}>
       <span className="pd-avatar pd-avatar-sm">{initials(g.name)}</span>
-      <span><b>{g.name}</b><span>{g.id}{g.area ? ' · ' + g.area : ''}</span></span>
+      <span className="sc-ptext"><b>{g.name}</b><small>{g.id}{g.area ? ' · ' + g.area : ''}</small></span>
       {otherShift[g.ROWID] && <span className="rs-cell rs-none sc-roster" title="Already in this shift today: extra duty">Also {otherShift[g.ROWID]}</span>}
       {g.roster && <span className={'rs-cell rs-' + g.roster + ' sc-roster'}>{ROSTER_TAG[g.roster]}</span>}
     </button>
@@ -146,6 +178,7 @@ export default function SupervisorSchedule() {
           </select>
           <button className="pd-chip" onClick={() => run(() => api.scheduleCopy(branch, date), r => setNote(r.data.copied ? 'Copied ' + r.data.copied + ' slot(s) from the ' + r.data.from + '.' : 'Nothing to copy (no schedule yesterday, and the weekly chart has no free slots).'))} disabled={busy}>Copy from yesterday</button>
           <button className="pd-chip pd-chip-primary" onClick={() => run(() => api.schedulePublish(branch, date), r => setNote(r.data.published ? 'Published · ' + r.data.published + ' slot(s). Guards get it at card IN.' : 'Everything is already published.'))} disabled={busy || !drafts}>Publish to guards</button>
+          <button className="pd-chip" onClick={() => window.print()} title="Print or save as PDF to share">🖨️ Print</button>
           <a className="pd-chip" href="#chart" title="Weekly Duty Chart (used when a day has no published schedule)">Weekly chart</a>
         </div>
 
@@ -156,32 +189,85 @@ export default function SupervisorSchedule() {
         {data && (
           <div className="sb-body">
             <div className="sb-main">
-              <div className="pd-table-wrap">
-                <table className="sc-table">
-                  <thead>
-                    <tr><th>Post</th>{data.shifts.map(s => <th key={s.code}>{s.code} · {hours(s)}</th>)}</tr>
-                  </thead>
-                  <tbody>
-                    {data.posts.map(p => (
-                      <tr key={p.ROWID}>
-                        <td className="sc-post">{p.name}</td>
-                        {data.shifts.map(s => {
-                          const slot = slotOf(p.ROWID, s.code);
-                          const picked = pick && pick.post === p.ROWID && pick.shift === s.code;
-                          return (
-                            <td key={s.code}>
-                              <button className={'sc-cell' + (slot ? (slot.published ? ' sc-cell-pub' : ' sc-cell-draft') : ' sc-cell-empty') + (picked ? ' sc-cell-picked' : '')}
-                                onClick={() => tapCell(p.ROWID, s.code)} disabled={busy} title={slot ? 'Tap to remove' : 'Tap, then pick a guard'}>
-                                {slot ? guardName(slot.guard) : picked ? 'Pick a guard →' : '+ Assign'}
-                              </button>
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
-                    {data.posts.length === 0 && <tr><td colSpan={data.shifts.length + 1} className="pd-muted">No posts in this branch. Add them in Posts.</td></tr>}
-                  </tbody>
-                </table>
+              <div className="sc-sheet">
+                <div className="sc-print-title">{b ? (b.company || 'Nokia') + ' ' + b.branch_name : ''} · Duty schedule · {niceDate(date)}</div>
+                {sections.map(sec => (
+                  <div className="sc-block" key={sec.name}>
+                    <table className="sc-table sc-sheet-table">
+                      <thead>
+                        <tr className="sc-sec"><th colSpan={2 + ABC.length}>{sec.name}</th></tr>
+                        <tr><th className="sc-no">#</th><th>Point</th>{ABC.map(s => <th key={s.code}>{s.code} shift · {hours(s)}</th>)}</tr>
+                      </thead>
+                      <tbody>
+                        {sec.posts.map((p, i) => (
+                          <tr key={p.ROWID}>
+                            <td className="sc-no">{i + 1}</td>
+                            <td className="sc-post">{p.name}{p.extraDuty ? ' ⭐' : ''}</td>
+                            {ABC.map(s => <Cell key={s.code} p={p} code={s.code} />)}
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                ))}
+
+                {shiftG && gPosts.length > 0 && (
+                  <div className="sc-block sc-two">
+                    <table className="sc-table sc-sheet-table">
+                      <thead>
+                        <tr className="sc-sec sc-sec-g"><th colSpan={3}>G shift · {hours(shiftG)}</th></tr>
+                        <tr><th className="sc-no">#</th><th>Point</th><th>Guard</th></tr>
+                      </thead>
+                      <tbody>
+                        {gPosts.map((p, i) => (
+                          <tr key={p.ROWID}><td className="sc-no">{i + 1}</td><td className="sc-post">{p.name}</td><Cell p={p} code="G" /></tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    <table className="sc-table sc-sheet-table">
+                      <thead>
+                        <tr className="sc-sec sc-sec-off"><th colSpan={2}>Week off / leave · from the month roster</th></tr>
+                      </thead>
+                      <tbody>
+                        {data.off.map((o, i) => (
+                          <tr key={o.guard}><td className="sc-no">{i + 1}</td><td className="sc-post">{nameOf(o.guard)} <span className={'rs-cell rs-' + o.code + ' sc-roster'}>{o.code === 'O' ? 'Off' : 'Leave'}</span></td></tr>
+                        ))}
+                        {data.off.length === 0 && <tr><td colSpan={2} className="pd-muted">{data.hasRoster ? 'Nobody is off today.' : 'No month roster for this month.'}</td></tr>}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+
+                <div className="sc-block">
+                  <table className="sc-table sc-sheet-table">
+                    <thead>
+                      <tr className="sc-sec sc-sec-esc"><th colSpan={3}>Escort</th></tr>
+                      <tr><th className="sc-no">#</th><th>Guard</th><th>Time · support point</th></tr>
+                    </thead>
+                    <tbody>
+                      {data.escort.batch.map((e, i) => (
+                        <tr key={e.guard}>
+                          <td className="sc-no">{i + 1}</td>
+                          <td className="sc-post">{nameOf(e.guard)}</td>
+                          <td className="sc-esc">
+                            <span className="sc-time">6 to 5</span>
+                            <input className="pd-search sc-point" list="sc-points" placeholder="Support point 18:00–20:30"
+                              value={pointDraft[e.guard] ?? e.point} onChange={ev => setPointDraft(d => ({ ...d, [e.guard]: ev.target.value }))}
+                              onBlur={ev => { const v = ev.target.value.trim(); if (v !== e.point) savePoint(e.guard, v); }} disabled={busy} />
+                          </td>
+                        </tr>
+                      ))}
+                      {data.escort.night.map((id, i) => (
+                        <tr key={id}><td className="sc-no">{data.escort.batch.length + i + 1}</td><td className="sc-post">{nameOf(id)}</td><td className="sc-esc"><span className="sc-time sc-time-night">9 to 6</span> Escort cab</td></tr>
+                      ))}
+                      {!data.escort.batch.length && !data.escort.night.length && <tr><td colSpan={3} className="pd-muted">No escort guard on the roster for this day (6-to-5 runs Monday to Friday).</td></tr>}
+                    </tbody>
+                  </table>
+                  <datalist id="sc-points">
+                    {['ERT Booth 1', 'ERT Booth 2', 'ERT Booth 3', 'ERT Booth 4', 'Tower Main Gate', 'Smoking Zone', 'Lancor 2', 'North Plaza', 'MLCP Main Gate', 'MD House', 'PKL', 'Potheri']
+                      .concat(data.escort.batch.map(e => e.point)).filter((v, i, a) => v && a.indexOf(v) === i).map(v => <option key={v} value={v} />)}
+                  </datalist>
+                </div>
               </div>
               <div className="pd-legend"><span className="sc-key sc-cell-pub"></span>Published <span className="sc-key sc-cell-draft"></span>Not published yet <span className="sc-key sc-cell-empty"></span>Empty</div>
             </div>
