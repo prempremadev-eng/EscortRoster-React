@@ -1013,3 +1013,26 @@ a.btn{text-decoration:none;display:inline-block;}
 .adm-icon:hover{background:#eff6ff;border-color:#93c5fd;}
 .adm-icon:disabled{opacity:.5;cursor:default;}
 .guard-photo{width:88px;height:88px;object-fit:cover;border-radius:10px;border:1px solid var(--border);align-self:end;}
+
+/* Month roster (components/RosterPage.jsx) */
+.rs-legend{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;font-size:13px;color:#334155;margin:4px 0 10px;}
+.rs-scroll{overflow:auto;max-height:calc(100vh - 260px);border:1px solid var(--border);border-radius:8px;background:#fff;}
+.rs-table{border-collapse:separate;border-spacing:0;font-size:12px;}
+.rs-table th,.rs-table td{padding:2px;text-align:center;border-bottom:1px solid #eef2f7;white-space:nowrap;}
+.rs-table thead th{position:sticky;top:0;background:#f8fafc;z-index:2;font-weight:600;color:#334155;min-width:26px;}
+.rs-table thead th div{font-weight:400;color:#94a3b8;font-size:10px;}
+.rs-table th.rs-weekend{color:#b45309;}
+.rs-table tfoot td{background:#f8fafc;color:#475569;}
+.rs-sticky{position:sticky;background:#fff;z-index:1;}
+.rs-table thead .rs-sticky{z-index:3;background:#f8fafc;}
+.rs-no{left:0;min-width:32px;color:#94a3b8;}
+.rs-name{left:32px;min-width:170px;max-width:200px;text-align:left !important;padding-left:6px !important;white-space:normal !important;border-right:1px solid var(--border);}
+.rs-cell{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border-radius:5px;border:none;font-weight:600;font-size:12px;font-family:inherit;cursor:pointer;padding:0;}
+.rs-cell:disabled{cursor:default;}
+.rs-A{background:#dbeafe;color:#1d4ed8;}
+.rs-B{background:#fef3c7;color:#b45309;}
+.rs-C{background:#e0e7ff;color:#3730a3;}
+.rs-G{background:#dcfce7;color:#15803d;}
+.rs-O{background:#f1f5f9;color:#64748b;}
+.rs-L{background:#fee2e2;color:#b91c1c;}
+.rs-none{background:#fff;border:1px dashed #e2e8f0;color:#cbd5e1;}

@@ -34,7 +34,7 @@ async function isSignedIn() {
 
 // Links on the top bar, by role (the server checks the role again on every call).
 function links(user) {
-  const l = [['#', 'Duty sheet'], ['#supervisor', 'Supervisor'], ['#master', 'Guards'], ['#posts', 'Posts'], ['#chart', 'Duty chart'], ['#links', 'Guard links']];
+  const l = [['#', 'Duty sheet'], ['#supervisor', 'Supervisor'], ['#master', 'Guards'], ['#roster', 'Month roster'], ['#posts', 'Posts'], ['#chart', 'Duty chart'], ['#links', 'Guard links']];
   if (atLeast(user, 'admin')) l.push(['#simulator', 'Card simulator']);
   if (atLeast(user, 'branch_admin')) l.push(['#admin', 'Admin']);
   return l;

@@ -582,6 +582,15 @@ async function onCardIn(catalystApp, guard, time, dutyDate) {
 
   let body = 'Duty not assigned yet. Ask your supervisor.';
   let seat = null;
+  // No post for today yet: the month roster may still say the shift (or a week off / leave).
+  let rosterShift = '';
+  if (!duty) {
+    rosterShift = await roster.shiftOf(zcql, guard.ROWID, shiftDate());
+    const sh = (await getShifts(zcql)).find(x => x.code === rosterShift);
+    if (sh) body = 'Today: ' + shiftText(sh) + ' (month roster). Your supervisor will give your post.';
+    else if (rosterShift === 'O') body = 'The month roster says today is your week off. Ask your supervisor.';
+    else if (rosterShift === 'L') body = 'The month roster says you are on leave today. Ask your supervisor.';
+  }
   if (duty && duty.post.post_type === 'ESCORT') {
     body = 'Your card IN is noted';
     if (guard.escort_id) {
@@ -602,7 +611,7 @@ async function onCardIn(catalystApp, guard, time, dutyDate) {
     body,
     url: guard.guard_token ? 'index.html#guard/' + guard.guard_token : 'index.html'
   });
-  return { ...result, seat, post: duty ? duty.post.post_name : null, shift: duty ? duty.shift.code : null };
+  return { ...result, seat, post: duty ? duty.post.post_name : null, shift: duty ? duty.shift.code : (rosterShift || null) };
 }
 
 // One door: the Card Simulator posts here today; the real access system can post here later.
@@ -1574,6 +1583,9 @@ app.post('/testPush', async (req, res) => {
 /* ---------------- ADMIN (admin.js) ---------------- */
 
 const admin = require('./admin.js')(app, { catalyst, selectAll, requireRowId, requireText, fail, auth });
+
+// Month roster (roster.js): the agency's monthly shift chart.
+const roster = require('./roster.js')(app, { catalyst, selectAll, requireRowId, fail, auth });
 
 // Switched-on branches of my area (from the warm cache, so usually no read).
 async function activeBranches(req, zcql) {

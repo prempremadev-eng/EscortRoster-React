@@ -13,6 +13,7 @@ import SupervisorInbox from './supervisor/SupervisorInbox.jsx';
 import SupervisorBoard from './supervisor/SupervisorBoard.jsx';
 import SupervisorSchedule from './supervisor/SupervisorSchedule.jsx';
 import AdminPage from './admin/AdminPage.jsx';
+import RosterPage from './components/RosterPage.jsx';
 import AuthGate from './auth/AuthGate.jsx';
 import './style.css';
 
@@ -51,7 +52,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-// Pages without a router: the duty sheet, #dashboard, #master, #posts, #chart, #simulator, #links, #admin, #supervisor, #board, #schedule (supervisor)
+// Pages without a router: the duty sheet, #dashboard, #master, #posts, #chart, #simulator, #links, #admin, #roster, #supervisor, #board, #schedule (supervisor)
 // and #setup/<token>, #guard/<token> (guard's phone).
 // The browser Back button works because each page is a URL hash.
 function Root() {
@@ -85,6 +86,7 @@ function page(hash) {
   if (hash === '#simulator') return <CardSimulator />;
   if (hash === '#links') return <GuardLinks />;
   if (hash === '#admin') return <AdminPage />;
+  if (hash === '#roster') return <RosterPage />;
   // #supervisor/<post> comes from a supervisor notification: opens that post.
   if (hash === '#supervisor' || hash.startsWith('#supervisor/')) return <SupervisorInbox key={hash} initialPost={hash.split('/')[1] || null} />;
   if (hash === '#board') return <SupervisorBoard />;

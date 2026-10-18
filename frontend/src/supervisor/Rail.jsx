@@ -14,6 +14,7 @@ export default function Rail({ active }) {
       {item('board', '#board', 'Live board', Icon.grid)}
       {item('schedule', '#schedule', 'Schedule', Icon.calendar)}
       {item('guards', '#master', 'Guard Master', Icon.shield)}
+      <a className="sup-rail-btn sup-rail-txt" href="#roster" title="Month roster (shifts for the month)">Roster</a>
       {atLeast(user, 'branch_admin') && <a className="sup-rail-btn sup-rail-txt" href="#admin" title="Admin: users, branches, agencies">Admin</a>}
       <div className="pd-grow"></div>
       {user && <button className="sup-rail-btn sup-rail-me" title={user.name + ' · ' + user.roleName + ' · tap to sign out'} onClick={() => { if (window.confirm('Sign out ' + user.name + '?')) signOut(); }}>{initials(user.name)}</button>}
