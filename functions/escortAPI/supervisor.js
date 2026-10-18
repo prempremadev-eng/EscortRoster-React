@@ -306,7 +306,7 @@ module.exports = function supervisorRoutes(app, h) {
 
   // Posts of a branch in my area (an agency supervisor: only their agency's posts).
   async function branchPosts(req, zcql, branch) {
-    return (await zcql.executeZCQLQuery(`SELECT ROWID, post_name FROM Posts WHERE branch_id = ${branch} AND post_type = 'POST' AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY post_name ASC`)).map(r => r.Posts);
+    return (await zcql.executeZCQLQuery(`SELECT ROWID, post_name, extra_duty FROM Posts WHERE branch_id = ${branch} AND post_type = 'POST' AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY post_name ASC`)).map(r => r.Posts);
   }
   // Slots of that day, only of the given posts.
   async function dayRows(zcql, branch, date, posts) {
@@ -335,7 +335,7 @@ module.exports = function supervisorRoutes(app, h) {
       res.status(200).json({
         status: 'success',
         data: {
-          date, posts: posts.map(p => ({ ROWID: String(p.ROWID), name: p.post_name })),
+          date, posts: posts.map(p => ({ ROWID: String(p.ROWID), name: p.post_name, extraDuty: isOn(p.extra_duty) })),
           shifts: shifts.slice().sort((a, b) => SHIFT_ORDER.indexOf(a.code) - SHIFT_ORDER.indexOf(b.code)),
           slots: rows.map(r => ({ ROWID: String(r.ROWID), post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id), published: isOn(r.published) })),
           guards: guards.map(g => ({ ROWID: String(g.ROWID), name: g.guard_name, id: g.id_number, area: g.area || '', roster: rosterOf[String(g.ROWID)] || '' })),
@@ -367,8 +367,16 @@ module.exports = function supervisorRoutes(app, h) {
         return res.status(200).json({ status: 'success', data: { cleared: true } });
       }
       const guard = requireRowId(req.body.guard);
-      const g = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE ROWID = ${guard} AND branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)}`);
+      const g = await zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE ROWID = ${guard} AND branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)}`);
       if (!g.length) throw new Error('That guard is not in your area.');
+      // A second shift the same day is extra duty, allowed only when one of the two posts is an
+      // extra duty post (VTitan: its regular guards are off at weekends and a volunteer covers).
+      const isExtra = id => isOn((posts.find(p => String(p.ROWID) === String(id)) || {}).extra_duty);
+      const other = rows.find(r => String(r.guard_id) === String(guard) && r.shift_code !== shift);
+      if (other && !isExtra(post) && !isExtra(other.post_id)) {
+        const otherName = (posts.find(p => String(p.ROWID) === String(other.post_id)) || {}).post_name || 'another post';
+        throw new Error(g[0].Guards.guard_name + ' is already on Shift ' + other.shift_code + ' at ' + otherName + ' today. A second shift is allowed only at an extra duty post (e.g. VTitan).');
+      }
       // A guard can do two shifts in a day (extra duty, e.g. A at one post and B at VTitan), but
       // only one post per shift: their other slot in this same shift is emptied.
       for (const r of rows) {

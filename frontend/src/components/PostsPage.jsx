@@ -4,7 +4,7 @@ import { useUser, atLeast } from '../auth/user.js';
 import { worksIn } from '../agency.js';
 import { Toggle, IconBtn } from './RowControls.jsx';
 
-const BLANK_POST = { post_name: '', post_type: 'POST', agency_id: '', vehicle_entry: false };
+const BLANK_POST = { post_name: '', post_type: 'POST', agency_id: '', vehicle_entry: false, extra_duty: false };
 const isOn = v => v === true || v === 'true';
 
 // The places of each branch where a guard can be put: Gate 3, Lobby, Escort…
@@ -51,7 +51,7 @@ export default function PostsPage() {
     setSaving(true);
     setError('');
     try {
-      const body = { branch_id: branch, post_name: form.post_name, post_type: form.post_type, agency_id: form.agency_id, vehicle_entry: isOn(form.vehicle_entry) };
+      const body = { branch_id: branch, post_name: form.post_name, post_type: form.post_type, agency_id: form.agency_id, vehicle_entry: isOn(form.vehicle_entry), extra_duty: isOn(form.extra_duty) };
       const saved = form.ROWID
         ? (await api.updatePost({ ...body, ROWID: form.ROWID, is_active: form.is_active !== 'false' })).data
         : (await api.addPost(body)).data;
@@ -69,7 +69,7 @@ export default function PostsPage() {
     setError('');
     setNote('');
     try {
-      putRow((await api.updatePost({ ...p, vehicle_entry: isOn(p.vehicle_entry), is_active: active })).data);
+      putRow((await api.updatePost({ ...p, vehicle_entry: isOn(p.vehicle_entry), extra_duty: isOn(p.extra_duty), is_active: active })).data);
       setNote((active ? '↩️ ' : '🚫 ') + p.post_name + (active ? ' is open again.' : ' is switched off.'));
     } catch (err) {
       setError(err.message);
@@ -127,6 +127,10 @@ export default function PostsPage() {
                 <input type="checkbox" checked={isOn(form.vehicle_entry)} onChange={e => setForm(f => ({ ...f, vehicle_entry: e.target.checked }))} />
                 🚗 Visitor / vehicle entry at this post
               </label>
+              <label className="master-check">
+                <input type="checkbox" checked={isOn(form.extra_duty)} onChange={e => setForm(f => ({ ...f, extra_duty: e.target.checked }))} />
+                ⭐ Extra duty post (a guard may take it as a second shift the same day)
+              </label>
             </div>
             <div className="link-actions">
               <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save post'}</button>
@@ -142,7 +146,7 @@ export default function PostsPage() {
           <div className="dash-scroll">
             <table className="dash-table adm-table">
               <thead>
-                <tr><th>Post</th><th>Type</th><th>Agency</th><th>Vehicle entry</th><th>Status</th><th></th></tr>
+                <tr><th>Post</th><th>Type</th><th>Agency</th><th>Vehicle entry</th><th>Extra duty</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
                 {posts.map(p => {
@@ -153,12 +157,13 @@ export default function PostsPage() {
                       <td>{p.post_type === 'ESCORT' ? '🚐 ESCORT' : '📍 POST'}</td>
                       <td>{agencyName(p.agency_id)}</td>
                       <td>{isOn(p.vehicle_entry) ? '🚗 Yes' : '—'}</td>
+                      <td>{isOn(p.extra_duty) ? '⭐ Yes' : '—'}</td>
                       <td><Toggle on={!off} label={p.post_name} disabled={!canEdit} onChange={() => setActive(p, off)} /></td>
                       <td className="adm-actions">{canEdit && !off && <IconBtn icon="✏️" label={'Edit ' + p.post_name} onClick={() => { setError(''); setNote(''); setForm({ ...p }); window.scrollTo({ top: 0 }); }} />}</td>
                     </tr>
                   );
                 })}
-                {posts.length === 0 && <tr><td colSpan="6">No posts in this branch yet. Press ➕ Add post.</td></tr>}
+                {posts.length === 0 && <tr><td colSpan="7">No posts in this branch yet. Press ➕ Add post.</td></tr>}
               </tbody>
             </table>
           </div>

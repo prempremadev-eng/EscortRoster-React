@@ -1108,7 +1108,7 @@ app.get('/getPosts', async (req, res) => {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const [posts, branches, agencies] = await Promise.all([
-      selectAll(zcql, 'Posts', 'SELECT ROWID, branch_id, agency_id, post_name, post_type, vehicle_entry, is_active FROM Posts ORDER BY post_name ASC'),
+      selectAll(zcql, 'Posts', 'SELECT ROWID, branch_id, agency_id, post_name, post_type, vehicle_entry, extra_duty, is_active FROM Posts ORDER BY post_name ASC'),
       activeBranches(req, zcql),
       admin.agencyList(zcql)
     ]);
@@ -1123,7 +1123,9 @@ function postFromBody(b) {
   if (!POST_TYPES.includes(post_type)) throw new Error('Type must be POST or ESCORT');
   return {
     branch_id: requireRowId(b.branch_id), agency_id: requireRowId(b.agency_id || fail.missing('Pick the agency of this post')), post_name: requireText(b.post_name, 'Post name', 50), post_type,
-    vehicle_entry: b.vehicle_entry === true
+    vehicle_entry: b.vehicle_entry === true,
+    // A guard may take this post as a second shift the same day (weekend cover, e.g. VTitan).
+    extra_duty: b.extra_duty === true
   };
 }
 

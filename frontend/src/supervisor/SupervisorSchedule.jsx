@@ -111,7 +111,9 @@ export default function SupervisorSchedule() {
   // With a month roster: the picked shift's guards first; the rest (other shift, week off, leave,
   // no roster) behind "Other guards".
   const onShift = pick && data && data.hasRoster ? free.filter(g => g.roster === pick.shift && !otherShift[g.ROWID]) : free.filter(g => !otherShift[g.ROWID]);
-  const others = pick ? free.filter(g => !onShift.includes(g)) : [];
+  // Guards already on another shift today show only for an extra duty post (e.g. VTitan).
+  const pickedExtra = !!(pick && data && (data.posts.find(p => p.ROWID === pick.post) || {}).extraDuty);
+  const others = pick ? free.filter(g => !onShift.includes(g) && (!otherShift[g.ROWID] || pickedExtra || data.slots.some(s => s.guard === g.ROWID && (data.posts.find(p => p.ROWID === s.post) || {}).extraDuty))) : [];
   const b = branches.find(x => String(x.ROWID) === String(branch));
   const ROSTER_TAG = { A: 'A', B: 'B', C: 'C', G: 'G', O: 'Off', L: 'Leave' };
   // One free guard in the side list: tap to put them in the picked slot.
