@@ -369,8 +369,10 @@ module.exports = function supervisorRoutes(app, h) {
       const guard = requireRowId(req.body.guard);
       const g = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE ROWID = ${guard} AND branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)}`);
       if (!g.length) throw new Error('That guard is not in your area.');
+      // A guard can do two shifts in a day (extra duty, e.g. A at one post and B at VTitan), but
+      // only one post per shift: their other slot in this same shift is emptied.
       for (const r of rows) {
-        if (String(r.guard_id) === String(guard) && (!cell || String(r.ROWID) !== String(cell.ROWID))) await table.deleteRow(r.ROWID);
+        if (String(r.guard_id) === String(guard) && r.shift_code === shift && (!cell || String(r.ROWID) !== String(cell.ROWID))) await table.deleteRow(r.ROWID);
       }
       if (cell) await table.updateRow({ ROWID: cell.ROWID, guard_id: guard, published: false });
       else await table.insertRow({ branch_id: branch, sched_date: date, post_id: post, shift_code: shift, guard_id: guard, published: false });
@@ -401,6 +403,7 @@ module.exports = function supervisorRoutes(app, h) {
       }
       const rows = await dayRows(zcql, branch, date, posts);
       const usedCells = new Set(rows.map(r => r.post_id + '|' + r.shift_code));
+      // Copying never makes extra duty: a guard already in the day is not copied again.
       const usedGuards = new Set(rows.map(r => String(r.guard_id)));
       const table = catalystApp.datastore().table('Schedule');
       let copied = 0;

@@ -102,12 +102,16 @@ export default function SupervisorSchedule() {
   const total = data ? data.posts.length * data.shifts.length : 0;
   const filled = data ? data.slots.length : 0;
   const drafts = data ? data.slots.filter(s => !s.published).length : 0;
-  const usedIds = new Set(data ? data.slots.map(s => s.guard) : []);
+  // Taken = already in a slot of the picked shift. A guard in another shift that day can still be
+  // picked for extra duty (shown under "Other guards" with their other shift).
+  const usedIds = new Set(data ? data.slots.filter(s => !pick || s.shift === pick.shift).map(s => s.guard) : []);
+  const otherShift = {};
+  if (data) data.slots.forEach(s => { if (pick && s.shift !== pick.shift) otherShift[s.guard] = s.shift; });
   const free = data ? data.guards.filter(g => !usedIds.has(g.ROWID) && (g.name + ' ' + (g.id || '') + ' ' + (g.area || '')).toLowerCase().includes(search.trim().toLowerCase())) : [];
   // With a month roster: the picked shift's guards first; the rest (other shift, week off, leave,
   // no roster) behind "Other guards".
-  const onShift = pick && data && data.hasRoster ? free.filter(g => g.roster === pick.shift) : free;
-  const others = pick && data && data.hasRoster ? free.filter(g => g.roster !== pick.shift) : [];
+  const onShift = pick && data && data.hasRoster ? free.filter(g => g.roster === pick.shift && !otherShift[g.ROWID]) : free.filter(g => !otherShift[g.ROWID]);
+  const others = pick ? free.filter(g => !onShift.includes(g)) : [];
   const b = branches.find(x => String(x.ROWID) === String(branch));
   const ROSTER_TAG = { A: 'A', B: 'B', C: 'C', G: 'G', O: 'Off', L: 'Leave' };
   // One free guard in the side list: tap to put them in the picked slot.
@@ -115,6 +119,7 @@ export default function SupervisorSchedule() {
     <button className={'pd-person' + (pick ? '' : ' sc-person-off')} onClick={() => assign(g)} disabled={busy}>
       <span className="pd-avatar pd-avatar-sm">{initials(g.name)}</span>
       <span><b>{g.name}</b><span>{g.id}{g.area ? ' · ' + g.area : ''}</span></span>
+      {otherShift[g.ROWID] && <span className="rs-cell rs-none sc-roster" title="Already in this shift today: extra duty">Also {otherShift[g.ROWID]}</span>}
       {g.roster && <span className={'rs-cell rs-' + g.roster + ' sc-roster'}>{ROSTER_TAG[g.roster]}</span>}
     </button>
   );

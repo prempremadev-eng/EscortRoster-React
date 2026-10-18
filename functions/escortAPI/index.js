@@ -1062,8 +1062,15 @@ const shiftText = sh => 'Shift ' + sh.code + ' (' + sh.start + '–' + sh.end + 
 async function dutyOf(zcql, guardId, week, day) {
   let c = null;
   if (day) {
-    const planned = await zcql.executeZCQLQuery(`SELECT post_id, shift_code FROM Schedule WHERE guard_id = ${requireRowId(guardId)} AND sched_date = '${requireDate(day)}' AND published = true`);
-    if (planned.length) c = planned[0].Schedule;
+    const planned = (await zcql.executeZCQLQuery(`SELECT post_id, shift_code FROM Schedule WHERE guard_id = ${requireRowId(guardId)} AND sched_date = '${requireDate(day)}' AND published = true`)).map(r => r.Schedule);
+    // Extra duty (two shifts that day): the shift that has started latest by now, else the first one.
+    if (planned.length > 1) {
+      const shifts = await getShifts(zcql);
+      const startOf = p => (shifts.find(x => x.code === p.shift_code) || {}).start || '99:99';
+      const now = new Date(Date.now() + IST_OFFSET_MIN * 60000).toISOString().slice(11, 16);
+      const started = planned.filter(p => startOf(p) <= now).sort((a, b) => startOf(b).localeCompare(startOf(a)));
+      c = started[0] || planned.sort((a, b) => startOf(a).localeCompare(startOf(b)))[0];
+    } else if (planned.length) c = planned[0];
   }
   if (!c) {
     const rows = await zcql.executeZCQLQuery(`SELECT post_id, shift_code FROM DutyChart WHERE guard_id = ${requireRowId(guardId)} AND week_start = '${week}'`);
