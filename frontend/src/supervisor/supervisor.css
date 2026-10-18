@@ -115,8 +115,10 @@
 /* Compact sheet: one block per shift (S.No · NAME · SHIFT · POINT), A/B/C side by side, little gap */
 .sh-page{display:flex;flex-direction:column;gap:10px;}
 .sh-row{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:0;align-items:start;}
-.sh-t{width:100%;border-collapse:collapse;background:#fff;font-size:11.5px;line-height:1.15;table-layout:fixed;}
-.sh-t th,.sh-t td{border:1px solid #9CA3AF;padding:1px 4px;height:19px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;}
+/* min-width 0: the global table rule (style.css, min-width 900px for the escort sheet) must not apply here. */
+.sh-t{width:100%;min-width:0;border-collapse:collapse;background:#fff;font-size:11.5px;line-height:1.15;table-layout:fixed;}
+.sh-t th,.sh-t td{border:1px solid #9CA3AF;padding:1px 4px;height:19px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;text-align:left;}
+.sh-t thead th{text-align:center;}
 .sh-head th{background:#FCD5B4;color:#111;font-weight:700;text-align:center;font-size:11.5px;}
 .sh-head-g th{background:#D9EAD3;}
 .sh-head-off th{background:#E5E7EB;}
@@ -154,3 +156,7 @@
   .sh-input::placeholder{color:transparent;}
   @page{size:A4 portrait;margin:6mm;}
 }
+.sh-t td.sh-no,.sh-t td.sh-code{text-align:center;}
+.sh-t .sh-cols th{font-size:10.5px;padding:1px 2px;}
+.sh-t .w-no{width:38px;}
+.sh-t .w-code{width:46px;}
