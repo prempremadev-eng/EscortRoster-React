@@ -1,0 +1,73 @@
+# ⚡ Schedule Auto fill: Rules (IPF, Estancia)
+
+Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
+- **Built**: app la already work aagudhu (`functions/escortAPI/supervisor.js` → `/scheduleAuto`)
+- **History**: team oda pazhaya schedule photos (22 Jun – 19 Oct 2026, 113 sheets, about 17k duties) la irundhu kandupudichchadhu. Ippo note mattum, innum build pannala.
+
+> Names ingae illa (public repo). Yaar regular / relief nu ellam **Data Store** la (`Posts.regular_guards`, `Posts.relief_guards`).
+
+---
+
+## 🧱 Groups
+
+| Group | Meaning |
+|---|---|
+| PKL team | PKL posts (Main Gate, Vehicle Movement, Patrolling-1/2, Vendor Parking…) |
+| MLCP team | MLCP posts |
+| Escort | Night escort cab (Mon–Fri) |
+| Lady guards | 17 total: **8 permanent** (MLCP Reception 3, Medical Mine Reception 3, Kidos School 2) + **9 pool** |
+
+---
+
+## ✅ Built rules (order la run aagum)
+
+| # | Rule | Enna pannum |
+|---|---|---|
+| 0 | Switch | `Posts.auto_fill` = on irukkura posts la mattum run aagum |
+| 0 | Escort | Escort guards **Sunday mattum**. Mon–Fri avanga night cab, so skip |
+| 1 | Shift Incharge | Month roster la andha shift code irukkura supervisor. Yaarum illa na **empty** |
+| 2 | Regular guards | `Posts.regular_guards` la irukkuravanga, avanga roster shift la |
+| 3 | Team relief | Innum empty slot ah `Posts.relief_guards` (order) la irundhu, **post oda team** la irukkuravanga mattum |
+| 4 | Outside team | Apparum empty na, relief list la meedhi irukkuravanga |
+| – | Safety | Empty slot mattum fill pannum, **draft** ah. Oru guard oru naal la oru slot thaan |
+
+**"Senior" (Rule 3 order):** team oda ella posts layum serthu **adhiga naal** duty paathavanga first. P-code seniority illa. (Prem: P-code senior ellarum PKL ah virumbi pannamaattaanga; adhiga naal PKL paathavanga nalla pannuvaanga.)
+
+---
+
+## 📜 History rules (found, not built yet)
+
+### H1 · Lady pool: vaaram vaaram rotation
+- Pool la 9 per. Daily slots: North Plaza Reception (A/B/C) + Apricot Reception (A/B/C) + Apricot Patrolling (A/B/C) = **9**
+- Oru lady **oru vaaram full ah (Mon–Sat) ore post + ore shift**
+- **Adutha vaaram vera post** ku maaruvaanga. History la oruthar North Plaza la thodarndhu 6 naal mela irundhadhe illa
+- Saila per Kitchen-2 / MLCP Reception relief um poraanga
+- 2 per (Apricot side) mostly **Apricot Reception ↔ Apricot Patrolling** mattum, North Plaza romba kammi
+
+### H2 · Permanent reception ladies: weekly off
+- MLCP Reception, Medical Mine Reception: ovvoru postlayum 3 permanent ladies
+- Off **weekend la mattum**, maari maari (staggered): **Saturday 1 per off, Sunday 2 per off**
+- Weekday la cover romba kammi (MLCP 9 / 60, Medical Mine 16 / 68)
+
+### H3 · MLCP Reception: off naal cover
+- 60 cover duties la **49 = lady pool** (H1 ladies), **9 = MLCP team male guards**, 2 = Medical Mine lady
+- So first lady pool la free irukkuravanga; illa na MLCP team
+
+### H4 · Medical Mine Reception: off naal cover
+- 68 cover duties la **mostly male guards** (PKL / MLCP team), ladies romba kammi
+- Weekday la oru Medical Mine lady MLCP Reception ku pona, Kidos lady cover pannina naal um irukku
+
+### H5 · Cover shift
+- Weekend cover la, cover guard oda shift avanga andha vaara shift ah irukkanum nu illa (about pathi thaan same)
+
+---
+
+## 🔜 Next steps (step by step, post by post)
+
+| Step | Post / topic | Status |
+|---|---|---|
+| 1 | Shift Incharge, Documents, PKL Main Gate / VM / P1 / P2, Kidos ×2 | ✅ Built + tested on 19 Oct |
+| 2 | Apricot Reception regulars (2 Apricot-side ladies) | ✅ Set, Auto fill off |
+| 3 | MLCP / Medical Mine Reception weekend cover (H2–H4) | 🔍 Rule found, build pending |
+| 4 | Lady pool weekly rotation (H1) | 🔍 Rule found, needs last 14 days history in app |
+| 5 | MD House, PKL Vendor Parking, other rotation posts | ⏸ Parked |
