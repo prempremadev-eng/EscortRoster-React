@@ -30,6 +30,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 3 | Team relief | Innum empty slot ah `Posts.relief_guards` (order) la irundhu, **post oda team** la irukkuravanga mattum |
 | 4 | Outside team | Apparum empty na, relief list la meedhi irukkuravanga |
 | 5 | Weekly rotation | Lady pool posts (team Lady Guards, regulars < shifts), **Rule 2 ku apram, Rule 3 ku munnaadi**: (a) nethu indha post + shift la irundhavanga, innaikkum adhe shift na **adhe post**; (b) pudhu shift week na, kadaisi 14 naal la indha post la **kammiya** irundhavanga first |
+| 6 | Weekend list | Post ku thaniya **Sat / Sun list** irukkalaam (`Posts.relief_guards` la `;` ku apram). Sat / Sun la Rule 3 / 4 andha list ah use pannum, Rule 5 andha post ah skip pannum. Order = history la andha post la **weekend la adhiga naal** vandhavanga first |
 | – | Safety | Empty slot mattum fill pannum, **draft** ah. Oru guard oru naal la oru slot thaan |
 
 **Rule 4 order:** outside-team guards are also ordered by **most days at the team's posts** (e.g. MLCP / Escort guards who covered PKL most come first). PKL relief list = PKL team + the outside guards who covered PKL posts in history (Sat/Sun gaps were never left empty).
@@ -68,6 +69,12 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 - **Month roster already plan pannudhu:** Oct la cover guards oda roster shift = avanga cover panna shift (6 / 6 weekend duties match)
 - Cover guards **PKL team** relief lists layum irukkaanga. So weekend la PKL posts first eduthutta, Medical Mine empty aagum. Medical Mine weekend cover ku **PKL relief ah vida priority** venum
 
+### H6 · Apricot Patrolling weekend = men
+- 85 weekend duties la **0 ladies** (1 thadava mattum). MLCP 32, Escort 27, PKL 18
+- **55 vera vera aalunga**, oruthar max 4 thadava. Fixed aal illa: andha naal free ah irukkura men
+- Sat C / Sat A sila naal **empty** ah vittirukkaanga
+- Escorts Saturday layum vandhirukkaanga (13). App rule ippo: Escort Sunday mattum
+
 ### H5 · Cover shift
 - Weekend cover la, cover guard oda shift avanga andha vaara shift ah irukkanum nu illa (about pathi thaan same)
 
@@ -89,7 +96,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 10 | MLCP Reception | Lady (permanent) + lady pool cover | Rule 2 → 3 lady pool (H3) → 4 MLCP men | 3 ladies (regular) + 7 pool ladies, then 2 MLCP men (relief; the 3 regulars left out of relief so the team = Lady Guards) | ✅ On, test Sat 24 / Sun 25 |
 | 11 | Apricot Reception | Lady pool | Rule 2 + H1 weekly rotation | 2 Apricot-side ladies + pool | ✅ On (Rule 5) |
 | 12 | North Plaza Reception | Lady pool | H1 weekly rotation | 7 pool ladies | ✅ On (Rule 5) |
-| 13 | Apricot Patrolling | Lady pool | H1 weekly rotation | pool | ✅ On (Rule 5) |
+| 13 | Apricot Patrolling | Lady pool (weekday) + men (weekend, H6) | Weekday Rule 5; Sat / Sun Rule 6 → 4 | pool ladies + 51 weekend men | ✅ On (Rule 5, Rule 6) |
 | 14 | MD House, PKL Vendor Parking | – | Rotation | – | ⏸ Parked |
 
 ---
@@ -104,4 +111,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 3b | Medical Mine Reception **weekend** cover (H2, H4): 2 weekend cover guards added to the **regular** list after the 3 ladies (so Rule 2 takes them before PKL relief); 7 backups in the relief list, most Medical Mine days first | ✅ Set, test Sat 24 / Sun 25 Oct |
 | 3c | MLCP Reception weekend cover (H2, H3) | ✅ Set, test Sat 24 / Sun 25 Oct |
 | 4 | Lady pool weekly rotation (H1) = Rule 5. 5–17 Oct history (3 posts) loaded into the app | ✅ Built, NP / Apricot Rec / Apricot Patrolling on, test 19 Oct |
+| 4b | Apricot Patrolling **weekend** men (H6) = Rule 6 weekend list | ✅ Set, test Sat 24 / Sun 25 Oct |
+| 4c | Apricot Reception weekend (mostly men), North Plaza weekend (ladies first) | 🔜 Next |
+| 4d | Weekend la ladies kammi: priority MLCP Rec → North Plaza → Medical Mine → Apricot Rec | 🔜 |
 | 5 | MD House, PKL Vendor Parking, other rotation posts | ⏸ Parked |
