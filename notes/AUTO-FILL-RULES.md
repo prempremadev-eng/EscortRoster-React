@@ -57,6 +57,13 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 ### H4 · Medical Mine Reception: off naal cover
 - 68 cover duties la **mostly male guards** (PKL / MLCP team), ladies romba kammi
 - Weekday la oru Medical Mine lady MLCP Reception ku pona, Kidos lady cover pannina naal um irukku
+- **Weekend pattern (17 weekends):**
+  - Saturday: **1 cover** (off la irukkura lady oda shift)
+  - Sunday: **adhe cover guard, adhe shift** + **innoru cover** (2nd off lady oda shift). 16 / 17 weekends la Sat cover thaan Sun um
+  - Main weekend cover guard oruthar **oru maasam** maadhiri same (Jul, Aug, Sep, Oct ovvonnukkum oruthar), 2nd Sunday cover um mostly same person
+  - Escort guard Sunday 2nd cover ah vandhirukkaanga (escort Sunday rule ku match)
+- **Month roster already plan pannudhu:** Oct la cover guards oda roster shift = avanga cover panna shift (6 / 6 weekend duties match)
+- Cover guards **PKL team** relief lists layum irukkaanga. So weekend la PKL posts first eduthutta, Medical Mine empty aagum. Medical Mine weekend cover ku **PKL relief ah vida priority** venum
 
 ### H5 · Cover shift
 - Weekend cover la, cover guard oda shift avanga andha vaara shift ah irukkanum nu illa (about pathi thaan same)
