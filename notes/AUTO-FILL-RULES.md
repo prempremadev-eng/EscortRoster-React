@@ -31,6 +31,8 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 4 | Outside team | Apparum empty na, relief list la meedhi irukkuravanga |
 | – | Safety | Empty slot mattum fill pannum, **draft** ah. Oru guard oru naal la oru slot thaan |
 
+**Rule 4 order:** outside-team guards are also ordered by **most days at the team's posts** (e.g. MLCP / Escort guards who covered PKL most come first). PKL relief list = PKL team + the outside guards who covered PKL posts in history (Sat/Sun gaps were never left empty).
+
 **"Senior" (Rule 3 order):** team oda ella posts layum serthu **adhiga naal** duty paathavanga first. P-code seniority illa. (Prem: P-code senior ellarum PKL ah virumbi pannamaattaanga; adhiga naal PKL paathavanga nalla pannuvaanga.)
 
 ---
