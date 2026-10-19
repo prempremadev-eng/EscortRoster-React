@@ -474,6 +474,7 @@ module.exports = function supervisorRoutes(app, h) {
   //            (Posts.relief_guards, most days at that post first) from the post's own team.
   //   Rule 4 · Outside team: still empty → the first free guard of that list from another team.
   //   Sat / Sun: Rule 3 runs for the non-rotation posts before Rule 5 (permanent posts get the few ladies first).
+  //   Rule 8 · Anyone free (last): an empty slot at a rotation post gets any free guard on that shift.
   //   Weekend list: a post can keep a separate Sat/Sun list after ';' in Posts.relief_guards (used by
   //            Rules 3 and 4 on Sat/Sun instead of the relief list; Rule 5 skips that post if the list has none of its team).
   //   Rule 5 · Weekly rotation (runs before Rule 3, lady pool posts): same post as yesterday for the
@@ -615,6 +616,22 @@ module.exports = function supervisorRoutes(app, h) {
       // Rule 3 · Team relief: the post's relief list, same team only, most experienced first.
       // Rule 4 · Outside team: still empty → the rest of the relief list (other teams).
       for (const [no, title, sameTeam] of [[3, 'Team relief', true], [4, 'Outside team', false]]) rules.push(relief(no, title, sameTeam, autoPosts));
+
+      // Rule 8 · Anyone free: a slot still empty gets any guard on that shift today who has no post yet
+      // (own team first; never a supervisor, a lady pool guard, or an escort on Mon–Sat). Only rotation
+      // posts (5+ guards in the relief list), so Kidos / Documents / CCTV stay as their own rules left them.
+      const r8 = { no: 8, rule: 'Anyone free', filled: [], empty: [] };
+      for (const p of autoPosts.filter(x => reliefOf(x).length >= 5)) {
+        const team = teamOf(p);
+        for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
+          if (taken.has(p.ROWID + '|' + shift)) continue;
+          const g = guards.map(x => String(x.ROWID))
+            .filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !sups.includes(String(nameOf.get(id)).toLowerCase()) && areaOf.get(id).toLowerCase() !== 'lady guards')
+            .sort((a, b) => (areaOf.get(b) === team) - (areaOf.get(a) === team))[0];
+          if (g) { put(p, shift, g); r8.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else r8.empty.push(p.post_name + ' ' + shift);
+        }
+      }
+      rules.push(r8);
 
       const table = catalystApp.datastore().table('Schedule');
       for (let i = 0; i < inserts.length; i += 100) await table.insertRows(inserts.slice(i, i + 100));

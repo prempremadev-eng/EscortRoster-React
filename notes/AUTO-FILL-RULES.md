@@ -32,6 +32,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 5 | Weekly rotation | Lady pool posts (team Lady Guards, regulars < shifts), **Rule 2 ku apram, Rule 3 ku munnaadi**: (a) nethu indha post + shift la irundhavanga, innaikkum adhe shift na **adhe post**; (b) pudhu shift week na, kadaisi 14 naal la indha post la **kammiya** irundhavanga first |
 | 6 | Weekend list | Post ku thaniya **Sat / Sun list** irukkalaam (`Posts.relief_guards` la `;` ku apram). Sat / Sun la Rule 3 / 4 andha list ah use pannum. List la post team (ladies) yaarum illa na Rule 5 andha post ah skip pannum. Order = history la andha post la **weekend la adhiga naal** vandhavanga first |
 | 7 | Weekend order | Sat / Sun la ladies kammi. Adhanaala **Rule 3 permanent posts ku (MLCP / Medical Mine Reception) Rule 5 ku munnaadi** odum. Apram meedhi ladies ah Rule 5 North Plaza / Apricot ku podum (H3: MLCP weekend 92% ladies, North Plaza 65%) |
+| 8 | Anyone free | Kadaisi la: rotation post (relief list 5+) la innum empty slot irundhaa, andha shift la **post illaama free ah irukkura yaar venaalum** (own team first). Supervisor, lady pool, weekday Escort illa |
 | – | Safety | Empty slot mattum fill pannum, **draft** ah. Oru guard oru naal la oru slot thaan |
 
 **Rule 4 order:** outside-team guards are also ordered by **most days at the team's posts** (e.g. MLCP / Escort guards who covered PKL most come first). PKL relief list = PKL team + the outside guards who covered PKL posts in history (Sat/Sun gaps were never left empty).
@@ -101,6 +102,16 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 14 | **Meedhi 43 posts** (Hospital Block, MLCP, Lancor, North Plaza GF / floors, Kitchen, Smoking Zone, Ninnakarai, VTitan, MLCP CCTV, MD House, PKL Vendor Parking…) | Rotation | Rule 2 → 3 → 4 | **Regular** = andha post la 30+ naal, avanga duty la pathikku mela andha post (7 per, 5 posts la). **Relief** = andha post la duty paatha ellaarum, adhiga naal first (top 25) | ✅ On (19 Oct, ellaam ore rule) |
 
 ---
+
+## 📊 Mon 19 Oct test (all 56 posts)
+
+| Result | Slots |
+|---|---|
+| Same person, same post as real sheet | 45 |
+| Right person + right shift, **vera post** | 80 |
+| Empty (before Rule 8) | 24 |
+
+History: same shift la irundhaalum **~30% thaan nethu post la ve** irukkaanga. Supervisor daily rotation pannuraar, adhanaala exact post predict panna mudiyaadhu. **Yaar duty** (person + shift) sari ah varudhu.
 
 ## 🔜 Next steps (step by step, post by post)
 
