@@ -557,6 +557,23 @@ module.exports = function supervisorRoutes(app, h) {
     }
   });
 
+  // 🧹 Empty a whole day (drafts and published) of the posts in my area, to start it again by hand
+  // or to try one fill rule at a time. Escort support points are kept.
+  app.post('/scheduleClear', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const branch = auth.requireBranch(req, requireRowId(req.body.branch));
+      const date = requireDate(req.body.date);
+      const ids = (await dayRows(zcql, branch, date, await branchPosts(req, zcql, branch))).map(r => r.ROWID);
+      const table = catalystApp.datastore().table('Schedule');
+      for (let i = 0; i < ids.length; i += 200) await table.deleteRows(ids.slice(i, i + 200));
+      res.status(200).json({ status: 'success', data: { cleared: ids.length } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   // 6-to-5 escort: where they support 18:00–20:30 today (changes every day). Empty = removed.
   app.post('/escortPoint', async (req, res) => {
     try {
