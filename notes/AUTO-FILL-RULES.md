@@ -98,7 +98,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 11 | Apricot Reception | Lady pool (+ men on weekend) | Rule 2 + Rule 5; Sat / Sun weekend list | 2 Apricot-side ladies + pool + 25 weekend men | ✅ On (Rule 5, Rule 6) |
 | 12 | North Plaza Reception | Lady pool (+ men on weekend) | Rule 5; Sat / Sun Rule 5 → 3 → 4 weekend list | pool ladies + 15 weekend men | ✅ On (Rule 5, Rule 6) |
 | 13 | Apricot Patrolling | Lady pool (weekday) + men (weekend, H6) | Weekday Rule 5; Sat / Sun Rule 6 → 4 | pool ladies + 51 weekend men | ✅ On (Rule 5, Rule 6) |
-| 14 | MD House, PKL Vendor Parking | – | Rotation | – | ⏸ Parked |
+| 14 | **Meedhi 43 posts** (Hospital Block, MLCP, Lancor, North Plaza GF / floors, Kitchen, Smoking Zone, Ninnakarai, VTitan, MLCP CCTV, MD House, PKL Vendor Parking…) | Rotation | Rule 2 → 3 → 4 | **Regular** = andha post la 30+ naal, avanga duty la pathikku mela andha post (7 per, 5 posts la). **Relief** = andha post la duty paatha ellaarum, adhiga naal first (top 25) | ✅ On (19 Oct, ellaam ore rule) |
 
 ---
 
@@ -115,4 +115,5 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 4b | Apricot Patrolling **weekend** men (H6) = Rule 6 weekend list | ✅ Set, test Sat 24 / Sun 25 Oct |
 | 4c | North Plaza + Apricot Reception **weekend list** = pool ladies first, then men (history 33 weekend days, 27 Jun – 18 Oct, most days at that post first). Ladies irundhaa Rule 5 rotation; illa na Rule 4 men | ✅ Set, test Sat 24 / Sun 25 |
 | 4d | Weekend la ladies kammi: permanent posts first, then rotation = Rule 7 | ✅ Built, test Sat 24 |
-| 5 | MD House, PKL Vendor Parking, other rotation posts | ⏸ Parked |
+| 5 | Meedhi 43 posts (generic history rule, row 14) | ✅ On 19 Oct, test Mon 19 / Sat 24 / Sun 25 |
+| 6 | Rotation posts ku weekly same post (Rule 5 maadhiri) | 🔜 Test result paathu |
