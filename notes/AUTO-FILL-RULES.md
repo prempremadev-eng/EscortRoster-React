@@ -47,6 +47,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 ### H2 · Permanent reception ladies: weekly off
 - MLCP Reception, Medical Mine Reception: ovvoru postlayum 3 permanent ladies
 - Off **weekend la mattum**, maari maari (staggered): **Saturday 1 per off, Sunday 2 per off**
+- Month roster um idhe solludhu (Oct: Medical Mine la 1 per Saturday off, 2 per Sunday off)
 - Weekday la cover romba kammi (MLCP 9 / 60, Medical Mine 16 / 68)
 
 ### H3 · MLCP Reception: off naal cover
@@ -68,6 +69,8 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 |---|---|---|
 | 1 | Shift Incharge, Documents, PKL Main Gate / VM / P1 / P2, Kidos ×2 | ✅ Built + tested on 19 Oct |
 | 2 | Apricot Reception regulars (2 Apricot-side ladies) | ✅ Set, Auto fill off |
-| 3 | MLCP / Medical Mine Reception weekend cover (H2–H4) | 🔍 Rule found, build pending |
+| 3a | Medical Mine Reception **weekdays**: 3 regulars on roster shift (Rule 2), relief list empty for now | ✅ Auto fill on, test 19 Oct |
+| 3b | Medical Mine Reception **weekend** cover (H2, H4) | 🔍 Next |
+| 3c | MLCP Reception weekend cover (H2, H3) | 🔍 Later |
 | 4 | Lady pool weekly rotation (H1) | 🔍 Rule found, needs last 14 days history in app |
 | 5 | MD House, PKL Vendor Parking, other rotation posts | ⏸ Parked |
