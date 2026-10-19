@@ -466,6 +466,7 @@ module.exports = function supervisorRoutes(app, h) {
   // ⚡ Auto fill: the fill rules, one after another, into empty slots only (as drafts), only at posts
   // with Auto fill switched on (Posts page). Rules are
   // added one at a time so each can be checked on an empty day (🧹 Clear day first).
+  //   Every rule: escorts (Guards.area Escort) only on Sunday; Mon–Fri they do the night escort cab.
   //   Rule 1 · Shift Incharge: the supervisor whose month roster says that shift today; nobody → empty.
   //   Rule 2 · Regular guards: a post's regular guards (Posts.regular_guards), each on their month
   //            roster shift today, in the order of the sheet; off / none on that shift → empty.
@@ -488,7 +489,7 @@ module.exports = function supervisorRoutes(app, h) {
       const date = requireDate(req.body.date);
       const [posts, guards, roster, sups] = await Promise.all([
         branchPosts(req, zcql, branch),
-        pages(zcql, `SELECT ROWID, guard_name FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
+        pages(zcql, `SELECT ROWID, guard_name, area FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
         pages(zcql, `SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${date.slice(0, 7)}' ORDER BY ROWID ASC`, 'MonthRoster'),
         zcql.executeZCQLQuery(`SELECT name FROM UserRoles WHERE role = 'supervisor' AND branch_id = ${branch} AND is_active = true`).then(r => r.map(x => String(x.UserRoles.name || '').toLowerCase()))
       ]);
@@ -499,6 +500,10 @@ module.exports = function supervisorRoutes(app, h) {
       const codeOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[day]; if (c) codeOf[String(r.guard_id)] = c; });
       const allows = (p, shift) => !postShifts(p) || postShifts(p).includes(shift);
+      // Escorts do the night escort cab Monday–Friday (Saturday off): only on Sunday they take posts.
+      const sunday = new Date(date + 'T00:00:00Z').getUTCDay() === 0;
+      const escort = new Set(guards.filter(g => String(g.area || '').toLowerCase() === 'escort').map(g => String(g.ROWID)));
+      const canPost = id => sunday || !escort.has(String(id));
       const taken = new Set(rows.map(r => r.post_id + '|' + r.shift_code));
       const busyGuard = new Set(rows.map(r => String(r.guard_id)));
       const inserts = [];
@@ -529,7 +534,7 @@ module.exports = function supervisorRoutes(app, h) {
         if (!regular.length) continue;
         for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
           if (taken.has(p.ROWID + '|' + shift)) continue;
-          const g = regular.find(id => codeOf[id] === shift && !busyGuard.has(id));
+          const g = regular.find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id));
           if (g) { put(p, shift, g); r2.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else r2.empty.push(p.post_name + ' ' + shift);
         }
       }
@@ -541,7 +546,7 @@ module.exports = function supervisorRoutes(app, h) {
         const relief = String(p.relief_guards || '').split(',').map(x => x.trim()).filter(x => nameOf.has(x));
         for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
           if (taken.has(p.ROWID + '|' + shift)) continue;
-          const g = relief.find(id => codeOf[id] === shift && !busyGuard.has(id));
+          const g = relief.find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id));
           if (g) { put(p, shift, g); r3.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else if (relief.length) r3.empty.push(p.post_name + ' ' + shift);
         }
       }
