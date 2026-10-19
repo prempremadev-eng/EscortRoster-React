@@ -473,6 +473,8 @@ module.exports = function supervisorRoutes(app, h) {
   //   Rule 3 · Team relief: a slot still empty gets the first free guard of the post's relief list
   //            (Posts.relief_guards, most days at that post first) from the post's own team.
   //   Rule 4 · Outside team: still empty → the first free guard of that list from another team.
+  //   Rule 5 · Weekly rotation (runs before Rule 3, lady pool posts): same post as yesterday for the
+  //            shift week; a new week goes to whoever was at that post least in the last 14 days.
   async function pages(zcql, sql, table) {
     const all = [];
     for (let off = 1; ; off += 300) {
@@ -518,7 +520,7 @@ module.exports = function supervisorRoutes(app, h) {
       // Rule 1 · Shift Incharge
       const incharge = autoPosts.find(p => p.post_name.toLowerCase() === 'shift incharge');
       if (incharge) {
-        const r1 = { rule: 'Shift Incharge', filled: [], empty: [] };
+        const r1 = { no: 1, rule: 'Shift Incharge', filled: [], empty: [] };
         for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(incharge, s))) {
           if (taken.has(incharge.ROWID + '|' + shift)) continue;
           const sup = guards.find(g => sups.includes(String(g.guard_name).toLowerCase()) && codeOf[String(g.ROWID)] === shift && !busyGuard.has(String(g.ROWID)));
@@ -528,7 +530,7 @@ module.exports = function supervisorRoutes(app, h) {
       }
 
       // Rule 2 · Regular guards
-      const r2 = { rule: 'Regular guards', filled: [], empty: [] };
+      const r2 = { no: 2, rule: 'Regular guards', filled: [], empty: [] };
       const nameOf = new Map(guards.map(g => [String(g.ROWID), g.guard_name]));
       for (const p of autoPosts) {
         const regular = String(p.regular_guards || '').split(',').map(x => x.trim()).filter(x => nameOf.has(x));
@@ -549,10 +551,45 @@ module.exports = function supervisorRoutes(app, h) {
         [...String(p.regular_guards || '').split(','), ...reliefOf(p)].map(x => areaOf.get(x.trim())).filter(x => x && x.toLowerCase() !== 'escort').forEach(x => { n[x] = (n[x] || 0) + 1; });
         return Object.keys(n).sort((x, y) => n[y] - n[x])[0] || '';
       };
+      // Rule 5 · Weekly rotation (lady pool posts: team Lady Guards, fewer regulars than shifts).
+      //   a) Same as yesterday: whoever had this post + shift yesterday stays while her roster shift
+      //      is the same (so one post for the whole shift week).
+      //   b) New shift week: the free guard of the post's list who was at this post the fewest days
+      //      in the last 14 days (then the longest ago, then list order).
+      const rotPosts = autoPosts.filter(p => teamOf(p).toLowerCase() === 'lady guards' &&
+        String(p.regular_guards || '').split(',').filter(x => nameOf.has(x.trim())).length < ['A', 'B', 'C', 'G'].filter(s => allows(p, s)).length);
+      if (rotPosts.length) {
+        const r5 = { no: 5, rule: 'Weekly rotation', filled: [], empty: [] };
+        const back = n => new Date(Date.parse(date + 'T00:00:00Z') - n * 86400000).toISOString().slice(0, 10);
+        const hist = await pages(zcql, `SELECT sched_date, post_id, shift_code, guard_id FROM Schedule WHERE branch_id = ${branch} AND sched_date >= '${back(14)}' AND sched_date < '${date}' AND post_id IN (${rotPosts.map(p => p.ROWID).join(', ')}) ORDER BY ROWID ASC`, 'Schedule');
+        const listOf = p => [...String(p.regular_guards || '').split(',').map(x => x.trim()), ...reliefOf(p)].filter(x => nameOf.has(x));
+        const free = (id, shift) => codeOf[id] === shift && !busyGuard.has(id) && canPost(id);
+        for (const p of rotPosts) {
+          for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
+            if (taken.has(p.ROWID + '|' + shift)) continue;
+            const y = hist.find(h => String(h.post_id) === String(p.ROWID) && h.shift_code === shift && h.sched_date === back(1));
+            const g = y && String(y.guard_id);
+            if (g && listOf(p).includes(g) && free(g, shift)) { put(p, shift, g); r5.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g) + ' (same as yesterday)'); }
+          }
+        }
+        for (const p of rotPosts) {
+          const mine = hist.filter(h => String(h.post_id) === String(p.ROWID));
+          const days = id => mine.filter(h => String(h.guard_id) === id).length;
+          const last = id => mine.filter(h => String(h.guard_id) === id).map(h => h.sched_date).sort().pop() || '';
+          const list = reliefOf(p).filter(id => areaOf.get(id) === teamOf(p));
+          for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
+            if (taken.has(p.ROWID + '|' + shift)) continue;
+            const g = list.filter(id => free(id, shift)).sort((a, b) => days(a) - days(b) || last(a).localeCompare(last(b)))[0];
+            if (g) { put(p, shift, g); r5.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else r5.empty.push(p.post_name + ' ' + shift);
+          }
+        }
+        rules.push(r5);
+      }
+
       // Rule 3 · Team relief: the post's relief list, same team only, most experienced first.
       // Rule 4 · Outside team: still empty → the rest of the relief list (other teams).
-      for (const [title, sameTeam] of [['Team relief', true], ['Outside team', false]]) {
-        const r = { rule: title, filled: [], empty: [] };
+      for (const [no, title, sameTeam] of [[3, 'Team relief', true], [4, 'Outside team', false]]) {
+        const r = { no, rule: title, filled: [], empty: [] };
         for (const p of autoPosts) {
           const team = teamOf(p);
           const list = reliefOf(p).filter(id => (areaOf.get(id) === team) === sameTeam);

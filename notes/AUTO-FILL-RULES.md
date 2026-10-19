@@ -29,6 +29,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 2 | Regular guards | `Posts.regular_guards` la irukkuravanga, avanga roster shift la |
 | 3 | Team relief | Innum empty slot ah `Posts.relief_guards` (order) la irundhu, **post oda team** la irukkuravanga mattum |
 | 4 | Outside team | Apparum empty na, relief list la meedhi irukkuravanga |
+| 5 | Weekly rotation | Lady pool posts (team Lady Guards, regulars < shifts), **Rule 2 ku apram, Rule 3 ku munnaadi**: (a) nethu indha post + shift la irundhavanga, innaikkum adhe shift na **adhe post**; (b) pudhu shift week na, kadaisi 14 naal la indha post la **kammiya** irundhavanga first |
 | – | Safety | Empty slot mattum fill pannum, **draft** ah. Oru guard oru naal la oru slot thaan |
 
 **Rule 4 order:** outside-team guards are also ordered by **most days at the team's posts** (e.g. MLCP / Escort guards who covered PKL most come first). PKL relief list = PKL team + the outside guards who covered PKL posts in history (Sat/Sun gaps were never left empty).
@@ -86,9 +87,9 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 8 | Kidos School Apricot | Lady (permanent) | Rule 2 | 1 regular, G shift Mon–Fri, Sat/Sun off | ✅ On, tested |
 | 9 | Medical Mine Reception | Lady (permanent) + male weekend cover | Rule 2 (H2, H4) → 3 → 4 | 3 ladies + 2 weekend cover men (regular) + 7 backups | ✅ On, test Sat 24 / Sun 25 |
 | 10 | MLCP Reception | Lady (permanent) + lady pool cover | Rule 2 → 3 lady pool (H3) → 4 MLCP men | 3 ladies (regular) + 7 pool ladies, then 2 MLCP men (relief; the 3 regulars left out of relief so the team = Lady Guards) | ✅ On, test Sat 24 / Sun 25 |
-| 11 | Apricot Reception | Lady pool | Rule 2 + H1 weekly rotation | 2 Apricot-side ladies + pool | ⏳ Off |
-| 12 | North Plaza Reception | Lady pool | H1 weekly rotation | 7 pool ladies | ⏳ Off |
-| 13 | Apricot Patrolling | Lady pool | H1 weekly rotation | pool | ⏳ Off |
+| 11 | Apricot Reception | Lady pool | Rule 2 + H1 weekly rotation | 2 Apricot-side ladies + pool | ✅ On (Rule 5) |
+| 12 | North Plaza Reception | Lady pool | H1 weekly rotation | 7 pool ladies | ✅ On (Rule 5) |
+| 13 | Apricot Patrolling | Lady pool | H1 weekly rotation | pool | ✅ On (Rule 5) |
 | 14 | MD House, PKL Vendor Parking | – | Rotation | – | ⏸ Parked |
 
 ---
@@ -102,5 +103,5 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 3a | Medical Mine Reception **weekdays**: 3 regulars on roster shift (Rule 2), relief list empty for now | ✅ Auto fill on, test 19 Oct |
 | 3b | Medical Mine Reception **weekend** cover (H2, H4): 2 weekend cover guards added to the **regular** list after the 3 ladies (so Rule 2 takes them before PKL relief); 7 backups in the relief list, most Medical Mine days first | ✅ Set, test Sat 24 / Sun 25 Oct |
 | 3c | MLCP Reception weekend cover (H2, H3) | ✅ Set, test Sat 24 / Sun 25 Oct |
-| 4 | Lady pool weekly rotation (H1) | 🔍 Rule found, needs last 14 days history in app |
+| 4 | Lady pool weekly rotation (H1) = Rule 5. 5–17 Oct history (3 posts) loaded into the app | ✅ Built, NP / Apricot Rec / Apricot Patrolling on, test 19 Oct |
 | 5 | MD House, PKL Vendor Parking, other rotation posts | ⏸ Parked |
