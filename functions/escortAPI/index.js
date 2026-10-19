@@ -1108,7 +1108,7 @@ app.get('/getPosts', async (req, res) => {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const [posts, branches, agencies] = await Promise.all([
-      selectAll(zcql, 'Posts', 'SELECT ROWID, branch_id, agency_id, post_name, post_type, vehicle_entry, extra_duty, section, sort_order, shift_codes, is_active FROM Posts ORDER BY post_name ASC'),
+      selectAll(zcql, 'Posts', 'SELECT ROWID, branch_id, agency_id, post_name, post_type, vehicle_entry, extra_duty, auto_fill, section, sort_order, shift_codes, is_active FROM Posts ORDER BY post_name ASC'),
       activeBranches(req, zcql),
       admin.agencyList(zcql)
     ]);
@@ -1126,6 +1126,8 @@ function postFromBody(b) {
     vehicle_entry: b.vehicle_entry === true,
     // A guard may take this post as a second shift the same day (weekend cover, e.g. VTitan).
     extra_duty: b.extra_duty === true,
+    // ⚡ Auto fill fills this post (switched on post by post, once its rules are checked).
+    auto_fill: b.auto_fill === true,
     // Where it sits on the daily roster sheet, and the shifts it works ("ABC", "G"; empty = all).
     section: String(b.section || '').trim().slice(0, 30) || null,
     sort_order: Number.isInteger(Number(b.sort_order)) && String(b.sort_order).trim() !== '' ? Number(b.sort_order) : null,

@@ -310,7 +310,7 @@ module.exports = function supervisorRoutes(app, h) {
 
   // Posts of a branch in my area (an agency supervisor: only their agency's posts).
   async function branchPosts(req, zcql, branch) {
-    const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, post_name, extra_duty, section, sort_order, shift_codes, regular_guards, relief_guards FROM Posts WHERE branch_id = ${branch} AND post_type = 'POST' AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY post_name ASC`)).map(r => r.Posts);
+    const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, post_name, extra_duty, section, sort_order, shift_codes, regular_guards, relief_guards, auto_fill FROM Posts WHERE branch_id = ${branch} AND post_type = 'POST' AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY post_name ASC`)).map(r => r.Posts);
     // The order of the daily roster sheet: section, then the post's place in it.
     const sec = p => { const i = SECTION_ORDER.indexOf(p.section); return i < 0 ? 99 : i; };
     return rows.sort((a, b) => sec(a) - sec(b) || (Number(a.sort_order) || 999) - (Number(b.sort_order) || 999) || a.post_name.localeCompare(b.post_name));
@@ -463,7 +463,8 @@ module.exports = function supervisorRoutes(app, h) {
   });
 
   // F32: drafts of that day become the guards' duty. Notifications still come only at card IN.
-  // ⚡ Auto fill: the fill rules, one after another, into empty slots only (as drafts). Rules are
+  // ⚡ Auto fill: the fill rules, one after another, into empty slots only (as drafts), only at posts
+  // with Auto fill switched on (Posts page). Rules are
   // added one at a time so each can be checked on an empty day (🧹 Clear day first).
   //   Rule 1 · Shift Incharge: the supervisor whose month roster says that shift today; nobody → empty.
   //   Rule 2 · Regular guards: a post's regular guards (Posts.regular_guards), each on their month
@@ -493,6 +494,7 @@ module.exports = function supervisorRoutes(app, h) {
       ]);
       if (!roster.length) throw new Error('No month roster for ' + date.slice(0, 7) + '. Upload it in Month roster first.');
       const rows = await dayRows(zcql, branch, date, posts);
+      const autoPosts = posts.filter(p => isOn(p.auto_fill));
       const day = Number(date.slice(8, 10)) - 1;
       const codeOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[day]; if (c) codeOf[String(r.guard_id)] = c; });
@@ -508,7 +510,7 @@ module.exports = function supervisorRoutes(app, h) {
       const rules = [];
 
       // Rule 1 · Shift Incharge
-      const incharge = posts.find(p => p.post_name.toLowerCase() === 'shift incharge');
+      const incharge = autoPosts.find(p => p.post_name.toLowerCase() === 'shift incharge');
       if (incharge) {
         const r1 = { rule: 'Shift Incharge', filled: [], empty: [] };
         for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(incharge, s))) {
@@ -522,7 +524,7 @@ module.exports = function supervisorRoutes(app, h) {
       // Rule 2 · Regular guards
       const r2 = { rule: 'Regular guards', filled: [], empty: [] };
       const nameOf = new Map(guards.map(g => [String(g.ROWID), g.guard_name]));
-      for (const p of posts) {
+      for (const p of autoPosts) {
         const regular = String(p.regular_guards || '').split(',').map(x => x.trim()).filter(x => nameOf.has(x));
         if (!regular.length) continue;
         for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
@@ -535,7 +537,7 @@ module.exports = function supervisorRoutes(app, h) {
 
       // Rule 3 · Relief (experience order)
       const r3 = { rule: 'Relief', filled: [], empty: [] };
-      for (const p of posts) {
+      for (const p of autoPosts) {
         const relief = String(p.relief_guards || '').split(',').map(x => x.trim()).filter(x => nameOf.has(x));
         for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
           if (taken.has(p.ROWID + '|' + shift)) continue;
