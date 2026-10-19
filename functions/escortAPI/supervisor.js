@@ -463,10 +463,9 @@ module.exports = function supervisorRoutes(app, h) {
   });
 
   // F32: drafts of that day become the guards' duty. Notifications still come only at card IN.
-  // ⚡ Auto fill a day from the month roster + where each guard stood last. Only empty slots are
-  // filled, as drafts. Off / leave guards are skipped; escorts are left for night duty Mon–Fri
-  // (on Sunday they take posts); supervisors (Users of this branch with the same name) go to
-  // Shift Incharge on their roster shift. Two guards wanting one slot: the one there most recently.
+  // ⚡ Auto fill: the fill rules, one after another, into empty slots only (as drafts). Rules are
+  // added one at a time so each can be checked on an empty day (🧹 Clear day first).
+  //   Rule 1 · Shift Incharge: the supervisor whose month roster says that shift today; nobody → empty.
   async function pages(zcql, sql, table) {
     const all = [];
     for (let off = 1; ; off += 300) {
@@ -482,12 +481,10 @@ module.exports = function supervisorRoutes(app, h) {
       const zcql = catalystApp.zcql();
       const branch = auth.requireBranch(req, requireRowId(req.body.branch));
       const date = requireDate(req.body.date);
-      const from = plusDays(date, -14);
-      const [posts, guards, roster, history, sups] = await Promise.all([
+      const [posts, guards, roster, sups] = await Promise.all([
         branchPosts(req, zcql, branch),
-        pages(zcql, `SELECT ROWID, guard_name, area FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
+        pages(zcql, `SELECT ROWID, guard_name FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
         pages(zcql, `SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${date.slice(0, 7)}' ORDER BY ROWID ASC`, 'MonthRoster'),
-        pages(zcql, `SELECT post_id, shift_code, guard_id, sched_date FROM Schedule WHERE branch_id = ${branch} AND sched_date >= '${from}' AND sched_date < '${date}' ORDER BY sched_date DESC`, 'Schedule'),
         zcql.executeZCQLQuery(`SELECT name FROM UserRoles WHERE role = 'supervisor' AND branch_id = ${branch} AND is_active = true`).then(r => r.map(x => String(x.UserRoles.name || '').toLowerCase()))
       ]);
       if (!roster.length) throw new Error('No month roster for ' + date.slice(0, 7) + '. Upload it in Month roster first.');
@@ -495,48 +492,32 @@ module.exports = function supervisorRoutes(app, h) {
       const day = Number(date.slice(8, 10)) - 1;
       const codeOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[day]; if (c) codeOf[String(r.guard_id)] = c; });
-      const postById = new Map(posts.map(p => [String(p.ROWID), p]));
       const allows = (p, shift) => !postShifts(p) || postShifts(p).includes(shift);
-      const incharge = posts.find(p => p.post_name.toLowerCase() === 'shift incharge');
-      const weekday = new Date(date + 'T00:00:00Z').getUTCDay();
-      const escortsFree = weekday === 0 || weekday === 6;
-
       const taken = new Set(rows.map(r => r.post_id + '|' + r.shift_code));
-      const placed = new Set(rows.map(r => String(r.guard_id) + '|' + r.shift_code));
       const busyGuard = new Set(rows.map(r => String(r.guard_id)));
-      // Wishes: guard → the post they want for their shift today (latest history first).
-      const wishes = [];
-      const unplaced = [];
-      for (const g of guards) {
-        const id = String(g.ROWID);
-        const shift = codeOf[id];
-        if (!shift || !'ABCG'.includes(shift) || busyGuard.has(id)) continue;
-        const isEscort = String(g.area || '').toLowerCase() === 'escort';
-        if (isEscort && !escortsFree) continue;
-        if (incharge && sups.includes(String(g.guard_name).toLowerCase()) && allows(incharge, shift)) {
-          wishes.push({ id, shift, post: String(incharge.ROWID), when: '9999' });
-          continue;
-        }
-        const mine = history.filter(h => String(h.guard_id) === id);
-        // Same shift as today first, then any shift; the post must work today's shift.
-        const pick = mine.find(h => h.shift_code === shift && postById.has(String(h.post_id)))
-          || mine.find(h => postById.has(String(h.post_id)) && allows(postById.get(String(h.post_id)), shift));
-        if (pick) wishes.push({ id, shift, post: String(pick.post_id), when: String(pick.sched_date) });
-        else unplaced.push(id);
-      }
-      wishes.sort((a, b) => b.when.localeCompare(a.when));
       const inserts = [];
-      for (const w of wishes) {
-        const cell = w.post + '|' + w.shift;
-        if (taken.has(cell) || placed.has(w.id + '|' + w.shift)) { unplaced.push(w.id); continue; }
-        taken.add(cell);
-        placed.add(w.id + '|' + w.shift);
-        inserts.push({ branch_id: branch, sched_date: date, post_id: w.post, shift_code: w.shift, guard_id: w.id, published: false });
+      const put = (post, shift, guard) => {
+        taken.add(post.ROWID + '|' + shift);
+        busyGuard.add(String(guard));
+        inserts.push({ branch_id: branch, sched_date: date, post_id: post.ROWID, shift_code: shift, guard_id: guard, published: false });
+      };
+      const rules = [];
+
+      // Rule 1 · Shift Incharge
+      const incharge = posts.find(p => p.post_name.toLowerCase() === 'shift incharge');
+      if (incharge) {
+        const r1 = { rule: 'Shift Incharge', filled: [], empty: [] };
+        for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(incharge, s))) {
+          if (taken.has(incharge.ROWID + '|' + shift)) continue;
+          const sup = guards.find(g => sups.includes(String(g.guard_name).toLowerCase()) && codeOf[String(g.ROWID)] === shift && !busyGuard.has(String(g.ROWID)));
+          if (sup) { put(incharge, shift, sup.ROWID); r1.filled.push(shift + ' ' + sup.guard_name); } else r1.empty.push(shift);
+        }
+        rules.push(r1);
       }
+
       const table = catalystApp.datastore().table('Schedule');
       for (let i = 0; i < inserts.length; i += 100) await table.insertRows(inserts.slice(i, i + 100));
-      const slots = posts.reduce((n, p) => n + ['A', 'B', 'C', 'G'].filter(c => allows(p, c)).length, 0);
-      res.status(200).json({ status: 'success', data: { filled: inserts.length, unplaced: unplaced.length, empty: slots - rows.length - inserts.length, history: history.length } });
+      res.status(200).json({ status: 'success', data: { filled: inserts.length, rules } });
     } catch (err) {
       fail(res, err);
     }
