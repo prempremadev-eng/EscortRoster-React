@@ -475,7 +475,7 @@ module.exports = function supervisorRoutes(app, h) {
   //   Rule 4 · Outside team: still empty → the first free guard of that list from another team.
   //   Sat / Sun: Rule 3 runs for the non-rotation posts before Rule 5 (permanent posts get the few ladies first).
   //   Weekend list: a post can keep a separate Sat/Sun list after ';' in Posts.relief_guards (used by
-  //            Rules 3 and 4 on Sat/Sun instead of the relief list, and Rule 5 skips that post).
+  //            Rules 3 and 4 on Sat/Sun instead of the relief list; Rule 5 skips that post if the list has none of its team).
   //   Rule 5 · Weekly rotation (runs before Rule 3, lady pool posts): same post as yesterday for the
   //            shift week; a new week goes to whoever was at that post least in the last 14 days.
   async function pages(zcql, sql, table) {
@@ -549,7 +549,8 @@ module.exports = function supervisorRoutes(app, h) {
       // A post's team: the area most of its regular and relief guards come from (escorts aside).
       const areaOf = new Map(guards.map(g => [String(g.ROWID), String(g.area || '')]));
       // Posts.relief_guards = "relief list" or "relief list ; weekend list". The weekend list (if any)
-      // replaces the relief list on Saturday and Sunday, and the post then skips Rule 5 that day.
+      // replaces the relief list on Saturday and Sunday; a weekend list with no guard of the post's own
+      // team (e.g. men only at a lady post) also makes the post skip Rule 5 that day.
       const ids = s => String(s || '').split(',').map(x => x.trim()).filter(x => nameOf.has(x));
       const reliefOf = p => ids(String(p.relief_guards || '').split(';')[0]);
       const weekendOf = p => ids(String(p.relief_guards || '').split(';')[1]);
@@ -565,7 +566,7 @@ module.exports = function supervisorRoutes(app, h) {
       //      is the same (so one post for the whole shift week).
       //   b) New shift week: the free guard of the post's list who was at this post the fewest days
       //      in the last 14 days (then the longest ago, then list order).
-      const rotPosts = autoPosts.filter(p => teamOf(p).toLowerCase() === 'lady guards' && !(weekendDay && weekendOf(p).length) &&
+      const rotPosts = autoPosts.filter(p => teamOf(p).toLowerCase() === 'lady guards' && !(weekendDay && weekendOf(p).length && !weekendOf(p).some(id => areaOf.get(id) === teamOf(p))) &&
         String(p.regular_guards || '').split(',').filter(x => nameOf.has(x.trim())).length < ['A', 'B', 'C', 'G'].filter(s => allows(p, s)).length);
       const relief = (no, title, sameTeam, list) => {
         const r = { no, rule: title, filled: [], empty: [] };
