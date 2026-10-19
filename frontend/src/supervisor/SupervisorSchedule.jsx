@@ -51,6 +51,9 @@ export default function SupervisorSchedule() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  // ▴ hides the buttons and the Auto fill note so the duty sheet gets the whole screen.
+  const [tools, setTools] = useState(() => { try { return localStorage.getItem('sc-tools') !== 'off'; } catch { return true; } });
+  const toggleTools = () => setTools(v => { try { localStorage.setItem('sc-tools', v ? 'off' : 'on'); } catch { /* private window */ } return !v; });
 
   useEffect(() => {
     api.getPosts().then(r => {
@@ -198,7 +201,7 @@ export default function SupervisorSchedule() {
       <main className="sb">
         <div className="sb-head">
           <div>
-            <div className="pd-muted pd-small">{b ? (b.company || 'Nokia') + ' ' + b.branch_name : ''}</div>
+            {tools && <div className="pd-muted pd-small">{b ? (b.company || 'Nokia') + ' ' + b.branch_name : ''}</div>}
             <div className="pd-row-gap sc-date">
               <button className="pd-icon-btn" onClick={() => setDate(d => addDays(d, -1))} aria-label="Previous day">{Icon.back}</button>
               <div className="pd-title">Schedule · {niceDate(date)}</div>
@@ -207,6 +210,7 @@ export default function SupervisorSchedule() {
           </div>
           {data && <div className="sc-count"><b>{filled} of {total}</b> filled · {total - filled} empty{drafts ? ' · ' + drafts + ' not published' : ''}</div>}
           <div className="pd-grow"></div>
+          {tools && <>
           <select className="pd-search sb-branch" value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">
             {branches.map(x => <option key={x.ROWID} value={x.ROWID}>{x.branch_name}{x.area ? ' (' + x.area + ')' : ''} · {x.city}</option>)}
           </select>
@@ -218,10 +222,12 @@ export default function SupervisorSchedule() {
           <button className="pd-chip pd-chip-primary" onClick={() => run(() => api.schedulePublish(branch, date), r => setNote(r.data.published ? 'Published · ' + r.data.published + ' slot(s). Guards get it at card IN.' : 'Everything is already published.'))} disabled={busy || !drafts}>Publish to guards</button>
           <button className="pd-chip" onClick={() => window.print()} title="Print or save as PDF to share">🖨️ Print</button>
           <a className="pd-chip" href="#chart" title="Weekly Duty Chart (used when a day has no published schedule)">Weekly chart</a>
+          </>}
+          <button className="pd-icon-btn sc-tools" onClick={toggleTools} aria-label={tools ? 'Hide buttons' : 'Show buttons'} title={tools ? 'Hide buttons (bigger sheet)' : 'Show buttons'}>{tools ? '▴' : '▾'}</button>
         </div>
 
         {error && <div className="pd-error-bar">{error}</div>}
-        {note && <div className="sc-note">{note}</div>}
+        {note && tools && <div className="sc-note">{note}</div>}
         {!data && !error && <div className="pd-muted sup-pad">Loading...</div>}
 
         {data && (

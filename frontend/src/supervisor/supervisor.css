@@ -67,6 +67,7 @@
 /* Schedule */
 .sc-date{align-items:center;}
 .sc-next svg{transform:rotate(180deg);}
+.sc-tools{font-size:18px;line-height:1;font-weight:700;}
 .sc-count{font-size:15px;color:var(--pd-muted);}
 .sc-count b{color:var(--pd-ink);}
 .sc-note{background:var(--pd-green-bg);color:#13502E;font-size:14px;padding:8px 20px;}
