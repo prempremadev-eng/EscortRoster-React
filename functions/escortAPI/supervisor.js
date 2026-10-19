@@ -310,7 +310,7 @@ module.exports = function supervisorRoutes(app, h) {
 
   // Posts of a branch in my area (an agency supervisor: only their agency's posts).
   async function branchPosts(req, zcql, branch) {
-    const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, post_name, extra_duty, section, sort_order, shift_codes FROM Posts WHERE branch_id = ${branch} AND post_type = 'POST' AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY post_name ASC`)).map(r => r.Posts);
+    const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, post_name, extra_duty, section, sort_order, shift_codes, regular_guards FROM Posts WHERE branch_id = ${branch} AND post_type = 'POST' AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY post_name ASC`)).map(r => r.Posts);
     // The order of the daily roster sheet: section, then the post's place in it.
     const sec = p => { const i = SECTION_ORDER.indexOf(p.section); return i < 0 ? 99 : i; };
     return rows.sort((a, b) => sec(a) - sec(b) || (Number(a.sort_order) || 999) - (Number(b.sort_order) || 999) || a.post_name.localeCompare(b.post_name));
@@ -466,6 +466,8 @@ module.exports = function supervisorRoutes(app, h) {
   // ⚡ Auto fill: the fill rules, one after another, into empty slots only (as drafts). Rules are
   // added one at a time so each can be checked on an empty day (🧹 Clear day first).
   //   Rule 1 · Shift Incharge: the supervisor whose month roster says that shift today; nobody → empty.
+  //   Rule 2 · Regular guards: a post's regular guards (Posts.regular_guards), each on their month
+  //            roster shift today, in the order of the sheet; off / none on that shift → empty.
   async function pages(zcql, sql, table) {
     const all = [];
     for (let off = 1; ; off += 300) {
@@ -514,6 +516,20 @@ module.exports = function supervisorRoutes(app, h) {
         }
         rules.push(r1);
       }
+
+      // Rule 2 · Regular guards
+      const r2 = { rule: 'Regular guards', filled: [], empty: [] };
+      const nameOf = new Map(guards.map(g => [String(g.ROWID), g.guard_name]));
+      for (const p of posts) {
+        const regular = String(p.regular_guards || '').split(',').map(x => x.trim()).filter(x => nameOf.has(x));
+        if (!regular.length) continue;
+        for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
+          if (taken.has(p.ROWID + '|' + shift)) continue;
+          const g = regular.find(id => codeOf[id] === shift && !busyGuard.has(id));
+          if (g) { put(p, shift, g); r2.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else r2.empty.push(p.post_name + ' ' + shift);
+        }
+      }
+      rules.push(r2);
 
       const table = catalystApp.datastore().table('Schedule');
       for (let i = 0; i < inserts.length; i += 100) await table.insertRows(inserts.slice(i, i + 100));
