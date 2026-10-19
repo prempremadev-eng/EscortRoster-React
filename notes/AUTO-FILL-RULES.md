@@ -113,6 +113,11 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 
 History: same shift la irundhaalum **~30% thaan nethu post la ve** irukkaanga. Supervisor daily rotation pannuraar, adhanaala exact post predict panna mudiyaadhu. **Yaar duty** (person + shift) sari ah varudhu.
 
+## ⭐ VTitan: removed (19 Oct)
+
+- History: weekday la **oru thadava kooda illa**. 33 weekend la 10 naal mattum (Sat C / Sun A+B), aal ovvoru thadavaiyum vera
+- Prem: "fill pannavendaam, column thevai illai" → post **inactive** (schedule la varaadhu), Auto fill off. App potta 8 draft rows delete. 18 Oct published rows appadiye irukku
+
 ## 🔜 Next steps (step by step, post by post)
 
 | Step | Post / topic | Status |
