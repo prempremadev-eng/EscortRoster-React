@@ -83,7 +83,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 7 | Kidos School PKL | Lady (permanent) | Rule 2 | 1 regular, G shift Mon–Fri, Sat/Sun off | ✅ On, tested |
 | 8 | Kidos School Apricot | Lady (permanent) | Rule 2 | 1 regular, G shift Mon–Fri, Sat/Sun off | ✅ On, tested |
 | 9 | Medical Mine Reception | Lady (permanent) + male weekend cover | Rule 2 (H2, H4) → 3 → 4 | 3 ladies + 2 weekend cover men (regular) + 7 backups | ✅ On, test Sat 24 / Sun 25 |
-| 10 | MLCP Reception | Lady (permanent) + lady pool cover | Rule 2 → 3 lady pool (H3) → 4 MLCP men | 3 ladies + 7 pool ladies + 2 MLCP men | ⏳ Off, waiting OK |
+| 10 | MLCP Reception | Lady (permanent) + lady pool cover | Rule 2 → 3 lady pool (H3) → 4 MLCP men | 3 ladies (regular) + 7 pool ladies, then 2 MLCP men (relief; the 3 regulars left out of relief so the team = Lady Guards) | ✅ On, test Sat 24 / Sun 25 |
 | 11 | Apricot Reception | Lady pool | Rule 2 + H1 weekly rotation | 2 Apricot-side ladies + pool | ⏳ Off |
 | 12 | North Plaza Reception | Lady pool | H1 weekly rotation | 7 pool ladies | ⏳ Off |
 | 13 | Apricot Patrolling | Lady pool | H1 weekly rotation | pool | ⏳ Off |
@@ -99,6 +99,6 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 2 | Apricot Reception regulars (2 Apricot-side ladies) | ✅ Set, Auto fill off |
 | 3a | Medical Mine Reception **weekdays**: 3 regulars on roster shift (Rule 2), relief list empty for now | ✅ Auto fill on, test 19 Oct |
 | 3b | Medical Mine Reception **weekend** cover (H2, H4): 2 weekend cover guards added to the **regular** list after the 3 ladies (so Rule 2 takes them before PKL relief); 7 backups in the relief list, most Medical Mine days first | ✅ Set, test Sat 24 / Sun 25 Oct |
-| 3c | MLCP Reception weekend cover (H2, H3) | 🔍 Later |
+| 3c | MLCP Reception weekend cover (H2, H3) | ✅ Set, test Sat 24 / Sun 25 Oct |
 | 4 | Lady pool weekly rotation (H1) | 🔍 Rule found, needs last 14 days history in app |
 | 5 | MD House, PKL Vendor Parking, other rotation posts | ⏸ Parked |
