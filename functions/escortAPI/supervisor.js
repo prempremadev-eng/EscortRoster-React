@@ -549,14 +549,19 @@ module.exports = function supervisorRoutes(app, h) {
 
       // A post's team: the area most of its regular and relief guards come from (escorts aside).
       const areaOf = new Map(guards.map(g => [String(g.ROWID), String(g.area || '')]));
-      // Posts.relief_guards = "relief list" or "relief list ; weekend list". The weekend list (if any)
-      // replaces the relief list on Saturday and Sunday; a weekend list with no guard of the post's own
-      // team (e.g. men only at a lady post) also makes the post skip Rule 5 that day.
+      // Posts.relief_guards = "relief list" or "relief list ; weekend list" or "relief list ; weekend list ;
+      // lady shifts". The weekend list (if any) replaces the relief list on Saturday and Sunday; a weekend
+      // list with no lady pool guard (men only) also makes the post skip Rule 5 that day. Lady shifts (e.g.
+      // "B" at Kitchen-2) put the post in Rule 5 for those shifts only; its other shifts get no pool lady.
       const ids = s => String(s || '').split(',').map(x => x.trim()).filter(x => nameOf.has(x));
       const reliefOf = p => ids(String(p.relief_guards || '').split(';')[0]);
       const weekendOf = p => ids(String(p.relief_guards || '').split(';')[1]);
       const weekendDay = [0, 6].includes(new Date(date + 'T00:00:00Z').getUTCDay());
       const dayList = p => (weekendDay && weekendOf(p).length ? weekendOf(p) : reliefOf(p));
+      const ladyShifts = p => String(String(p.relief_guards || '').split(';')[2] || '').replace(/[^ABCG]/g, '');
+      const isLady = id => String(areaOf.get(id) || '').toLowerCase() === 'lady guards';
+      const notForLady = (p, shift) => ladyShifts(p) && !ladyShifts(p).includes(shift);
+      const rotShifts = p => ['A', 'B', 'C', 'G'].filter(s => allows(p, s) && !notForLady(p, s));
       const teamOf = p => {
         const n = {};
         [...String(p.regular_guards || '').split(','), ...reliefOf(p)].map(x => areaOf.get(x.trim())).filter(x => x && x.toLowerCase() !== 'escort').forEach(x => { n[x] = (n[x] || 0) + 1; });
@@ -567,8 +572,8 @@ module.exports = function supervisorRoutes(app, h) {
       //      is the same (so one post for the whole shift week).
       //   b) New shift week: the free guard of the post's list who was at this post the fewest days
       //      in the last 14 days (then the longest ago, then list order).
-      const rotPosts = autoPosts.filter(p => teamOf(p).toLowerCase() === 'lady guards' && !(weekendDay && weekendOf(p).length && !weekendOf(p).some(id => areaOf.get(id) === teamOf(p))) &&
-        String(p.regular_guards || '').split(',').filter(x => nameOf.has(x.trim())).length < ['A', 'B', 'C', 'G'].filter(s => allows(p, s)).length);
+      const rotPosts = autoPosts.filter(p => !(weekendDay && weekendOf(p).length && !weekendOf(p).some(isLady)) && (ladyShifts(p) ||
+        (teamOf(p).toLowerCase() === 'lady guards' && String(p.regular_guards || '').split(',').filter(x => nameOf.has(x.trim())).length < ['A', 'B', 'C', 'G'].filter(s => allows(p, s)).length)));
       const relief = (no, title, sameTeam, list) => {
         const r = { no, rule: title, filled: [], empty: [] };
         for (const p of list) {
@@ -576,7 +581,7 @@ module.exports = function supervisorRoutes(app, h) {
           const pool = dayList(p).filter(id => (areaOf.get(id) === team) === sameTeam);
           for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
             if (taken.has(p.ROWID + '|' + shift)) continue;
-            const g = pool.find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id));
+            const g = pool.find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !(isLady(id) && notForLady(p, shift)));
             if (g) { put(p, shift, g); r.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else if (!sameTeam && dayList(p).length) r.empty.push(p.post_name + ' ' + shift);
           }
         }
@@ -589,10 +594,10 @@ module.exports = function supervisorRoutes(app, h) {
         const r5 = { no: 5, rule: 'Weekly rotation', filled: [], empty: [] };
         const back = n => new Date(Date.parse(date + 'T00:00:00Z') - n * 86400000).toISOString().slice(0, 10);
         const hist = await pages(zcql, `SELECT sched_date, post_id, shift_code, guard_id FROM Schedule WHERE branch_id = ${branch} AND sched_date >= '${back(14)}' AND sched_date < '${date}' AND post_id IN (${rotPosts.map(p => p.ROWID).join(', ')}) ORDER BY ROWID ASC`, 'Schedule');
-        const listOf = p => [...String(p.regular_guards || '').split(',').map(x => x.trim()), ...reliefOf(p)].filter(x => nameOf.has(x));
+        const listOf = p => [...String(p.regular_guards || '').split(',').map(x => x.trim()), ...reliefOf(p)].filter(x => nameOf.has(x) && isLady(x));
         const free = (id, shift) => codeOf[id] === shift && !busyGuard.has(id) && canPost(id);
         for (const p of rotPosts) {
-          for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
+          for (const shift of rotShifts(p)) {
             if (taken.has(p.ROWID + '|' + shift)) continue;
             const y = hist.find(h => String(h.post_id) === String(p.ROWID) && h.shift_code === shift && h.sched_date === back(1));
             const g = y && String(y.guard_id);
@@ -603,8 +608,8 @@ module.exports = function supervisorRoutes(app, h) {
           const mine = hist.filter(h => String(h.post_id) === String(p.ROWID));
           const days = id => mine.filter(h => String(h.guard_id) === id).length;
           const last = id => mine.filter(h => String(h.guard_id) === id).map(h => h.sched_date).sort().pop() || '';
-          const list = reliefOf(p).filter(id => areaOf.get(id) === teamOf(p));
-          for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
+          const list = reliefOf(p).filter(isLady);
+          for (const shift of rotShifts(p)) {
             if (taken.has(p.ROWID + '|' + shift)) continue;
             const g = list.filter(id => free(id, shift)).sort((a, b) => days(a) - days(b) || last(a).localeCompare(last(b)))[0];
             if (g) { put(p, shift, g); r5.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else r5.empty.push(p.post_name + ' ' + shift);

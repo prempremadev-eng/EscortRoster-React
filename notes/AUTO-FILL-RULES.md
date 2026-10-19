@@ -33,6 +33,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 6 | Weekend list | Post ku thaniya **Sat / Sun list** irukkalaam (`Posts.relief_guards` la `;` ku apram). Sat / Sun la Rule 3 / 4 andha list ah use pannum. List la post team (ladies) yaarum illa na Rule 5 andha post ah skip pannum. Order = history la andha post la **weekend la adhiga naal** vandhavanga first |
 | 7 | Weekend order | Sat / Sun la ladies kammi. Adhanaala **Rule 3 permanent posts ku (MLCP / Medical Mine Reception) Rule 5 ku munnaadi** odum. Apram meedhi ladies ah Rule 5 North Plaza / Apricot ku podum (H3: MLCP weekend 92% ladies, North Plaza 65%) |
 | 8 | Anyone free | Kadaisi la: rotation post (relief list 5+) la innum empty slot irundhaa, andha shift la **post illaama free ah irukkura yaar venaalum** (own team first). Supervisor, lady pool, weekday Escort illa |
+| 9 | Lady shifts | `relief ; weekend ; lady shifts` (e.g. `B`). Andha shifts la mattum Rule 5 lady pool rotation; mathha shifts la pool lady podaadhu. **Kitchen-2 = B** (weekday), **Apricot Patrolling = A, C** (B = men) |
 | – | Safety | Empty slot mattum fill pannum, **draft** ah. Oru guard oru naal la oru slot thaan |
 
 **Rule 4 order:** outside-team guards are also ordered by **most days at the team's posts** (e.g. MLCP / Escort guards who covered PKL most come first). PKL relief list = PKL team + the outside guards who covered PKL posts in history (Sat/Sun gaps were never left empty).
@@ -112,6 +113,13 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | Empty (before Rule 8) | 24 |
 
 History: same shift la irundhaalum **~30% thaan nethu post la ve** irukkaanga. Supervisor daily rotation pannuraar, adhanaala exact post predict panna mudiyaadhu. **Yaar duty** (person + shift) sari ah varudhu.
+
+## 🍳 H7 · Kitchen-2 B = pool lady (weekday)
+
+- Kitchen-1 and Kitchen-2 A / C: **0 ladies** ever. Kitchen-2 **B: 60 lady duties**, all Mon–Fri, **0 on Sat / Sun**
+- Sep 14 / 16 and Oct 12 / 13 weekdays had a lady → almost daily now
+- Pool ladies only, **4–5 days in a row** then another lady (weekly rotation, same as Rule 5)
+- Pool 9 = North Plaza 3 + Apricot Reception 3 + Apricot Patrolling A, C + Kitchen-2 B
 
 ## ⭐ VTitan: removed (19 Oct)
 
