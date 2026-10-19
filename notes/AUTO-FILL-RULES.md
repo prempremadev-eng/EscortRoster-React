@@ -70,6 +70,27 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 
 ---
 
+## 🗂️ Post by post (summary)
+
+| # | Post | Group | Rules | Persons (count, names in Data Store) | Auto fill |
+|---|---|---|---|---|---|
+| 1 | Shift Incharge | Supervisors | Rule 1 | Month roster supervisors | ✅ On, tested |
+| 2 | Documents | Documents | Rule 2 | 2 regulars | ✅ On, tested |
+| 3 | PKL Main Gate | PKL | Rule 2 → 3 → 4 | 3 regulars + PKL relief (most PKL days first) | ✅ On, tested |
+| 4 | PKL Vehicle Movement | PKL | Rule 3 → 4 | PKL relief only | ✅ On, tested |
+| 5 | PKL Patrolling-1 | PKL | Rule 2 → 3 → 4 | 1 regular + PKL relief | ✅ On, tested |
+| 6 | PKL Patrolling-2 | PKL | Rule 3 → 4 | PKL relief only | ✅ On, tested |
+| 7 | Kidos School PKL | Lady (permanent) | Rule 2 | 1 regular, G shift Mon–Fri, Sat/Sun off | ✅ On, tested |
+| 8 | Kidos School Apricot | Lady (permanent) | Rule 2 | 1 regular, G shift Mon–Fri, Sat/Sun off | ✅ On, tested |
+| 9 | Medical Mine Reception | Lady (permanent) + male weekend cover | Rule 2 (H2, H4) → 3 → 4 | 3 ladies + 2 weekend cover men (regular) + 7 backups | ✅ On, test Sat 24 / Sun 25 |
+| 10 | MLCP Reception | Lady (permanent) + lady pool cover | Rule 2 → 3 lady pool (H3) → 4 MLCP men | 3 ladies + 7 pool ladies + 2 MLCP men | ⏳ Off, waiting OK |
+| 11 | Apricot Reception | Lady pool | Rule 2 + H1 weekly rotation | 2 Apricot-side ladies + pool | ⏳ Off |
+| 12 | North Plaza Reception | Lady pool | H1 weekly rotation | 7 pool ladies | ⏳ Off |
+| 13 | Apricot Patrolling | Lady pool | H1 weekly rotation | pool | ⏳ Off |
+| 14 | MD House, PKL Vendor Parking | – | Rotation | – | ⏸ Parked |
+
+---
+
 ## 🔜 Next steps (step by step, post by post)
 
 | Step | Post / topic | Status |
