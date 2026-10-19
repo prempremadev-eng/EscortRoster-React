@@ -121,6 +121,11 @@ History: same shift la irundhaalum **~30% thaan nethu post la ve** irukkaanga. S
 - Pool ladies only, **4–5 days in a row** then another lady (weekly rotation, same as Rule 5)
 - Pool 9 = North Plaza 3 + Apricot Reception 3 + Apricot Patrolling A, C + Kitchen-2 B
 
+## 🔒 Regular-only posts: Documents, MLCP CCTV
+
+- Prem: "regular mattum thaan anga poga mudiyum". Relief list **empty**, Rule 8 skips them (relief list < 5), so a missing regular = **empty slot** for the supervisor
+- MLCP CCTV regular has **no month roster row** for Oct, so Rule 2 can't place him (the roster needs that row)
+
 ## ⭐ VTitan: removed (19 Oct)
 
 - History: weekday la **oru thadava kooda illa**. 33 weekend la 10 naal mattum (Sat C / Sun A+B), aal ovvoru thadavaiyum vera
