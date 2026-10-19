@@ -31,6 +31,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 4 | Outside team | Apparum empty na, relief list la meedhi irukkuravanga |
 | 5 | Weekly rotation | Lady pool posts (team Lady Guards, regulars < shifts), **Rule 2 ku apram, Rule 3 ku munnaadi**: (a) nethu indha post + shift la irundhavanga, innaikkum adhe shift na **adhe post**; (b) pudhu shift week na, kadaisi 14 naal la indha post la **kammiya** irundhavanga first |
 | 6 | Weekend list | Post ku thaniya **Sat / Sun list** irukkalaam (`Posts.relief_guards` la `;` ku apram). Sat / Sun la Rule 3 / 4 andha list ah use pannum, Rule 5 andha post ah skip pannum. Order = history la andha post la **weekend la adhiga naal** vandhavanga first |
+| 7 | Weekend order | Sat / Sun la ladies kammi. Adhanaala **Rule 3 permanent posts ku (MLCP / Medical Mine Reception) Rule 5 ku munnaadi** odum. Apram meedhi ladies ah Rule 5 North Plaza / Apricot ku podum (H3: MLCP weekend 92% ladies, North Plaza 65%) |
 | – | Safety | Empty slot mattum fill pannum, **draft** ah. Oru guard oru naal la oru slot thaan |
 
 **Rule 4 order:** outside-team guards are also ordered by **most days at the team's posts** (e.g. MLCP / Escort guards who covered PKL most come first). PKL relief list = PKL team + the outside guards who covered PKL posts in history (Sat/Sun gaps were never left empty).
@@ -113,5 +114,5 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 4 | Lady pool weekly rotation (H1) = Rule 5. 5–17 Oct history (3 posts) loaded into the app | ✅ Built, NP / Apricot Rec / Apricot Patrolling on, test 19 Oct |
 | 4b | Apricot Patrolling **weekend** men (H6) = Rule 6 weekend list | ✅ Set, test Sat 24 / Sun 25 Oct |
 | 4c | Apricot Reception weekend (mostly men), North Plaza weekend (ladies first) | 🔜 Next |
-| 4d | Weekend la ladies kammi: priority MLCP Rec → North Plaza → Medical Mine → Apricot Rec | 🔜 |
+| 4d | Weekend la ladies kammi: permanent posts first, then rotation = Rule 7 | ✅ Built, test Sat 24 |
 | 5 | MD House, PKL Vendor Parking, other rotation posts | ⏸ Parked |

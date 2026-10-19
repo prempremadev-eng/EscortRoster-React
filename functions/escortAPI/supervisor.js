@@ -473,6 +473,7 @@ module.exports = function supervisorRoutes(app, h) {
   //   Rule 3 · Team relief: a slot still empty gets the first free guard of the post's relief list
   //            (Posts.relief_guards, most days at that post first) from the post's own team.
   //   Rule 4 · Outside team: still empty → the first free guard of that list from another team.
+  //   Sat / Sun: Rule 3 runs for the non-rotation posts before Rule 5 (permanent posts get the few ladies first).
   //   Weekend list: a post can keep a separate Sat/Sun list after ';' in Posts.relief_guards (used by
   //            Rules 3 and 4 on Sat/Sun instead of the relief list, and Rule 5 skips that post).
   //   Rule 5 · Weekly rotation (runs before Rule 3, lady pool posts): same post as yesterday for the
@@ -566,6 +567,22 @@ module.exports = function supervisorRoutes(app, h) {
       //      in the last 14 days (then the longest ago, then list order).
       const rotPosts = autoPosts.filter(p => teamOf(p).toLowerCase() === 'lady guards' && !(weekendDay && weekendOf(p).length) &&
         String(p.regular_guards || '').split(',').filter(x => nameOf.has(x.trim())).length < ['A', 'B', 'C', 'G'].filter(s => allows(p, s)).length);
+      const relief = (no, title, sameTeam, list) => {
+        const r = { no, rule: title, filled: [], empty: [] };
+        for (const p of list) {
+          const team = teamOf(p);
+          const pool = dayList(p).filter(id => (areaOf.get(id) === team) === sameTeam);
+          for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
+            if (taken.has(p.ROWID + '|' + shift)) continue;
+            const g = pool.find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id));
+            if (g) { put(p, shift, g); r.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else if (!sameTeam && dayList(p).length) r.empty.push(p.post_name + ' ' + shift);
+          }
+        }
+        return r;
+      };
+      // Sat / Sun: ladies are few (weekly offs), so the permanent posts (MLCP / Medical Mine Reception)
+      // take their team relief first, then Rule 5 shares what is left among the rotation posts.
+      if (weekendDay) rules.push(relief(3, 'Team relief (weekend, before Rule 5)', true, autoPosts.filter(p => !rotPosts.includes(p))));
       if (rotPosts.length) {
         const r5 = { no: 5, rule: 'Weekly rotation', filled: [], empty: [] };
         const back = n => new Date(Date.parse(date + 'T00:00:00Z') - n * 86400000).toISOString().slice(0, 10);
@@ -596,19 +613,7 @@ module.exports = function supervisorRoutes(app, h) {
 
       // Rule 3 · Team relief: the post's relief list, same team only, most experienced first.
       // Rule 4 · Outside team: still empty → the rest of the relief list (other teams).
-      for (const [no, title, sameTeam] of [[3, 'Team relief', true], [4, 'Outside team', false]]) {
-        const r = { no, rule: title, filled: [], empty: [] };
-        for (const p of autoPosts) {
-          const team = teamOf(p);
-          const list = dayList(p).filter(id => (areaOf.get(id) === team) === sameTeam);
-          for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
-            if (taken.has(p.ROWID + '|' + shift)) continue;
-            const g = list.find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id));
-            if (g) { put(p, shift, g); r.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else if (!sameTeam && dayList(p).length) r.empty.push(p.post_name + ' ' + shift);
-          }
-        }
-        rules.push(r);
-      }
+      for (const [no, title, sameTeam] of [[3, 'Team relief', true], [4, 'Outside team', false]]) rules.push(relief(no, title, sameTeam, autoPosts));
 
       const table = catalystApp.datastore().table('Schedule');
       for (let i = 0; i < inserts.length; i += 100) await table.insertRows(inserts.slice(i, i + 100));
