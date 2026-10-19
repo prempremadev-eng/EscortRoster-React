@@ -51,9 +51,13 @@
 | Time | Event |
 |---|---|
 | 06:41 | ▶️ Start |
+| ? | ⏹️ Done (no "done" message; work went on into 19 Oct session) |
 
 ## 2026-10-19 (Monday)
 
 | Time | Event |
 |---|---|
 | 09:15 | ▶️ Start |
+| 23:02 | ⏹️ Done ("rendum pannunga" → day-end files) |
+
+**Total:** ~13 h 45 min span (09:15 → 23:02), breaks not logged
