@@ -49,7 +49,9 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | **Option B rotation** | Everyone else (MLCP, Lancor, PKL others) | **Most days at that post last month (any team)**, then 4-month total; top 15 | **Yes (D)** where Prem says |
 | **Special shift** | One shift has a fixed person (Basement-2 G, Car Parking-3 G) | That person + cover first | No |
 
-**Priority (post order):** Medical Mine Reception → **North Plaza GF1** → **CWE Play Ground** → other posts (Prem, 20 Oct). Post order decides who gets a shared person first.
+**Priority (fill order):** Medical Mine Reception → **North Plaza GF1** → **CWE Play Ground** → other posts (Prem, 20 Oct). Fill order decides who gets a shared person first.
+
+**Fill order ≠ sheet order (Prem, 20 Oct night):** the printed sheet must keep the **template order the guards are used to** (`sort_order`). So fill priority is a **digit in the 4th `;` part of relief_guards** (`;;;1`, `;;;2D`): posts with a digit are filled first (1 before 2), then the rest by sort_order. sort_order is only for the sheet.
 
 **Always:** Escort out Mon–Sat · Ninnakarai people kept at Ninnakarai (except where Prem says, e.g. Manoj Kumar J also Lancor) · a 1–2 week one-off stint is not a regular · test on the last real sheet (Mon 19 Oct).
 
@@ -136,7 +138,7 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 | 27l | Lancor Waiting Hall | MLCP rotation | A B C G | daily rotation, a few short stretches | Option B, **daily rotation (D)** | ✅ |
 | 27m | Kitchen-1 | MLCP rotation | A B C | daily rotation; Ninnakarai people also come | Option B, Ninnakarai kept out, **daily rotation (D)** | ✅ |
 | 27n | Smoking Zone | MLCP rotation | A C G (A new in Oct) | mostly daily, a few short stretches | Option B, Ninnakarai kept out, **daily rotation (D)** | ✅ |
-| 29a | North Plaza GF1 | PKL others | A B C | **supports the North Plaza Reception lady** (covers her breaks) and needs **some system knowledge (issuing passes)**; **filled first** (post order 1, then Play Ground 2); Jul–Oct: rotation among ~15 people who know GF1 (October 71% PKL) | **GF1 pool: PKL people first, then MLCP**, **no daily rotation**; Medical Mine moved before it in post order so its weekend cover keeps priority | ✅ |
+| 29a | North Plaza GF1 | PKL others | A B C | **supports the North Plaza Reception lady** (covers her breaks) and needs **some system knowledge (issuing passes)**; **filled first** (fill priority 1, then Play Ground 2; sheet order unchanged); Jul–Oct: rotation among ~15 people who know GF1 (October 71% PKL) | **GF1 pool: PKL people first, then MLCP**, **no daily rotation**; Medical Mine filled before it (fill priority 1) so its weekend cover keeps priority | ✅ |
 | 29b | North Plaza GF2 | PKL others | A B C | Jul–Oct: different person almost every week; only 3 short stretches; October 61% PKL | Option B + **daily rotation (D)** (Prem: not a support post) | ✅ |
 | 29c | CWE Play Ground | PKL others (**important**) | A B C | most rotated post: no 3-day stretch ever, max 8 days per person; October 67% PKL | **Full history most days first, PKL first, then others wherever they are** + **daily rotation (D)** (Prem: even the most-frequent people never two days running) | ✅ |
 | 29d | North Plaza WW Entrance, GF/S/P Exit, Patrolling (G), 4th Floor (G), M Floor (G), Center Block Outer, Utility Entrance, Old Woodlands, Connecting Bridge, MD House (C), PKL Vendor Parking | PKL others | as listed | all pure daily rotation, nobody fixed (Oct #1 has only 2–5 days) | Option B + **daily rotation (D)**; Escort, Ninnakarai, Hospital people out | ✅ |

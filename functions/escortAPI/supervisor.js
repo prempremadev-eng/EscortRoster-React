@@ -505,8 +505,11 @@ module.exports = function supervisorRoutes(app, h) {
       const rows = await dayRows(zcql, branch, date, posts);
       // Posts in their Posts-page order (sort_order), so the more important post of a group is filled
       // first when the same guards are regulars at several posts (e.g. Hospital G/F before the floors).
+      // A digit in the 4th ';' part of relief_guards (e.g. ";;;1", ";;;2D") fills that post before all
+      // others without moving it on the printed sheet (sort_order stays the guards' usual template order).
+      const fillFirst = p => Number((String(String(p.relief_guards || '').split(';')[3] || '').match(/\d/) || [])[0]) || 99;
       const autoPosts = posts.filter(p => isOn(p.auto_fill))
-        .sort((x, y) => (Number(x.sort_order) || 999) - (Number(y.sort_order) || 999) || String(x.post_name).localeCompare(String(y.post_name)));
+        .sort((x, y) => fillFirst(x) - fillFirst(y) || (Number(x.sort_order) || 999) - (Number(y.sort_order) || 999) || String(x.post_name).localeCompare(String(y.post_name)));
       const day = Number(date.slice(8, 10)) - 1;
       const codeOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[day]; if (c) codeOf[String(r.guard_id)] = c; });
