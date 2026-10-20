@@ -125,6 +125,12 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 
 **General rules learned:** a person can be in two groups' lists (e.g. Lancor + Ninnakarai); the post filled first in sort order gets them first. a one-off 1–2 week stint is not a regular pattern (look for repeated stretches); the roster section is not where people work (go by last month's post days); Escort never Mon–Sat; fixed sub-groups never change.
 
+## 🏭 PKL others (20 Oct, analysis)
+
+- 14 posts: North Plaza GF1, GF2, WW Entrance, GF/S/P Exit, Patrolling (G), 4th Floor (G), M Floor (G), Center Block Outer, Utility Entrance, CWE Play Ground, Old Woodlands, Connecting Bridge, MD House (C), PKL Vendor Parking
+- All **pure daily rotation**: in October nobody stayed more than 1–3 days in a row at any of them; teams mixed (PKL + MLCP, some Escort on Sundays, some Ninnakarai-section people)
+- Proposal: option B + daily rotation (D); Escort and Ninnakarai people out
+
 ## 📜 History rules (found, not built yet)
 
 ### H1 · Lady pool: vaaram vaaram rotation
