@@ -90,7 +90,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 1 | Shift Incharge | Supervisors | Rule 1 | Month roster supervisors | ✅ On, tested |
 | 2 | Documents | Documents | Rule 2 | 2 regulars | ✅ On, tested |
 | 3 | PKL Main Gate | PKL | Rule 2 → 3 → 4 | 3 regulars + PKL relief (most PKL days first) | ✅ On, tested |
-| 4 | PKL Vehicle Movement | PKL | Rule 3 → 4 | PKL relief only | ✅ On, tested |
+| 4 | PKL Vehicle Movement | PKL | Rule 2 → 3 → 4 | **3 regulars** (20 Oct: history 77 / 71 / 61 days at VM) + PKL relief | ✅ On |
 | 5 | PKL Patrolling-1 | PKL | Rule 2 → 3 → 4 | 1 regular + PKL relief | ✅ On, tested |
 | 6 | PKL Patrolling-2 | PKL | Rule 3 → 4 | PKL relief only | ✅ On, tested |
 | 7 | Kidos School PKL | Lady (permanent) | Rule 2 | 1 regular, G shift Mon–Fri, Sat/Sun off | ✅ On, tested |
