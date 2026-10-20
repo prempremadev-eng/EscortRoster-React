@@ -120,6 +120,7 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 | 27l | Lancor Waiting Hall | MLCP rotation | A B C G | daily rotation, a few short stretches | Option B, **daily rotation (D)** | ✅ |
 | 27m | Kitchen-1 | MLCP rotation | A B C | daily rotation; Ninnakarai people also come | Option B, Ninnakarai kept out, **daily rotation (D)** | ✅ |
 | 27n | Smoking Zone | MLCP rotation | A C G (A new in Oct) | mostly daily, a few short stretches | Option B, Ninnakarai kept out, **daily rotation (D)** | ✅ |
+| 29a | North Plaza GF1 | PKL others | A B C | **supports the North Plaza Reception lady** (covers her breaks); one main person with repeated stretches | Ordered list, main person first, **no daily rotation**; Medical Mine moved before it in post order so its weekend cover keeps priority | ✅ |
 | 28 | MLCP CCTV | – | A B C | **1 fixed person, 1 slot a day on his own shift** (weekly cycle, off Thursdays) | Regular only; Oct roster row added from history; other two shifts stay empty | ✅ |
 | 29 | VTitan | – | – | weekend-only extra duty | removed | – |
 
