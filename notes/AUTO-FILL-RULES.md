@@ -52,6 +52,13 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 - Mon 19 test: 10 / 12 match (2 regulars on the same shift swapped VM C ↔ P1 C)
 - 20 Oct: Auto fill **only these 4 posts on**; other groups switched back on one by one. Names: private file outside git
 
+## 🏢 Ninnakarai (20 Oct)
+
+- 2 posts × A/B/C = 6 slots a day. Monthly roster section = 7 people, each off on a different weekday
+- Set: the 7 = **regulars of both posts** (Rule 2, list order); **relief list empty for now** (team people only; outsiders later)
+- Roster fit: exactly 2 per shift on only 6 of 31 October days; most days one shift has 1 and another 3 → ~1 short slot (stays empty for now) and ~1 spare person a day
+- Shift Incharge: Tue–Thu one shift has no supervisor (staggered weekly offs) → left empty. Documents: 2 regulars only
+
 ## 📜 History rules (found, not built yet)
 
 ### H1 · Lady pool: vaaram vaaram rotation
