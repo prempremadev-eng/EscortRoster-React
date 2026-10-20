@@ -34,6 +34,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 7 | Weekend order | Sat / Sun la ladies kammi. Adhanaala **Rule 3 permanent posts ku (MLCP / Medical Mine Reception) Rule 5 ku munnaadi** odum. Apram meedhi ladies ah Rule 5 North Plaza / Apricot ku podum (H3: MLCP weekend 92% ladies, North Plaza 65%) |
 | 8 | Anyone free | Kadaisi la: rotation post (relief list 5+) la innum empty slot irundhaa, andha shift la **post illaama free ah irukkura yaar venaalum** (own team first). Supervisor, lady pool, weekday Escort illa |
 | 9 | Lady shifts | `relief ; weekend ; lady shifts` (e.g. `B`). Andha shifts la mattum Rule 5 lady pool rotation; mathha shifts la pool lady podaadhu. **Kitchen-2 = B** (weekday), **Apricot Patrolling = A, C** (B = men) |
+| 10 | Daily rotation | A post flagged **D** (4th `;` part of `Posts.relief_guards`) never gets the guard who was there **yesterday** (Rules 2, 3, 4, 8). For hot / hard posts (Lancor Vendor Entrance: sun) |
 | – | Safety | Empty slot mattum fill pannum, **draft** ah. Oru guard oru naal la oru slot thaan |
 
 **Rule 4 order:** outside-team guards are also ordered by **most days at the team's posts** (e.g. MLCP / Escort guards who covered PKL most come first). PKL relief list = PKL team + the outside guards who covered PKL posts in history (Sat/Sun gaps were never left empty).
@@ -113,6 +114,7 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 | 27f | MLCP Rear Exit | MLCP rotation | A B | daily rotation, mostly MLCP | Option B | ✅ |
 | 27g | Lancor BKE Parking | Lancor team | A B C G | a ~10-person **Lancor team** (mostly PKL section) in 3–5 day stretches; G = MLCP people daily | Ordered Lancor team, G people at the end | ✅ |
 | 27h | Lancor Car Parking | Lancor team | A B C | same Lancor team (pair with BKE) | Ordered Lancor team (car days first) | ✅ |
+| 27i | Lancor Vendor Entrance | Lancor team | A B C G | 3rd Lancor-team post; **very sunny** | Lancor team list + **daily rotation (D)**: never yesterday's guard | ✅ |
 | 28 | MLCP CCTV | – | B C | 1 fixed | regular only (missing from Oct roster) | ⏸ |
 | 29 | VTitan | – | – | weekend-only extra duty | removed | – |
 
