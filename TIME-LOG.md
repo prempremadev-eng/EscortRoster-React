@@ -67,3 +67,6 @@
 | Time | Event |
 |---|---|
 | 09:15 | ▶️ Start ("good morning") |
+| 23:36 | ⏹️ Done ("done" → day-end files) |
+
+**Total:** ~14 h 20 min span (09:15 → 23:36), breaks not logged
