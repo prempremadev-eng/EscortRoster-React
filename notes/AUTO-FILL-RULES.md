@@ -66,6 +66,12 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 - Off for now (do last): Lift (filled only ~38% of days), Rear Side (107 different guards, mostly outsiders)
 - Code: Auto fill goes through posts in **sort order** (Posts page order), so the more important post of a group (G/F) gets people first
 
+## 🅿️ MLCP (20 Oct, started)
+
+- **Teams change every month** (PKL ↔ MLCP ↔ Escort; not the PKL sub-groups; Ninnakarai changes too; Hospital unknown). Lists use **this month's team only**; history only sets the order
+- Main Gate-1 + Car Parking-1 = a pair (7 slots a day, both every day, every shift). Each post's own order (most days there first), October MLCP people as regulars, Main Gate-1 filled first. Relief empty for now
+- Escort guards never on these posts Mon–Sat (Rule 0 + not in the lists)
+
 ## 📜 History rules (found, not built yet)
 
 ### H1 · Lady pool: vaaram vaaram rotation
