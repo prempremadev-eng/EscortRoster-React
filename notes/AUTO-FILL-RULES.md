@@ -59,6 +59,13 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 - Roster fit: exactly 2 per shift on only 6 of 31 October days; most days one shift has 1 and another 3 → ~1 short slot (stays empty for now) and ~1 spare person a day
 - Shift Incharge: Tue–Thu one shift has no supervisor (staggered weekly offs) → left empty. Documents: 2 regulars only
 
+## 🏥 Hospital (20 Oct)
+
+- Roster team 14, all rotate only inside the hospital (no fixed floor)
+- On: G/F, 2nd FL, 4th FL, 6th FL (C) with the 14 as regulars (each post's own order: most days there first); relief empty for now
+- Off for now (do last): Lift (filled only ~38% of days), Rear Side (107 different guards, mostly outsiders)
+- Code: Auto fill goes through posts in **sort order** (Posts page order), so the more important post of a group (G/F) gets people first
+
 ## 📜 History rules (found, not built yet)
 
 ### H1 · Lady pool: vaaram vaaram rotation

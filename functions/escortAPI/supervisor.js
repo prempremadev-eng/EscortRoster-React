@@ -502,7 +502,10 @@ module.exports = function supervisorRoutes(app, h) {
       ]);
       if (!roster.length) throw new Error('No month roster for ' + date.slice(0, 7) + '. Upload it in Month roster first.');
       const rows = await dayRows(zcql, branch, date, posts);
-      const autoPosts = posts.filter(p => isOn(p.auto_fill));
+      // Posts in their Posts-page order (sort_order), so the more important post of a group is filled
+      // first when the same guards are regulars at several posts (e.g. Hospital G/F before the floors).
+      const autoPosts = posts.filter(p => isOn(p.auto_fill))
+        .sort((x, y) => (Number(x.sort_order) || 999) - (Number(y.sort_order) || 999) || String(x.post_name).localeCompare(String(y.post_name)));
       const day = Number(date.slice(8, 10)) - 1;
       const codeOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[day]; if (c) codeOf[String(r.guard_id)] = c; });
