@@ -44,6 +44,14 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 
 ---
 
+## 🏭 PKL Core Team (20 Oct, step by step restart)
+
+- Monthly roster: 4 teams (PKL 84, MLCP 67, Escort 49, Hospital 14). PKL 84 = Supervisors 4 · Documents 2 · Medical Mine 3 · Kidos 2 · Ninnakarai 7 · Lady Guards 9 · **PKL Core Team 8** · other PKL men 49
+- Posts: PKL Main Gate (3 regulars), Vehicle Movement (3), Patrolling-1 (2, first in list = first choice), Patrolling-2 (relief only)
+- Rules: Escort Sunday only → Rule 2 regulars (list order) → Rule 3 PKL relief (most PKL days) → Rule 4 outside team → Rule 8 anyone free
+- Mon 19 test: 10 / 12 match (2 regulars on the same shift swapped VM C ↔ P1 C)
+- 20 Oct: Auto fill **only these 4 posts on**; other groups switched back on one by one. Names: private file outside git
+
 ## 📜 History rules (found, not built yet)
 
 ### H1 · Lady pool: vaaram vaaram rotation
