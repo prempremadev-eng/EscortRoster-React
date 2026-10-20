@@ -37,6 +37,20 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 10 | Daily rotation | A post flagged **D** (4th `;` part of `Posts.relief_guards`) never gets the guard who was there **yesterday** (Rules 2, 3, 4, 8). For hot / hard posts (Lancor Vendor Entrance: sun) |
 | – | Safety | Empty slot mattum fill pannum, **draft** ah. Oru guard oru naal la oru slot thaan |
 
+## 🗂️ Post types (how each post is decided, 20 Oct)
+
+| Type | When | How the list is made | Daily rotation |
+|---|---|---|---|
+| **Fixed** | 1–3 people always there (Documents, PKL Core, CCTV, permanent ladies, Kidos) | Those people as regulars; first in list = first choice | No |
+| **Team** | A roster group that only works its own posts (Hospital, Ninnakarai) | The group as regulars, each post's own order; important post first in post order | No |
+| **Pool rotation (ladies)** | Lady pool posts | Rule 5 weekly rotation, lady shifts, weekend lists | – (weekly) |
+| **Support post** | A post that helps another (North Plaza GF1 helps the reception lady) | Pool of people who **know the post** (4 months), **PKL first, then MLCP** | **No** (familiar people) |
+| **Group pair** | Same small team moves between 2–3 posts (Lancor team: BKE, Car, Vendor Entrance; MG-1 + CP-1) | The team ordered by days at each post | Only where Prem says (Vendor Entrance: sun) |
+| **Option B rotation** | Everyone else (MLCP, Lancor, PKL others) | **Most days at that post last month (any team)**, then 4-month total; top 15 | **Yes (D)** where Prem says |
+| **Special shift** | One shift has a fixed person (Basement-2 G, Car Parking-3 G) | That person + cover first | No |
+
+**Always:** Escort out Mon–Sat · Ninnakarai people kept at Ninnakarai (except where Prem says, e.g. Manoj Kumar J also Lancor) · a 1–2 week one-off stint is not a regular · test on the last real sheet (Mon 19 Oct).
+
 **Rule 4 order:** outside-team guards are also ordered by **most days at the team's posts** (e.g. MLCP / Escort guards who covered PKL most come first). PKL relief list = PKL team + the outside guards who covered PKL posts in history (Sat/Sun gaps were never left empty).
 
 **Regular order (Rule 2):** regular list order = choice order. Two regulars on the same shift → the first one gets the post, the other goes on to relief.
@@ -121,6 +135,7 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 | 27m | Kitchen-1 | MLCP rotation | A B C | daily rotation; Ninnakarai people also come | Option B, Ninnakarai kept out, **daily rotation (D)** | ✅ |
 | 27n | Smoking Zone | MLCP rotation | A C G (A new in Oct) | mostly daily, a few short stretches | Option B, Ninnakarai kept out, **daily rotation (D)** | ✅ |
 | 29a | North Plaza GF1 | PKL others | A B C | **supports the North Plaza Reception lady** (covers her breaks); Jul–Oct: rotation among ~15 people who know GF1 (October 71% PKL) | **GF1 pool: PKL people first, then MLCP**, **no daily rotation**; Medical Mine moved before it in post order so its weekend cover keeps priority | ✅ |
+| 29b | North Plaza GF2 | PKL others | A B C | Jul–Oct: different person almost every week; only 3 short stretches; October 61% PKL | Option B + **daily rotation (D)** (Prem: not a support post) | ✅ |
 | 28 | MLCP CCTV | – | A B C | **1 fixed person, 1 slot a day on his own shift** (weekly cycle, off Thursdays) | Regular only; Oct roster row added from history; other two shifts stay empty | ✅ |
 | 29 | VTitan | – | – | weekend-only extra duty | removed | – |
 
