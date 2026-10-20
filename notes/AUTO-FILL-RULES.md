@@ -118,6 +118,8 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 | 27j | Lancor Boarding Exit | MLCP rotation | A B C | daily rotation; Ninnakarai people also come | Option B, Ninnakarai people kept out, **daily rotation (D)** (Prem: a different guard every day) | ✅ |
 | 27k | Lancor Parking-1 | MLCP rotation | A B C | daily rotation, mostly MLCP | Option B, Ninnakarai people kept out, **daily rotation (D)** | ✅ |
 | 27l | Lancor Waiting Hall | MLCP rotation | A B C G | daily rotation, a few short stretches | Option B, **daily rotation (D)** | ✅ |
+| 27m | Kitchen-1 | MLCP rotation | A B C | daily rotation; Ninnakarai people also come | Option B, Ninnakarai kept out, **daily rotation (D)** | ✅ |
+| 27n | Smoking Zone | MLCP rotation | A C G (A new in Oct) | mostly daily, a few short stretches | Option B, Ninnakarai kept out, **daily rotation (D)** | ✅ |
 | 28 | MLCP CCTV | – | B C | 1 fixed | regular only (missing from Oct roster) | ⏸ |
 | 29 | VTitan | – | – | weekend-only extra duty | removed | – |
 
