@@ -38,6 +38,8 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 
 **Rule 4 order:** outside-team guards are also ordered by **most days at the team's posts** (e.g. MLCP / Escort guards who covered PKL most come first). PKL relief list = PKL team + the outside guards who covered PKL posts in history (Sat/Sun gaps were never left empty).
 
+**Regular order (Rule 2):** regular list order = choice order. Two regulars on the same shift → the first one gets the post, the other goes on to relief.
+
 **"Senior" (Rule 3 order):** team oda ella posts layum serthu **adhiga naal** duty paathavanga first. P-code seniority illa. (Prem: P-code senior ellarum PKL ah virumbi pannamaattaanga; adhiga naal PKL paathavanga nalla pannuvaanga.)
 
 ---
@@ -91,7 +93,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 2 | Documents | Documents | Rule 2 | 2 regulars | ✅ On, tested |
 | 3 | PKL Main Gate | PKL | Rule 2 → 3 → 4 | 3 regulars + PKL relief (most PKL days first) | ✅ On, tested |
 | 4 | PKL Vehicle Movement | PKL | Rule 2 → 3 → 4 | **3 regulars** (20 Oct: history 77 / 71 / 61 days at VM) + PKL relief | ✅ On |
-| 5 | PKL Patrolling-1 | PKL | Rule 2 → 3 → 4 | 1 regular + PKL relief | ✅ On, tested |
+| 5 | PKL Patrolling-1 | PKL | Rule 2 → 3 → 4 | **2 regulars** in order (1st choice 64 days at P1, 2nd 45 days; same shift → 1st choice gets P1) + PKL relief | ✅ On |
 | 6 | PKL Patrolling-2 | PKL | Rule 3 → 4 | PKL relief only | ✅ On, tested |
 | 7 | Kidos School PKL | Lady (permanent) | Rule 2 | 1 regular, G shift Mon–Fri, Sat/Sun off | ✅ On, tested |
 | 8 | Kidos School Apricot | Lady (permanent) | Rule 2 | 1 regular, G shift Mon–Fri, Sat/Sun off | ✅ On, tested |
