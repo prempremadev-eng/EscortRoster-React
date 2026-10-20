@@ -115,9 +115,9 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 | 27g | Lancor BKE Parking | Lancor team | A B C G | a ~10-person **Lancor team** (mostly PKL section) in 3–5 day stretches; G = MLCP people daily | Ordered Lancor team, G people at the end | ✅ |
 | 27h | Lancor Car Parking | Lancor team | A B C | same Lancor team (pair with BKE) | Ordered Lancor team (car days first) | ✅ |
 | 27i | Lancor Vendor Entrance | Lancor team | A B C G | 3rd Lancor-team post; **very sunny** | Lancor team list + **daily rotation (D)**: never yesterday's guard | ✅ |
-| 27j | Lancor Boarding Exit | MLCP rotation | A B C | daily rotation; Ninnakarai people also come | Option B, Ninnakarai people kept out | ✅ |
-| 27k | Lancor Parking-1 | MLCP rotation | A B C | daily rotation, mostly MLCP | Option B, Ninnakarai people kept out | ✅ |
-| 27l | Lancor Waiting Hall | MLCP rotation | A B C G | daily rotation, a few short stretches | Option B | ✅ |
+| 27j | Lancor Boarding Exit | MLCP rotation | A B C | daily rotation; Ninnakarai people also come | Option B, Ninnakarai people kept out, **daily rotation (D)** (Prem: a different guard every day) | ✅ |
+| 27k | Lancor Parking-1 | MLCP rotation | A B C | daily rotation, mostly MLCP | Option B, Ninnakarai people kept out, **daily rotation (D)** | ✅ |
+| 27l | Lancor Waiting Hall | MLCP rotation | A B C G | daily rotation, a few short stretches | Option B, **daily rotation (D)** | ✅ |
 | 28 | MLCP CCTV | – | B C | 1 fixed | regular only (missing from Oct roster) | ⏸ |
 | 29 | VTitan | – | – | weekend-only extra duty | removed | – |
 
