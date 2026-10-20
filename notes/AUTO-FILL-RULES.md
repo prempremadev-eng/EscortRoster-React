@@ -120,7 +120,7 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 | 27l | Lancor Waiting Hall | MLCP rotation | A B C G | daily rotation, a few short stretches | Option B, **daily rotation (D)** | ✅ |
 | 27m | Kitchen-1 | MLCP rotation | A B C | daily rotation; Ninnakarai people also come | Option B, Ninnakarai kept out, **daily rotation (D)** | ✅ |
 | 27n | Smoking Zone | MLCP rotation | A C G (A new in Oct) | mostly daily, a few short stretches | Option B, Ninnakarai kept out, **daily rotation (D)** | ✅ |
-| 28 | MLCP CCTV | – | B C | 1 fixed | regular only (missing from Oct roster) | ⏸ |
+| 28 | MLCP CCTV | – | A B C | **1 fixed person, 1 slot a day on his own shift** (weekly cycle, off Thursdays) | Regular only; Oct roster row added from history; other two shifts stay empty | ✅ |
 | 29 | VTitan | – | – | weekend-only extra duty | removed | – |
 
 **General rules learned:** a person can be in two groups' lists (e.g. Lancor + Ninnakarai); the post filled first in sort order gets them first. a one-off 1–2 week stint is not a regular pattern (look for repeated stretches); the roster section is not where people work (go by last month's post days); Escort never Mon–Sat; fixed sub-groups never change.
