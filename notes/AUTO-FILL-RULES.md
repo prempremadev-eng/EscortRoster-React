@@ -78,6 +78,39 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 - Rotation posts: regular order = **most days at that post last month (any team)**, then 4-month history; Escort out Mon–Sat; top 15; relief empty
 - Done: ERT Booth, MLCP Main Gate-1, MLCP Car Parking-1. Day-by-day history rebuilt from all 113 photos (18,568 duties, 112 days)
 
+## 📋 Post by post rules (20 Oct, step-by-step setup)
+
+No names here (public repo). Names and day-by-day history: private folder outside git.
+
+| # | Post | Group | Shifts | Pattern (history) | Rule in the app | Auto fill |
+|---|---|---|---|---|---|---|
+| 1 | Shift Incharge | Supervisors | A B C G | 3 supervisors rotate A/B/C weekly, 1 on G | Rule 1: supervisor whose roster says that shift; nobody → empty (Tue–Thu one shift is empty every week) | ✅ |
+| 2 | Documents | Documents | A B G | 2 fixed people | Rule 2: regulars only, no relief | ✅ |
+| 3 | PKL Main Gate | PKL Core | A B C | 3 fixed people | Rule 2: 3 regulars → PKL relief → outside | ✅ |
+| 4 | PKL Vehicle Movement | PKL Core | A B C | 3 almost fixed | Rule 2: 3 regulars (list order = choice) → relief | ✅ |
+| 5 | PKL Patrolling-1 | PKL Core | A B C | 2 main people | Rule 2: 2 regulars, first = first choice → relief | ✅ |
+| 6 | PKL Patrolling-2 | PKL Core | A B | rotation | Rule 3/4: PKL relief (most PKL days) → outside | ✅ |
+| 7 | North Plaza Reception | Lady pool | A B C | weekly rotation | Rule 5 (same lady all shift-week); weekend list: ladies first, then men | ✅ |
+| 8 | Apricot Reception | Lady pool | A B C | 2 Apricot-side ladies + pool | Rule 2 (2 regulars) → Rule 5; weekend list men | ✅ |
+| 9 | Apricot Patrolling | Lady pool | A B C | ladies on A, C; men on B; weekend men | Rule 5 on A, C (lady shifts); B and weekend = men list | ✅ |
+| 10 | Kitchen-2 | Lady pool + men | B C | B = pool lady Mon–Fri; C and weekend = men | Rule 5 on B only; weekend list men | ✅ |
+| 11 | MLCP Reception | Lady (permanent) | A B C | 3 fixed ladies; off day → pool lady, then men | Rule 2 → Rule 3 lady pool → Rule 4 men; weekend: before Rule 5 | ✅ |
+| 12 | Medical Mine Reception | Lady (permanent) | A B C | 3 fixed ladies; weekend men cover (same man Sat + Sun) | Rule 2: 3 ladies + 2 weekend men → relief | ✅ |
+| 13–14 | Kidos School PKL / Apricot | Lady (permanent) | G | 1 fixed each, Mon–Fri | Rule 2 | ✅ |
+| 15–16 | Ninnakarai Land-1 / Land-2 | Ninnakarai (monthly) | A B C | roster gives 7 people; real life mixes others in | Rule 2: the 7 (both posts); relief later (~1 short slot a day) | ✅ |
+| 17–20 | Hospital G/F, 2nd, 4th, 6th FL | Hospital | A B C (6th: C) | 14-person team rotates floors daily | Rule 2: team, each floor's own order; G/F filled first (sort order) | ✅ |
+| 21 | Hospital Lift | Hospital | A B | filled ~38% of days | later (phase 2) | ⏸ |
+| 22 | Hospital Rear Side | Hospital | A B C | mostly outsiders (107 people) | later (phase 2) | ⏸ |
+| 23 | MLCP Main Gate-1 | MLCP rotation | A B C | 1 near-daily person + PKL people often | Option B: most October days first (any team) | ✅ |
+| 24 | MLCP Car Parking-1 | MLCP rotation | A B C G (G Mon–Fri) | daily rotation, PKL people top in October | Option B | ✅ |
+| 25 | ERT Booth | MLCP rotation | A B C | some 4–6 day stretches | Option B; one-off 2-week stint moved down | ✅ |
+| 26 | MLCP Basement-1 | MLCP rotation | A B C G | a few people keep coming back | Option B | ✅ (19 Oct: 4/4 match) |
+| 27 | MLCP Basement-2 | MLCP rotation | A B C G | **G = one fixed person daily** (+ 1 cover); A/B/C daily rotation | Option B: G regular + cover first, then A/B/C order | ✅ |
+| 28 | MLCP CCTV | – | B C | 1 fixed | regular only (missing from Oct roster) | ⏸ |
+| 29 | VTitan | – | – | weekend-only extra duty | removed | – |
+
+**General rules learned:** a one-off 1–2 week stint is not a regular pattern (look for repeated stretches); the roster section is not where people work (go by last month's post days); Escort never Mon–Sat; fixed sub-groups never change.
+
 ## 📜 History rules (found, not built yet)
 
 ### H1 · Lady pool: vaaram vaaram rotation
