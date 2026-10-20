@@ -107,6 +107,10 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 | 26 | MLCP Basement-1 | MLCP rotation | A B C G | a few people keep coming back | Option B | ✅ (19 Oct: 4/4 match) |
 | 27 | MLCP Basement-2 | MLCP rotation | A B C G | **G = one fixed person daily** (+ 1 cover); A/B/C daily rotation | Option B: G regular + cover first, then A/B/C order | ✅ |
 | 27b | MLCP Main Gate-2 | MLCP rotation | A B C | pure daily rotation (no stretches) | Option B (Ninnakarai regulars left out) | ✅ |
+| 27c | MLCP Car Parking-2 | MLCP rotation | A B C G | daily rotation, many PKL people (36%) | Option B | ✅ |
+| 27d | MLCP Car Parking-3 | MLCP | G only (~70% of days) | **one fixed person on G** | Option B: fixed person first (Basement-2 G regular kept out) | ✅ |
+| 27e | MLCP Terrace | MLCP rotation | A B C | daily rotation, mostly MLCP | Option B | ✅ |
+| 27f | MLCP Rear Exit | MLCP rotation | A B | daily rotation, mostly MLCP | Option B | ✅ |
 | 28 | MLCP CCTV | – | B C | 1 fixed | regular only (missing from Oct roster) | ⏸ |
 | 29 | VTitan | – | – | weekend-only extra duty | removed | – |
 
