@@ -44,7 +44,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | **Fixed** | 1–3 people always there (Documents, PKL Core, CCTV, permanent ladies, Kidos) | Those people as regulars; first in list = first choice | No |
 | **Team** | A roster group that only works its own posts (Hospital, Ninnakarai) | The group as regulars, each post's own order; important post first in post order | No |
 | **Pool rotation (ladies)** | Lady pool posts | Rule 5 weekly rotation, lady shifts, weekend lists | – (weekly) |
-| **Support post** | A post that helps another (North Plaza GF1 helps the reception lady) | Pool of people who **know the post** (4 months), **PKL first, then MLCP** | **No** (familiar people) |
+| **Support / important post** | A post that helps another (North Plaza GF1 helps the reception lady) or Prem marks important (CWE Play Ground) | Pool of people who **know the post** (4 months), **PKL first, then MLCP** | **No** (familiar people) |
 | **Group pair** | Same small team moves between 2–3 posts (Lancor team: BKE, Car, Vendor Entrance; MG-1 + CP-1) | The team ordered by days at each post | Only where Prem says (Vendor Entrance: sun) |
 | **Option B rotation** | Everyone else (MLCP, Lancor, PKL others) | **Most days at that post last month (any team)**, then 4-month total; top 15 | **Yes (D)** where Prem says |
 | **Special shift** | One shift has a fixed person (Basement-2 G, Car Parking-3 G) | That person + cover first | No |
@@ -136,6 +136,7 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 | 27n | Smoking Zone | MLCP rotation | A C G (A new in Oct) | mostly daily, a few short stretches | Option B, Ninnakarai kept out, **daily rotation (D)** | ✅ |
 | 29a | North Plaza GF1 | PKL others | A B C | **supports the North Plaza Reception lady** (covers her breaks); Jul–Oct: rotation among ~15 people who know GF1 (October 71% PKL) | **GF1 pool: PKL people first, then MLCP**, **no daily rotation**; Medical Mine moved before it in post order so its weekend cover keeps priority | ✅ |
 | 29b | North Plaza GF2 | PKL others | A B C | Jul–Oct: different person almost every week; only 3 short stretches; October 61% PKL | Option B + **daily rotation (D)** (Prem: not a support post) | ✅ |
+| 29c | CWE Play Ground | PKL others (**important**) | A B C | most rotated post: no 3-day stretch ever, max 8 days per person; October 67% PKL | **Full history most days first, PKL first, then others wherever they are**; no daily rotation | ✅ |
 | 28 | MLCP CCTV | – | A B C | **1 fixed person, 1 slot a day on his own shift** (weekly cycle, off Thursdays) | Regular only; Oct roster row added from history; other two shifts stay empty | ✅ |
 | 29 | VTitan | – | – | weekend-only extra duty | removed | – |
 
