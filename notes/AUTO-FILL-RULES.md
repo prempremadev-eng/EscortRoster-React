@@ -136,7 +136,7 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 | 27n | Smoking Zone | MLCP rotation | A C G (A new in Oct) | mostly daily, a few short stretches | Option B, Ninnakarai kept out, **daily rotation (D)** | ✅ |
 | 29a | North Plaza GF1 | PKL others | A B C | **supports the North Plaza Reception lady** (covers her breaks); Jul–Oct: rotation among ~15 people who know GF1 (October 71% PKL) | **GF1 pool: PKL people first, then MLCP**, **no daily rotation**; Medical Mine moved before it in post order so its weekend cover keeps priority | ✅ |
 | 29b | North Plaza GF2 | PKL others | A B C | Jul–Oct: different person almost every week; only 3 short stretches; October 61% PKL | Option B + **daily rotation (D)** (Prem: not a support post) | ✅ |
-| 29c | CWE Play Ground | PKL others (**important**) | A B C | most rotated post: no 3-day stretch ever, max 8 days per person; October 67% PKL | **Full history most days first, PKL first, then others wherever they are**; no daily rotation | ✅ |
+| 29c | CWE Play Ground | PKL others (**important**) | A B C | most rotated post: no 3-day stretch ever, max 8 days per person; October 67% PKL | **Full history most days first, PKL first, then others wherever they are** + **daily rotation (D)** (Prem: even the most-frequent people never two days running) | ✅ |
 | 28 | MLCP CCTV | – | A B C | **1 fixed person, 1 slot a day on his own shift** (weekly cycle, off Thursdays) | Regular only; Oct roster row added from history; other two shifts stay empty | ✅ |
 | 29 | VTitan | – | – | weekend-only extra duty | removed | – |
 
