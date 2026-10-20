@@ -130,6 +130,8 @@ History: same shift la irundhaalum **~30% thaan nethu post la ve** irukkaanga. S
 - Sep 14 / 16 and Oct 12 / 13 weekdays had a lady → almost daily now
 - Pool ladies only, **4–5 days in a row** then another lady (weekly rotation, same as Rule 5)
 - Pool 9 = North Plaza 3 + Apricot Reception 3 + Apricot Patrolling A, C + Kitchen-2 B
+- **Pool split (Prem, 20 Oct):** 9 pool ladies = North Plaza 3 (1 per shift) + Apricot 6 (2 per shift: Reception + Patrolling; the 2 Apricot-side ladies are Reception regulars). **B shift only:** the Apricot Patrolling lady goes to **Kitchen-2 B**, and a **man** covers Apricot Patrolling B
+- 19 Oct real sheet had the opposite (lady at Apricot Patrolling B, man at Kitchen-2 B): a **one-day manual change** by the supervisor. The rule stays: Kitchen-2 B = lady
 
 ## 🔒 Regular-only posts: Documents, MLCP CCTV
 
