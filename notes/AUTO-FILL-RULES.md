@@ -106,6 +106,7 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 | 25 | ERT Booth | MLCP rotation | A B C | some 4–6 day stretches | Option B; one-off 2-week stint moved down | ✅ |
 | 26 | MLCP Basement-1 | MLCP rotation | A B C G | a few people keep coming back | Option B | ✅ (19 Oct: 4/4 match) |
 | 27 | MLCP Basement-2 | MLCP rotation | A B C G | **G = one fixed person daily** (+ 1 cover); A/B/C daily rotation | Option B: G regular + cover first, then A/B/C order | ✅ |
+| 27b | MLCP Main Gate-2 | MLCP rotation | A B C | pure daily rotation (no stretches) | Option B (Ninnakarai regulars left out) | ✅ |
 | 28 | MLCP CCTV | – | B C | 1 fixed | regular only (missing from Oct roster) | ⏸ |
 | 29 | VTitan | – | – | weekend-only extra duty | removed | – |
 
