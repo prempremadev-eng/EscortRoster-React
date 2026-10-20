@@ -111,10 +111,12 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 | 27d | MLCP Car Parking-3 | MLCP | G only (~70% of days) | **one fixed person on G** | Option B: fixed person first (Basement-2 G regular kept out) | ✅ |
 | 27e | MLCP Terrace | MLCP rotation | A B C | daily rotation, mostly MLCP | Option B | ✅ |
 | 27f | MLCP Rear Exit | MLCP rotation | A B | daily rotation, mostly MLCP | Option B | ✅ |
+| 27g | Lancor BKE Parking | Lancor team | A B C G | a ~10-person **Lancor team** (mostly PKL section) in 3–5 day stretches; G = MLCP people daily | Ordered Lancor team, G people at the end | ✅ |
+| 27h | Lancor Car Parking | Lancor team | A B C | same Lancor team (pair with BKE) | Ordered Lancor team (car days first) | ✅ |
 | 28 | MLCP CCTV | – | B C | 1 fixed | regular only (missing from Oct roster) | ⏸ |
 | 29 | VTitan | – | – | weekend-only extra duty | removed | – |
 
-**General rules learned:** a one-off 1–2 week stint is not a regular pattern (look for repeated stretches); the roster section is not where people work (go by last month's post days); Escort never Mon–Sat; fixed sub-groups never change.
+**General rules learned:** a person can be in two groups' lists (e.g. Lancor + Ninnakarai); the post filled first in sort order gets them first. a one-off 1–2 week stint is not a regular pattern (look for repeated stretches); the roster section is not where people work (go by last month's post days); Escort never Mon–Sat; fixed sub-groups never change.
 
 ## 📜 History rules (found, not built yet)
 
