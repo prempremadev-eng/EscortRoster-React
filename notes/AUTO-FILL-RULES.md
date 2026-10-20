@@ -72,6 +72,12 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 - Main Gate-1 + Car Parking-1 = a pair (7 slots a day, both every day, every shift). Each post's own order (most days there first), October MLCP people as regulars, Main Gate-1 filled first. Relief empty for now
 - Escort guards never on these posts Mon–Sat (Rule 0 + not in the lists)
 
+## 🅿️ MLCP option B (20 Oct, Prem)
+
+- October: the roster's team section ≠ where people work (~15 PKL-section people were #1/#2 at MLCP posts; some MLCP people top Ninnakarai)
+- Rotation posts: regular order = **most days at that post last month (any team)**, then 4-month history; Escort out Mon–Sat; top 15; relief empty
+- Done: ERT Booth, MLCP Main Gate-1, MLCP Car Parking-1. Day-by-day history rebuilt from all 113 photos (18,568 duties, 112 days)
+
 ## 📜 History rules (found, not built yet)
 
 ### H1 · Lady pool: vaaram vaaram rotation
