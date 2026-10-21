@@ -22,7 +22,7 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 | **E13 · Everything else** | The rest of the Escort sheet **stays exactly as it is** (Saturday leave, Sunday pickup sheet, extra today-only rows, remarks, print, dashboard). Don't touch it (Prem, 21 Oct) |
 | **E14 · Sunday** | The Schedule page shows **no escort list on Sunday** (escorts take posts that day) |
 | **E15 · Numbering** | One running S.No like the real sheet: **6 to 5 = 1 … 12** (12 rows even if fewer, 12 support points), **9 to 6 carries on from 13**. Each list still turns 4 down on its own |
-| **E16 · Extra escort for a day** | Schedule page → ON DUTY, NO POST → **→ Escort**: that guard (any team) goes to the **end of 9 to 6** for the day with the next S.No; his card IN gives his seat and his own row on the guard page. ✕ on his escort row removes him. Saved as EscortDay.support_point = `Extra 9 to 6` (no new table). The escort sheet's "+ Add Extra" stays for people outside the app (no notification) |
+| **E16 · Extra escort for a day** | Schedule page → ON DUTY, NO POST → **→ Escort** (only guards on **C** that day): that guard (any team) goes to the **end of 9 to 6** for the day with the next S.No; his card IN gives his seat and his own row on the guard page. ✕ on his escort row removes him. Saved as EscortDay.support_point = `Extra 9 to 6` (no new table). The escort sheet's "+ Add Extra" stays for people outside the app (no notification) |
 
 ## Seen in the real sheets (to confirm)
 

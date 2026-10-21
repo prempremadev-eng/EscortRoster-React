@@ -359,7 +359,7 @@ export default function SupervisorSchedule() {
                     <tbody>
                       {idle.map((g, i) => (
                         <tr key={g.ROWID}><td className="sh-no">{i + 1}</td><td className="sh-name">{g.name}</td><td className="sh-code">{g.roster}</td><td className="sh-code">{g.area}</td>
-                          {data.escort.canAdd && <td className="sh-code no-print"><button className="sh-esc-btn" onClick={() => toEscort(g.ROWID, true)} disabled={busy} title="Send to Escort 9 to 6 for today">→ Escort</button></td>}</tr>
+                          {data.escort.canAdd && <td className="sh-code no-print">{g.roster === 'C' && <button className="sh-esc-btn" onClick={() => toEscort(g.ROWID, true)} disabled={busy} title="Send to Escort 9 to 6 for today (C shift only)">→ Escort</button>}</td>}</tr>
                       ))}
                       {idle.length === 0 && <tr><td colSpan={data.escort.canAdd ? 5 : 4} className="sh-empty">{data.hasRoster ? 'Everyone on duty has a post' : 'No month roster'}</td></tr>}
                     </tbody>
