@@ -306,6 +306,10 @@ module.exports = function supervisorRoutes(app, h) {
   const SECTION_ORDER = ['PKL / Main', 'Hospital Block', 'MLCP'];
   // A post's shifts ("ABC", "G" …); empty = every shift.
   const postShifts = p => String((p && p.shift_codes) || '').toUpperCase();
+  // "R" in the 4th ';' part of Posts.relief_guards: the post is there only on the shift its regular
+  // works that day by the month roster (MLCP CCTV: one fixed person), so no empty slot on other shifts.
+  const regularOnly = p => String(String((p && p.relief_guards) || '').split(';')[3] || '').includes('R');
+  const regularShifts = (p, codeOf) => String(p.regular_guards || '').split(',').map(x => codeOf[x.trim()]).filter(c => 'ABCG'.includes(c || '-'));
   const plusDays = (date, n) => { const d = new Date(date + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 
   // Posts of a branch in my area (an agency supervisor: only their agency's posts).
@@ -339,6 +343,12 @@ module.exports = function supervisorRoutes(app, h) {
       const rosterOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[dayIndex]; if (c && c !== '-') rosterOf[String(r.guard_id)] = c; });
       const rows = await dayRows(zcql, branch, date, posts);
+      const dayShifts = p => {
+        if (!regularOnly(p)) return postShifts(p);
+        const keep = new Set([...regularShifts(p, rosterOf), ...rows.filter(r => String(r.post_id) === String(p.ROWID)).map(r => r.shift_code)]);
+        return 'ABCG'.split('').filter(c => keep.has(c) && (!postShifts(p) || postShifts(p).includes(c))).join('');
+      };
+      const dayPosts = posts.filter(p => !regularOnly(p) || dayShifts(p));
 
       // Escorts. Mon–Fri: the week's 6-to-5 batch = escorts whose roster has the coming Saturday
       // AND Sunday off (18:00–20:30 at a support point, then escort cab till 05:00). The other
@@ -365,7 +375,7 @@ module.exports = function supervisorRoutes(app, h) {
       res.status(200).json({
         status: 'success',
         data: {
-          date, posts: posts.map(p => ({ ROWID: String(p.ROWID), name: p.post_name, extraDuty: isOn(p.extra_duty), section: p.section || 'Other posts', shifts: postShifts(p) })),
+          date, posts: dayPosts.map(p => ({ ROWID: String(p.ROWID), name: p.post_name, extraDuty: isOn(p.extra_duty), section: p.section || 'Other posts', shifts: dayShifts(p) })),
           shifts: shifts.slice().sort((a, b) => SHIFT_ORDER.indexOf(a.code) - SHIFT_ORDER.indexOf(b.code)),
           slots: rows.map(r => ({ ROWID: String(r.ROWID), post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id), published: isOn(r.published) })),
           guards: guards.map(g => ({ ROWID: String(g.ROWID), name: g.guard_name, id: g.id_number, area: g.area || '', roster: rosterOf[String(g.ROWID)] || '' })),
@@ -514,7 +524,7 @@ module.exports = function supervisorRoutes(app, h) {
       const day = Number(date.slice(8, 10)) - 1;
       const codeOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[day]; if (c) codeOf[String(r.guard_id)] = c; });
-      const allows = (p, shift) => !postShifts(p) || postShifts(p).includes(shift);
+      const allows = (p, shift) => (!postShifts(p) || postShifts(p).includes(shift)) && (!regularOnly(p) || regularShifts(p, codeOf).includes(shift));
       // Escorts do the night escort cab Monday–Friday (Saturday off): only on Sunday they take posts.
       const sunday = new Date(date + 'T00:00:00Z').getUTCDay() === 0;
       const escort = new Set(guards.filter(g => String(g.area || '').toLowerCase() === 'escort').map(g => String(g.ROWID)));

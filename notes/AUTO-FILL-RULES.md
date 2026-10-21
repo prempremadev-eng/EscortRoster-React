@@ -158,6 +158,7 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 - Mon 19 complete aana apram Tue 20: Clear day → Auto fill → **daily rotation repeats 0** (last night 16, because Tue was filled before Mon). Rule: **yesterday first, then today**.
 - Sheet order back to template (sort_order 12 / 15 / 21); fill priority digits `;;;1`, `;;;2D`.
 - A shift: 5 D posts empty while 8 PKL / MLCP men had no post (Play Ground list had nobody on A) → Rule 8 now covers D posts.
+- **MLCP CCTV = `R` flag** (4th `;` part): the post is on the sheet **only on the shift its regular works that day** (roster); his off day = no CCTV row, so it is never counted as unfilled (Prem: "subathran iruntha mattum, antha shift la post").
 - Schedule page now shows **Day summary** (shift · total · filled · unfilled · unfilled posts, then TOTAL) and **On duty, no post** (free guards by shift).
 
 ## 📜 History rules (found, not built yet)
