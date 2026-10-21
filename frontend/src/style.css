@@ -1051,3 +1051,4 @@ a.btn{text-decoration:none;display:inline-block;}
 /* Escort duty sheet: bigger names (Prem, 21 Oct), more on a phone */
 tbody td.col-name, tbody td.col-name input{font-size:16px;font-weight:400;}
 @media (max-width:600px){ tbody td.col-name, tbody td.col-name input{font-weight:700;} }
+.dash-history{margin:4px 0 8px;background:#f8fafc;}.dash-history td{vertical-align:top;}

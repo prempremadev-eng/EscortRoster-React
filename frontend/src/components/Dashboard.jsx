@@ -85,6 +85,8 @@ export default function Dashboard() {
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('loading');
   const [open, setOpen] = useState(null);
+  // Guard wise: tap a guard → that guard's trips (their history in this period) open under the row.
+  const [openGuard, setOpenGuard] = useState(null);
 
   const [from, to] = rangeFor(kind, anchor);
 
@@ -152,14 +154,21 @@ export default function Dashboard() {
                   </thead>
                   <tbody>
                     {data.guards.map(g => (
-                      <tr key={g.guard}>
-                        <td className="left">{g.guard}</td>
-                        <td>{g.trips}</td>
-                        <td>{g.drop}</td>
-                        <td>{g.pickup}</td>
-                        <td><b>{g.drop + g.pickup}</b></td>
-                        <td className={g.pending ? 'dash-bad' : ''}>{g.pending || ''}</td>
-                      </tr>
+                      <Fragment key={g.guard}>
+                        <tr className="dash-trip" onClick={() => setOpenGuard(openGuard === g.guard ? null : g.guard)} title="Tap to see this guard's trips">
+                          <td className="left">{openGuard === g.guard ? '▾' : '▸'} {g.guard}</td>
+                          <td>{g.trips}</td>
+                          <td>{g.drop}</td>
+                          <td>{g.pickup}</td>
+                          <td><b>{g.drop + g.pickup}</b></td>
+                          <td className={g.pending ? 'dash-bad' : ''}>{g.pending || ''}</td>
+                        </tr>
+                        {openGuard === g.guard && (
+                          <tr className="dash-stops-row">
+                            <td colSpan={6}><GuardTrips rows={data.rows.filter(r => r.guard === g.guard)} multiDay={multiDay} /></td>
+                          </tr>
+                        )}
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>
@@ -198,18 +207,7 @@ export default function Dashboard() {
                         {open === r.id && (
                           <tr className="dash-stops-row">
                             <td colSpan={multiDay ? 10 : 9}>
-                              {r.stops.length === 0 ? (
-                                <span className="dash-empty">No employees entered.</span>
-                              ) : (
-                                <table className="dash-stops">
-                                  <thead><tr><th>Emp ID</th><th>Location</th><th>Type</th><th>Time</th></tr></thead>
-                                  <tbody>
-                                    {r.stops.map(s => (
-                                      <tr key={s.ROWID}><td>{s.emp}</td><td className="left">{s.loc}</td><td>{s.type}</td><td>{s.time}</td></tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              )}
+                              <Stops stops={r.stops} />
                             </td>
                           </tr>
                         )}
@@ -224,6 +222,50 @@ export default function Dashboard() {
         )}
       </div>
     </>
+  );
+}
+
+function Stops({ stops }) {
+  if (stops.length === 0) return <span className="dash-empty">No employees entered.</span>;
+  return (
+    <table className="dash-stops">
+      <thead><tr><th>Emp ID</th><th>Location</th><th>Type</th><th>Time</th></tr></thead>
+      <tbody>
+        {stops.map(s => (
+          <tr key={s.ROWID}><td>{s.emp}</td><td className="left">{s.loc}</td><td>{s.type}</td><td>{s.time}</td></tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
+
+// One guard's trips in this period, in time order, each with its employees.
+function GuardTrips({ rows, multiDay }) {
+  return (
+    <table className="dash-table dash-history">
+      <thead>
+        <tr>
+          <th>#</th>{multiDay && <th>Date</th>}<th>Location</th><th>Out</th><th>In</th>
+          <th>Vehicle</th><th>Driver</th><th>Emp</th><th>Status</th><th>Employees</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rows.map((r, i) => (
+          <tr key={r.id}>
+            <td>{i + 1}</td>
+            {multiDay && <td>{shortDate(r.date)}</td>}
+            <td className="left">{r.rec.loc}</td>
+            <td>{r.rec.out}</td>
+            <td>{r.rec.in}</td>
+            <td>{r.rec.vehicle}</td>
+            <td className="left">{r.rec.driver}</td>
+            <td>{r.stops.length}</td>
+            <td>{r.complete ? '🟢' : r.pending ? '🔴' : '🔵'}</td>
+            <td className="left"><Stops stops={r.stops} /></td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   );
 }
 
