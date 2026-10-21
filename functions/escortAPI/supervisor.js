@@ -681,16 +681,22 @@ module.exports = function supervisorRoutes(app, h) {
       // posts (5+ guards in the relief list), so Kidos / Documents / CCTV stay as their own rules left them.
       // Daily rotation (D) posts too (Prem, 21 Oct: no empty slot while men sit free), but only PKL / MLCP
       // men there, so Hospital, Ninnakarai and Medical Mine people stay with their own group.
+      // Sunday (Prem, 21 Oct): the escorts are free that day, so every other men's post gets Rule 8 too, with
+      // Escort men after PKL / MLCP. Never at Shift Incharge, Documents / CCTV (R), Hospital, Ninnakarai or
+      // the lady / Medical Mine posts.
+      const sundayPost = x => sunday && !regularOnly(x) && !isIncharge(x) && String(x.section || '').toLowerCase() !== 'hospital block'
+        && !['ninnakarai', 'lady guards', 'medical mine'].includes(teamOf(x).toLowerCase());
       const r8 = { no: 8, rule: 'Anyone free', filled: [], empty: [] };
-      for (const p of autoPosts.filter(x => reliefOf(x).length >= 5 || dailyPosts.includes(x))) {
+      for (const p of autoPosts.filter(x => reliefOf(x).length >= 5 || dailyPosts.includes(x) || sundayPost(x))) {
         const team = teamOf(p);
         const daily = reliefOf(p).length < 5;
+        const isEscort = id => areaOf.get(id).toLowerCase() === 'escort';
         for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
           if (taken.has(p.ROWID + '|' + shift)) continue;
           const g = guards.map(x => String(x.ROWID))
             .filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !sups.includes(String(nameOf.get(id)).toLowerCase()) && areaOf.get(id).toLowerCase() !== 'lady guards' && !restDay(p, id))
-            .filter(id => !daily || ['pkl', 'mlcp'].includes(areaOf.get(id).toLowerCase()))
-            .sort((a, b) => (areaOf.get(b) === team) - (areaOf.get(a) === team))[0];
+            .filter(id => !daily || ['pkl', 'mlcp'].includes(areaOf.get(id).toLowerCase()) || (sunday && isEscort(id)))
+            .sort((a, b) => (areaOf.get(b) === team) - (areaOf.get(a) === team) || isEscort(a) - isEscort(b))[0];
           if (g) { put(p, shift, g); r8.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else r8.empty.push(p.post_name + ' ' + shift);
         }
       }

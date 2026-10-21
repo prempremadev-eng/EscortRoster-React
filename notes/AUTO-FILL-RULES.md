@@ -180,7 +180,7 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 
 - Fri 23: 144 / 150 · Sat 24: 137 / 151 · Sun 25: 113 / 151 (18 Escort men free on Sunday).
 - **Kidos School ×2 = `W` flag** (4th `;` part): Mon–Fri only, **no row on Sat / Sun**.
-- **Sunday escorts: not used for empty slots** (Prem). Later job (skip now): Sunday C-shift men leave a post around 3 AM Monday for 1–2 escort pick-up trips. Escort page left as it is.
+- **Sunday: escorts DO fill empty slots** (Prem changed it, 21 Oct): on Sunday Rule 8 covers every men's post (not Shift Incharge, R posts, Hospital, Ninnakarai, lady / Medical Mine posts); own team first, PKL / MLCP next, **Escort last**. Mon–Sat unchanged. Later job (skip now): Sunday C-shift men leave a post around 3 AM Monday for 1–2 escort pick-up trips. Escort page left as it is.
 - Documents on Saturday (both regulars off): **open**, Prem will decide (hide the row or show empty).
 
 ## 📜 History rules (found, not built yet)
