@@ -197,6 +197,10 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 - **Lancor Car Parking `3DF`**, **MLCP Basement-1 `3F`**.
 - **MLCP Car Parking-1 `3F`** (important, Prem). **Every shift (Prem: "free aana men empty post la podunga"):** a man still free after all rules goes to any empty men's post (Rule 8; not Shift Incharge / R posts / Kidos / Hospital / Ninnakarai) — never left idle.
 
+## 🚗 Escorts on posts (21 Oct, Prem)
+
+- Only **C** escorts do escort duty Mon–Sat. An escort on **A / B / G** that day works a post (Rule 2–4 lists, Rule 8 and the `F` posts; escorts after PKL / MLCP men). Replaces "Escort out Mon–Sat". Escort rules: `notes/ESCORT-RULES.md`.
+
 ## 📜 History rules (found, not built yet)
 
 ### H1 · Lady pool: vaaram vaaram rotation

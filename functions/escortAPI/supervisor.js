@@ -384,7 +384,8 @@ module.exports = function supervisorRoutes(app, h) {
           list.forEach(r => { (codesFor[m] = codesFor[m] || {})[String(r.guard_id)] = String(r.codes || ''); });
         }
         const codeOn = (id, d) => ((codesFor[d.slice(0, 7)] || {})[id] || '')[Number(d.slice(8, 10)) - 1];
-        batch = guards.filter(g => String(g.area || '').toLowerCase() === 'escort' && codeOn(String(g.ROWID), sat) === 'O' && codeOn(String(g.ROWID), sun) === 'O').map(g => String(g.ROWID));
+        // Only those on C today (an escort on A / B / G works a post that day).
+        batch = guards.filter(g => String(g.area || '').toLowerCase() === 'escort' && rosterOf[String(g.ROWID)] === 'C' && codeOn(String(g.ROWID), sat) === 'O' && codeOn(String(g.ROWID), sun) === 'O').map(g => String(g.ROWID));
       }
       const points = (await zcql.executeZCQLQuery(`SELECT guard_id, support_point FROM EscortDay WHERE branch_id = ${branch} AND sched_date = '${date}' LIMIT 0, 300`)).map(x => x.EscortDay);
       const pointOf = {};
@@ -546,10 +547,11 @@ module.exports = function supervisorRoutes(app, h) {
       roster.forEach(r => { const c = String(r.codes || '')[day]; if (c) codeOf[String(r.guard_id)] = c; });
       const supIds = guards.filter(g => sups.includes(String(g.guard_name).toLowerCase())).map(g => String(g.ROWID));
       const allows = (p, shift) => !(weekdayOnly(p) && isWeekend(date)) && (!postShifts(p) || postShifts(p).includes(shift)) && shiftsToday(p, codeOf, regularIds(p, posts, supIds), '').includes(shift);
-      // Escorts do the night escort cab Monday–Friday (Saturday off): only on Sunday they take posts.
+      // Escorts: only those on C do the escort cab (Mon–Sat); an escort whose roster says A / B / G that
+      // day works a post like anyone else (Prem, 21 Oct, as on the real sheets). Sunday: all take posts.
       const sunday = new Date(date + 'T00:00:00Z').getUTCDay() === 0;
       const escort = new Set(guards.filter(g => String(g.area || '').toLowerCase() === 'escort').map(g => String(g.ROWID)));
-      const canPost = id => sunday || !escort.has(String(id));
+      const canPost = id => sunday || !escort.has(String(id)) || codeOf[String(id)] !== 'C';
       const taken = new Set(rows.map(r => r.post_id + '|' + r.shift_code));
       const busyGuard = new Set(rows.map(r => String(r.guard_id)));
       const inserts = [];
@@ -601,8 +603,11 @@ module.exports = function supervisorRoutes(app, h) {
           let g = regular.find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !restDay(p, id));
           // "F" (never empty, Prem 21 Oct: Lancor Car Parking, MLCP Basement-1): none of its list free →
           // any free PKL / MLCP man on that shift now, before the later posts take them (escorts on Sunday).
-          if (!g && mustFill(p)) g = guards.map(x => String(x.ROWID)).find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !restDay(p, id)
-            && !sups.includes(String(nameOf.get(id)).toLowerCase()) && (['pkl', 'mlcp'].includes(teamAt.get(id)) || (sunday && teamAt.get(id) === 'escort')));
+          if (!g && mustFill(p)) {
+            const free = guards.map(x => String(x.ROWID)).filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !restDay(p, id)
+              && !sups.includes(String(nameOf.get(id)).toLowerCase()) && ['pkl', 'mlcp', 'escort'].includes(teamAt.get(id)));
+            g = free.find(id => teamAt.get(id) !== 'escort') || free[0];
+          }
           if (g) { put(p, shift, g); r2.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else r2.empty.push(p.post_name + ' ' + shift);
         }
       }
@@ -706,7 +711,7 @@ module.exports = function supervisorRoutes(app, h) {
           if (taken.has(p.ROWID + '|' + shift)) continue;
           const g = guards.map(x => String(x.ROWID))
             .filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !sups.includes(String(nameOf.get(id)).toLowerCase()) && areaOf.get(id).toLowerCase() !== 'lady guards' && !restDay(p, id))
-            .filter(id => !daily || ['pkl', 'mlcp'].includes(areaOf.get(id).toLowerCase()) || (sunday && isEscort(id)))
+            .filter(id => !daily || ['pkl', 'mlcp'].includes(areaOf.get(id).toLowerCase()) || isEscort(id))
             .filter(id => areaOf.get(id).toLowerCase() !== 'ninnakarai' || team.toLowerCase() === 'ninnakarai')
             .sort((a, b) => (areaOf.get(b) === team) - (areaOf.get(a) === team) || isEscort(a) - isEscort(b))[0];
           if (g) { put(p, shift, g); r8.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else r8.empty.push(p.post_name + ' ' + shift);
