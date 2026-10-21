@@ -190,3 +190,7 @@
 .sup-page{flex-grow:1;min-width:0;overflow:auto;}
 /* G shift: one block per section, stacked like the printed sheet */
 .sh-stack{display:flex;flex-direction:column;gap:12px;}
+/* "→ Escort" on the free list, ✕ on an extra escort row */
+.sh-esc-btn{all:unset;cursor:pointer;color:#1D4ED8;font-weight:700;font-size:10.5px;}
+.sh-esc-btn:hover{text-decoration:underline;}
+.sh-esc-x{all:unset;cursor:pointer;color:#B91C1C;font-weight:700;margin-left:6px;}

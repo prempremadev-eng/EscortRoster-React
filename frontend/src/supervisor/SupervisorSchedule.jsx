@@ -128,6 +128,11 @@ export default function SupervisorSchedule() {
     sec.posts.push(p);
   });
   const nameOf = id => ((data && data.guards.find(g => g.ROWID === id)) || {}).name || 'Guard';
+  // "→ Escort": a free guard goes to the end of tonight's 9 to 6 for this day (any team). Saved as his
+  // support point, so his card IN gives him a seat and his own row on the escort page.
+  const EXTRA = 'Extra 9 to 6';
+  const toEscort = (guard, on) => run(() => api.escortPoint(branch, date, guard, on ? EXTRA : ''),
+    () => setNote(nameOf(guard) + (on ? ' → Escort 9 to 6 today. His card IN gives his seat.' : ' removed from Escort today.')));
   function savePoint(guard, value) {
     run(() => api.escortPoint(branch, date, guard, value), () => setNote(nameOf(guard) + ': support point ' + (value ? 'saved.' : 'removed.')));
   }
@@ -315,7 +320,8 @@ export default function SupervisorSchedule() {
                         </tr>
                       ))}
                       {data.escort.night.map(e => (
-                        <tr key={e.guard}><td className="sh-no">{e.seat}</td><td className="sh-name">{nameOf(e.guard)}</td><td className="sh-code sh-night">9 to 6</td><td className="sh-point sh-muted">Escort cab</td></tr>
+                        <tr key={e.guard}><td className="sh-no">{e.seat}</td><td className="sh-name">{nameOf(e.guard)}</td><td className="sh-code sh-night">9 to 6</td>
+                          <td className="sh-point sh-muted">{e.extra ? <>Extra today <button className="sh-esc-x no-print" onClick={() => toEscort(e.guard, false)} disabled={busy} title="Remove from Escort today">✕</button></> : 'Escort cab'}</td></tr>
                       ))}
                       {!data.escort.batch.length && !data.escort.night.length && <tr><td colSpan={4} className="sh-empty">No escort on the roster (6 to 5 is Mon–Fri)</td></tr>}
                     </tbody>
@@ -347,14 +353,15 @@ export default function SupervisorSchedule() {
                   <table className="sh-t">
                     <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code" /><col className="w-code2" /></colgroup>
                     <thead>
-                      <tr className="sh-head sh-head-off"><th colSpan={4}>ON DUTY, NO POST · {sheetDate}</th></tr>
-                      <tr className="sh-cols"><th>S No</th><th>NAME</th><th>SHIFT</th><th>TEAM</th></tr>
+                      <tr className="sh-head sh-head-off"><th colSpan={data.escort.canAdd ? 5 : 4}>ON DUTY, NO POST · {sheetDate}</th></tr>
+                      <tr className="sh-cols"><th>S No</th><th>NAME</th><th>SHIFT</th><th>TEAM</th>{data.escort.canAdd && <th className="no-print">ESCORT</th>}</tr>
                     </thead>
                     <tbody>
                       {idle.map((g, i) => (
-                        <tr key={g.ROWID}><td className="sh-no">{i + 1}</td><td className="sh-name">{g.name}</td><td className="sh-code">{g.roster}</td><td className="sh-code">{g.area}</td></tr>
+                        <tr key={g.ROWID}><td className="sh-no">{i + 1}</td><td className="sh-name">{g.name}</td><td className="sh-code">{g.roster}</td><td className="sh-code">{g.area}</td>
+                          {data.escort.canAdd && <td className="sh-code no-print"><button className="sh-esc-btn" onClick={() => toEscort(g.ROWID, true)} disabled={busy} title="Send to Escort 9 to 6 for today">→ Escort</button></td>}</tr>
                       ))}
-                      {idle.length === 0 && <tr><td colSpan={4} className="sh-empty">{data.hasRoster ? 'Everyone on duty has a post' : 'No month roster'}</td></tr>}
+                      {idle.length === 0 && <tr><td colSpan={data.escort.canAdd ? 5 : 4} className="sh-empty">{data.hasRoster ? 'Everyone on duty has a post' : 'No month roster'}</td></tr>}
                     </tbody>
                   </table>
                 </div>

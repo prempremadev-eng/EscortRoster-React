@@ -12,6 +12,9 @@
 
 const ROTATION = 4;
 const SUPPORT_POINTS = 12;
+// EscortDay.support_point of a guard the supervisor sent to escort for one day (any team): he goes
+// to the end of 9 to 6, gets a seat, and his card IN / guard page work like any escort's.
+const EXTRA = 'Extra 9 to 6';
 
 const addDays = (date, n) => { const d = new Date(date + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const weekday = date => new Date(date + 'T00:00:00Z').getUTCDay();
@@ -72,6 +75,21 @@ async function escortDay(catalystApp, date) {
   // 6 to 5 keeps 12 rows (12 support points) even when fewer are on the list, so 9 to 6 starts at 13.
   const rows = [...seatList(batch, '6 to 5', 0), ...seatList(night, '9 to 6', Math.max(batch.length, SUPPORT_POINTS))];
 
+  // Extra escorts for the day (Schedule page "→ Escort"), after the last 9 to 6 seat, in the order added.
+  const extraIds = (await all(zcql, `SELECT guard_id FROM EscortDay WHERE sched_date = '${date}' AND support_point = '${EXTRA}' ORDER BY ROWID ASC`, 'EscortDay'))
+    .map(x => String(x.guard_id)).filter((id, i, a) => a.indexOf(id) === i && !rows.some(r => r.guardId === id && r.onDuty));
+  if (extraIds.length) {
+    const extraGuards = await all(zcql, `SELECT ROWID, guard_name, id_number, phone, agency, escort_id FROM Guards WHERE ROWID IN (${extraIds.join(', ')}) ORDER BY ROWID ASC`, 'Guards');
+    let last = Math.max(Math.max(batch.length, SUPPORT_POINTS) + night.length, ...rows.map(r => r.seat));
+    extraIds.forEach(id => {
+      const g = extraGuards.find(x => String(x.ROWID) === id);
+      if (!g) return;
+      const i = rows.findIndex(r => r.guardId === id);
+      if (i >= 0) rows.splice(i, 1);
+      rows.push({ guardId: id, guard: g, batch: '9 to 6', seat: ++last, onDuty: true, code: code(id, date), extra: true });
+    });
+  }
+
   // An Escorts row for everyone on duty today who has none yet.
   const missing = rows.filter(r => r.onDuty && !r.guard.escort_id);
   if (missing.length) {
@@ -89,4 +107,4 @@ async function escortDay(catalystApp, date) {
   return { date, day0, turns, rows };
 }
 
-module.exports = { escortDay, isDutyDay };
+module.exports = { escortDay, isDutyDay, EXTRA };
