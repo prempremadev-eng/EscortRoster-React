@@ -58,7 +58,7 @@ export default function GuardPage({ token, testDate }) {
         <>
           <div className="toolbar no-print gsheet-bar">
             <div className="gsheet-me">{headline}</div>
-            <div>{data.name} · IN {data.inTime}{shiftLine ? ' · ' + shiftLine : ''}</div>
+            <div><span className="guard-name">{data.name}</span> · IN {data.inTime}{shiftLine ? ' · ' + shiftLine : ''}</div>
             <div>{shortDate(data.dutyDate)}</div>
             <div className="spacer"></div>
             <div>{inCount} of {sheet.length} IN</div>
@@ -83,7 +83,7 @@ export default function GuardPage({ token, testDate }) {
 
           {status === 'ok' && data.locked && (
             <div className="setup-card">
-              <div className="setup-hello">Hi <b>{data.name}</b> 👋</div>
+              <div className="setup-hello">Hi <b className="guard-name">{data.name}</b> 👋</div>
               <div className="guard-lock">🔒</div>
               <p>Your duty page opens after your access card shows <b>IN</b> for today's duty.</p>
               <button className="btn secondary setup-btn" onClick={load}>🔄 Check again</button>
@@ -95,7 +95,7 @@ export default function GuardPage({ token, testDate }) {
               <div className="setup-card guard-head">
                 <div className="guard-date">{shortDate(data.dutyDate)}</div>
                 <div className="guard-me">{headline}</div>
-                <div className="guard-sub">{data.name} · IN {data.inTime}</div>
+                <div className="guard-sub"><span className="guard-name">{data.name}</span> · IN {data.inTime}</div>
                 {shiftLine && <div className="guard-shift">{shiftLine}</div>}
               </div>
               <div className="setup-card">

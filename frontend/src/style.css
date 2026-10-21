@@ -1047,3 +1047,4 @@ a.btn{text-decoration:none;display:inline-block;}
 .tb-day-text:hover{text-decoration:underline;}
 .toolbar input.tb-picker{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0;}
 .tb-date{position:relative;}
+.guard-name{font-size:22px;font-weight:800;letter-spacing:.2px;}
