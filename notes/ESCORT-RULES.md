@@ -20,6 +20,7 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 | **E11 · Who writes the trips** | The **escort writes** their own Route 1–4 (Location · Out · In) after card IN, only on their own row; the **supervisor can correct** any row |
 | **E12 · Trip details** | The trip popup (cab number, driver, employee stops: Emp ID, location, pickup / drop, time) **stays exactly as it is** — the escort fills it for every trip. No changes |
 | **E13 · Everything else** | The rest of the Escort sheet **stays exactly as it is** (Saturday leave, Sunday pickup sheet, extra today-only rows, remarks, print, dashboard). Don't touch it (Prem, 21 Oct) |
+| **E14 · Sunday** | The Schedule page shows **no escort list on Sunday** (escorts take posts that day) |
 
 ## Seen in the real sheets (to confirm)
 

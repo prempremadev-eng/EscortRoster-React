@@ -397,6 +397,8 @@ module.exports = function supervisorRoutes(app, h) {
       let night = guards.filter(g => String(g.area || '').toLowerCase() === 'escort' && rosterOf[String(g.ROWID)] === 'C' && !batch.includes(String(g.ROWID)) && !inSlot.has(String(g.ROWID))).map(g => String(g.ROWID));
       // Weekday with a Month Roster: both lists in roster order with today's seat numbers (escortRoster.js),
       // the same as the escort duty sheet. Otherwise S.No is the list order.
+      // Sunday: no escort list on the sheet (Prem, 21 Oct); escorts take posts that day.
+      if (dow === 0) { batch = []; night = []; }
       const seatOf = {};
       const rosterDay = await escortDay(catalystApp, date);
       if (rosterDay) {
