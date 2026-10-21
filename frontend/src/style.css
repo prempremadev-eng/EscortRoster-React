@@ -1052,3 +1052,8 @@ a.btn{text-decoration:none;display:inline-block;}
 tbody td.col-name, tbody td.col-name input{font-size:16px;font-weight:400;}
 @media (max-width:600px){ tbody td.col-name, tbody td.col-name input{font-weight:700;} }
 .dash-history{margin:4px 0 8px;background:#f8fafc;}.dash-history td{vertical-align:top;}
+/* Escort duty rules (EscortIntro.jsx) */
+.esc-rule{display:flex;gap:10px;align-items:flex-start;padding:8px 0;border-bottom:1px solid #eef0f4;font-size:15px;line-height:1.35;}
+.esc-rule:last-child{border-bottom:none;}
+.esc-rule-no{flex-shrink:0;width:22px;height:22px;border-radius:50%;background:#1e3a8a;color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;}
+.esc-rule-icon{flex-shrink:0;font-size:18px;}

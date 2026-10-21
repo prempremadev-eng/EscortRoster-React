@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { shortDate } from '../utils.js';
 import GuardSheet from './GuardSheet.jsx';
 import PostDuty from '../post/PostDuty.jsx';
+import EscortIntro, { escortStarted } from './EscortIntro.jsx';
 
 // Guard's phone, opened from the IN notification.
 // ESCORT guard: the whole duty sheet of the day; only their own row (⭐) can be filled in.
@@ -15,6 +16,8 @@ export default function GuardPage({ token, testDate }) {
   const [error, setError] = useState('');
   // Bumped on every load, so the sheet starts again from the fresh data.
   const [version, setVersion] = useState(0);
+  // Escort: the seat and rules screens come first, until Start duty on this phone today.
+  const [started, setStarted] = useState(false);
 
   // No auto-refresh: every load costs Data Store reads. Use 🔄 instead.
   const load = useCallback(async () => {
@@ -47,6 +50,10 @@ export default function GuardPage({ token, testDate }) {
 
   // POST guard: the post handover screens (take over, post timeline).
   if (isPost) return <PostDuty token={token} />;
+  // ESCORT guard: "Your seat" → 5 rules → Start duty → the sheet (like the post screens).
+  if (open && hasSheet && !started && !escortStarted(token, data.dutyDate)) {
+    return <EscortIntro token={token} data={data} seat={mine.seat} onStart={() => setStarted(true)} />;
+  }
 
   return (
     <>
