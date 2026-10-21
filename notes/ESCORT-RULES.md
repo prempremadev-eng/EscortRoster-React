@@ -15,6 +15,7 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 | **E6 · Restart** | **Every Monday** a fresh start: that week's Sat + Sun off → 6-to-5, roster order again (Day 0) |
 | **E7 · New month** | Fresh start from the new roster. **Day 0 = the first day the whole 6-to-5 batch is on C** (like the real sheet: on 01-10 half the batch was on A/G posts, so 02-10 was Day 0). If the 1st is Sat/Sun → Monday |
 | **E8 · Card IN** | Escort taps card → notification "Your S.No: N" → opens the Escort page → can write **only their own row** (other rows locked) |
+| **E9 · Leave mid-week** | The escort's **row stays empty** that day; nobody else's S.No changes (rotation not disturbed). The empty row shows as unfilled and the **supervisor may put an extra person** there with the picker (a 6-to-5 row has a support point) |
 
 ## Seen in the real sheets (to confirm)
 
