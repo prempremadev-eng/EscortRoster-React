@@ -189,6 +189,12 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 - **Auto fill on.** Regulars = top 20 by October days, then 4-month total (any team; Ninnakarai and ladies out; escorts only Sunday). Same list as relief (5+) so **Rule 8 anyone free** fills it when none of them is free. Old lists in the private backup file.
 - Rule 8 never takes a **Ninnakarai** person to a non-Ninnakarai post.
 
+## 🚗 Lancor Car Parking (21 Oct)
+
+- History (October): 14 people per shift, same guard as the day before only 0–2 / 18 days → the supervisor rotates daily among the Lancor people.
+- List = top 15 by October days (Lancor team + 5 more from history; Manoj Kumar J kept), **daily rotation (D)**. Old list in the private backup file.
+- Note: a D post also gets Rule 8 (free PKL / MLCP men) — Prem to confirm for this post.
+
 ## 📜 History rules (found, not built yet)
 
 ### H1 · Lady pool: vaaram vaaram rotation
