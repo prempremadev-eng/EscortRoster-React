@@ -44,7 +44,7 @@
 |---|---|
 | Senthil Main Gate on duty + 1 pinned note | DutyLog / PostMessages |
 | Test Guard → PREM handover at Gate 3 + notes | DutyLog / PostMessages |
-| PREM KUMAR R extra IN 23:47 / 23:5x | AccessLog |
+| Guard B extra IN 23:47 / 23:5x | AccessLog |
 | Beach supervisor phone set | Branches |
 | Test Guard: inactive again, phone address expired | Guards / PushSubscriptions |
 

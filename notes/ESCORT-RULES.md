@@ -6,7 +6,7 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 
 | Rule | What |
 |---|---|
-| **E0 · Source** | No weekly Excel any more. Escorts come from the **Month Roster** (escort section). Name, phone, ID and agency are already in **Guards** (Guard Master). Excel ID `5797` = app ID `P05797` |
+| **E0 · Source** | No weekly Excel any more. Escorts come from the **Month Roster** (escort section). Name, phone, ID and agency are already in **Guards** (Guard Master). Excel ID `1234` = app ID `P01234` (example) |
 | **E1 · 6-to-5 batch** | Escorts whose **coming Sat + Sun are both OFF** in the Month Roster |
 | **E2 · Order** | **Month Roster escort order** (the order in the uploaded roster), not A–Z |
 | **E3 · 9-to-6 batch** | The other escorts on **C** that day, in roster order. Supervisor may add extra people at the end |

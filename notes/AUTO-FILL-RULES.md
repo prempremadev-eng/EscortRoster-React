@@ -53,7 +53,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 
 **Fill order ≠ sheet order (Prem, 20 Oct night):** the printed sheet must keep the **template order the guards are used to** (`sort_order`). So fill priority is a **digit in the 4th `;` part of relief_guards** (`;;;1`, `;;;2D`): posts with a digit are filled first (1 before 2), then the rest by sort_order. sort_order is only for the sheet.
 
-**Always:** Escort out Mon–Sat · Ninnakarai people kept at Ninnakarai (except where Prem says, e.g. Manoj Kumar J also Lancor) · a 1–2 week one-off stint is not a regular · test on the last real sheet (Mon 19 Oct).
+**Always:** Escort out Mon–Sat · Ninnakarai people kept at Ninnakarai (except where Prem says, e.g. Guard C also Lancor) · a 1–2 week one-off stint is not a regular · test on the last real sheet (Mon 19 Oct).
 
 **Rule 4 order:** outside-team guards are also ordered by **most days at the team's posts** (e.g. MLCP / Escort guards who covered PKL most come first). PKL relief list = PKL team + the outside guards who covered PKL posts in history (Sat/Sun gaps were never left empty).
 
@@ -192,7 +192,7 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 ## 🚗 Lancor Car Parking (21 Oct)
 
 - History (October): 14 people per shift, same guard as the day before only 0–2 / 18 days → the supervisor rotates daily among the Lancor people.
-- List = top 15 by October days (Lancor team + 5 more from history; Manoj Kumar J kept), **daily rotation (D)**. Old list in the private backup file.
+- List = top 15 by October days (Lancor team + 5 more from history; Guard C kept), **daily rotation (D)**. Old list in the private backup file.
 - **Never empty + filled first** (Prem): flag `F` (4th `;` part) = if none of its list is free, Rule 2 takes **any free PKL / MLCP man** on that shift right away, before later posts (escorts on Sunday; no Ninnakarai, ladies, supervisors). Fill priority 3.
 - **Lancor Car Parking `3DF`**, **MLCP Basement-1 `3F`**.
 - **MLCP Car Parking-1 `3F`** (important, Prem). **Every shift (Prem: "free aana men empty post la podunga"):** a man still free after all rules goes to any empty men's post (Rule 8; not Shift Incharge / R posts / Kidos / Hospital / Ninnakarai) — never left idle.

@@ -53,7 +53,7 @@ Times `2026-10-16 05:58` maadhiri (date + time). **Why:** Shift C midnight cross
 | Test Guard ku "You can leave" varala | Phone address **expire** (410) → delete aachu | Phone ah thirumba setup pannanum |
 
 ## ✅ Test result (23:59)
-Test Guard took over → 📌 note → PREM IN → Screen 1 → Screen 2 → **Taken over** → timeline la "PREM KUMAR R took over from Test Guard · 23:52" + Tamil note ✅
+Test Guard took over → 📌 note → PREM IN → Screen 1 → Screen 2 → **Taken over** → timeline la "Guard B took over from Test Guard · 23:52" + Tamil note ✅
 
 ## ⏭️ Adutha phases
 Photo/video/voice → Work updates → Safety → Alerts → Breaks & cover → History → General shift → Supervisor inbox → Admin. **Login + roles** live ku munnaadi kandippa.

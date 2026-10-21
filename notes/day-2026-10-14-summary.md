@@ -28,14 +28,14 @@
 | What | Where |
 |---|---|
 | SG-1009 Selvam K (POST, Salem) | Guards |
-| Seat 9 Route 1 (Guindy, 👤) | RAJA PRABHU R's duty row today |
+| Seat 9 Route 1 (Guindy, 👤) | Guard D's duty row today |
 | Murugan's link was reset once | Guard Links |
 
 ## ⏭️ Tomorrow
 
 1. **TEST ESCORT** (SG-1010) → link → Allow → IN → notification → click → sheet → type in own row
-2. After 08:00: **RAJMOHAN K** first IN on the Android phone
-3. Decide: New link for RAJA PRABHU R (link was shared in chat)
+2. After 08:00: **Guard E** first IN on the Android phone
+3. Decide: New link for Guard D (link was shared in chat)
 4. Recall quiz (notes 3 + 4) before reading the notes
 
 ## 📊 Honest rating

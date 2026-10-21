@@ -1426,7 +1426,7 @@ async function checkGuard(req, zcql, row, selfId) {
   if (other(sameId)) throw new Error('ID number ' + row.id_number + ' is already used');
   if (other(sameCard)) throw new Error('Card number ' + row.card_number + ' is already used');
   // One name = one guard in the whole app. Two people with the same name: add their number
-  // ("Sudhakar M 4785"). Case, spaces, dots and dashes are ignored when comparing.
+  // ("Name M 1234"). Case, spaces, dots and dashes are ignored when comparing.
   const key = name => String(name || '').toLowerCase().replace(/[\s.-]+/g, '');
   const twin = allGuards.find(g => key(g.guard_name) === key(row.guard_name) && String(g.ROWID) !== String(selfId || ''));
   if (twin) throw new Error(twin.guard_name + ' (' + twin.id_number + ') already has this name. Add their number to the name, e.g. ' + row.guard_name + ' 1234.');
