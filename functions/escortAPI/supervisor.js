@@ -696,6 +696,7 @@ module.exports = function supervisorRoutes(app, h) {
           const g = guards.map(x => String(x.ROWID))
             .filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !sups.includes(String(nameOf.get(id)).toLowerCase()) && areaOf.get(id).toLowerCase() !== 'lady guards' && !restDay(p, id))
             .filter(id => !daily || ['pkl', 'mlcp'].includes(areaOf.get(id).toLowerCase()) || (sunday && isEscort(id)))
+            .filter(id => areaOf.get(id).toLowerCase() !== 'ninnakarai' || team.toLowerCase() === 'ninnakarai')
             .sort((a, b) => (areaOf.get(b) === team) - (areaOf.get(a) === team) || isEscort(a) - isEscort(b))[0];
           if (g) { put(p, shift, g); r8.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else r8.empty.push(p.post_name + ' ' + shift);
         }

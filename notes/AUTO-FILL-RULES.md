@@ -183,6 +183,12 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 - **Sunday: escorts DO fill empty slots** (Prem changed it, 21 Oct): on Sunday Rule 8 covers every men's post (not Shift Incharge, R posts, Hospital, Ninnakarai, lady / Medical Mine posts); own team first, PKL / MLCP next, **Escort last**. Mon–Sat unchanged. Later job (skip now): Sunday C-shift men leave a post around 3 AM Monday for 1–2 escort pick-up trips. Escort page left as it is.
 - Documents on Saturday (both regulars off): **open**, Prem will decide (hide the row or show empty).
 
+## 🏥 Hospital Block Rear Side (21 Oct)
+
+- History: 325 duties, spread over many teams (top person only 3 days in October) → a pure rotation post.
+- **Auto fill on.** Regulars = top 20 by October days, then 4-month total (any team; Ninnakarai and ladies out; escorts only Sunday). Same list as relief (5+) so **Rule 8 anyone free** fills it when none of them is free. Old lists in the private backup file.
+- Rule 8 never takes a **Ninnakarai** person to a non-Ninnakarai post.
+
 ## 📜 History rules (found, not built yet)
 
 ### H1 · Lady pool: vaaram vaaram rotation
