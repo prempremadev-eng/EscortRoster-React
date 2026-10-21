@@ -1039,3 +1039,7 @@ a.btn{text-decoration:none;display:inline-block;}
 .p-shifts{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#475569;}
 .p-shifts > div{display:flex;gap:10px;}
 .p-shifts .master-check{display:flex;align-items:center;gap:4px;font-size:14px;color:#0f172a;}
+/* Escort sheet date like the Schedule page: ‹ Wed 21 Oct › and a picker to jump */
+.tb-date{display:flex;align-items:center;gap:6px;}
+.tb-day{padding:4px 12px;font-size:18px;line-height:1;}
+.tb-day-text{min-width:96px;text-align:center;font-size:17px;}

@@ -31,6 +31,15 @@ export const isSunday = d => dayOf(d) === 0;
 export const isMonday = d => dayOf(d) === 1;
 export const isSaturday = d => dayOf(d) === 6;
 
+// Same date look as the Schedule page: "Wed 21 Oct" on screen, "21-10-2026 · Wednesday" on the sheet.
+export const shortDate = dateStr => dateStr ? new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) : '';
+export const sheetDate = dateStr => dateStr ? dateStr.split('-').reverse().join('-') + ' · ' + new Date(dateStr + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'long' }) : '';
+export function plusDay(dateStr, n) {
+  const d = new Date(dateStr + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
 export function formatLongDate(dateStr) {
   if (!dateStr) return '';
   return new Date(dateStr + 'T00:00:00').toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });

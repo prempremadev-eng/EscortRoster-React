@@ -2,14 +2,14 @@ import Field from './Field.jsx';
 import RouteCell from './RouteCell.jsx';
 import TableHeader from './TableHeader.jsx';
 import TableFooter from './TableFooter.jsx';
-import { PAGE_SIZE, formatLongDate, routeLocks } from '../utils.js';
+import { PAGE_SIZE, sheetDate, routeLocks } from '../utils.js';
 
 // Main duty sheet: one page-block (header + 15 rows + footer) per printed A4 page.
 // title: "6 to 5" / "9 to 6" on Month Roster days. lockDetails: name, agency, mobile and ID come from
 // Guard Master then, so they show as text and the row has no remove button.
 export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate, cellStatus, actions, title, lockDetails }) {
   const totalPages = Math.max(1, Math.ceil(displayRows.length / PAGE_SIZE));
-  const dateText = formatLongDate(dutyDate);
+  const dateText = sheetDate(dutyDate);
   const pages = Array.from({ length: totalPages }, (_, p) => p);
 
   return pages.map(p => {
