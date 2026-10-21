@@ -625,6 +625,7 @@ export default function App() {
       {isMonday(dutyDate) && <MondayReminder />}
 
       <Toolbar
+        rosterDay={rosterDay}
         startDate={startDate}
         dutyDate={dutyDate}
         onStartDate={changeStartDate}
