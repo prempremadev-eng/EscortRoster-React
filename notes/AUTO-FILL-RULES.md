@@ -32,7 +32,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 5 | Weekly rotation | Lady pool posts (team Lady Guards, regulars < shifts), **Rule 2 ku apram, Rule 3 ku munnaadi**: (a) nethu indha post + shift la irundhavanga, innaikkum adhe shift na **adhe post**; (b) pudhu shift week na, kadaisi 14 naal la indha post la **kammiya** irundhavanga first |
 | 6 | Weekend list | Post ku thaniya **Sat / Sun list** irukkalaam (`Posts.relief_guards` la `;` ku apram). Sat / Sun la Rule 3 / 4 andha list ah use pannum. List la post team (ladies) yaarum illa na Rule 5 andha post ah skip pannum. Order = history la andha post la **weekend la adhiga naal** vandhavanga first |
 | 7 | Weekend order | Sat / Sun la ladies kammi. Adhanaala **Rule 3 permanent posts ku (MLCP / Medical Mine Reception) Rule 5 ku munnaadi** odum. Apram meedhi ladies ah Rule 5 North Plaza / Apricot ku podum (H3: MLCP weekend 92% ladies, North Plaza 65%) |
-| 8 | Anyone free | Kadaisi la: rotation post (relief list 5+) la innum empty slot irundhaa, andha shift la **post illaama free ah irukkura yaar venaalum** (own team first). Supervisor, lady pool, weekday Escort illa |
+| 8 | Anyone free | Kadaisi la: rotation post (relief list 5+) la innum empty slot irundhaa, andha shift la **post illaama free ah irukkura yaar venaalum** (own team first). Supervisor, lady pool, weekday Escort illa. **21 Oct:** daily rotation (D) posts kum (PKL / MLCP men mattum; Hospital, Ninnakarai, Medical Mine illa), fill priority order la (Play Ground first) |
 | 9 | Lady shifts | `relief ; weekend ; lady shifts` (e.g. `B`). Andha shifts la mattum Rule 5 lady pool rotation; mathha shifts la pool lady podaadhu. **Kitchen-2 = B** (weekday), **Apricot Patrolling = A, C** (B = men) |
 | 10 | Daily rotation | A post flagged **D** (4th `;` part of `Posts.relief_guards`) never gets the guard who was there **yesterday** (Rules 2, 3, 4, 8). For hot / hard posts (Lancor Vendor Entrance: sun) |
 | – | Safety | Empty slot mattum fill pannum, **draft** ah. Oru guard oru naal la oru slot thaan |
@@ -152,6 +152,13 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 - 14 posts: North Plaza GF1, GF2, WW Entrance, GF/S/P Exit, Patrolling (G), 4th Floor (G), M Floor (G), Center Block Outer, Utility Entrance, CWE Play Ground, Old Woodlands, Connecting Bridge, MD House (C), PKL Vendor Parking
 - All **pure daily rotation**: in October nobody stayed more than 1–3 days in a row at any of them; teams mixed (PKL + MLCP, some Escort on Sundays, some Ninnakarai-section people)
 - Proposal: option B + daily rotation (D); Escort and Ninnakarai people out
+
+## 🧪 Tue 20 Oct test (21 Oct morning)
+
+- Mon 19 complete aana apram Tue 20: Clear day → Auto fill → **daily rotation repeats 0** (last night 16, because Tue was filled before Mon). Rule: **yesterday first, then today**.
+- Sheet order back to template (sort_order 12 / 15 / 21); fill priority digits `;;;1`, `;;;2D`.
+- A shift: 5 D posts empty while 8 PKL / MLCP men had no post (Play Ground list had nobody on A) → Rule 8 now covers D posts.
+- Schedule page now shows **Day summary** (shift · total · filled · unfilled · unfilled posts, then TOTAL) and **On duty, no post** (free guards by shift).
 
 ## 📜 History rules (found, not built yet)
 

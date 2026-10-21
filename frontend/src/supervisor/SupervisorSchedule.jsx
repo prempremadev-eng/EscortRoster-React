@@ -125,6 +125,17 @@ export default function SupervisorSchedule() {
   function savePoint(guard, value) {
     run(() => api.escortPoint(branch, date, guard, value), () => setNote(nameOf(guard) + ': support point ' + (value ? 'saved.' : 'removed.')));
   }
+  // Day summary: per shift how many slots, filled, unfilled (with the empty posts by name), then a total.
+  const summary = data ? [...ABC, ...(shiftG ? [shiftG] : [])].map(s => {
+    const list = s.code === 'G' ? gPosts : data.posts.filter(p => hasShift(p, s.code));
+    const empty = list.filter(p => !slotOf(p.ROWID, s.code));
+    return { code: s.code, total: list.length, filled: list.length - empty.length, empty: empty.map(p => p.name) };
+  }).filter(r => r.total) : [];
+  const sum = k => summary.reduce((n, r) => n + r[k], 0);
+  // On duty by the month roster but in no slot and not on the escort list: who can still fill a gap.
+  const escortIds = new Set(data ? [...data.escort.batch.map(e => e.guard), ...data.escort.night] : []);
+  const idle = data ? data.guards.filter(g => ['A', 'B', 'C', 'G'].includes(g.roster) && !data.slots.some(s => s.guard === g.ROWID) && !escortIds.has(g.ROWID))
+    .sort((x, y) => 'ABCG'.indexOf(x.roster) - 'ABCG'.indexOf(y.roster) || x.name.localeCompare(y.name)) : [];
   const filled = data ? data.slots.length : 0;
   const drafts = data ? data.slots.filter(s => !s.published).length : 0;
   // Taken = already in a slot of the picked shift. A guard in another shift that day can still be
@@ -287,6 +298,39 @@ export default function SupervisorSchedule() {
                     {['ERT Booth 1', 'ERT Booth 2', 'ERT Booth 3', 'ERT Booth 4', 'Tower Main Gate', 'Smoking Zone', 'Lancor 2', 'North Plaza', 'MLCP Main Gate', 'MD House', 'PKL', 'Potheri']
                       .concat(data.escort.batch.map(e => e.point)).filter((v, i, a) => v && a.indexOf(v) === i).map(v => <option key={v} value={v} />)}
                   </datalist>
+                </div>
+
+                <div className="sh-row">
+                  <table className="sh-t">
+                    <colgroup><col className="w-code" /><col className="w-code2" /><col className="w-code2" /><col className="w-code2" /><col className="w-wide" /></colgroup>
+                    <thead>
+                      <tr className="sh-head"><th colSpan={5}>DAY SUMMARY · {sheetDate}</th></tr>
+                      <tr className="sh-cols"><th>SHIFT</th><th>TOTAL</th><th>FILLED</th><th>UNFILLED</th><th>UNFILLED POSTS</th></tr>
+                    </thead>
+                    <tbody>
+                      {summary.map(r => (
+                        <tr key={r.code}>
+                          <td className="sh-code">{r.code}</td><td className="sh-code">{r.total}</td><td className="sh-code">{r.filled}</td>
+                          <td className={'sh-code' + (r.empty.length ? ' sh-gap' : '')}>{r.empty.length}</td>
+                          <td className="sh-point sh-wrap">{r.empty.join(', ') || '—'}</td>
+                        </tr>
+                      ))}
+                      <tr className="sh-total"><td className="sh-code">TOTAL</td><td className="sh-code">{sum('total')}</td><td className="sh-code">{sum('filled')}</td><td className="sh-code">{sum('total') - sum('filled')}</td><td className="sh-point"></td></tr>
+                    </tbody>
+                  </table>
+                  <table className="sh-t">
+                    <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code" /><col className="w-code2" /></colgroup>
+                    <thead>
+                      <tr className="sh-head sh-head-off"><th colSpan={4}>ON DUTY, NO POST · {sheetDate}</th></tr>
+                      <tr className="sh-cols"><th>S No</th><th>NAME</th><th>SHIFT</th><th>TEAM</th></tr>
+                    </thead>
+                    <tbody>
+                      {idle.map((g, i) => (
+                        <tr key={g.ROWID}><td className="sh-no">{i + 1}</td><td className="sh-name">{g.name}</td><td className="sh-code">{g.roster}</td><td className="sh-code">{g.area}</td></tr>
+                      ))}
+                      {idle.length === 0 && <tr><td colSpan={4} className="sh-empty">{data.hasRoster ? 'Everyone on duty has a post' : 'No month roster'}</td></tr>}
+                    </tbody>
+                  </table>
                 </div>
               </div>
               <div className="pd-legend"><span className="sc-key sc-cell-pub"></span>Published <span className="sc-key sc-cell-draft"></span>Not published yet <span className="sc-key sc-cell-empty"></span>Empty</div>

@@ -168,3 +168,8 @@
 .sh-t .w-point{width:175px;}
 @media (max-width:1250px){.sh-row{grid-template-columns:repeat(2,max-content);}}
 @media (max-width:850px){.sh-row{grid-template-columns:max-content;}}
+/* Day summary: the unfilled posts list wraps instead of being cut */
+.sh-t .w-wide{width:380px;}
+.sh-t td.sh-wrap{white-space:normal;height:auto;}
+.sh-gap{color:#B91C1C;font-weight:700;}
+.sh-total td{font-weight:700;background:#F3F4F6;}
