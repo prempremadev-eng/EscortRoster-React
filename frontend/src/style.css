@@ -1049,5 +1049,5 @@ a.btn{text-decoration:none;display:inline-block;}
 .tb-date{position:relative;}
 .guard-name{font-size:22px;font-weight:800;letter-spacing:.2px;}
 /* Escort duty sheet: bigger names (Prem, 21 Oct), more on a phone */
-tbody td.col-name, tbody td.col-name input{font-size:15px;font-weight:700;}
-@media (max-width:600px){ tbody td.col-name, tbody td.col-name input{font-size:17px;} }
+tbody td.col-name, tbody td.col-name input{font-size:14px;font-weight:700;}
+@media (max-width:600px){ tbody td.col-name, tbody td.col-name input{font-size:16px;} }
