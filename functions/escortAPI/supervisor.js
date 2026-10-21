@@ -539,14 +539,24 @@ module.exports = function supervisorRoutes(app, h) {
       };
       const rules = [];
 
-      // Rule 1 · Shift Incharge
-      const incharge = autoPosts.find(p => p.post_name.toLowerCase() === 'shift incharge');
-      if (incharge) {
+      // Rule 1 · Shift Incharge. More than one incharge post (e.g. "MLCP Shift Incharge" on G, Prem 21 Oct):
+      // first each post takes a supervisor from its own regular list, then the main "Shift Incharge" first
+      // takes any supervisor left on that shift.
+      const incharges = autoPosts.filter(p => p.post_name.toLowerCase().endsWith('shift incharge'))
+        .sort((x, y) => (y.post_name.toLowerCase() === 'shift incharge') - (x.post_name.toLowerCase() === 'shift incharge'));
+      if (incharges.length) {
         const r1 = { no: 1, rule: 'Shift Incharge', filled: [], empty: [] };
-        for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(incharge, s))) {
-          if (taken.has(incharge.ROWID + '|' + shift)) continue;
-          const sup = guards.find(g => sups.includes(String(g.guard_name).toLowerCase()) && codeOf[String(g.ROWID)] === shift && !busyGuard.has(String(g.ROWID)));
-          if (sup) { put(incharge, shift, sup.ROWID); r1.filled.push(shift + ' ' + sup.guard_name); } else r1.empty.push(shift);
+        const supOn = (shift, only) => guards.find(g => sups.includes(String(g.guard_name).toLowerCase()) && codeOf[String(g.ROWID)] === shift && !busyGuard.has(String(g.ROWID)) && (!only || only.includes(String(g.ROWID))));
+        for (const pass of ['own', 'any']) {
+          for (const p of incharges) {
+            const own = String(p.regular_guards || '').split(',').map(x => x.trim()).filter(Boolean);
+            if (pass === 'own' && !own.length) continue;
+            for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
+              if (taken.has(p.ROWID + '|' + shift)) continue;
+              const sup = supOn(shift, pass === 'own' ? own : null);
+              if (sup) { put(p, shift, sup.ROWID); r1.filled.push((incharges.length > 1 ? p.post_name + ' ' : '') + shift + ' ' + sup.guard_name); } else if (pass === 'any') r1.empty.push((incharges.length > 1 ? p.post_name + ' ' : '') + shift);
+            }
+          }
         }
         rules.push(r1);
       }

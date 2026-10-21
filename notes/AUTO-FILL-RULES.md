@@ -161,6 +161,14 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 - **MLCP CCTV = `R` flag** (4th `;` part): the post is on the sheet **only on the shift its regular works that day** (roster); his off day = no CCTV row, so it is never counted as unfilled (Prem: "subathran iruntha mattum, antha shift la post").
 - Schedule page now shows **Day summary** (shift · total · filled · unfilled · unfilled posts, then TOTAL) and **On duty, no post** (free guards by shift).
 
+## 🧾 Real sheet vs app, Wed 21 Oct (Prem sent the real sheet)
+
+- Same posts on A / B / C (44 = 44). Only 4 names differ:
+  - **G: two Shift Incharges** (PKL G + MLCP G); history: 24 of 85 G days had two. → New post **MLCP Shift Incharge** (G only, MLCP section, sort 1). **Rule 1** now fills every post ending in "Shift Incharge": first from the post's own regular list, then the main Shift Incharge takes any supervisor left.
+  - **Hospital Lift A** (real sheet calls it "Hospital Patrolling") → Hospital Lift **Auto fill on**, Hospital team (14) as regulars, most October Lift days first (old relief list kept in the private backup file).
+  - One MLCP man moved to the Escort 9-to-6 list for the day, one A-shift man absent: **day changes**, the supervisor fixes them with the picker.
+- Same person at the same post: A 18 / 44, C 13 / 44 (the supervisor rotates posts by hand).
+
 ## 📜 History rules (found, not built yet)
 
 ### H1 · Lady pool: vaaram vaaram rotation
