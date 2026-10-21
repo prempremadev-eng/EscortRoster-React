@@ -17,6 +17,7 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 | **E8 · Card IN** | Escort taps card → notification "Your S.No: N" → opens the Escort page → can write **only their own row** (other rows locked) |
 | **E9 · Leave mid-week** | The escort's **row stays empty** that day; nobody else's S.No changes (rotation not disturbed). The empty row shows as unfilled and the **supervisor may put an extra person** there with the picker (a 6-to-5 row has a support point) |
 | **E10 · Who does escort duty** | **Only escorts on C** that day (Prem, 21 Oct). An escort whose roster says **A / B / G** works a **post** like anyone else (Auto fill uses them; PKL / MLCP men are still picked first). The 6-to-5 batch also needs C that day. Sunday: all escorts may take posts |
+| **E11 · Who writes the trips** | The **escort writes** their own Route 1–4 (Location · Out · In) after card IN, only on their own row; the **supervisor can correct** any row |
 
 ## Seen in the real sheets (to confirm)
 
