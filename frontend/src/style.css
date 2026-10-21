@@ -1043,3 +1043,7 @@ a.btn{text-decoration:none;display:inline-block;}
 .tb-date{display:flex;align-items:center;gap:6px;}
 .tb-day{padding:4px 12px;font-size:18px;line-height:1;}
 .tb-day-text{min-width:96px;text-align:center;font-size:17px;}
+.tb-day-text{border:none;background:none;font-weight:700;cursor:pointer;font-family:inherit;color:inherit;}
+.tb-day-text:hover{text-decoration:underline;}
+.toolbar input.tb-picker{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none;border:0;padding:0;}
+.tb-date{position:relative;}

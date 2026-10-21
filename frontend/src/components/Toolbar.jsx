@@ -1,8 +1,12 @@
+import { useRef } from 'react';
 import { ROTATION, shortDate, plusDay } from '../utils.js';
 
 // rosterDay: the list comes from the Month Roster (rotation from Monday), so Start Date and the
 // Excel upload do nothing that day and are hidden.
 export default function Toolbar({ startDate, dutyDate, onStartDate, onDutyDate, onUpload, onPrint, onGenerate, rosterDay }) {
+  // Tap the date text to open the calendar (the date box itself is hidden: it showed the old MM/DD format).
+  const picker = useRef(null);
+  const openPicker = () => { const el = picker.current; if (!el) return; try { el.showPicker(); } catch { el.focus(); el.click(); } };
   return (
     <div className="toolbar no-print">
       {!rosterDay && <div>
@@ -11,9 +15,9 @@ export default function Toolbar({ startDate, dutyDate, onStartDate, onDutyDate, 
       </div>}
       <div className="tb-date">
         <button className="btn secondary tb-day" onClick={() => onDutyDate(plusDay(dutyDate, -1))} aria-label="Previous day">‹</button>
-        <b className="tb-day-text">{shortDate(dutyDate)}</b>
+        <button className="tb-day-text" onClick={openPicker} title="Pick a date">{shortDate(dutyDate)} 📅</button>
         <button className="btn secondary tb-day" onClick={() => onDutyDate(plusDay(dutyDate, 1))} aria-label="Next day">›</button>
-        <input type="date" id="dutyDate" value={dutyDate} onChange={e => e.target.value && onDutyDate(e.target.value)} aria-label="Pick a date" />
+        <input ref={picker} className="tb-picker" type="date" id="dutyDate" value={dutyDate} onChange={e => e.target.value && onDutyDate(e.target.value)} aria-label="Pick a date" tabIndex={-1} />
       </div>
       <div>
         <label>Rotation:</label>
