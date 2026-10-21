@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
-import { sheetDate } from '../utils.js';
+import { shortDate } from '../utils.js';
 import GuardSheet from './GuardSheet.jsx';
 import PostDuty from '../post/PostDuty.jsx';
 
@@ -59,7 +59,7 @@ export default function GuardPage({ token, testDate }) {
           <div className="toolbar no-print gsheet-bar">
             <div className="gsheet-me">{headline}</div>
             <div>{data.name} · IN {data.inTime}{shiftLine ? ' · ' + shiftLine : ''}</div>
-            <div>{sheetDate(data.dutyDate)}</div>
+            <div>{shortDate(data.dutyDate)}</div>
             <div className="spacer"></div>
             <div>{inCount} of {sheet.length} IN</div>
             <button className="btn" onClick={load}>🔄 Refresh</button>
@@ -93,7 +93,7 @@ export default function GuardPage({ token, testDate }) {
           {open && (
             <>
               <div className="setup-card guard-head">
-                <div className="guard-date">{sheetDate(data.dutyDate)}</div>
+                <div className="guard-date">{shortDate(data.dutyDate)}</div>
                 <div className="guard-me">{headline}</div>
                 <div className="guard-sub">{data.name} · IN {data.inTime}</div>
                 {shiftLine && <div className="guard-shift">{shiftLine}</div>}
