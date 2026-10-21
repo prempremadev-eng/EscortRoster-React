@@ -312,6 +312,9 @@ module.exports = function supervisorRoutes(app, h) {
   // only when their person is on G that day (Prem, 21 Oct). A Shift Incharge post with no regular list
   // counts the supervisors, less the regulars of the other incharge posts (MLCP Shift Incharge).
   const regularOnly = p => { const m = String(String((p && p.relief_guards) || '').split(';')[3] || '').match(/R([ABCG]*)/); return m ? (m[1] || 'ABCG') : ''; };
+  // "W" in the same part: Mon–Fri only (Kidos School, Prem 21 Oct): no row on Sat / Sun.
+  const weekdayOnly = p => String(String((p && p.relief_guards) || '').split(';')[3] || '').includes('W');
+  const isWeekend = date => [0, 6].includes(new Date(date + 'T00:00:00Z').getUTCDay());
   const isIncharge = p => String(p.post_name || '').toLowerCase().endsWith('shift incharge');
   const listIds = p => String(p.regular_guards || '').split(',').map(x => x.trim()).filter(Boolean);
   const regularIds = (p, posts, supIds) => {
@@ -363,7 +366,7 @@ module.exports = function supervisorRoutes(app, h) {
         ? (await zcql.executeZCQLQuery(`SELECT name FROM UserRoles WHERE role = 'supervisor' AND branch_id = ${branch} AND is_active = true`)).map(x => String(x.UserRoles.name || '').toLowerCase()) : [];
       const supIds = guards.filter(g => supNames.includes(String(g.guard_name).toLowerCase())).map(g => String(g.ROWID));
       const dayShifts = p => shiftsToday(p, rosterOf, regularIds(p, posts, supIds), rows.filter(r => String(r.post_id) === String(p.ROWID)).map(r => r.shift_code));
-      const dayPosts = posts.filter(p => !regularOnly(p) || dayShifts(p));
+      const dayPosts = posts.filter(p => (!regularOnly(p) || dayShifts(p)) && !(weekdayOnly(p) && isWeekend(date) && !rows.some(r => String(r.post_id) === String(p.ROWID))));
 
       // Escorts. Mon–Fri: the week's 6-to-5 batch = escorts whose roster has the coming Saturday
       // AND Sunday off (18:00–20:30 at a support point, then escort cab till 05:00). The other
@@ -540,7 +543,7 @@ module.exports = function supervisorRoutes(app, h) {
       const codeOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[day]; if (c) codeOf[String(r.guard_id)] = c; });
       const supIds = guards.filter(g => sups.includes(String(g.guard_name).toLowerCase())).map(g => String(g.ROWID));
-      const allows = (p, shift) => (!postShifts(p) || postShifts(p).includes(shift)) && shiftsToday(p, codeOf, regularIds(p, posts, supIds), '').includes(shift);
+      const allows = (p, shift) => !(weekdayOnly(p) && isWeekend(date)) && (!postShifts(p) || postShifts(p).includes(shift)) && shiftsToday(p, codeOf, regularIds(p, posts, supIds), '').includes(shift);
       // Escorts do the night escort cab Monday–Friday (Saturday off): only on Sunday they take posts.
       const sunday = new Date(date + 'T00:00:00Z').getUTCDay() === 0;
       const escort = new Set(guards.filter(g => String(g.area || '').toLowerCase() === 'escort').map(g => String(g.ROWID)));
