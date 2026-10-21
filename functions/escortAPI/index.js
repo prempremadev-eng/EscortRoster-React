@@ -5,6 +5,7 @@ const catalyst = require('zcatalyst-sdk-node');
 const crypto = require('crypto');
 const webpush = require('web-push');
 const { ROTATION, computeDisplayRows, dayOf } = require('./seats.js');
+const { escortDay } = require('./escortRoster.js');
 
 // Push services want a contact (mailto: or https: URL) for the sender of the notifications.
 const VAPID_SUBJECT = 'https://escortcardaccess-60086856508.development.catalystserverless.in';
@@ -234,6 +235,20 @@ app.get('/getDayData', async (req, res) => {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const date = requireDate(req.query.date);
+    // Month Roster weekday (notes/ESCORT-RULES.md): the rows are today's C escorts, already in seat
+    // order (6 to 5, then 9 to 6), details from Guard Master; the page shows them as they come.
+    const rosterDay = await escortDay(catalystApp, date);
+    if (rosterDay) {
+      const [duty, stops] = await Promise.all([
+        selectAll(zcql, 'DutyRecords', `SELECT * FROM DutyRecords WHERE duty_date = '${date}' ORDER BY ROWID ASC`),
+        selectAll(zcql, 'TripStops', `SELECT * FROM TripStops WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`)
+      ]);
+      const escorts = rosterDay.rows.filter(r => r.onDuty).map(r => ({
+        ROWID: String(r.guard.escort_id), escort_name: r.guard.guard_name, agency: r.guard.agency || '',
+        mobile: r.guard.phone || '', id_no: r.guard.id_number || '', sort_order: r.seat, seat: r.seat, batch: r.batch
+      }));
+      return res.status(200).json({ status: 'success', data: { escorts, duty, stops, roster: { day0: rosterDay.day0 } } });
+    }
     const [escorts, duty, stops] = await Promise.all([
       selectAll(zcql, 'Escorts', "SELECT * FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
       selectAll(zcql, 'DutyRecords', `SELECT * FROM DutyRecords WHERE duty_date = '${date}' ORDER BY ROWID ASC`),
@@ -591,7 +606,14 @@ async function onCardIn(catalystApp, guard, time, dutyDate) {
     else if (rosterShift === 'O') body = 'The month roster says today is your week off. Ask your supervisor.';
     else if (rosterShift === 'L') body = 'The month roster says you are on leave today. Ask your supervisor.';
   }
-  if (duty && duty.post.post_type === 'ESCORT') {
+  // Month Roster escort duty (C escort on a weekday): "Today your Seat 5 · Escort 6 to 5".
+  const rosterDay = !duty || duty.post.post_type === 'ESCORT' ? await escortDay(catalystApp, dutyDate) : null;
+  const myRow = rosterDay && rosterDay.rows.find(r => r.guardId === String(guard.ROWID) && r.onDuty);
+  if (myRow) {
+    seat = myRow.seat;
+    const sh = (await getShifts(zcql)).find(x => x.code === 'C');
+    body = 'Today your Seat ' + seat + ' · Escort ' + myRow.batch + (sh ? ' · ' + shiftText(sh) : '');
+  } else if (duty && duty.post.post_type === 'ESCORT') {
     body = 'Your card IN is noted';
     if (guard.escort_id) {
       // Read-only look at the escort duty sheet; nothing is written on the escort side.
@@ -665,6 +687,10 @@ app.get('/guardDay', async (req, res) => {
     // This week's chart decides the page: escort sheet, post, or "not assigned".
     const chartDay = req.query.date && dutyDate === req.query.date ? dutyDate : shiftDate();
     const duty = await dutyOf(zcql, me.ROWID, weekStartOf(chartDay), chartDay);
+    // Month Roster escort duty (C escort on a weekday) comes before the old weekly chart.
+    const rosterDay = !duty || duty.post.post_type === 'ESCORT' ? await escortDay(catalystApp, dutyDate) : null;
+    const myRow = rosterDay && rosterDay.rows.find(r => r.guardId === String(me.ROWID) && r.onDuty);
+    const shiftC = myRow ? (await getShifts(zcql)).find(x => x.code === 'C') : null;
 
     // First IN time of each guard (by Guards ROWID) on this duty day.
     const ins = await selectAll(zcql, 'AccessLog', `SELECT guard_id, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' AND direction = 'IN' ORDER BY CREATEDTIME ASC`);
@@ -673,16 +699,17 @@ app.get('/guardDay', async (req, res) => {
     const myId = String(me.ROWID);
     const base = {
       name: me.guard_name, dutyDate,
-      dutyType: duty ? duty.post.post_type : null,
-      postName: duty ? duty.post.post_name : null,
-      shift: duty ? duty.shift : null
+      dutyType: myRow ? 'ESCORT' : duty ? duty.post.post_type : null,
+      postName: myRow ? 'Escort · ' + myRow.batch : duty ? duty.post.post_name : null,
+      shift: myRow ? shiftC : duty ? duty.shift : null
     };
+    const myEscortRow = myRow ? String(myRow.guard.escort_id) : me.escort_id;
     if (!inTime[myId]) {
       return res.status(200).json({ status: 'success', data: { ...base, locked: true } });
     }
 
     const day = dayOf(dutyDate);
-    if (base.dutyType !== 'ESCORT' || !me.escort_id || day === 0 || day === 6) {
+    if (base.dutyType !== 'ESCORT' || !myEscortRow || day === 0 || day === 6) {
       return res.status(200).json({ status: 'success', data: { ...base, locked: false, inTime: inTime[myId], seats: [] } });
     }
     const [escorts, start, escortGuards, records, dayStops] = await Promise.all([
@@ -695,7 +722,7 @@ app.get('/guardDay', async (req, res) => {
     // Seats are escort rows; swipes are guard rows. Escorts ROWID → that guard's IN time.
     const escortIn = {};
     escortGuards.forEach(g => { if (g.escort_id && inTime[String(g.ROWID)]) escortIn[String(g.escort_id)] = inTime[String(g.ROWID)]; });
-    const myEscortId = String(me.escort_id);
+    const myEscortId = String(myEscortRow);
     // The whole duty sheet of the day in the supervisor's layout; only the guard's own row can be
     // changed (the write routes below check that). Other rows send no employee details, only how
     // many employees a trip has. Mobile and ID numbers are left out: every guard sees this page.
@@ -703,13 +730,16 @@ app.get('/guardDay', async (req, res) => {
     dayStops.forEach(x => { stopCount[String(x.duty_record_id)] = (stopCount[String(x.duty_record_id)] || 0) + 1; });
     const byEscort = {};
     records.forEach(r => { (byEscort[String(r.escort_id)] = byEscort[String(r.escort_id)] || []).push(r); });
-    const rows = computeDisplayRows(escorts, ROTATION, start && start.setting_value, dutyDate);
+    // Roster day: the guard's own list (6 to 5 or 9 to 6) with its seat numbers; else the old sheet.
+    const rows = myRow
+      ? rosterDay.rows.filter(r => r.onDuty && r.batch === myRow.batch).map(r => ({ ROWID: r.guard.escort_id, escort_name: r.guard.guard_name, agency: r.guard.agency || '', seat: r.seat }))
+      : computeDisplayRows(escorts, ROTATION, start && start.setting_value, dutyDate);
     const sheet = rows.map((e, i) => {
       const id = String(e.ROWID);
       const recs = byEscort[id] || [];
       const first = recs.find(r => (parseInt(r.route_no, 10) || 1) === 1);
       return {
-        escortId: id, seat: i + 1, me: id === myEscortId, name: e.escort_name, agency: e.agency,
+        escortId: id, seat: e.seat || i + 1, me: id === myEscortId, name: e.escort_name, agency: e.agency,
         inTime: escortIn[id] || null, remarks: (first && first.remarks) || '',
         routes: Array.from({ length: ROUTES }, (_, k) => {
           const r = recs.find(x => (parseInt(x.route_no, 10) || 1) === k + 1);
@@ -810,12 +840,18 @@ app.post('/guardSaveRoute', async (req, res) => {
     if (current) {
       result = await table.updateRow({ ROWID: current.ROWID, location, out_time, in_time });
     } else {
-      // Seat on the sheet for this day, so the supervisor sees it on the right row.
-      const [escorts, start] = await Promise.all([
-        selectAll(zcql, 'Escorts', "SELECT ROWID FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
-        getSetting(zcql, 'start_date')
-      ]);
-      const seat = seatOf(escorts, ctx.me.escort_id, start && start.setting_value, ctx.dutyDate);
+      // Seat on the sheet for this day, so the supervisor sees it on the right row
+      // (Month Roster seat on a roster weekday, else the old Start Date rotation).
+      const rosterDay = await escortDay(catalystApp, ctx.dutyDate);
+      const myRow = rosterDay && rosterDay.rows.find(r => r.guardId === String(ctx.me.ROWID) && r.onDuty);
+      let seat = myRow ? myRow.seat : null;
+      if (!rosterDay) {
+        const [escorts, start] = await Promise.all([
+          selectAll(zcql, 'Escorts', "SELECT ROWID FROM Escorts WHERE is_active = 'true' ORDER BY sort_order ASC"),
+          getSetting(zcql, 'start_date')
+        ]);
+        seat = seatOf(escorts, ctx.me.escort_id, start && start.setting_value, ctx.dutyDate);
+      }
       if (!seat) throw new Error('You have no seat on the duty sheet today');
       result = await table.insertRow({
         duty_date: ctx.dutyDate, escort_id: ctx.me.escort_id, seat_no: seat, route_no: n, location, out_time, in_time

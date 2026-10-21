@@ -17,7 +17,7 @@ export default function GuardSheet({ token, testDate, dutyDate, sheet, myStops }
 
   const displayRows = sheet.map(r => ({
     ROWID: r.escortId, name: (r.me ? '⭐ ' : '') + r.name,
-    agency: r.agency, mobile: '', id: ''
+    agency: r.agency, mobile: '', id: '', seat: r.seat
   }));
 
   // Same shapes the duty sheet uses: escort ROWID -> { remarks, routes } and trip ROWID -> stops.

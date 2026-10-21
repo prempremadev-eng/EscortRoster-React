@@ -26,6 +26,15 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 - 6-to-5 is always **12** people (12 support points: ERT Booth 1–3, Tower Main Gate, Smoking Zone, Lancor 2, North Plaza, MLCP Main Gate, MD House, PKL, PKL 1, Potheri).
 - Schedule page Escort table is sorted A–Z now → should follow roster order (E2).
 
+## Built (21 Oct evening)
+
+- `functions/escortAPI/escortRoster.js` → `escortDay(date)`: 6-to-5 / 9-to-6 lists from the Month Roster with today's seats (E1–E7, E9, E10). Checked offline: 02-10 and 21-10 6-to-5 match the real sheets.
+- Escort Duty Sheet (supervisor): on a roster weekday two tables **6 to 5** and **9 to 6**, S.No = seat, details from Guard Master (read-only there), no Monday Excel prompt, no Add Escort / remove. Sat, Sun and dates without a roster: old sheet.
+- Schedule page Escort table: same lists and seat numbers.
+- Card IN: "Today your Seat N · Escort 6 to 5 · Shift C". Guard page: their own list, only their row writable; trips saved with the roster seat.
+- Each guard on escort duty gets an Escorts row the first time (linked by Guards.escort_id); trips are kept per Escorts row.
+- Open: the real 21-10 sheet shows 9-to-6 in roster order (not rotated); the app rotates both lists (E5) until Prem decides.
+
 ## Later
 
 - Sunday C men leave a post around 3 AM Monday for 1–2 pick-up trips: the Sunday pickup sheet stays as it is for now (E13).

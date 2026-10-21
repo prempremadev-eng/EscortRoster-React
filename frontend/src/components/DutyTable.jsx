@@ -5,7 +5,9 @@ import TableFooter from './TableFooter.jsx';
 import { PAGE_SIZE, formatLongDate, routeLocks } from '../utils.js';
 
 // Main duty sheet: one page-block (header + 15 rows + footer) per printed A4 page.
-export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate, cellStatus, actions }) {
+// title: "6 to 5" / "9 to 6" on Month Roster days. lockDetails: name, agency, mobile and ID come from
+// Guard Master then, so they show as text and the row has no remove button.
+export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate, cellStatus, actions, title, lockDetails }) {
   const totalPages = Math.max(1, Math.ceil(displayRows.length / PAGE_SIZE));
   const dateText = formatLongDate(dutyDate);
   const pages = Array.from({ length: totalPages }, (_, p) => p);
@@ -16,11 +18,11 @@ export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate
     return (
       <div className="page-block" key={p}>
         <div className="print-page-header">
-          <span className="print-title">Escort Duty Sheet</span>
+          <span className="print-title">Escort Duty Sheet{title ? ' · ' + title : ''}</span>
           <span className="print-date">{dateText}</span>
         </div>
         <div className="page-label no-print">
-          <span>Page {p + 1} of {totalPages}</span>
+          <span>{title ? <b>{title} · </b> : null}Page {p + 1} of {totalPages}</span>
           <span>{dateText}</span>
         </div>
         <table>
@@ -30,7 +32,8 @@ export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate
               <EscortRow
                 key={r.ROWID}
                 r={r}
-                seatNo={startIdx + i + 1}
+                seatNo={r.seat || startIdx + i + 1}
+                lockDetails={lockDetails}
                 entry={duty[String(r.ROWID)]}
                 stops={stops}
                 rotation={rotation}
@@ -47,12 +50,12 @@ export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate
   });
 }
 
-function EscortRow({ r, seatNo, entry, stops, rotation, cellStatus, actions }) {
+function EscortRow({ r, seatNo, entry, stops, rotation, cellStatus, actions, lockDetails }) {
   const routes = (entry && entry.routes) || [];
   const remarks = (entry && entry.remarks) || '';
   const id = String(r.ROWID);
 
-  const textCell = (field, cls) => (
+  const textCell = (field, cls) => lockDetails ? <td className={cls}>{r[field]}</td> : (
     <td className={cls}>
       <Field
         value={r[field]}
@@ -93,7 +96,7 @@ function EscortRow({ r, seatNo, entry, stops, rotation, cellStatus, actions }) {
         />
       </td>
       <td className="delcell-col no-print">
-        <button className="delcell" title="Remove escort" onClick={() => actions.deleteEscort(id)}>&times;</button>
+        {!lockDetails && <button className="delcell" title="Remove escort" onClick={() => actions.deleteEscort(id)}>&times;</button>}
       </td>
     </tr>
   );

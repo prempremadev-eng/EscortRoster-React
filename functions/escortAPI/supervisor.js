@@ -8,6 +8,8 @@
 const ACTIVE = ['waiting', 'on_duty', 'on_break', 'out'];
 const GENERAL = 'G';
 
+const { escortDay } = require('./escortRoster.js');
+
 module.exports = function supervisorRoutes(app, h) {
   const { catalyst, fail, requireRowId, requireDate, getShifts, shiftDate, weekStartOf, nowStamp, hhmm, minutesBetween, cleanText, MAX_TEXT,
     namesOf, addMessage, timelineData, workView, sendPushToGuard, sendPushToRows, getVapidKeys, auth } = h;
@@ -350,7 +352,8 @@ module.exports = function supervisorRoutes(app, h) {
 
   app.get('/schedule', async (req, res) => {
     try {
-      const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
       const branch = auth.requireBranch(req, requireRowId(req.query.branch));
       const date = requireDate(req.query.date);
       const [posts, shifts, guards, roster] = await Promise.all([
@@ -391,7 +394,17 @@ module.exports = function supervisorRoutes(app, h) {
       const pointOf = {};
       points.forEach(p => { pointOf[String(p.guard_id)] = p.support_point || ''; });
       const inSlot = new Set(rows.map(r => String(r.guard_id)));
-      const night = guards.filter(g => String(g.area || '').toLowerCase() === 'escort' && rosterOf[String(g.ROWID)] === 'C' && !batch.includes(String(g.ROWID)) && !inSlot.has(String(g.ROWID))).map(g => String(g.ROWID));
+      let night = guards.filter(g => String(g.area || '').toLowerCase() === 'escort' && rosterOf[String(g.ROWID)] === 'C' && !batch.includes(String(g.ROWID)) && !inSlot.has(String(g.ROWID))).map(g => String(g.ROWID));
+      // Weekday with a Month Roster: both lists in roster order with today's seat numbers (escortRoster.js),
+      // the same as the escort duty sheet. Otherwise S.No is the list order.
+      const seatOf = {};
+      const rosterDay = await escortDay(catalystApp, date);
+      if (rosterDay) {
+        const today = rosterDay.rows.filter(r => r.onDuty && !inSlot.has(r.guardId));
+        batch = today.filter(r => r.batch === '6 to 5').map(r => r.guardId);
+        night = today.filter(r => r.batch === '9 to 6').map(r => r.guardId);
+        today.forEach(r => { seatOf[r.guardId] = r.seat; });
+      }
       const off = guards.filter(g => ['O', 'L'].includes(rosterOf[String(g.ROWID)])).map(g => ({ guard: String(g.ROWID), code: rosterOf[String(g.ROWID)] }));
       res.status(200).json({
         status: 'success',
@@ -401,7 +414,7 @@ module.exports = function supervisorRoutes(app, h) {
           slots: rows.map(r => ({ ROWID: String(r.ROWID), post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id), published: isOn(r.published) })),
           guards: guards.map(g => ({ ROWID: String(g.ROWID), name: g.guard_name, id: g.id_number, area: g.area || '', roster: rosterOf[String(g.ROWID)] || '' })),
           hasRoster: roster.length > 0,
-          escort: { batch: batch.map(id => ({ guard: id, point: pointOf[id] || '' })), night },
+          escort: { batch: batch.map((id, i) => ({ guard: id, point: pointOf[id] || '', seat: seatOf[id] || i + 1 })), night: night.map((id, i) => ({ guard: id, seat: seatOf[id] || i + 1 })) },
           off
         }
       });

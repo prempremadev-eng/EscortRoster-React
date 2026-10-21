@@ -142,7 +142,7 @@ export default function SupervisorSchedule() {
   }).filter(r => r.total) : [];
   const sum = k => summary.reduce((n, r) => n + r[k], 0);
   // On duty by the month roster but in no slot and not on the escort list: who can still fill a gap.
-  const escortIds = new Set(data ? [...data.escort.batch.map(e => e.guard), ...data.escort.night] : []);
+  const escortIds = new Set(data ? [...data.escort.batch, ...data.escort.night].map(e => e.guard) : []);
   const idle = data ? data.guards.filter(g => ['A', 'B', 'C', 'G'].includes(g.roster) && !data.slots.some(s => s.guard === g.ROWID) && !escortIds.has(g.ROWID))
     .sort((x, y) => 'ABCG'.indexOf(x.roster) - 'ABCG'.indexOf(y.roster) || x.name.localeCompare(y.name)) : [];
   const filled = data ? data.slots.length : 0;
@@ -301,9 +301,10 @@ export default function SupervisorSchedule() {
                       <tr className="sh-cols"><th>S No</th><th>NAME</th><th>TIME</th><th>POINT</th></tr>
                     </thead>
                     <tbody>
-                      {data.escort.batch.map((e, i) => (
+                      {/* S No = today's seat in its own list (6 to 5 / 9 to 6), the same as the escort duty sheet. */}
+                      {data.escort.batch.map(e => (
                         <tr key={e.guard}>
-                          <td className="sh-no">{i + 1}</td>
+                          <td className="sh-no">{e.seat}</td>
                           <td className="sh-name">{nameOf(e.guard)}</td>
                           <td className="sh-code sh-early">6 to 5</td>
                           <td className="sh-point">
@@ -313,8 +314,8 @@ export default function SupervisorSchedule() {
                           </td>
                         </tr>
                       ))}
-                      {data.escort.night.map((id, i) => (
-                        <tr key={id}><td className="sh-no">{data.escort.batch.length + i + 1}</td><td className="sh-name">{nameOf(id)}</td><td className="sh-code sh-night">9 to 6</td><td className="sh-point sh-muted">Escort cab</td></tr>
+                      {data.escort.night.map(e => (
+                        <tr key={e.guard}><td className="sh-no">{e.seat}</td><td className="sh-name">{nameOf(e.guard)}</td><td className="sh-code sh-night">9 to 6</td><td className="sh-point sh-muted">Escort cab</td></tr>
                       ))}
                       {!data.escort.batch.length && !data.escort.night.length && <tr><td colSpan={4} className="sh-empty">No escort on the roster (6 to 5 is Mon–Fri)</td></tr>}
                     </tbody>

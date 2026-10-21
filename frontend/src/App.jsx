@@ -43,6 +43,8 @@ export default function App() {
   const [startDate, setStartDate, startDateRef] = useStore(today);
   const [dutyDate, setDutyDate, dutyDateRef] = useStore(today);
   const [view, setView, viewRef] = useStore('loading');
+  // true on a Month Roster weekday (escort rows come from the roster, notes/ESCORT-RULES.md)
+  const [rosterDay, setRosterDay] = useState(false);
 
   const [escorts, updateEscorts, escortsRef] = useStore([]);
   // escort ROWID -> { remarks, routes: [{ ROWID, loc, out, in }] }
@@ -161,8 +163,9 @@ export default function App() {
 
   // One call for the whole duty sheet: escorts, routes, extras and trip stops.
   const fetchDay = useCallback(async date => {
-    const { escorts: escortRows, duty: records, stops: stopRows } = (await api.getDayData(date)).data;
+    const { escorts: escortRows, duty: records, stops: stopRows, roster } = (await api.getDayData(date)).data;
     return {
+      roster: !!roster,
       escorts: escortRows.map(escortFromDb),
       map: buildDuty(records),
       extras: buildExtras(records),
@@ -173,6 +176,7 @@ export default function App() {
   // Replaces local state with a fetched day. Extras that were added on screen
   // but not saved yet are kept, so a refresh never wipes them.
   const applyDay = useCallback(day => {
+    setRosterDay(day.roster);
     updateEscorts(day.escorts);
     updateDuty(day.map);
     updateStops(day.stopMap);
@@ -197,7 +201,10 @@ export default function App() {
         updatePickups(rows);
         setView('pickup');
       } else {
-        if (isMonday(date)) {
+        // Month Roster days need no Monday Excel upload: the list comes from the roster.
+        const day = await fetchDay(date);
+        if (dutyDateRef.current !== date) return;
+        if (isMonday(date) && !day.roster) {
           const result = await api.getLastUploadDate();
           if (dutyDateRef.current !== date) return;
           if (result.data !== date) {
@@ -205,7 +212,7 @@ export default function App() {
             return;
           }
         }
-        await applyTableData(date);
+        applyDay(day);
         if (dutyDateRef.current !== date) return;
         setView('table');
       }
@@ -213,7 +220,7 @@ export default function App() {
       console.error('Failed to load date:', err);
       if (viewRef.current === 'loading') setView('error');
     }
-  }, [fetchPickups, applyTableData, updatePickups, setView, dutyDateRef, viewRef]);
+  }, [fetchPickups, fetchDay, applyDay, updatePickups, setView, dutyDateRef, viewRef]);
 
   /* ---------- init ---------- */
 
@@ -598,7 +605,8 @@ export default function App() {
 
   /* ---------- render ---------- */
 
-  const displayRows = computeDisplayRows(escorts, rotation, startDate, dutyDate);
+  // Month Roster day: the server sends the rows in seat order (6 to 5, then 9 to 6); no Start Date rotation.
+  const displayRows = rosterDay ? escorts : computeDisplayRows(escorts, rotation, startDate, dutyDate);
 
   // Current data for the open trip popup (null when closed or the trip vanished).
   const tripRec = trip && duty[trip.id] && duty[trip.id].routes[trip.idx];
@@ -637,22 +645,27 @@ export default function App() {
         {view === 'pickup' && <PickupTable pickupRows={pickupRows} actions={actions} />}
         {view === 'table' && (
           <>
-            <DutyTable
-              displayRows={displayRows}
-              duty={duty}
-              stops={stops}
-              rotation={rotation}
-              dutyDate={dutyDate}
-              cellStatus={cellStatus}
-              actions={actions}
-            />
+            {(rosterDay ? ['6 to 5', '9 to 6'] : ['']).map(batch => (
+              <DutyTable
+                key={batch || 'all'}
+                title={batch}
+                lockDetails={rosterDay}
+                displayRows={batch ? displayRows.filter(r => r.batch === batch) : displayRows}
+                duty={duty}
+                stops={stops}
+                rotation={rotation}
+                dutyDate={dutyDate}
+                cellStatus={cellStatus}
+                actions={actions}
+              />
+            ))}
             <ExtraSection extraRows={extraRows} rotation={rotation} actions={actions} />
           </>
         )}
       </div>
 
       <div className="addrow-bar no-print">
-        <button className="btn secondary" onClick={addEscort}>+ Add Escort</button>
+        {!rosterDay && <button className="btn secondary" onClick={addEscort}>+ Add Escort</button>}
         <button className="btn secondary" onClick={addExtra}>+ Add Extra (Today Only)</button>
       </div>
 
