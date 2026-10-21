@@ -46,7 +46,6 @@ export default function SupervisorSchedule() {
   const [data, setData] = useState(null);
   const [pick, setPick] = useState(null); // { post, shift }
   const [search, setSearch] = useState('');
-  const [showOthers, setShowOthers] = useState(false);
   const [pointDraft, setPointDraft] = useState({});
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -147,19 +146,12 @@ export default function SupervisorSchedule() {
   const otherShift = {};
   if (data) data.slots.forEach(s => { if (pick && s.shift !== pick.shift) otherShift[s.guard] = s.shift; });
   const free = data ? data.guards.filter(g => !usedIds.has(g.ROWID) && (g.name + ' ' + (g.id || '') + ' ' + (g.area || '')).toLowerCase().includes(search.trim().toLowerCase())) : [];
-  // With a month roster: the picked shift's guards first; the rest (other shift, week off, leave,
-  // no roster) behind "Other guards".
-  // Escorts do the night cab Mon–Sat, so they go behind "Other guards" (Sunday they take posts).
-  // The picked post's own team first (Hospital people for a Hospital post), then the rest.
-  const sunday = new Date(date + 'T00:00:00').getDay() === 0;
-  const pickedPost = pick && data ? data.posts.find(p => p.ROWID === pick.post) || {} : {};
-  const ownTeam = g => !!g.area && String(pickedPost.section || pickedPost.name || '').toLowerCase().includes(g.area.toLowerCase());
-  const onShift = (pick && data && data.hasRoster ? free.filter(g => g.roster === pick.shift && !otherShift[g.ROWID]) : free.filter(g => !otherShift[g.ROWID]))
-    .filter(g => sunday || g.area.toLowerCase() !== 'escort')
-    .sort((x, y) => ownTeam(y) - ownTeam(x));
-  // Guards already on another shift today show only for an extra duty post (e.g. VTitan).
+  // Tap an empty slot → every guard with no post today, in one list, no rules (Prem, 21 Oct): the
+  // supervisor decides. The picked shift's guards come first only as an order, with their roster tag.
+  // A guard already on another shift today shows only for an extra duty post (e.g. VTitan).
   const pickedExtra = !!(pick && data && (data.posts.find(p => p.ROWID === pick.post) || {}).extraDuty);
-  const others = pick ? free.filter(g => !onShift.includes(g) && (!otherShift[g.ROWID] || pickedExtra || data.slots.some(s => s.guard === g.ROWID && (data.posts.find(p => p.ROWID === s.post) || {}).extraDuty))) : [];
+  const onShift = pick ? free.filter(g => !otherShift[g.ROWID] || pickedExtra)
+    .sort((x, y) => (y.roster === pick.shift) - (x.roster === pick.shift) || x.name.localeCompare(y.name)) : [];
   const b = branches.find(x => String(x.ROWID) === String(branch));
   const sheetDate = date.split('-').reverse().join('-');
   // One shift block of the daily sheet: S.No · NAME · SHIFT · POINT (the order the team writes it).
@@ -368,15 +360,11 @@ export default function SupervisorSchedule() {
               {slotOf(pick.post, pick.shift) && (
                 <div className="sh-current">Now: <b>{guardName(slotOf(pick.post, pick.shift).guard)}</b> <button className="pd-chip" onClick={removePicked} disabled={busy}>Remove</button></div>
               )}
-              <div className="pd-label">FREE GUARDS · SHIFT {pick.shift}</div>
+              <div className="pd-label">GUARDS WITH NO POST · SHIFT {pick.shift}</div>
               <input className="pd-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search guard" aria-label="Search guard" />
-              {pick && data.hasRoster && <div className="pd-small pd-muted">Month roster: {onShift.length} free guard(s) on Shift {pick.shift} this day.</div>}
+              <div className="pd-small pd-muted">{onShift.length} guard(s) with no post today ({onShift.filter(g => g.roster === pick.shift).length} on Shift {pick.shift} first).</div>
               {onShift.map(g => <Person key={g.ROWID} g={g} />)}
-              {onShift.length === 0 && <div className="pd-muted pd-small">{pick && data.hasRoster ? 'No free guard has Shift ' + pick.shift + ' on the roster.' : 'No free guards.'}</div>}
-              {others.length > 0 && (
-                <button className="pd-chip" onClick={() => setShowOthers(v => !v)}>{showOthers ? 'Hide' : 'Show'} other guards ({others.length})</button>
-              )}
-              {showOthers && others.map(g => <Person key={g.ROWID} g={g} />)}
+              {onShift.length === 0 && <div className="pd-muted pd-small">Every guard has a post today.</div>}
               <div className="pd-small pd-muted">Pick a guard to put here (or to replace). Publish sends each guard their post when they swipe IN.</div>
             </aside>}
           </div>
