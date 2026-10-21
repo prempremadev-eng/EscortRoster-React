@@ -149,7 +149,14 @@ export default function SupervisorSchedule() {
   const free = data ? data.guards.filter(g => !usedIds.has(g.ROWID) && (g.name + ' ' + (g.id || '') + ' ' + (g.area || '')).toLowerCase().includes(search.trim().toLowerCase())) : [];
   // With a month roster: the picked shift's guards first; the rest (other shift, week off, leave,
   // no roster) behind "Other guards".
-  const onShift = pick && data && data.hasRoster ? free.filter(g => g.roster === pick.shift && !otherShift[g.ROWID]) : free.filter(g => !otherShift[g.ROWID]);
+  // Escorts do the night cab Mon–Sat, so they go behind "Other guards" (Sunday they take posts).
+  // The picked post's own team first (Hospital people for a Hospital post), then the rest.
+  const sunday = new Date(date + 'T00:00:00').getDay() === 0;
+  const pickedPost = pick && data ? data.posts.find(p => p.ROWID === pick.post) || {} : {};
+  const ownTeam = g => !!g.area && String(pickedPost.section || pickedPost.name || '').toLowerCase().includes(g.area.toLowerCase());
+  const onShift = (pick && data && data.hasRoster ? free.filter(g => g.roster === pick.shift && !otherShift[g.ROWID]) : free.filter(g => !otherShift[g.ROWID]))
+    .filter(g => sunday || g.area.toLowerCase() !== 'escort')
+    .sort((x, y) => ownTeam(y) - ownTeam(x));
   // Guards already on another shift today show only for an extra duty post (e.g. VTitan).
   const pickedExtra = !!(pick && data && (data.posts.find(p => p.ROWID === pick.post) || {}).extraDuty);
   const others = pick ? free.filter(g => !onShift.includes(g) && (!otherShift[g.ROWID] || pickedExtra || data.slots.some(s => s.guard === g.ROWID && (data.posts.find(p => p.ROWID === s.post) || {}).extraDuty))) : [];
