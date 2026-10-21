@@ -146,12 +146,12 @@ export default function SupervisorSchedule() {
   const otherShift = {};
   if (data) data.slots.forEach(s => { if (pick && s.shift !== pick.shift) otherShift[s.guard] = s.shift; });
   const free = data ? data.guards.filter(g => !usedIds.has(g.ROWID) && (g.name + ' ' + (g.id || '') + ' ' + (g.area || '')).toLowerCase().includes(search.trim().toLowerCase())) : [];
-  // Tap an empty slot → every guard with no post today, in one list, no rules (Prem, 21 Oct): the
-  // supervisor decides. The picked shift's guards come first only as an order, with their roster tag.
-  // A guard already on another shift today shows only for an extra duty post (e.g. VTitan).
+  // Tap an empty slot → only that shift's guards (month roster) who have no post and are not on the
+  // escort list today (Prem, 21 Oct). No other rules: the supervisor picks. With no roster, everyone
+  // free. A guard already on another shift today shows only for an extra duty post (e.g. VTitan).
   const pickedExtra = !!(pick && data && (data.posts.find(p => p.ROWID === pick.post) || {}).extraDuty);
-  const onShift = pick ? free.filter(g => !otherShift[g.ROWID] || pickedExtra)
-    .sort((x, y) => (y.roster === pick.shift) - (x.roster === pick.shift) || x.name.localeCompare(y.name)) : [];
+  const onShift = pick ? free.filter(g => (!otherShift[g.ROWID] || pickedExtra) && !escortIds.has(g.ROWID) && (!data.hasRoster || g.roster === pick.shift))
+    .sort((x, y) => x.name.localeCompare(y.name)) : [];
   const b = branches.find(x => String(x.ROWID) === String(branch));
   const sheetDate = date.split('-').reverse().join('-');
   // One shift block of the daily sheet: S.No · NAME · SHIFT · POINT (the order the team writes it).
@@ -362,9 +362,9 @@ export default function SupervisorSchedule() {
               )}
               <div className="pd-label">GUARDS WITH NO POST · SHIFT {pick.shift}</div>
               <input className="pd-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search guard" aria-label="Search guard" />
-              <div className="pd-small pd-muted">{onShift.length} guard(s) with no post today ({onShift.filter(g => g.roster === pick.shift).length} on Shift {pick.shift} first).</div>
+              <div className="pd-small pd-muted">{onShift.length} guard(s) on Shift {pick.shift} with no post.</div>
               {onShift.map(g => <Person key={g.ROWID} g={g} />)}
-              {onShift.length === 0 && <div className="pd-muted pd-small">Every guard has a post today.</div>}
+              {onShift.length === 0 && <div className="pd-muted pd-small">Every Shift {pick.shift} guard has a post.</div>}
               <div className="pd-small pd-muted">Pick a guard to put here (or to replace). Publish sends each guard their post when they swipe IN.</div>
             </aside>}
           </div>
