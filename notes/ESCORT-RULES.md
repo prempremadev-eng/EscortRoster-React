@@ -19,6 +19,7 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 | **E10 · Who does escort duty** | **Only escorts on C** that day (Prem, 21 Oct). An escort whose roster says **A / B / G** works a **post** like anyone else (Auto fill uses them; PKL / MLCP men are still picked first). The 6-to-5 batch also needs C that day. Sunday: all escorts may take posts |
 | **E11 · Who writes the trips** | The **escort writes** their own Route 1–4 (Location · Out · In) after card IN, only on their own row; the **supervisor can correct** any row |
 | **E12 · Trip details** | The trip popup (cab number, driver, employee stops: Emp ID, location, pickup / drop, time) **stays exactly as it is** — the escort fills it for every trip. No changes |
+| **E13 · Everything else** | The rest of the Escort sheet **stays exactly as it is** (Saturday leave, Sunday pickup sheet, extra today-only rows, remarks, print, dashboard). Don't touch it (Prem, 21 Oct) |
 
 ## Seen in the real sheets (to confirm)
 
@@ -27,4 +28,4 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 
 ## Later
 
-- Sunday C men leave a post around 3 AM Monday for 1–2 pick-up trips (Sunday pickup sheet).
+- Sunday C men leave a post around 3 AM Monday for 1–2 pick-up trips: the Sunday pickup sheet stays as it is for now (E13).
