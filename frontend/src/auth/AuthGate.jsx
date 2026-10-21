@@ -32,9 +32,11 @@ async function isSignedIn() {
   return false;
 }
 
-// Links on the top bar, by role (the server checks the role again on every call).
+// Links on the top bar, by role (the server checks the role again on every call). The supervisor's
+// steps come first, numbered like the rail (notes/SUPERVISOR-FLOW.md), then the other pages.
 function links(user) {
-  const l = [['#', 'Duty sheet'], ['#supervisor', 'Supervisor'], ['#master', 'Guards'], ['#roster', 'Month roster'], ['#posts', 'Posts'], ['#chart', 'Duty chart'], ['#links', 'Guard links']];
+  const l = [['#roster', '1 Month roster'], ['#schedule', '2 Schedule'], ['#board', '3 Live board'], ['#supervisor', '4 Posts'],
+    ['#', 'Escort sheet'], ['#master', 'Guards'], ['#posts', 'Post setup'], ['#chart', 'Duty chart'], ['#links', 'Guard links']];
   if (atLeast(user, 'admin')) l.push(['#simulator', 'Card simulator']);
   if (atLeast(user, 'branch_admin')) l.push(['#admin', 'Admin']);
   return l;

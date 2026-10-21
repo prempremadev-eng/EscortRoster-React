@@ -25,6 +25,13 @@ The left rail is in this order, so the supervisor just goes top to bottom.
 - 🟢 green = done · 🔴 red = still to do.
 - Each step is a button: tap it to do that step.
 
+## Getting around
+
+| From | How |
+|---|---|
+| Rail screens (Roster, Schedule, Live, Posts) | Left rail: 1 Roster · 2 Schedule · 3 Live · 4 Posts, then Escort · Guards · Admin |
+| Older pages with the top bar (Escort sheet, Guards, Post setup, Duty chart, Guard links) | Top bar starts with the same steps: **1 Month roster · 2 Schedule · 3 Live board · 4 Posts**, then Escort sheet · Guards · Post setup · Duty chart · Guard links |
+
 ## Other
 
 | Rail | For |

@@ -18,6 +18,7 @@ export default function Rail({ active }) {
       {item('board', '#board', 'Live', Icon.grid, 3)}
       {item('posts', '#supervisor', 'Posts', Icon.chat, 4)}
       <div className="sup-rail-gap"></div>
+      {item('escort', '#', 'Escort', Icon.car)}
       {item('guards', '#master', 'Guards', Icon.shield)}
       {atLeast(user, 'branch_admin') && item('admin', '#admin', 'Admin', Icon.wrench)}
       <div className="pd-grow"></div>
