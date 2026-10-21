@@ -193,7 +193,8 @@ No names here (public repo). Names and day-by-day history: private folder outsid
 
 - History (October): 14 people per shift, same guard as the day before only 0–2 / 18 days → the supervisor rotates daily among the Lancor people.
 - List = top 15 by October days (Lancor team + 5 more from history; Manoj Kumar J kept), **daily rotation (D)**. Old list in the private backup file.
-- Note: a D post also gets Rule 8 (free PKL / MLCP men) — Prem to confirm for this post.
+- **Never empty + filled first** (Prem): flag `F` (4th `;` part) = if none of its list is free, Rule 2 takes **any free PKL / MLCP man** on that shift right away, before later posts (escorts on Sunday; no Ninnakarai, ladies, supervisors). Fill priority 3.
+- **Lancor Car Parking `3DF`**, **MLCP Basement-1 `3F`**.
 
 ## 📜 History rules (found, not built yet)
 

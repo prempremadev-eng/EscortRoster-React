@@ -315,6 +315,8 @@ module.exports = function supervisorRoutes(app, h) {
   // "W" in the same part: Mon–Fri only (Kidos School, Prem 21 Oct): no row on Sat / Sun.
   const weekdayOnly = p => String(String((p && p.relief_guards) || '').split(';')[3] || '').includes('W');
   const isWeekend = date => [0, 6].includes(new Date(date + 'T00:00:00Z').getUTCDay());
+  // "F" in the same part: never leave it empty (filled from any free man right after its own list).
+  const mustFill = p => String(String((p && p.relief_guards) || '').split(';')[3] || '').includes('F');
   const isIncharge = p => String(p.post_name || '').toLowerCase().endsWith('shift incharge');
   const listIds = p => String(p.regular_guards || '').split(',').map(x => x.trim()).filter(Boolean);
   const regularIds = (p, posts, supIds) => {
@@ -590,12 +592,17 @@ module.exports = function supervisorRoutes(app, h) {
       // Rule 2 · Regular guards
       const r2 = { no: 2, rule: 'Regular guards', filled: [], empty: [] };
       const nameOf = new Map(guards.map(g => [String(g.ROWID), g.guard_name]));
+      const teamAt = new Map(guards.map(g => [String(g.ROWID), String(g.area || '').toLowerCase()]));
       for (const p of autoPosts) {
         const regular = String(p.regular_guards || '').split(',').map(x => x.trim()).filter(x => nameOf.has(x));
         if (!regular.length) continue;
         for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
           if (taken.has(p.ROWID + '|' + shift)) continue;
-          const g = regular.find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !restDay(p, id));
+          let g = regular.find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !restDay(p, id));
+          // "F" (never empty, Prem 21 Oct: Lancor Car Parking, MLCP Basement-1): none of its list free →
+          // any free PKL / MLCP man on that shift now, before the later posts take them (escorts on Sunday).
+          if (!g && mustFill(p)) g = guards.map(x => String(x.ROWID)).find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !restDay(p, id)
+            && !sups.includes(String(nameOf.get(id)).toLowerCase()) && (['pkl', 'mlcp'].includes(teamAt.get(id)) || (sunday && teamAt.get(id) === 'escort')));
           if (g) { put(p, shift, g); r2.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else r2.empty.push(p.post_name + ' ' + shift);
         }
       }
