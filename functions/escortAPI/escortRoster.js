@@ -6,10 +6,12 @@
 // each list in Month Roster order (E2), turned 4 seats down per duty day (E5) from Day 0:
 // the week's Monday (E6), or in a month's first week the first day the whole 6-to-5 list is on C (E7).
 // Only those on C today do escort duty (E10); the others keep their seat number empty for the day (E9).
+// S.No: 6 to 5 = 1 … n, then 9 to 6 carries on (n + 1 …).
 // The duty sheet keys trips by Escorts ROWID, so each guard on duty gets an Escorts row the first
 // time (linked by Guards.escort_id).
 
 const ROTATION = 4;
+const SUPPORT_POINTS = 12;
 
 const addDays = (date, n) => { const d = new Date(date + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
 const weekday = date => new Date(date + 'T00:00:00Z').getUTCDay();
@@ -62,11 +64,13 @@ async function escortDay(catalystApp, date) {
   let turns = 0;
   for (let d = day0; d < date; d = addDays(d, 1)) if (isDutyDay(d)) turns++;
 
-  const seatList = (ids, label) => ids.map((id, i) => ({
-    guardId: id, guard: byId.get(id), batch: label, seat: ((i + ROTATION * turns) % ids.length) + 1,
+  // 9 to 6 numbers follow on after 6 to 5 (Prem, 21 Oct: like the sheet, 13, 14 …); each list turns on its own.
+  const seatList = (ids, label, after) => ids.map((id, i) => ({
+    guardId: id, guard: byId.get(id), batch: label, seat: after + ((i + ROTATION * turns) % ids.length) + 1,
     onDuty: code(id, date) === 'C', code: code(id, date)
   })).sort((a, b) => a.seat - b.seat);
-  const rows = [...seatList(batch, '6 to 5'), ...seatList(night, '9 to 6')];
+  // 6 to 5 keeps 12 rows (12 support points) even when fewer are on the list, so 9 to 6 starts at 13.
+  const rows = [...seatList(batch, '6 to 5', 0), ...seatList(night, '9 to 6', Math.max(batch.length, SUPPORT_POINTS))];
 
   // An Escorts row for everyone on duty today who has none yet.
   const missing = rows.filter(r => r.onDuty && !r.guard.escort_id);

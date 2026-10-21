@@ -21,6 +21,7 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 | **E12 · Trip details** | The trip popup (cab number, driver, employee stops: Emp ID, location, pickup / drop, time) **stays exactly as it is** — the escort fills it for every trip. No changes |
 | **E13 · Everything else** | The rest of the Escort sheet **stays exactly as it is** (Saturday leave, Sunday pickup sheet, extra today-only rows, remarks, print, dashboard). Don't touch it (Prem, 21 Oct) |
 | **E14 · Sunday** | The Schedule page shows **no escort list on Sunday** (escorts take posts that day) |
+| **E15 · Numbering** | One running S.No like the real sheet: **6 to 5 = 1 … 12** (12 rows even if fewer, 12 support points), **9 to 6 carries on from 13**. Each list still turns 4 down on its own |
 
 ## Seen in the real sheets (to confirm)
 
