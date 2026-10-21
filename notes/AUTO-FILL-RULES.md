@@ -169,6 +169,13 @@ No names here (public repo). Names and day-by-day history: private folder outsid
   - One MLCP man moved to the Escort 9-to-6 list for the day, one A-shift man absent: **day changes**, the supervisor fixes them with the picker.
 - Same person at the same post: A 18 / 44, C 13 / 44 (the supervisor rotates posts by hand).
 
+## 🗓️ Rows only when the person is on that shift (21 Oct, Prem)
+
+- `R` (4th `;` part) = the post's row shows only on the shifts its people work that day (month roster). `R` + shifts (e.g. `RG`) = only for those shifts.
+- **MLCP CCTV** `R` (one fixed person). **Documents** `RG` and **Shift Incharge** `RG`: the **G row only when a Documents person / a supervisor is on G**; no one → no G row (not counted as empty). Shift Incharge counts the supervisors except MLCP Shift Incharge's own regular.
+- **MLCP Shift Incharge**: no `R` — if he is on leave the row stays empty.
+- Empty Lancor / MLCP slots with free men: **leave empty, the supervisor fills** (Prem: "slot free ah irukkattum"). Hospital Rear Side: still off.
+
 ## 📜 History rules (found, not built yet)
 
 ### H1 · Lady pool: vaaram vaaram rotation
