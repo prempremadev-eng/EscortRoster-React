@@ -173,3 +173,18 @@
 .sh-t td.sh-wrap{white-space:normal;height:auto;}
 .sh-gap{color:#B91C1C;font-weight:700;}
 .sh-total td{font-weight:700;background:#F3F4F6;}
+/* Rail with labels, in the supervisor's order of work */
+.sup-rail-lbl{flex-direction:column;gap:2px;height:52px;width:58px;}
+.sup-rail-lbl span{font-size:10px;font-weight:600;line-height:1;white-space:nowrap;}
+.sup-rail-gap{width:36px;border-top:1px solid #33405A;margin:2px 0;}
+/* Schedule: today's steps */
+.sc-flow{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:8px 20px;background:var(--pd-surface);border-bottom:1px solid var(--pd-border);font-size:13px;}
+.sc-step{display:inline-flex;align-items:center;gap:6px;padding:4px 10px;border-radius:999px;border:1px solid var(--pd-border);background:#fff;color:var(--pd-ink);text-decoration:none;font-family:inherit;font-size:13px;cursor:pointer;}
+.sc-step b{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#E5E7EB;font-size:11px;}
+.sc-step-done{border-color:#86EFAC;background:#F0FDF4;}
+.sc-step-done b{background:#22C55E;color:#fff;}
+.sc-step-todo{border-color:#FCA5A5;background:#FEF2F2;}
+.sc-step-todo b{background:#EF4444;color:#fff;}
+.sc-arrow{color:var(--pd-muted);}
+/* Month roster inside the supervisor frame */
+.sup-page{flex-grow:1;min-width:0;overflow:auto;}

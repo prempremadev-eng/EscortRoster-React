@@ -53,10 +53,10 @@ function readRoster(XLSX, wb, guards, days) {
   return best;
 }
 
-export default function RosterPage() {
+export default function RosterPage({ initialMonth }) {
   const [branches, setBranches] = useState([]);
   const [branch, setBranch] = useState('');
-  const [month, setMonth] = useState(thisMonth);
+  const [month, setMonth] = useState(() => (/^\d{4}-\d{2}$/.test(initialMonth || '') ? initialMonth : thisMonth()));
   const [data, setData] = useState(null);
   const [area, setArea] = useState('');
   const [q, setQ] = useState('');
@@ -177,6 +177,7 @@ export default function RosterPage() {
           <input type="file" accept=".xlsx,.xls,.csv" onChange={pickFile} hidden />
         </label>
         <button className="btn" onClick={load}>🔄 Refresh</button>
+        <a className="btn" href="#schedule" title="Step 2: fill the daily schedule from this roster">Next: Schedule →</a>
       </div>
 
       <div className="dash">

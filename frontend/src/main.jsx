@@ -14,6 +14,9 @@ import SupervisorBoard from './supervisor/SupervisorBoard.jsx';
 import SupervisorSchedule from './supervisor/SupervisorSchedule.jsx';
 import AdminPage from './admin/AdminPage.jsx';
 import RosterPage from './components/RosterPage.jsx';
+import Rail from './supervisor/Rail.jsx';
+import './post/post.css';
+import './supervisor/supervisor.css';
 import AuthGate from './auth/AuthGate.jsx';
 import './style.css';
 
@@ -74,8 +77,14 @@ function Root() {
   }
   // Everything else: signed in, with a role (auth/AuthGate.jsx). The supervisor screens have
   // their own side rail, so no top bar there.
-  const supScreen = hash === '#supervisor' || hash.startsWith('#supervisor/') || hash === '#board' || hash === '#schedule';
+  const supScreen = hash === '#supervisor' || hash.startsWith('#supervisor/') || hash === '#board' || hash === '#schedule' || hash === '#roster' || hash.startsWith('#roster/');
   return <AuthGate bar={!supScreen}>{page(hash)}</AuthGate>;
+}
+
+// An older full-width page (Month roster) shown with the supervisor rail, so the supervisor
+// moves Roster → Schedule → Live board without the top bar.
+function SupFrame({ active, children }) {
+  return <div className="pd sup"><Rail active={active} /><main className="sup-page">{children}</main></div>;
 }
 
 function page(hash) {
@@ -86,7 +95,7 @@ function page(hash) {
   if (hash === '#simulator') return <CardSimulator />;
   if (hash === '#links') return <GuardLinks />;
   if (hash === '#admin') return <AdminPage />;
-  if (hash === '#roster') return <RosterPage />;
+  if (hash === '#roster' || hash.startsWith('#roster/')) return <SupFrame active="roster"><RosterPage key={hash} initialMonth={hash.split('/')[1] || null} /></SupFrame>;
   // #supervisor/<post> comes from a supervisor notification: opens that post.
   if (hash === '#supervisor' || hash.startsWith('#supervisor/')) return <SupervisorInbox key={hash} initialPost={hash.split('/')[1] || null} />;
   if (hash === '#board') return <SupervisorBoard />;

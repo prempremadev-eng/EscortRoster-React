@@ -125,6 +125,9 @@ export default function SupervisorSchedule() {
   function savePoint(guard, value) {
     run(() => api.escortPoint(branch, date, guard, value), () => setNote(nameOf(guard) + ': support point ' + (value ? 'saved.' : 'removed.')));
   }
+  const autoFill = () => run(() => api.scheduleAuto(branch, date), r => setNote('⚡ Auto fill: ' + r.data.filled + ' filled. ' + r.data.rules.map((x, i) => 'Rule ' + (x.no || i + 1) + ' · ' + x.rule + ': ' + (x.filled.length > 6 ? x.filled.length + ' filled' : x.filled.join(', ') || 'nothing new') + (x.empty.length ? ' · no one for ' + (x.empty.length > 6 ? x.empty.length + ' slot(s)' : x.empty.join(', ')) : '')).join(' | ') + '. Check, fix and then Publish.'));
+  const publish = () => run(() => api.schedulePublish(branch, date), r => setNote(r.data.published ? 'Published · ' + r.data.published + ' slot(s). Guards get it at card IN.' : 'Everything is already published.'));
+  const toSummary = () => { const el = document.getElementById('sc-summary'); if (el) el.scrollIntoView({ behavior: 'smooth' }); };
   // Day summary: per shift how many slots, filled, unfilled (with the empty posts by name), then a total.
   const summary = data ? [...ABC, ...(shiftG ? [shiftG] : [])].map(s => {
     const list = s.code === 'G' ? gPosts : data.posts.filter(p => hasShift(p, s.code));
@@ -225,18 +228,32 @@ export default function SupervisorSchedule() {
           <select className="pd-search sb-branch" value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">
             {branches.map(x => <option key={x.ROWID} value={x.ROWID}>{x.branch_name}{x.area ? ' (' + x.area + ')' : ''} · {x.city}</option>)}
           </select>
-          <button className="pd-chip pd-chip-primary" onClick={() => run(() => api.scheduleAuto(branch, date), r => setNote('⚡ Auto fill: ' + r.data.filled + ' filled. ' + r.data.rules.map((x, i) => 'Rule ' + (x.no || i + 1) + ' · ' + x.rule + ': ' + (x.filled.length > 6 ? x.filled.length + ' filled' : x.filled.join(', ') || 'nothing new') + (x.empty.length ? ' · no one for ' + (x.empty.length > 6 ? x.empty.length + ' slot(s)' : x.empty.join(', ')) : '')).join(' | ') + '. Check, fix and then Publish.'))} disabled={busy}
+          <button className="pd-chip pd-chip-primary" onClick={autoFill} disabled={busy}
             title="Fill empty slots by the fill rules (now: Rule 1 Shift Incharge from the month roster)">⚡ Auto fill</button>
           <button className="pd-chip" onClick={() => window.confirm('Empty the whole sheet of ' + niceDate(date) + '? All ' + filled + ' name(s) go, published ones too.') && run(() => api.scheduleClear(branch, date), r => { setPick(null); setNote('🧹 Cleared · ' + r.data.cleared + ' slot(s) emptied.'); })} disabled={busy || !filled}
             title="Empty this day to fill it again by hand, or to try one fill rule at a time">🧹 Clear day</button>
           <button className="pd-chip" onClick={() => run(() => api.scheduleCopy(branch, date), r => setNote(r.data.copied ? 'Copied ' + r.data.copied + ' slot(s) from the ' + r.data.from + '.' : 'Nothing to copy (no schedule yesterday, and the weekly chart has no free slots).'))} disabled={busy}>Copy from yesterday</button>
-          <button className="pd-chip pd-chip-primary" onClick={() => run(() => api.schedulePublish(branch, date), r => setNote(r.data.published ? 'Published · ' + r.data.published + ' slot(s). Guards get it at card IN.' : 'Everything is already published.'))} disabled={busy || !drafts}>Publish to guards</button>
+          <button className="pd-chip pd-chip-primary" onClick={publish} disabled={busy || !drafts}>Publish to guards</button>
+          <a className="pd-chip" href={'#roster/' + date.slice(0, 7)} title="Month roster: who works which shift each day">📅 Month roster</a>
           <button className="pd-chip" onClick={() => window.print()} title="Print or save as PDF to share">🖨️ Print</button>
           <a className="pd-chip" href="#chart" title="Weekly Duty Chart (used when a day has no published schedule)">Weekly chart</a>
           </>}
           <button className="pd-icon-btn sc-tools" onClick={toggleTools} aria-label={tools ? 'Hide buttons' : 'Show buttons'} title={tools ? 'Hide buttons (bigger sheet)' : 'Show buttons'}>{tools ? '▴' : '▾'}</button>
         </div>
 
+        {data && tools && (
+          <div className="sc-flow no-print">
+            <a className={'sc-step ' + (data.hasRoster ? 'sc-step-done' : 'sc-step-todo')} href={'#roster/' + date.slice(0, 7)}><b>1</b>{data.hasRoster ? 'Month roster ready' : 'Upload the month roster'}</a>
+            <span className="sc-arrow">→</span>
+            <button className={'sc-step ' + (filled ? 'sc-step-done' : 'sc-step-todo')} onClick={autoFill} disabled={busy || !data.hasRoster}><b>2</b>{filled ? 'Filled ' + filled + ' of ' + total : '⚡ Auto fill'}</button>
+            <span className="sc-arrow">→</span>
+            <button className={'sc-step ' + (filled && total - filled === 0 ? 'sc-step-done' : filled ? 'sc-step-todo' : '')} onClick={toSummary}><b>3</b>{filled ? 'Check: ' + (total - filled) + ' empty · ' + idle.length + ' free guards' : 'Check the summary'}</button>
+            <span className="sc-arrow">→</span>
+            <button className={'sc-step ' + (filled && !drafts ? 'sc-step-done' : drafts ? 'sc-step-todo' : '')} onClick={publish} disabled={busy || !drafts}><b>4</b>{drafts ? 'Publish ' + drafts : filled ? 'Published' : 'Publish'}</button>
+            <span className="sc-arrow">→</span>
+            <a className="sc-step" href="#board"><b>5</b>Watch the Live board</a>
+          </div>
+        )}
         {error && <div className="pd-error-bar">{error}</div>}
         {note && tools && <div className="sc-note">{note}</div>}
         {!data && !error && <div className="pd-muted sup-pad">Loading...</div>}
@@ -300,7 +317,7 @@ export default function SupervisorSchedule() {
                   </datalist>
                 </div>
 
-                <div className="sh-row">
+                <div className="sh-row" id="sc-summary">
                   <table className="sh-t">
                     <colgroup><col className="w-code" /><col className="w-code2" /><col className="w-code2" /><col className="w-code2" /><col className="w-wide" /></colgroup>
                     <thead>
