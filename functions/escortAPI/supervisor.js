@@ -693,12 +693,16 @@ module.exports = function supervisorRoutes(app, h) {
       // the lady / Medical Mine posts.
       const sundayPost = x => sunday && !regularOnly(x) && !isIncharge(x) && String(x.section || '').toLowerCase() !== 'hospital block'
         && !['ninnakarai', 'lady guards', 'medical mine'].includes(teamOf(x).toLowerCase());
+      // G shift (Prem, 21 Oct): a G guard still free goes to any empty G men's post, never left idle.
+      const gPost = x => !regularOnly(x) && !isIncharge(x) && String(x.section || '').toLowerCase() !== 'hospital block'
+        && !['ninnakarai', 'lady guards', 'medical mine'].includes(teamOf(x).toLowerCase());
       const r8 = { no: 8, rule: 'Anyone free', filled: [], empty: [] };
-      for (const p of autoPosts.filter(x => reliefOf(x).length >= 5 || dailyPosts.includes(x) || sundayPost(x))) {
+      for (const p of autoPosts.filter(x => reliefOf(x).length >= 5 || dailyPosts.includes(x) || sundayPost(x) || gPost(x))) {
         const team = teamOf(p);
         const daily = reliefOf(p).length < 5;
         const isEscort = id => areaOf.get(id).toLowerCase() === 'escort';
-        for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
+        const onlyG = !(reliefOf(p).length >= 5 || dailyPosts.includes(p) || sundayPost(p));
+        for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s) && (!onlyG || s === 'G'))) {
           if (taken.has(p.ROWID + '|' + shift)) continue;
           const g = guards.map(x => String(x.ROWID))
             .filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !sups.includes(String(nameOf.get(id)).toLowerCase()) && areaOf.get(id).toLowerCase() !== 'lady guards' && !restDay(p, id))
