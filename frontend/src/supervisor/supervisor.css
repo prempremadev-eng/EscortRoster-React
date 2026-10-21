@@ -188,3 +188,5 @@
 .sc-arrow{color:var(--pd-muted);}
 /* Month roster inside the supervisor frame */
 .sup-page{flex-grow:1;min-width:0;overflow:auto;}
+/* G shift: one block per section, stacked like the printed sheet */
+.sh-stack{display:flex;flex-direction:column;gap:12px;}

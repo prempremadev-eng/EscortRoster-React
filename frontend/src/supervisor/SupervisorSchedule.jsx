@@ -120,6 +120,13 @@ export default function SupervisorSchedule() {
     sec.posts.push(p);
   });
   const gPosts = data && shiftG ? data.posts.filter(p => hasShift(p, 'G') && p.shifts) : [];
+  // G shift like the printed sheet: one G block per section (PKL, then MLCP …), stacked in the first column.
+  const gSections = [];
+  gPosts.forEach(p => {
+    let sec = gSections.find(x => x.name === p.section);
+    if (!sec) gSections.push(sec = { name: p.section, posts: [] });
+    sec.posts.push(p);
+  });
   const nameOf = id => ((data && data.guards.find(g => g.ROWID === id)) || {}).name || 'Guard';
   function savePoint(guard, value) {
     run(() => api.escortPoint(branch, date, guard, value), () => setNote(nameOf(guard) + ': support point ' + (value ? 'saved.' : 'removed.')));
@@ -271,7 +278,9 @@ export default function SupervisorSchedule() {
                 ))}
 
                 <div className="sh-row">
-                  {shiftG && gPosts.length > 0 && <ShiftTable code="G" title="G shift" posts={gPosts} />}
+                  {shiftG && gPosts.length > 0 && <div className="sh-stack">
+                    {gSections.map(sec => <ShiftTable key={sec.name} code="G" title={sec.name + ' · G shift'} posts={sec.posts} />)}
+                  </div>}
                   <table className="sh-t">
                     <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code2" /></colgroup>
                     <thead>
