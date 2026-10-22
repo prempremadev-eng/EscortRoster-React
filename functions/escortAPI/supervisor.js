@@ -208,7 +208,7 @@ module.exports = function supervisorRoutes(app, h) {
   const LATE_IN_MIN = 15;
   const plusMin = (hm, n) => { const t = ((Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) + n) % 1440 + 1440) % 1440; return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
   // Card IN windows at Estancia (Prem, 22 Oct): a swipe from the first time counts for that duty; an IN after
-  // the second time is marked late. The board's Auto moves to a shift when its window opens; "Due" from the
+  // the shift start is marked late. The board's Auto moves to a shift when its window opens; "Due" from the
   // window opening to the shift start, then "Not IN". Escorts: 6 to 5 starts 18:00, 9 to 6 at 21:00.
   const IN_WINDOW = { A: ['05:20', '06:15'], B: ['12:30', '13:15'], G: ['08:20', '09:15'], C: ['20:20', '21:15'], '6 to 5': ['17:20', '18:15'], '9 to 6': ['20:20', '21:15'] };
   const ESCORT_START = { '6 to 5': '18:00', '9 to 6': '21:00' };
@@ -244,8 +244,9 @@ module.exports = function supervisorRoutes(app, h) {
           const rows = list.map(r => {
             const g = r.guardId, trip = running.find(t => String(t.escort_id) === String(r.guard.escort_id));
             const out = last[g] && last[g].direction === 'OUT';
-            const [inFrom, inTo] = windowOf(r.batch);
-            const late = firstIn[g] && firstIn[g] > inTo ? ' · late' : '';
+            const [inFrom] = windowOf(r.batch);
+            // Late = IN after the start (an IN after midnight is late too).
+            const late = firstIn[g] && (firstIn[g] > ESCORT_START[r.batch] || firstIn[g] < '12:00') ? ' · late' : '';
             const startAt = ESCORT_START[r.batch];
             let state = 'due', meta = 'IN from ' + inFrom + ' · starts ' + startAt;
             if (out) { state = 'empty'; meta = 'Card OUT ' + last[g].punch_time; }
@@ -279,8 +280,9 @@ module.exports = function supervisorRoutes(app, h) {
       const day = shiftDate();
       const startStamp = shift.start ? day + ' ' + shift.start : null;
       const started = startStamp && now >= startStamp;
-      const [inFrom, inTo] = windowOf(shift.code, shift.start);
-      const lateTag = at => (at && inTo && hhmm(at) > inTo ? ' · late IN ' + hhmm(at) : '');
+      const [inFrom] = windowOf(shift.code, shift.start);
+      // Late = IN after the shift start (Prem, 22 Oct), e.g. B IN at 13:05 → late.
+      const lateTag = at => (at && startStamp && String(at).slice(0, 16) > startStamp ? ' · late IN ' + hhmm(at) : '');
       const shiftsOut = shifts.map(x => { const w = windowOf(x.code, x.start); return { ...x, inFrom: w[0], inTo: w[1] }; });
 
       // Escort tab: escorts only.

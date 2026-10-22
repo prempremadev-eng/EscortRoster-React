@@ -53,5 +53,5 @@ The left rail is in this order, so the supervisor just goes top to bottom.
 | Escort 9 to 6 | 21:00 – 06:00 | 20:20 – 21:15 |
 
 - Shift times live in the **Shifts** table (B changed 14:00 → 13:00). IN windows are in `supervisor.js` (`IN_WINDOW`).
-- Live board: **Auto** moves to a shift when its IN window opens; a post / escort is **Due** from the window opening to the **shift start**, then **Not IN** at once (red, Needs attention); an IN after the window end shows **late**.
+- Live board: **Auto** moves to a shift when its IN window opens; a post / escort is **Due** from the window opening to the **shift start**, then **Not IN** at once (red, Needs attention); an IN **after the shift start** shows **late** (e.g. B IN 13:05).
 - Live board tabs: **A · G · B · C** = posts only; **🚗 Escort** = 6 to 5 and 9 to 6 only.
