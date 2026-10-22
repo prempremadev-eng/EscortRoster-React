@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { shortDate, plusDay } from '../utils.js';
+import useFullView from './useFullView.js';
 
 // Duty History (read only, replaces the weekly Duty Chart page): one day of one branch, every guard with
 // team, roster letter, post or escort seat, card IN / OUT and a status. Nothing can be changed here.
@@ -17,6 +18,7 @@ export default function DutyHistory() {
   const [branch, setBranch] = useState('');
   const [date, setDate] = useState(today);
   const [data, setData] = useState(null);
+  const [full, toggleFull] = useFullView('full-' + 'DutyHistory');
   const [agency, setAgency] = useState('');
   const [team, setTeam] = useState('');
   const [shift, setShift] = useState('');
@@ -61,6 +63,14 @@ export default function DutyHistory() {
 
   return (
     <>
+      {full ? (
+        <div className="full-bar no-print">
+          <b>📖 Duty History · {shortDate(date)}</b>
+          <button className="btn secondary" onClick={() => setDate(d => plusDay(d, -1))} aria-label="Previous day">‹</button>
+          <button className="btn secondary" onClick={() => setDate(d => plusDay(d, 1))} aria-label="Next day">›</button>
+          <button className="btn secondary" onClick={toggleFull} title="Show the buttons and filters">▾</button>
+        </div>
+      ) : <>
       <div className="titlebar">
         <h1>📖 Duty History</h1>
       </div>
@@ -81,13 +91,16 @@ export default function DutyHistory() {
         <div className="spacer"></div>
         <button className="btn secondary" onClick={() => window.print()}>🖨️ Print</button>
         <button className="btn" onClick={load}>🔄 Refresh</button>
+        <button className="btn secondary" onClick={toggleFull} title="Hide the buttons and filters (full page)">▴</button>
       </div>
+      </>}
 
-      <div className="dash">
+      <div className={'dash' + (full ? ' dash-full' : '')}>
         {error && <div className="trip-error">{error}</div>}
         {!data && !error && <div className="loading-message">Loading...</div>}
         {data && (
           <>
+            {!full && <>
             <div className="dh-chips no-print">
               <button className={'dh-chip' + (!status ? ' on' : '')} onClick={() => setStatus('')}>All <b>{base.length}</b></button>
               {STATUS_ORDER.filter(count).map(s => (
@@ -119,6 +132,7 @@ export default function DutyHistory() {
                 <input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="Name, P code or post" />
               </label>
             </div>
+            </>}
             <div className="dash-range-label">{date.split('-').reverse().join('-')} · read only (from the Month Roster, the published Schedule and the card swipes)</div>
             <div className="dash-scroll">
               <table className="dash-table dh-table">

@@ -1080,3 +1080,7 @@ td.in-late{color:#b91c1c;}
 .sr-off{margin:8px 0 4px;font-size:14px;}
 .sr-block{margin:10px 0 16px;}
 .sr-title{font-weight:700;margin-bottom:6px;color:#1e293b;}
+/* ▴ / ▾ full page view (Duty History, Shift Report) */
+.dash.dash-full{max-width:none;padding:8px 12px 30px;}
+.full-bar{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#eff6ff;border-bottom:1px solid var(--border);}
+.full-bar b{flex:1;color:var(--blue-dark);}

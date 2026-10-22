@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { shortDate, plusDay } from '../utils.js';
+import useFullView from './useFullView.js';
 
 // Shift Report (read only): what the supervisor reports to the branch admin for one day. Per shift:
 // allotted, posts, filled, present, late, absent, spare, vacant; then the lists behind the numbers.
@@ -23,6 +24,7 @@ export default function ShiftReport() {
   const [branch, setBranch] = useState('');
   const [date, setDate] = useState(today);
   const [data, setData] = useState(null);
+  const [full, toggleFull] = useFullView('full-' + 'ShiftReport');
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -55,6 +57,14 @@ export default function ShiftReport() {
 
   return (
     <>
+      {full ? (
+        <div className="full-bar no-print">
+          <b>📊 Shift Report · {shortDate(date)}</b>
+          <button className="btn secondary" onClick={() => setDate(d => plusDay(d, -1))} aria-label="Previous day">‹</button>
+          <button className="btn secondary" onClick={() => setDate(d => plusDay(d, 1))} aria-label="Next day">›</button>
+          <button className="btn secondary" onClick={toggleFull} title="Show the buttons and filters">▾</button>
+        </div>
+      ) : <>
       <div className="titlebar">
         <h1>📊 Shift Report</h1>
       </div>
@@ -75,9 +85,11 @@ export default function ShiftReport() {
         <div className="spacer"></div>
         <button className="btn secondary" onClick={() => window.print()}>🖨️ Print / PDF</button>
         <button className="btn" onClick={load}>🔄 Refresh</button>
+        <button className="btn secondary" onClick={toggleFull} title="Hide the buttons and filters (full page)">▴</button>
       </div>
+      </>}
 
-      <div className="dash">
+      <div className={'dash' + (full ? ' dash-full' : '')}>
         {error && <div className="trip-error">{error}</div>}
         {!data && !error && <div className="loading-message">Loading...</div>}
         {data && (
