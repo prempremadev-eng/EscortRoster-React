@@ -402,7 +402,7 @@ module.exports = function supervisorRoutes(app, h) {
       };
       const [posts, shifts, guards, roster, slots] = await Promise.all([
         branchPosts(req, zcql, branch), getShifts(zcql),
-        all(`SELECT ROWID, id_number, guard_name, area FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
+        all(`SELECT ROWID, id_number, guard_name, area, agency FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
         all(`SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${date.slice(0, 7)}' ORDER BY ROWID ASC`, 'MonthRoster'),
         all(`SELECT post_id, shift_code, guard_id FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${date}' AND published = true ORDER BY ROWID ASC`, 'Schedule')
       ]);
@@ -440,7 +440,7 @@ module.exports = function supervisorRoutes(app, h) {
         else if (!post) status = code ? 'No post' : 'No roster';
         else status = startAt && now < startAt ? 'Not yet' : 'Absent';
         return {
-          id: g.id_number || '', name: g.guard_name, team: g.area || '', roster: code, post, shift,
+          id: g.id_number || '', name: g.guard_name, agency: g.agency || '', team: g.area || '', roster: code, post, shift,
           in: inRow ? inRow.punch_time : '', out: outRow ? outRow.punch_time : '', status, order: order[id] ?? 9999
         };
       });

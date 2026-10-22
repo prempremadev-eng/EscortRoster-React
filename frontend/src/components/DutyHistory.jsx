@@ -17,6 +17,7 @@ export default function DutyHistory() {
   const [branch, setBranch] = useState('');
   const [date, setDate] = useState(today);
   const [data, setData] = useState(null);
+  const [agency, setAgency] = useState('');
   const [team, setTeam] = useState('');
   const [status, setStatus] = useState('');
   const [q, setQ] = useState('');
@@ -47,10 +48,13 @@ export default function DutyHistory() {
   const rows = data ? data.rows : [];
   // "All my branches" (city / state / super admin): one table with a Branch column.
   const many = branch === 'ALL';
-  const teams = [...new Set(rows.map(r => r.team).filter(Boolean))];
-  const count = s => rows.filter(r => r.status === s).length;
-  const shown = useMemo(() => rows.filter(r => (!team || r.team === team) && (!status || r.status === status)
-    && (!q.trim() || (r.name + ' ' + r.id + ' ' + r.post + ' ' + (r.branch || '')).toLowerCase().includes(q.trim().toLowerCase()))), [rows, team, status, q]);
+  // Agency (IPF / ISS / BSS …) → its teams → status chips count inside that choice.
+  const agencies = [...new Set(rows.map(r => r.agency).filter(Boolean))].sort();
+  const teams = [...new Set(rows.filter(r => !agency || r.agency === agency).map(r => r.team).filter(Boolean))];
+  const base = useMemo(() => rows.filter(r => (!agency || r.agency === agency) && (!team || r.team === team)
+    && (!q.trim() || (r.name + ' ' + r.id + ' ' + r.post + ' ' + (r.branch || '')).toLowerCase().includes(q.trim().toLowerCase()))), [rows, agency, team, q]);
+  const count = s => base.filter(r => r.status === s).length;
+  const shown = useMemo(() => base.filter(r => !status || r.status === status), [base, status]);
 
   return (
     <>
@@ -82,12 +86,18 @@ export default function DutyHistory() {
         {data && (
           <>
             <div className="dh-chips no-print">
-              <button className={'dh-chip' + (!status ? ' on' : '')} onClick={() => setStatus('')}>All <b>{rows.length}</b></button>
+              <button className={'dh-chip' + (!status ? ' on' : '')} onClick={() => setStatus('')}>All <b>{base.length}</b></button>
               {STATUS_ORDER.filter(count).map(s => (
                 <button key={s} className={'dh-chip ' + STATUS_CLS[s] + (status === s ? ' on' : '')} onClick={() => setStatus(status === s ? '' : s)}>{s} <b>{count(s)}</b></button>
               ))}
             </div>
             <div className="master-filters no-print">
+              <label>Agency
+                <select value={agency} onChange={e => { setAgency(e.target.value); setTeam(''); }}>
+                  <option value="">All agencies</option>
+                  {agencies.map(a => <option key={a}>{a}</option>)}
+                </select>
+              </label>
               <label>Team
                 <select value={team} onChange={e => setTeam(e.target.value)}>
                   <option value="">All teams</option>
@@ -102,7 +112,7 @@ export default function DutyHistory() {
             <div className="dash-scroll">
               <table className="dash-table dh-table">
                 <thead>
-                  <tr><th>S.No</th>{many && <th>Branch</th>}<th>Name</th><th>ID</th><th>Team</th><th>Roster</th><th>Post</th><th>Shift</th><th>IN</th><th>OUT</th><th>Status</th></tr>
+                  <tr><th>S.No</th>{many && <th>Branch</th>}<th>Name</th><th>ID</th><th>Agency</th><th>Team</th><th>Roster</th><th>Post</th><th>Shift</th><th>IN</th><th>OUT</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                   {shown.map((r, i) => (
@@ -111,6 +121,7 @@ export default function DutyHistory() {
                       {many && <td className="left">{r.branch}</td>}
                       <td className="left"><b>{r.name}</b></td>
                       <td>{r.id}</td>
+                      <td>{r.agency}</td>
                       <td>{r.team}</td>
                       <td>{r.roster || '—'}</td>
                       <td className="left">{r.post || '—'}</td>
@@ -120,7 +131,7 @@ export default function DutyHistory() {
                       <td><span className={'dh-status ' + (STATUS_CLS[r.status] || '')}>{r.status}</span></td>
                     </tr>
                   ))}
-                  {shown.length === 0 && <tr><td colSpan={many ? 11 : 10} className="dash-empty">Nobody matches.</td></tr>}
+                  {shown.length === 0 && <tr><td colSpan={many ? 12 : 11} className="dash-empty">Nobody matches.</td></tr>}
                 </tbody>
               </table>
             </div>
