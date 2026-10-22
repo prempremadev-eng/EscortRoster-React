@@ -33,6 +33,12 @@ export default function GuardPage({ token, testDate }) {
   }, [token, testDate]);
 
   useEffect(() => { load(); }, [load]);
+  // A notification came in (e.g. card OUT): reload, so a left guard's page locks at once.
+  useEffect(() => {
+    const onPush = () => load();
+    window.addEventListener('guard-push', onPush);
+    return () => window.removeEventListener('guard-push', onPush);
+  }, [load]);
 
   const sheet = (data && data.sheet) || [];
   const mine = sheet.find(s => s.me);
@@ -92,7 +98,9 @@ export default function GuardPage({ token, testDate }) {
             <div className="setup-card">
               <div className="setup-hello">Hi <b className="guard-name">{data.name}</b> 👋</div>
               <div className="guard-lock">🔒</div>
-              <p>Your duty page opens after your access card shows <b>IN</b> for today's duty.</p>
+              {data.outTime
+                ? <p>Your card is <b>OUT</b> since {data.outTime}. Your page opens again after you swipe <b>IN</b>.</p>
+                : <p>Your duty page opens after your access card shows <b>IN</b> for today's duty.</p>}
               <button className="btn secondary setup-btn" onClick={load}>🔄 Check again</button>
             </div>
           )}

@@ -585,6 +585,11 @@ function seatOf(escorts, escortId, startDate, dutyDate) {
 //   POST        → "✅ IN 05:55 · Gate 3 · Shift A (06:00–15:00)"
 //   not in the chart → "Duty not assigned yet"
 // Later INs the same duty day (card swiped again after a break) send nothing.
+// A guard's swipes of a duty day, newest first (IN / OUT and time).
+async function punchesOf(zcql, guardId, dutyDate) {
+  return (await zcql.executeZCQLQuery(`SELECT direction, punch_time FROM AccessLog WHERE guard_id = ${guardId} AND duty_date = '${dutyDate}' ORDER BY CREATEDTIME DESC LIMIT 0, 50`)).map(r => r.AccessLog);
+}
+
 async function onCardIn(catalystApp, guard, time, dutyDate) {
   const zcql = catalystApp.zcql();
   const ins = await zcql.executeZCQLQuery(`SELECT ROWID FROM AccessLog WHERE guard_id = ${guard.ROWID} AND duty_date = '${dutyDate}' AND direction = 'IN'`);
@@ -593,7 +598,10 @@ async function onCardIn(catalystApp, guard, time, dutyDate) {
   // Made on any IN of the day that finds none (the chart may have changed after the first IN);
   // a new row also means a new notification.
   const newPostLog = duty && duty.post.post_type === 'POST' ? (await post.onPostIn(catalystApp, guard, duty)).created : false;
-  if (ins.length > 1 && !newPostLog) return { skipped: 'already IN today' };
+  // Back IN after a card OUT the same duty day: notify again (the escort page opens again).
+  const punches = await punchesOf(zcql, guard.ROWID, dutyDate);
+  const backAfterOut = punches[1] && punches[1].direction === 'OUT';
+  if (ins.length > 1 && !newPostLog && !backAfterOut) return { skipped: 'already IN today' };
 
   let body = 'Duty not assigned yet. Ask your supervisor.';
   let seat = null;
@@ -666,6 +674,17 @@ app.post('/addAccessLog', async (req, res) => {
       } catch (err) {
         console.error('Card OUT update failed:', err);
       }
+      // Escort guard: tell the phone, so an open escort page refreshes and locks.
+      if (guard.escort_id) {
+        try {
+          push = await sendPushToGuard(catalystApp, guard.ROWID, {
+            title: '🚪 OUT ' + time, body: 'Your escort page is closed. Swipe IN to open it again.',
+            url: guard.guard_token ? 'index.html#guard/' + guard.guard_token : 'index.html'
+          });
+        } catch (err) {
+          console.error('Card OUT push failed:', err);
+        }
+      }
     }
     res.status(200).json({ status: 'success', data: result, push });
   } catch (err) {
@@ -706,6 +725,11 @@ app.get('/guardDay', async (req, res) => {
     const myEscortRow = myRow ? String(myRow.guard.escort_id) : me.escort_id;
     if (!inTime[myId]) {
       return res.status(200).json({ status: 'success', data: { ...base, locked: true } });
+    }
+    // Card OUT after the IN (left in between): the page locks until the next IN.
+    const last = (await punchesOf(zcql, me.ROWID, dutyDate))[0];
+    if (last && last.direction === 'OUT') {
+      return res.status(200).json({ status: 'success', data: { ...base, locked: true, outTime: last.punch_time } });
     }
 
     const day = dayOf(dutyDate);
@@ -805,6 +829,8 @@ async function guardOnDuty(zcql, req) {
   if (day === 0 || day === 6) throw new Error('No escort trips on Saturday / Sunday');
   const ins = await zcql.executeZCQLQuery(`SELECT ROWID FROM AccessLog WHERE guard_id = ${me.ROWID} AND duty_date = '${dutyDate}' AND direction = 'IN'`);
   if (!ins.length) throw new Error('Your card is not IN for this duty day');
+  const last = (await punchesOf(zcql, me.ROWID, dutyDate))[0];
+  if (last && last.direction === 'OUT') throw new Error('Your card is OUT (' + last.punch_time + '). Swipe IN to continue.');
   return { me, dutyDate, ...(await myTrips(zcql, me.escort_id, dutyDate)) };
 }
 

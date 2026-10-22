@@ -24,6 +24,7 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 | **E15 · Numbering** | One running S.No like the real sheet: **6 to 5 = 1 … 12** (12 rows even if fewer, 12 support points), **9 to 6 carries on from 13**. Each list still turns 4 down on its own |
 | **E16 · Extra escort for a day** | Schedule page → ON DUTY, NO POST → **→ Escort** (only guards on **C** that day): that guard (any team) goes to the **end of 9 to 6** for the day with the next S.No; his card IN gives his seat and his own row on the guard page. ✕ on his escort row removes him. **That day only** (Prem: next day he is back to the normal rules; tap again if needed). Saved as EscortDay.support_point = `Extra 9 to 6` (no new table). The escort sheet's "+ Add Extra" stays for people outside the app (no notification) |
 | **E17 · Phone screens** | Like the post guard: card IN → **Your seat** (S.No, list, shift) → **5 escort rules** (seat belt, ID card + front seat, cab number + driver, safe drop, Out/In time + call supervisor) → **Start duty** → the escort sheet. Start is kept on that phone for the duty day (not on the server yet; the rules text is a draft for Prem to change) |
+| **E18 · Card OUT in between** | Last swipe = OUT → the escort page **locks** ("Card OUT since hh:mm") and trip writes are refused; an OUT notification makes an open page refresh. Swipe IN again the same duty day → page opens again and a new IN notification comes |
 
 ## Seen in the real sheets (to confirm)
 
