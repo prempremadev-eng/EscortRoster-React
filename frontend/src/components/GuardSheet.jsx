@@ -17,7 +17,9 @@ export default function GuardSheet({ token, testDate, dutyDate, sheet, myStops }
 
   const displayRows = sheet.map(r => ({
     ROWID: r.escortId, name: (r.me ? '⭐ ' : '') + r.name,
-    agency: r.agency, mobile: '', id: '', seat: r.seat
+    agency: r.agency, mobile: '', id: '', seat: r.seat,
+    // IN column (trial on the phone, Prem 22 Oct): card IN time, red when late.
+    inTime: r.inTime || '', inLate: !!r.inTime && (r.inTime > (r.batch === '6 to 5' ? '18:00' : '21:00') || r.inTime < '12:00')
   }));
 
   // Same shapes the duty sheet uses: escort ROWID -> { remarks, routes } and trip ROWID -> stops.
@@ -111,6 +113,7 @@ ${mineSel} td:not(.routecell){background:#fef9c3 !important;}`}</style>
       {error && <div className="trip-error gsheet-error">{error}</div>}
       <div className="tablewrap gsheet-orig">
         <DutyTable
+          showIn
           displayRows={displayRows}
           duty={duty}
           stops={stops}

@@ -768,14 +768,14 @@ app.get('/guardDay', async (req, res) => {
     records.forEach(r => { (byEscort[String(r.escort_id)] = byEscort[String(r.escort_id)] || []).push(r); });
     // Roster day: both lists (6 to 5, then 9 to 6) with their seat numbers, like the supervisor's sheet; else the old sheet.
     const rows = myRow
-      ? rosterDay.rows.filter(r => r.onDuty).map(r => ({ ROWID: r.guard.escort_id, escort_name: r.guard.guard_name, agency: r.guard.agency || '', seat: r.seat }))
+      ? rosterDay.rows.filter(r => r.onDuty).map(r => ({ ROWID: r.guard.escort_id, escort_name: r.guard.guard_name, agency: r.guard.agency || '', seat: r.seat, batch: r.batch }))
       : computeDisplayRows(escorts, ROTATION, start && start.setting_value, dutyDate);
     const sheet = rows.map((e, i) => {
       const id = String(e.ROWID);
       const recs = byEscort[id] || [];
       const first = recs.find(r => (parseInt(r.route_no, 10) || 1) === 1);
       return {
-        escortId: id, seat: e.seat || i + 1, me: id === myEscortId, name: e.escort_name, agency: e.agency,
+        escortId: id, seat: e.seat || i + 1, batch: e.batch || '', me: id === myEscortId, name: e.escort_name, agency: e.agency,
         inTime: escortIn[id] || null, remarks: (first && first.remarks) || '',
         routes: Array.from({ length: ROUTES }, (_, k) => {
           const r = recs.find(x => (parseInt(x.route_no, 10) || 1) === k + 1);
