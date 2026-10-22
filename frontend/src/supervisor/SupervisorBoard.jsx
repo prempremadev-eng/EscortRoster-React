@@ -12,6 +12,7 @@ const STATE = {
   waiting: { label: 'IN, not taken over', cls: 'sb-amber' },
   empty: { label: 'Empty', cls: 'sb-red' },
   not_in: { label: 'Not IN', cls: 'sb-red' },
+  due: { label: 'Due', cls: 'sb-grey' },
   none: { label: 'No guard', cls: 'sb-grey' }
 };
 
@@ -44,6 +45,7 @@ export default function SupervisorBoard() {
   const [branches, setBranches] = useState([]);
   // Starts empty: the remembered branch is used only if it is in this login's area.
   const [branch, setBranch] = useState('');
+  // '' = follow the running shift (Auto); a tapped tab pins that shift.
   const [shift, setShift] = useState('');
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -62,7 +64,6 @@ export default function SupervisorBoard() {
     try {
       const d = (await api.supBoard(branch, shift)).data;
       setData(d);
-      if (!shift) setShift(d.shift.code);
     } catch (err) {
       setError(err.message);
     }
@@ -75,7 +76,20 @@ export default function SupervisorBoard() {
     return () => document.removeEventListener('visibilitychange', onShow);
   }, [load]);
 
+  // Auto: one reload at the next shift start (A / B / C), so the board moves on by itself without polling.
+  useEffect(() => {
+    if (shift || !data) return undefined;
+    const now = new Date();
+    const mins = now.getHours() * 60 + now.getMinutes();
+    const starts = data.shifts.filter(s => s.code !== 'G' && s.start).map(s => Number(s.start.slice(0, 2)) * 60 + Number(s.start.slice(3, 5)));
+    if (!starts.length) return undefined;
+    const next = starts.map(t => (t - mins + 1440) % 1440 || 1440).sort((a, b) => a - b)[0];
+    const t = setTimeout(load, (next * 60 - now.getSeconds() + 5) * 1000);
+    return () => clearTimeout(t);
+  }, [shift, data, load]);
+
   function openPost(id) {
+    if (!id) { window.location.hash = '#'; return; } // an escort line opens the escort duty sheet
     keep('sup_open', id);
     window.location.hash = '#supervisor';
   }
@@ -97,6 +111,7 @@ export default function SupervisorBoard() {
             {branches.map(x => <option key={x.ROWID} value={x.ROWID}>{x.branch_name}{x.area ? ' (' + x.area + ')' : ''} · {x.city}</option>)}
           </select>
           <div className="pd-quick">
+            <button className={'pd-chip' + (!shift ? ' pd-chip-primary' : '')} onClick={() => setShift('')} title="Follow the running shift">Auto{!shift && data ? ' · ' + data.shift.code : ''}</button>
             {shifts.map(s => <button key={s.code} className={'pd-chip' + (shift === s.code ? ' pd-chip-primary' : '')} onClick={() => setShift(s.code)}>Shift {s.code}</button>)}
           </div>
           <a className="pd-chip" href="#schedule">Edit schedule</a>
@@ -125,6 +140,20 @@ export default function SupervisorBoard() {
                 ))}
                 {data.posts.length === 0 && <div className="pd-muted">No posts in this branch. Add them in Posts.</div>}
               </div>
+              {data.escort && (
+                <>
+                  <div className="pd-label sb-gap">ESCORT · {data.escort.kpi.in} of {data.escort.kpi.total} IN · {data.escort.kpi.onTrip} on trip{data.escort.kpi.notIn ? ' · ' + data.escort.kpi.notIn + ' not IN' : ''}</div>
+                  <div className="sb-grid">
+                    {data.escort.rows.map(r => (
+                      <button key={r.batch + r.seat} className={'sb-card ' + STATE[r.state].cls} onClick={() => openPost('')}>
+                        <div className="pd-row-between"><b>S.No {r.seat} · {r.batch}</b><span className="sb-label">{r.state === 'on_duty' && r.meta.startsWith('On trip') ? 'On trip' : STATE[r.state].label}</span></div>
+                        <div className="sb-guard">{r.name}</div>
+                        <div className="pd-small pd-muted">{r.meta}</div>
+                      </button>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
 
             <aside className="sb-side">

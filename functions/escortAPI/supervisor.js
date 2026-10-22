@@ -206,6 +206,9 @@ module.exports = function supervisorRoutes(app, h) {
   // One branch, one shift: every post with who should be there (Duty Chart) and what really
   // happened (DutyLog), plus what needs the supervisor now. About 7 reads per load; no timer.
   const LATE_IN_MIN = 15;
+  const plusMin = (hm, n) => { const t = Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) + n; return String(Math.floor(t / 60) % 24).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
+  // Escort duty starts (notes/ESCORT-RULES.md): 6 to 5 at 18:00, 9 to 6 at 21:00.
+  const ESCORT_START = { '6 to 5': '18:00', '9 to 6': '21:00' };
   const NO_TAKEOVER_MIN = 10;
 
   // The shift running now (the latest A / B / C that has started today); C before 06:00.
@@ -235,7 +238,9 @@ module.exports = function supervisorRoutes(app, h) {
       const [weekly, planned, logs, brks, openW, recentW] = await Promise.all([
         zcql.executeZCQLQuery(`SELECT guard_id, post_id FROM DutyChart WHERE week_start = '${weekStartOf(day)}' AND shift_code = '${code}' AND post_id IN (${ids})`).then(r => r.map(x => x.DutyChart)),
         zcql.executeZCQLQuery(`SELECT guard_id, post_id, shift_code FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${day}' AND published = true`).then(r => r.map(x => x.Schedule)),
-        activeLogs(zcql, posts.map(p => p.ROWID)).then(l => l.filter(x => x.shift_code === code)),
+        // Today's logs, plus a guard from yesterday who is still at the post (no Card OUT / handover yet);
+        // yesterday's finished duty (Card OUT) is not shown on today's board (Prem, 22 Oct).
+        activeLogs(zcql, posts.map(p => p.ROWID)).then(l => l.filter(x => x.shift_code === code && (x.duty_date === day || ['on_duty', 'on_break'].includes(x.status)))),
         zcql.executeZCQLQuery(`SELECT post_id, status, cover_guard_id, start_at FROM Breaks WHERE post_id IN (${ids}) AND ${statusIn(['accepted', 'alone'])}`).then(r => r.map(x => x.Breaks)),
         zcql.executeZCQLQuery(`SELECT * FROM WorkUpdates WHERE post_id IN (${ids}) AND finished_at IS NULL`).then(r => r.map(x => x.WorkUpdates)),
         zcql.executeZCQLQuery(`SELECT * FROM WorkUpdates WHERE post_id IN (${ids}) AND started_at >= '${day} 00:00' ORDER BY CREATEDTIME DESC LIMIT 6`).then(r => r.map(x => x.WorkUpdates))
@@ -273,14 +278,54 @@ module.exports = function supervisorRoutes(app, h) {
             }
           }
         } else if (planned.length && started) {
-          state = 'not_in'; meta = 'Not IN · shift started ' + shift.start;
-          if (minutesBetween(startStamp, now) >= LATE_IN_MIN) attention.push({ post: p.post_name, postId: id, text: guard + ' not IN · shift started ' + shift.start, level: 'red' });
+          // First 15 min of the shift: "Due" (grey), then "Not IN" (red) and Needs attention.
+          if (minutesBetween(startStamp, now) < LATE_IN_MIN) {
+            state = 'due'; meta = 'Shift started ' + shift.start + ' · IN expected by ' + plusMin(shift.start, LATE_IN_MIN);
+          } else {
+            state = 'not_in'; meta = 'Not IN · shift started ' + shift.start;
+            attention.push({ post: p.post_name, postId: id, text: guard + ' not IN · shift started ' + shift.start, level: 'red' });
+          }
         }
         return { ROWID: id, name: p.post_name, state, guard, meta };
       });
       openW.filter(w => w.permit_end && now > w.permit_end).forEach(w => {
         attention.push({ post: postName(w.post_id) + ' · Permit expired', postId: String(w.post_id), text: w.contractor + ' still working after ' + w.permit_to, level: 'red' });
       });
+      // Escort section (Shift C board, weekdays): today's escort lists with IN / OUT and the trip running now.
+      let escort = null;
+      if (code === 'C') {
+        const rosterDay = await escortDay(catalystApp, day);
+        if (rosterDay) {
+          const list = rosterDay.rows.filter(r => r.onDuty);
+          const gids = list.map(r => r.guardId);
+          const eids = list.map(r => String(r.guard.escort_id)).filter(Boolean);
+          const [punches, running] = await Promise.all([
+            gids.length ? zcql.executeZCQLQuery(`SELECT guard_id, direction, punch_time FROM AccessLog WHERE duty_date = '${day}' AND guard_id IN (${idList(gids)}) ORDER BY CREATEDTIME ASC LIMIT 0, 300`).then(r => r.map(x => x.AccessLog)) : [],
+            eids.length ? zcql.executeZCQLQuery(`SELECT escort_id, route_no, location, out_time FROM DutyRecords WHERE duty_date = '${day}' AND escort_id IN (${idList(eids)}) AND out_time != '' AND (in_time = '' OR in_time IS NULL) LIMIT 0, 300`).then(r => r.map(x => x.DutyRecords)) : []
+          ]);
+          const firstIn = {}, last = {};
+          punches.forEach(x => { const g = String(x.guard_id); if (x.direction === 'IN' && !firstIn[g]) firstIn[g] = x.punch_time; last[g] = x; });
+          const rows = list.map(r => {
+            const g = r.guardId, trip = running.find(t => String(t.escort_id) === String(r.guard.escort_id));
+            const out = last[g] && last[g].direction === 'OUT';
+            const startAt = ESCORT_START[r.batch];
+            let state = 'due', meta = 'Starts ' + startAt;
+            if (out) { state = 'empty'; meta = 'Card OUT ' + last[g].punch_time; }
+            else if (trip) { state = 'on_duty'; meta = 'On trip · Route ' + trip.route_no + (trip.location ? ' · ' + trip.location : '') + ' · since ' + trip.out_time; }
+            else if (firstIn[g]) { state = 'on_duty'; meta = 'IN ' + firstIn[g]; }
+            else if (now >= day + ' ' + plusMin(startAt, LATE_IN_MIN)) {
+              state = 'not_in'; meta = 'Not IN · starts ' + startAt;
+              attention.push({ post: 'Escort ' + r.batch + ' · S.No ' + r.seat, postId: '', text: nameOf(g) === 'Guard' ? r.guard.guard_name + ' not IN' : nameOf(g) + ' not IN', level: 'red' });
+            }
+            if (out) attention.push({ post: 'Escort ' + r.batch + ' · S.No ' + r.seat, postId: '', text: r.guard.guard_name + ' card OUT ' + last[g].punch_time, level: 'red' });
+            return { seat: r.seat, batch: r.batch, name: r.guard.guard_name, state, meta };
+          });
+          escort = {
+            rows,
+            kpi: { total: rows.length, in: rows.filter(x => x.state === 'on_duty').length, onTrip: running.length, notIn: rows.filter(x => x.state === 'not_in').length }
+          };
+        }
+      }
       attention.sort((a, b) => (a.level === b.level ? 0 : a.level === 'red' ? -1 : 1));
       const kpi = {
         total: cards.length,
@@ -291,7 +336,7 @@ module.exports = function supervisorRoutes(app, h) {
       res.status(200).json({
         status: 'success',
         data: {
-          shift, shifts, date: day, posts: cards, kpi, attention,
+          shift, shifts, date: day, posts: cards, kpi, attention, escort,
           works: recentW.map(w => ({ ...workView(w), post: postName(w.post_id), postId: String(w.post_id) }))
         }
       });
