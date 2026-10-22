@@ -95,6 +95,7 @@ export default function SupervisorBoard() {
   }
 
   const b = branches.find(x => String(x.ROWID) === String(branch));
+  const escortView = !!(data && data.view === 'escort');
   const shifts = data ? data.shifts.slice().sort((x, y) => SHIFT_ORDER.indexOf(x.code) - SHIFT_ORDER.indexOf(y.code)) : [];
 
   return (
@@ -104,7 +105,7 @@ export default function SupervisorBoard() {
         <div className="sb-head">
           <div>
             <div className="pd-muted pd-small">{b ? (b.company || 'Nokia') + ' ' + b.branch_name : ''}{data ? ' · ' + niceDate(data.date) : ''}</div>
-            <div className="pd-title">Live posts{data ? ' · Shift ' + data.shift.code : ''}</div>
+            <div className="pd-title">{escortView ? 'Live escorts · 6 to 5 and 9 to 6' : 'Live posts' + (data ? ' · Shift ' + data.shift.code : '')}</div>
           </div>
           <div className="pd-grow"></div>
           <select className="pd-search sb-branch" value={branch} onChange={e => { setBranch(e.target.value); setShift(''); }} aria-label="Branch">
@@ -113,6 +114,7 @@ export default function SupervisorBoard() {
           <div className="pd-quick">
             <button className={'pd-chip' + (!shift ? ' pd-chip-primary' : '')} onClick={() => setShift('')} title="Follow the running shift">Auto{!shift && data ? ' · ' + data.shift.code : ''}</button>
             {shifts.map(s => <button key={s.code} className={'pd-chip' + (shift === s.code ? ' pd-chip-primary' : '')} onClick={() => setShift(s.code)}>Shift {s.code}</button>)}
+            <button className={'pd-chip' + (shift === 'ESCORT' ? ' pd-chip-primary' : '')} onClick={() => setShift('ESCORT')} title="Escort: 6 to 5 and 9 to 6">🚗 Escort</button>
           </div>
           <a className="pd-chip" href="#schedule">Edit schedule</a>
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
@@ -124,6 +126,7 @@ export default function SupervisorBoard() {
         {data && (
           <div className="sb-body">
             <div className="sb-main">
+              {!escortView && <>
               <div className="sb-kpis">
                 <div className="sb-kpi"><div>Total posts</div><b>{data.kpi.total}</b></div>
                 <div className="sb-kpi sb-kpi-green"><div>On duty</div><b>{data.kpi.onDuty}</b></div>
@@ -140,9 +143,19 @@ export default function SupervisorBoard() {
                 ))}
                 {data.posts.length === 0 && <div className="pd-muted">No posts in this branch. Add them in Posts.</div>}
               </div>
-              {data.escort && (
+              </>}
+              {escortView && !data.escort && <div className="pd-muted">No escort duty today (Saturday / Sunday, or no month roster).</div>}
+              {escortView && data.escort && (
+                <div className="sb-kpis">
+                  <div className="sb-kpi"><div>Escorts today</div><b>{data.escort.kpi.total}</b></div>
+                  <div className="sb-kpi sb-kpi-green"><div>IN</div><b>{data.escort.kpi.in}</b></div>
+                  <div className="sb-kpi sb-kpi-amber"><div>On trip now</div><b>{data.escort.kpi.onTrip}</b></div>
+                  <div className="sb-kpi sb-kpi-red"><div>Not IN</div><b>{data.escort.kpi.notIn}</b></div>
+                </div>
+              )}
+              {escortView && data.escort && (
                 <>
-                  <div className="pd-label sb-gap">ESCORT · {data.escort.kpi.in} of {data.escort.kpi.total} IN · {data.escort.kpi.onTrip} on trip{data.escort.kpi.notIn ? ' · ' + data.escort.kpi.notIn + ' not IN' : ''}</div>
+                  <div className="pd-label">6 TO 5 (starts 18:00) · 9 TO 6 (starts 21:00)</div>
                   <div className="sb-grid">
                     {data.escort.rows.map(r => (
                       <button key={r.batch + r.seat} className={'sb-card ' + STATE[r.state].cls} onClick={() => openPost('')}>

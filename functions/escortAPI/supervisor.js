@@ -219,6 +219,46 @@ module.exports = function supervisorRoutes(app, h) {
     return (started[0] || shifts.find(s => s.code === 'C') || shifts[0] || {}).code;
   }
 
+  // Escort tab of the live board (Prem, 22 Oct: posts on A / G / B / C, escorts on their own tab): today's
+  // 6 to 5 and 9 to 6 lists with IN / OUT and the trip running now. null on Sat / Sun or without a roster.
+  async function escortBoard(catalystApp, zcql, day, now, attention) {
+      let escort = null;
+      {
+        const rosterDay = await escortDay(catalystApp, day);
+        if (rosterDay) {
+          const list = rosterDay.rows.filter(r => r.onDuty);
+          const gids = list.map(r => r.guardId);
+          const eids = list.map(r => String(r.guard.escort_id)).filter(Boolean);
+          const [punches, running] = await Promise.all([
+            gids.length ? zcql.executeZCQLQuery(`SELECT guard_id, direction, punch_time FROM AccessLog WHERE duty_date = '${day}' AND guard_id IN (${idList(gids)}) ORDER BY CREATEDTIME ASC LIMIT 0, 300`).then(r => r.map(x => x.AccessLog)) : [],
+            eids.length ? zcql.executeZCQLQuery(`SELECT escort_id, route_no, location, out_time FROM DutyRecords WHERE duty_date = '${day}' AND escort_id IN (${idList(eids)}) AND out_time != '' AND (in_time = '' OR in_time IS NULL) LIMIT 0, 300`).then(r => r.map(x => x.DutyRecords)) : []
+          ]);
+          const firstIn = {}, last = {};
+          punches.forEach(x => { const g = String(x.guard_id); if (x.direction === 'IN' && !firstIn[g]) firstIn[g] = x.punch_time; last[g] = x; });
+          const rows = list.map(r => {
+            const g = r.guardId, trip = running.find(t => String(t.escort_id) === String(r.guard.escort_id));
+            const out = last[g] && last[g].direction === 'OUT';
+            const startAt = ESCORT_START[r.batch];
+            let state = 'due', meta = 'Starts ' + startAt;
+            if (out) { state = 'empty'; meta = 'Card OUT ' + last[g].punch_time; }
+            else if (trip) { state = 'on_duty'; meta = 'On trip · Route ' + trip.route_no + (trip.location ? ' · ' + trip.location : '') + ' · since ' + trip.out_time; }
+            else if (firstIn[g]) { state = 'on_duty'; meta = 'IN ' + firstIn[g]; }
+            else if (now >= day + ' ' + plusMin(startAt, LATE_IN_MIN)) {
+              state = 'not_in'; meta = 'Not IN · starts ' + startAt;
+              attention.push({ post: 'Escort ' + r.batch + ' · S.No ' + r.seat, postId: '', text: r.guard.guard_name + ' not IN', level: 'red' });
+            }
+            if (out) attention.push({ post: 'Escort ' + r.batch + ' · S.No ' + r.seat, postId: '', text: r.guard.guard_name + ' card OUT ' + last[g].punch_time, level: 'red' });
+            return { seat: r.seat, batch: r.batch, name: r.guard.guard_name, state, meta };
+          });
+          escort = {
+            rows,
+            kpi: { total: rows.length, in: rows.filter(x => x.state === 'on_duty').length, onTrip: running.length, notIn: rows.filter(x => x.state === 'not_in').length }
+          };
+        }
+      }
+      return escort;
+  }
+
   app.get('/supBoard', async (req, res) => {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
@@ -232,6 +272,13 @@ module.exports = function supervisorRoutes(app, h) {
       const startStamp = shift.start ? day + ' ' + shift.start : null;
       const started = startStamp && now >= startStamp;
 
+      // Escort tab: escorts only.
+      if (req.query.shift === 'ESCORT') {
+        const attention = [];
+        const escort = await escortBoard(catalystApp, zcql, day, now, attention);
+        attention.sort((a, b) => (a.level === b.level ? 0 : a.level === 'red' ? -1 : 1));
+        return res.status(200).json({ status: 'success', data: { view: 'escort', shift, shifts, date: day, posts: [], kpi: { total: 0, onDuty: 0, waiting: 0, notIn: 0 }, attention, escort, works: [] } });
+      }
       const posts = await branchPosts(req, zcql, branch);
       if (!posts.length) return res.status(200).json({ status: 'success', data: { shift, shifts, date: day, posts: [], kpi: { total: 0, onDuty: 0, waiting: 0, notIn: 0 }, attention: [], works: [] } });
       const ids = idList(posts.map(p => p.ROWID));
@@ -291,42 +338,6 @@ module.exports = function supervisorRoutes(app, h) {
       openW.filter(w => w.permit_end && now > w.permit_end).forEach(w => {
         attention.push({ post: postName(w.post_id) + ' · Permit expired', postId: String(w.post_id), text: w.contractor + ' still working after ' + w.permit_to, level: 'red' });
       });
-      // Escort section (Shift B and C boards, weekdays): 6 to 5 starts 18:00 and 9 to 6 at 21:00, both inside
-      // Shift B, and run on through C. Today's escort lists with IN / OUT and the trip running now.
-      let escort = null;
-      if (code === 'B' || code === 'C') {
-        const rosterDay = await escortDay(catalystApp, day);
-        if (rosterDay) {
-          const list = rosterDay.rows.filter(r => r.onDuty);
-          const gids = list.map(r => r.guardId);
-          const eids = list.map(r => String(r.guard.escort_id)).filter(Boolean);
-          const [punches, running] = await Promise.all([
-            gids.length ? zcql.executeZCQLQuery(`SELECT guard_id, direction, punch_time FROM AccessLog WHERE duty_date = '${day}' AND guard_id IN (${idList(gids)}) ORDER BY CREATEDTIME ASC LIMIT 0, 300`).then(r => r.map(x => x.AccessLog)) : [],
-            eids.length ? zcql.executeZCQLQuery(`SELECT escort_id, route_no, location, out_time FROM DutyRecords WHERE duty_date = '${day}' AND escort_id IN (${idList(eids)}) AND out_time != '' AND (in_time = '' OR in_time IS NULL) LIMIT 0, 300`).then(r => r.map(x => x.DutyRecords)) : []
-          ]);
-          const firstIn = {}, last = {};
-          punches.forEach(x => { const g = String(x.guard_id); if (x.direction === 'IN' && !firstIn[g]) firstIn[g] = x.punch_time; last[g] = x; });
-          const rows = list.map(r => {
-            const g = r.guardId, trip = running.find(t => String(t.escort_id) === String(r.guard.escort_id));
-            const out = last[g] && last[g].direction === 'OUT';
-            const startAt = ESCORT_START[r.batch];
-            let state = 'due', meta = 'Starts ' + startAt;
-            if (out) { state = 'empty'; meta = 'Card OUT ' + last[g].punch_time; }
-            else if (trip) { state = 'on_duty'; meta = 'On trip · Route ' + trip.route_no + (trip.location ? ' · ' + trip.location : '') + ' · since ' + trip.out_time; }
-            else if (firstIn[g]) { state = 'on_duty'; meta = 'IN ' + firstIn[g]; }
-            else if (now >= day + ' ' + plusMin(startAt, LATE_IN_MIN)) {
-              state = 'not_in'; meta = 'Not IN · starts ' + startAt;
-              attention.push({ post: 'Escort ' + r.batch + ' · S.No ' + r.seat, postId: '', text: nameOf(g) === 'Guard' ? r.guard.guard_name + ' not IN' : nameOf(g) + ' not IN', level: 'red' });
-            }
-            if (out) attention.push({ post: 'Escort ' + r.batch + ' · S.No ' + r.seat, postId: '', text: r.guard.guard_name + ' card OUT ' + last[g].punch_time, level: 'red' });
-            return { seat: r.seat, batch: r.batch, name: r.guard.guard_name, state, meta };
-          });
-          escort = {
-            rows,
-            kpi: { total: rows.length, in: rows.filter(x => x.state === 'on_duty').length, onTrip: running.length, notIn: rows.filter(x => x.state === 'not_in').length }
-          };
-        }
-      }
       attention.sort((a, b) => (a.level === b.level ? 0 : a.level === 'red' ? -1 : 1));
       const kpi = {
         total: cards.length,
@@ -337,7 +348,7 @@ module.exports = function supervisorRoutes(app, h) {
       res.status(200).json({
         status: 'success',
         data: {
-          shift, shifts, date: day, posts: cards, kpi, attention, escort,
+          shift, shifts, date: day, posts: cards, kpi, attention,
           works: recentW.map(w => ({ ...workView(w), post: postName(w.post_id), postId: String(w.post_id) }))
         }
       });
