@@ -1,0 +1,197 @@
+"use strict"
+
+/* ---------------- VEHICLE ENTRY (posts with Posts.vehicle_entry on) ---------------- */
+// Brought in from the separate vehicle entry app (phase 1: no photo, plate scan or voice yet).
+// One VehicleEntries row per vehicle visit: IN (guard or supervisor) → OUT (any guard of the post).
+//   entry_type employee: vehicle no + employee no
+//   entry_type visitor : vehicle no + name, phone, coming from, whom to meet
+//   entry_type vendor  : vehicle no + name, phone, coming from (whom to meet optional)
+// The names and the small fields live in `details` (JSON text), with who entered and who let it out.
+// Old entries of the separate app are not brought over (Prem, 22 Oct).
+
+const TYPES = ['employee', 'visitor', 'vendor'];
+const PLATE_RE = /^[A-Z0-9 -]{4,20}$/;
+const PHONE_RE = /^[0-9+ -]{6,20}$/;
+
+module.exports = function vehicleRoutes(app, h) {
+  const { catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, isTrue, onDutyLog, shiftDate, auth } = h;
+
+  const detailsOf = row => { try { return JSON.parse(row.details || '{}'); } catch { return {}; } };
+
+  function view(row, postName) {
+    const d = detailsOf(row);
+    return {
+      id: String(row.ROWID), postId: String(row.post_id), post: postName || '', type: row.entry_type, vehicleNo: row.vehicle_no,
+      status: row.status, date: row.duty_date, shift: row.shift_code, inTime: row.in_time || '', outTime: row.out_time || '',
+      in: hhmm(row.in_time), out: hhmm(row.out_time),
+      empNo: d.emp_no || '', name: d.name || '', phone: d.phone || '', from: d.from || '', meet: d.meet || '', by: d.by || '', outBy: d.out_by || ''
+    };
+  }
+
+  // Checks the form by type (same rules as the old app) and gives the row fields.
+  function readEntry(body) {
+    const type = String(body.entry_type || '').toLowerCase();
+    if (!TYPES.includes(type)) throw new Error('Pick Employee, Visitor or Vendor.');
+    const plate = String(body.vehicle_no || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    if (!plate) throw new Error('Vehicle number is needed.');
+    if (!PLATE_RE.test(plate)) throw new Error('Vehicle number looks wrong (letters and numbers only).');
+    const d = {};
+    if (type === 'employee') {
+      d.emp_no = cleanText(body.emp_no, 'Employee number', 30, true);
+    } else {
+      d.name = cleanText(body.name, 'Name', 100, true);
+      d.phone = cleanText(body.phone, 'Phone', 20, true);
+      if (!PHONE_RE.test(d.phone)) throw new Error('Phone number looks wrong.');
+      d.from = cleanText(body.from, 'Coming from', 100, true);
+      d.meet = cleanText(body.meet, 'Whom to meet', 100, type === 'visitor');
+    }
+    return { type, plate, d };
+  }
+
+  // A vehicle already inside at this post cannot come IN again before its OUT.
+  async function refuseTwice(zcql, postId, plate) {
+    const rows = await zcql.executeZCQLQuery(`SELECT in_time FROM VehicleEntries WHERE post_id = ${requireRowId(postId)} AND vehicle_no = '${plate}' AND status = 'IN'`);
+    if (rows.length) throw new Error(plate + ' is already IN since ' + hhmm(rows[0].VehicleEntries.in_time) + '. Mark it OUT first.');
+  }
+
+  async function postOf(zcql, postId) {
+    const rows = await zcql.executeZCQLQuery(`SELECT ROWID, post_name, branch_id, agency_id, vehicle_entry FROM Posts WHERE ROWID = ${requireRowId(postId)}`);
+    if (!rows.length) throw new Error('Post not found.');
+    const p = rows[0].Posts;
+    if (!isTrue(p.vehicle_entry)) throw new Error('Vehicle entry is not on for ' + p.post_name + '.');
+    return p;
+  }
+
+  // Today's entries of the post, and vehicles still IN from earlier days, newest first.
+  async function postEntries(zcql, postId, date) {
+    const rows = await selectAll(zcql, 'VehicleEntries', `SELECT * FROM VehicleEntries WHERE post_id = ${requireRowId(postId)} AND (duty_date = '${date}' OR status = 'IN') ORDER BY CREATEDTIME DESC`);
+    return rows;
+  }
+
+  /* ---------- guard (post page "+" → Vehicle entry) ---------- */
+
+  app.get('/vehicles', async (req, res) => {
+    try {
+      const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
+      const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
+      const post = await postOf(zcql, log.post_id);
+      const rows = await postEntries(zcql, log.post_id, log.duty_date);
+      res.status(200).json({ status: 'success', data: { post: post.post_name, date: log.duty_date, entries: rows.map(r => view(r, post.post_name)) } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  app.post('/vehicleIn', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
+      const post = await postOf(zcql, log.post_id);
+      const { type, plate, d } = readEntry(req.body);
+      await refuseTwice(zcql, log.post_id, plate);
+      d.by = me.guard_name;
+      const row = await catalystApp.datastore().table('VehicleEntries').insertRow({
+        branch_id: post.branch_id, post_id: log.post_id, guard_id: me.ROWID, duty_date: log.duty_date, shift_code: log.shift_code,
+        entry_type: type, vehicle_no: plate, status: 'IN', in_time: nowStamp(), details: JSON.stringify(d)
+      });
+      res.status(200).json({ status: 'success', data: view(row, post.post_name) });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  app.post('/vehicleOut', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const { me, log } = await onDutyLog(zcql, req.body.t, req.body.post);
+      const rows = await zcql.executeZCQLQuery(`SELECT * FROM VehicleEntries WHERE ROWID = ${requireRowId(req.body.id)}`);
+      const row = rows.length ? rows[0].VehicleEntries : null;
+      if (!row || String(row.post_id) !== String(log.post_id)) throw new Error('This entry is not of your post.');
+      res.status(200).json({ status: 'success', data: view(await markOut(catalystApp, row, me.ROWID, me.guard_name)) });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  async function markOut(catalystApp, row, guardId, byName) {
+    if (row.status !== 'IN') throw new Error(row.vehicle_no + ' is already OUT.');
+    const d = detailsOf(row);
+    d.out_by = byName;
+    return catalystApp.datastore().table('VehicleEntries').updateRow({
+      ROWID: row.ROWID, status: 'OUT', out_time: nowStamp(), out_guard_id: guardId || null, details: JSON.stringify(d)
+    });
+  }
+
+  /* ---------- supervisor / admins (Vehicles page) ---------- */
+
+  // Vehicle posts of the area (one branch or ALL), with the branch name.
+  async function areaPosts(req, zcql, branch) {
+    const branches = (await auth.branchList(zcql)).filter(b => b.is_active === 'true' && auth.branchOk(req, b.ROWID));
+    const list = branch === 'ALL' ? branches : branches.filter(b => String(b.ROWID) === String(auth.requireBranch(req, requireRowId(branch))));
+    if (!list.length) return { posts: [], branchName: {} };
+    const ids = list.map(b => requireRowId(b.ROWID));
+    const posts = auth.inArea(req, await selectAll(zcql, 'Posts', `SELECT ROWID, post_name, branch_id, agency_id, vehicle_entry, is_active FROM Posts WHERE branch_id IN (${ids.join(', ')}) ORDER BY post_name ASC`))
+      .filter(p => isTrue(p.vehicle_entry));
+    const branchName = {};
+    list.forEach(b => { branchName[String(b.ROWID)] = b.branch_name; });
+    return { posts, branchName };
+  }
+
+  // One day's entries (plus vehicles still IN from earlier days) of the vehicle posts in the area.
+  app.get('/vehicleList', async (req, res) => {
+    try {
+      const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
+      const date = requireDate(req.query.date);
+      const { posts, branchName } = await areaPosts(req, zcql, req.query.branch);
+      let entries = [];
+      if (posts.length) {
+        const name = {};
+        posts.forEach(p => { name[String(p.ROWID)] = p; });
+        const rows = await selectAll(zcql, 'VehicleEntries', `SELECT * FROM VehicleEntries WHERE post_id IN (${posts.map(p => requireRowId(p.ROWID)).join(', ')}) AND (duty_date = '${date}' OR status = 'IN') ORDER BY CREATEDTIME DESC`);
+        entries = rows.map(r => ({ ...view(r, name[String(r.post_id)].post_name), branch: branchName[String(r.branch_id)] || '' }));
+      }
+      res.status(200).json({
+        status: 'success',
+        data: { date, today: shiftDate(), posts: posts.map(p => ({ id: String(p.ROWID), name: p.post_name, branch: branchName[String(p.branch_id)] || '' })), entries }
+      });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // "+ New entry" by a supervisor / admin (to test, or when the guard's phone is down).
+  app.post('/vehicleAdd', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const post = auth.requireRow(req, await postOf(zcql, req.body.post_id), 'post');
+      const { type, plate, d } = readEntry(req.body);
+      await refuseTwice(zcql, post.ROWID, plate);
+      d.by = req.user.name + ' (' + req.user.role.replace('_', ' ') + ')';
+      const row = await catalystApp.datastore().table('VehicleEntries').insertRow({
+        branch_id: post.branch_id, post_id: post.ROWID, duty_date: shiftDate(),
+        entry_type: type, vehicle_no: plate, status: 'IN', in_time: nowStamp(), details: JSON.stringify(d)
+      });
+      res.status(200).json({ status: 'success', data: view(row, post.post_name) });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  app.post('/vehicleMarkOut', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const rows = await zcql.executeZCQLQuery(`SELECT * FROM VehicleEntries WHERE ROWID = ${requireRowId(req.body.id)}`);
+      const row = rows.length ? rows[0].VehicleEntries : null;
+      if (!row) throw new Error('Entry not found.');
+      auth.requireRow(req, await postOf(zcql, row.post_id), 'post');
+      const done = await markOut(catalystApp, row, null, req.user.name + ' (' + req.user.role.replace('_', ' ') + ')');
+      res.status(200).json({ status: 'success', data: view(done) });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+};

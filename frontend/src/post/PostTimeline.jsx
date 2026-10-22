@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { Icon, initials } from './icons.jsx';
 import AddWork from './AddWork.jsx';
 import SafetySheet from './SafetySheet.jsx';
+import VehicleEntry from './VehicleEntry.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
 import BreakSheet from './BreakSheet.jsx';
 import PostHistory from './PostHistory.jsx';
@@ -163,7 +164,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   const [toast, setToast] = useState('');
   const [replyTo, setReplyTo] = useState(null);
   const [sheet, setSheet] = useState(null); // 'menu' | 'alert' | 'safety' | message object
-  const [page, setPage] = useState(null); // 'work'
+  const [page, setPage] = useState(null); // 'work' | 'history' | 'vehicle'
   const [alertText, setAlertText] = useState('');
   const [camera, setCamera] = useState(false);
   const [voice, setVoice] = useState(null); // seconds while recording
@@ -437,6 +438,9 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   if (page === 'history') {
     return <PostHistory token={token} post={viewPost} postName={hereEarly ? hereEarly.post : duty.post} onClose={() => setPage(null)} />;
   }
+  if (page === 'vehicle') {
+    return <VehicleEntry token={token} post={viewPost} postName={duty.post} onClose={() => setPage(null)} />;
+  }
   if (page === 'work') {
     return <AddWork token={token} post={viewPost} postName={hereEarly ? hereEarly.post : duty.post} onClose={saved => { setPage(null); if (saved) load(); }} />;
   }
@@ -632,9 +636,11 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
                 <button className="pd-option pd-option-primary" onClick={() => { setSheet(null); setPage('work'); }}>
                   {Icon.wrench}<span><b>Work update</b><span>Contractor, persons, permit time</span></span>
                 </button>
-                <button className="pd-option pd-option-off" disabled>
-                  {Icon.car}<span><b>Visitor / vehicle entry</b><span>Link to the entry app comes later</span></span>
-                </button>
+                {duty.vehicleEntry && !viewPost && (
+                  <button className="pd-option" onClick={() => { setSheet(null); setPage('vehicle'); }}>
+                    {Icon.car}<span><b>Vehicle entry</b><span>Employee, visitor, vendor IN / OUT</span></span>
+                  </button>
+                )}
                 <button className="pd-option pd-option-red" onClick={() => setSheet('alert')}>
                   {Icon.alert}<span><b>Alert supervisor</b><span>Urgent problem, message now</span></span>
                 </button>

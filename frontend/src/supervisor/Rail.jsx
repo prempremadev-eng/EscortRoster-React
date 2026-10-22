@@ -19,6 +19,7 @@ export default function Rail({ active }) {
       {item('posts', '#supervisor', 'Posts', Icon.chat, 4)}
       <div className="sup-rail-gap"></div>
       {item('escort', '#', 'Escort', Icon.car)}
+      {item('vehicles', '#vehicles', 'Vehicles', Icon.gate)}
       {item('report', '#report', 'Report', Icon.clip)}
       {item('history', '#history', 'History', Icon.check)}
       {item('guards', '#master', 'Guards', Icon.shield)}

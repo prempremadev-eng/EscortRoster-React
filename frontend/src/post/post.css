@@ -303,3 +303,19 @@
 .pd-out-big{font-family:Archivo,sans-serif;font-weight:700;font-size:56px;letter-spacing:.06em;}
 .pd-bubble-sup{background:#E7ECF7;border:1px solid #C9D6F0;}
 .pd-author-sup{color:var(--pd-primary);}
+
+/* Vehicle entry (posts with vehicle entry on; also the supervisor's "+ New entry") */
+.ve-form{display:flex;flex-direction:column;}
+.ve-types{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;background:#E9E5DA;border-radius:12px;padding:4px;margin-bottom:6px;}
+.ve-type{min-height:44px;border:none;border-radius:9px;background:transparent;font-family:inherit;font-size:16px;color:var(--pd-muted);cursor:pointer;}
+.ve-type.on{background:var(--pd-surface);color:var(--pd-primary);font-weight:700;box-shadow:0 1px 3px rgba(0,0,0,.12);}
+.pd-form input.ve-plate{font-size:20px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;}
+.ve-select{width:100%;min-height:48px;border:1px solid var(--pd-border-input);border-radius:10px;background:#FAF9F5;padding:10px 12px;font-size:16px;font-family:inherit;color:var(--pd-ink);}
+.ve-row{display:flex;align-items:center;gap:12px;background:var(--pd-surface);border:1px solid var(--pd-border);border-radius:12px;padding:10px 14px;}
+.ve-row-out{opacity:.75;}
+.ve-plate-text{font-weight:700;letter-spacing:.04em;}
+.ve-tag{display:inline-block;margin-left:6px;padding:1px 8px;border-radius:999px;font-size:12px;font-weight:600;letter-spacing:0;text-transform:capitalize;vertical-align:middle;}
+.ve-employee{background:#DBEAFE;color:#1E40AF;}
+.ve-visitor{background:#FEF3C7;color:#92400E;}
+.ve-vendor{background:#EDE9FE;color:#5B21B6;}
+.ve-toast{flex-direction:row;align-items:center;gap:8px;background:#E7F5EC;border-color:#BFE3CB;color:#166534;}

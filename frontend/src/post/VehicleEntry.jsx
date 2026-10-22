@@ -1,0 +1,144 @@
+import { useCallback, useEffect, useState } from 'react';
+import { api } from '../api.js';
+import { Icon } from './icons.jsx';
+
+// Vehicle entry at a post (Posts.vehicle_entry on), brought in from the separate vehicle app.
+// Same three types and the same must-fill fields as that app; time and name are saved by the server.
+// Photo, number plate scan and voice come later (one by one).
+export const TYPES = [
+  { key: 'employee', label: 'Employee' },
+  { key: 'visitor', label: 'Visitor' },
+  { key: 'vendor', label: 'Vendor' }
+];
+export const BLANK = { entry_type: 'employee', vehicle_no: '', emp_no: '', name: '', phone: '', from: '', meet: '' };
+
+// The IN form, used by the guard page and by the supervisor's "+ New entry".
+export function VehicleForm({ form, setForm, busy, onSubmit, submitLabel, children }) {
+  const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const emp = form.entry_type === 'employee';
+  return (
+    <form className="pd-form ve-form" onSubmit={onSubmit}>
+      <div className="ve-types" role="tablist">
+        {TYPES.map(t => (
+          <button key={t.key} type="button" role="tab" aria-selected={form.entry_type === t.key}
+            className={'ve-type' + (form.entry_type === t.key ? ' on' : '')} onClick={() => set('entry_type', t.key)}>{t.label}</button>
+        ))}
+      </div>
+      {children}
+      <label htmlFor="ve-no">Vehicle number</label>
+      <input id="ve-no" className="ve-plate" value={form.vehicle_no} onChange={e => set('vehicle_no', e.target.value.toUpperCase())} placeholder="TN 09 AB 1234" maxLength={20} required autoComplete="off" />
+      {emp ? <>
+        <label htmlFor="ve-emp">Employee number</label>
+        <input id="ve-emp" value={form.emp_no} onChange={e => set('emp_no', e.target.value)} placeholder="Employee ID" maxLength={30} required autoComplete="off" />
+      </> : <>
+        <label htmlFor="ve-name">Name</label>
+        <input id="ve-name" value={form.name} onChange={e => set('name', e.target.value)} maxLength={100} required />
+        <label htmlFor="ve-phone">Phone</label>
+        <input id="ve-phone" value={form.phone} onChange={e => set('phone', e.target.value)} inputMode="tel" maxLength={20} required />
+        <label htmlFor="ve-from">Coming from</label>
+        <input id="ve-from" value={form.from} onChange={e => set('from', e.target.value)} placeholder="Company / place" maxLength={100} required />
+        <label htmlFor="ve-meet">Whom to meet{form.entry_type === 'vendor' ? ' (optional)' : ''}</label>
+        <input id="ve-meet" value={form.meet} onChange={e => set('meet', e.target.value)} maxLength={100} required={form.entry_type === 'visitor'} />
+      </>}
+      <button className="pd-btn pd-btn-primary" type="submit" disabled={busy}>{busy ? 'Saving...' : submitLabel}</button>
+    </form>
+  );
+}
+
+// One line of the list: plate, type, who, IN / OUT time.
+export function whoOf(e) {
+  return e.type === 'employee' ? 'Emp ' + e.empNo : [e.name, e.from].filter(Boolean).join(' · ');
+}
+
+export default function VehicleEntry({ token, post, postName, onClose }) {
+  const [data, setData] = useState(null);
+  const [form, setForm] = useState(BLANK);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [toast, setToast] = useState('');
+
+  const load = useCallback(async () => {
+    try {
+      setData((await api.vehicles(token, post)).data);
+    } catch (err) {
+      setError(err.message);
+    }
+  }, [token, post]);
+  useEffect(() => { load(); }, [load]);
+
+  async function save(e) {
+    e.preventDefault();
+    setBusy(true);
+    setError('');
+    try {
+      const saved = (await api.vehicleIn(token, form, post)).data;
+      setForm(f => ({ ...BLANK, entry_type: f.entry_type }));
+      setToast(saved.vehicleNo + ' IN at ' + saved.in);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function out(x) {
+    setBusy(true);
+    setError('');
+    try {
+      const done = (await api.vehicleOut(token, x.id, post)).data;
+      setToast(done.vehicleNo + ' OUT at ' + done.out);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  const entries = data ? data.entries : [];
+  const inside = entries.filter(x => x.status === 'IN');
+  const gone = entries.filter(x => x.status !== 'IN');
+
+  return (
+    <div className="pd pd-page">
+      <div className="pd-form-head">
+        <button type="button" className="pd-icon-btn" onClick={onClose} aria-label="Back">{Icon.back}</button>
+        <div>
+          <div className="pd-title pd-title-sm">{(data && data.post) || postName}</div>
+          <div className="pd-muted pd-small">Vehicle entry</div>
+        </div>
+      </div>
+
+      {toast && <div className="pd-card ve-toast" onClick={() => setToast('')}>{Icon.check} {toast}</div>}
+      {error && <div className="pd-card pd-bad">{error}</div>}
+
+      <VehicleForm form={form} setForm={setForm} busy={busy} onSubmit={save} submitLabel="Save IN" />
+
+      <div className="pd-field-title">Inside now · {inside.length}</div>
+      {!data && !error && <div className="pd-muted">Loading...</div>}
+      {data && inside.length === 0 && <div className="pd-muted pd-small">No vehicle inside.</div>}
+      {inside.map(x => (
+        <div key={x.id} className="ve-row">
+          <div className="pd-grow">
+            <div className="ve-plate-text">{x.vehicleNo} <span className={'ve-tag ve-' + x.type}>{x.type}</span></div>
+            <div className="pd-muted pd-small">{whoOf(x)} · IN {x.in}{x.date !== data.date ? ' (' + x.date.slice(8) + '/' + x.date.slice(5, 7) + ')' : ''}</div>
+          </div>
+          <button className="pd-chip" onClick={() => out(x)} disabled={busy}>OUT</button>
+        </div>
+      ))}
+
+      {gone.length > 0 && <>
+        <div className="pd-field-title">Out today · {gone.length}</div>
+        {gone.map(x => (
+          <div key={x.id} className="ve-row ve-row-out">
+            <div className="pd-grow">
+              <div className="ve-plate-text">{x.vehicleNo} <span className={'ve-tag ve-' + x.type}>{x.type}</span></div>
+              <div className="pd-muted pd-small">{whoOf(x)} · IN {x.in} · OUT {x.out}</div>
+            </div>
+          </div>
+        ))}
+      </>}
+    </div>
+  );
+}

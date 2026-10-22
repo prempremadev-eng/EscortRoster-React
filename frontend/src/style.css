@@ -1087,3 +1087,8 @@ td.in-late{color:#b91c1c;}
 .full-title{margin:0;text-align:center;color:var(--blue-dark);font-size:24px;}
 .full-date{font-weight:700;color:var(--blue-dark);}
 .full-btns{display:flex;gap:8px;justify-content:flex-end;}
+/* Vehicles page (supervisor / admins) */
+.ve-table .ve-small{font-size:11px;color:#64748b;}
+.ve-out-btn{padding:3px 10px;font-size:12px;}
+.ve-dim{position:fixed;inset:0;background:rgba(15,23,42,.45);display:flex;justify-content:center;align-items:flex-start;padding:24px 16px;overflow-y:auto;z-index:50;}
+.ve-modal{min-height:0;width:100%;max-width:440px;background:var(--pd-bg);border-radius:16px;padding:18px;display:flex;flex-direction:column;gap:12px;}
