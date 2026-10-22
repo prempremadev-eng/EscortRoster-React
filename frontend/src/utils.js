@@ -115,7 +115,9 @@ export const escortFromDb = e => ({
   id: e.id_no || '',
   // Month Roster days: today's seat and list (6 to 5 / 9 to 6), already in seat order.
   seat: e.seat ? Number(e.seat) : null,
-  batch: e.batch || ''
+  batch: e.batch || '',
+  inTime: e.in_time || '',
+  inLate: !!e.in_late
 });
 
 export const routeFromDb = rec => ({

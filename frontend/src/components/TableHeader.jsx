@@ -1,4 +1,5 @@
-export default function TableHeader({ rotation }) {
+// showIn: the supervisor's roster-day sheet has an IN column (card IN time); the guard's phone sheet does not.
+export default function TableHeader({ rotation, showIn }) {
   const routes = Array.from({ length: rotation }, (_, i) => i + 1);
   return (
     <thead>
@@ -8,6 +9,7 @@ export default function TableHeader({ rotation }) {
         <th rowSpan={2}>Agency</th>
         <th rowSpan={2}>Mobile No</th>
         <th rowSpan={2}>ID No</th>
+        {showIn && <th rowSpan={2} className="col-in">IN</th>}
         {routes.map(i => <th key={i} colSpan={2}>Route {i}</th>)}
         <th rowSpan={2}>Remarks</th>
         <th rowSpan={2} className="delcell-col no-print"></th>

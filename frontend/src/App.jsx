@@ -651,6 +651,7 @@ export default function App() {
                 key={batch || 'all'}
                 title={batch}
                 lockDetails={rosterDay}
+                showIn={rosterDay}
                 displayRows={batch ? displayRows.filter(r => r.batch === batch) : displayRows}
                 duty={duty}
                 stops={stops}

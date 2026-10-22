@@ -243,10 +243,20 @@ app.get('/getDayData', async (req, res) => {
         selectAll(zcql, 'DutyRecords', `SELECT * FROM DutyRecords WHERE duty_date = '${date}' ORDER BY ROWID ASC`),
         selectAll(zcql, 'TripStops', `SELECT * FROM TripStops WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`)
       ]);
-      const escorts = rosterDay.rows.filter(r => r.onDuty).map(r => ({
-        ROWID: String(r.guard.escort_id), escort_name: r.guard.guard_name, agency: r.guard.agency || '',
-        mobile: r.guard.phone || '', id_no: r.guard.id_number || '', sort_order: r.seat, seat: r.seat, batch: r.batch
-      }));
+      // First card IN of each escort today (supervisor's sheet only; late = after 18:00 / 21:00 or after midnight).
+      const onDuty = rosterDay.rows.filter(r => r.onDuty);
+      const ins = onDuty.length ? await selectAll(zcql, 'AccessLog', `SELECT guard_id, punch_time FROM AccessLog WHERE duty_date = '${date}' AND direction = 'IN' AND guard_id IN (${onDuty.map(r => requireRowId(r.guardId)).join(', ')}) ORDER BY CREATEDTIME ASC`) : [];
+      const firstIn = {};
+      ins.forEach(x => { if (!firstIn[String(x.guard_id)]) firstIn[String(x.guard_id)] = x.punch_time; });
+      const escorts = onDuty.map(r => {
+        const at = firstIn[r.guardId] || '';
+        const start = r.batch === '6 to 5' ? '18:00' : '21:00';
+        return {
+          ROWID: String(r.guard.escort_id), escort_name: r.guard.guard_name, agency: r.guard.agency || '',
+          mobile: r.guard.phone || '', id_no: r.guard.id_number || '', sort_order: r.seat, seat: r.seat, batch: r.batch,
+          in_time: at, in_late: !!at && (at > start || at < '12:00')
+        };
+      });
       return res.status(200).json({ status: 'success', data: { escorts, duty, stops, roster: { day0: rosterDay.day0 } } });
     }
     const [escorts, duty, stops] = await Promise.all([

@@ -7,7 +7,7 @@ import { PAGE_SIZE, sheetDate, routeLocks } from '../utils.js';
 // Main duty sheet: one page-block (header + 15 rows + footer) per printed A4 page.
 // title: "6 to 5" / "9 to 6" on Month Roster days. lockDetails: name, agency, mobile and ID come from
 // Guard Master then, so they show as text and the row has no remove button.
-export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate, cellStatus, actions, title, lockDetails }) {
+export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate, cellStatus, actions, title, lockDetails, showIn }) {
   const totalPages = Math.max(1, Math.ceil(displayRows.length / PAGE_SIZE));
   const dateText = sheetDate(dutyDate);
   const pages = Array.from({ length: totalPages }, (_, p) => p);
@@ -26,7 +26,7 @@ export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate
           <span>{dateText}</span>
         </div>
         <table>
-          <TableHeader rotation={rotation} />
+          <TableHeader rotation={rotation} showIn={showIn} />
           <tbody>
             {pageRows.map((r, i) => (
               <EscortRow
@@ -34,6 +34,7 @@ export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate
                 r={r}
                 seatNo={r.seat || startIdx + i + 1}
                 lockDetails={lockDetails}
+                showIn={showIn}
                 entry={duty[String(r.ROWID)]}
                 stops={stops}
                 rotation={rotation}
@@ -42,7 +43,7 @@ export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate
               />
             ))}
           </tbody>
-          <TableFooter rotation={rotation} />
+          <TableFooter rotation={rotation} showIn={showIn} />
         </table>
         <div className="page-bottom-label">😇Operation D</div>
       </div>
@@ -50,7 +51,7 @@ export default function DutyTable({ displayRows, duty, stops, rotation, dutyDate
   });
 }
 
-function EscortRow({ r, seatNo, entry, stops, rotation, cellStatus, actions, lockDetails }) {
+function EscortRow({ r, seatNo, entry, stops, rotation, cellStatus, actions, lockDetails, showIn }) {
   const routes = (entry && entry.routes) || [];
   const remarks = (entry && entry.remarks) || '';
   const id = String(r.ROWID);
@@ -72,6 +73,7 @@ function EscortRow({ r, seatNo, entry, stops, rotation, cellStatus, actions, loc
       {textCell('agency')}
       {textCell('mobile')}
       {textCell('id')}
+      {showIn && <td className={'col-in' + (r.inLate ? ' in-late' : '')}>{r.inTime || '—'}</td>}
       {Array.from({ length: rotation }, (_, i) => (
         <RouteCell
           key={i}

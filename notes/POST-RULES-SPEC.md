@@ -132,5 +132,5 @@ See `ESCORT-RULES.md` (E0–E18): 6 to 5 = escorts with the coming Sat + Sun off
 - Documents on Saturday (hide or show empty).
 - "No duty after the IN window" (with real card swipes).
 - Team update from the roster headings on upload (November roster).
-- Escort "Start duty" saved on the server (needs one column).
+- (Dropped: escort start = card IN time, shown to the supervisor; no extra column.)
 - Real card system (Gallagher) connection.
