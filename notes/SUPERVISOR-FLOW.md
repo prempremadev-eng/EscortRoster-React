@@ -74,3 +74,8 @@ How to build (notes for later):
 - Places: `onCardIn` (skip `post.onPostIn`, send the "no duty" notification), `/guardDay` and `/postDuty` (locked with that message), escort trip writes (`guardOnDuty`), Live board (post Not IN; escort card "Late IN · no duty").
 - Move `IN_WINDOW` from `supervisor.js` to a shared module so `index.js` / `post.js` use the same times.
 - Maybe later: a supervisor override ("allow duty") for a late guard.
+
+## ⏳ Next month (November roster), not now
+
+- The Month Roster upload saves **shifts** only. The guard's **team** (PKL / MLCP / ESCORT / HOSPITAL…) in Guard Master was set once by hand from the October roster headings.
+- When the November roster comes: either make the upload read the **section heading** of each guard and update the team automatically (suggested), or change teams by hand in Guard Master. Decide then (Prem, 22 Oct).
