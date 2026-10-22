@@ -65,10 +65,13 @@ export default function DutyHistory() {
     <>
       {full ? (
         <div className="full-bar no-print">
-          <b>📖 Duty History · {shortDate(date)}</b>
-          <button className="btn secondary" onClick={() => setDate(d => plusDay(d, -1))} aria-label="Previous day">‹</button>
-          <button className="btn secondary" onClick={() => setDate(d => plusDay(d, 1))} aria-label="Next day">›</button>
-          <button className="btn secondary" onClick={toggleFull} title="Show the buttons and filters">▾</button>
+          <div className="full-date">{shortDate(date)}</div>
+          <h1 className="full-title">📖 Duty History</h1>
+          <div className="full-btns">
+            <button className="btn secondary" onClick={() => setDate(d => plusDay(d, -1))} aria-label="Previous day">‹</button>
+            <button className="btn secondary" onClick={() => setDate(d => plusDay(d, 1))} aria-label="Next day">›</button>
+            <button className="btn secondary" onClick={toggleFull} title="Show the buttons and filters">▾</button>
+          </div>
         </div>
       ) : <>
       <div className="titlebar">

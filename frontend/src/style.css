@@ -1082,5 +1082,7 @@ td.in-late{color:#b91c1c;}
 .sr-title{font-weight:700;margin-bottom:6px;color:#1e293b;}
 /* ▴ / ▾ full page view (Duty History, Shift Report) */
 .dash.dash-full{max-width:none;padding:8px 12px 30px;}
-.full-bar{display:flex;align-items:center;gap:8px;padding:6px 12px;background:#eff6ff;border-bottom:1px solid var(--border);}
-.full-bar b{flex:1;color:var(--blue-dark);}
+.full-bar{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;gap:8px;padding:6px 12px;background:#eff6ff;border-bottom:1px solid var(--border);}
+.full-title{margin:0;text-align:center;color:var(--blue-dark);font-size:24px;}
+.full-date{font-weight:700;color:var(--blue-dark);}
+.full-btns{display:flex;gap:8px;justify-content:flex-end;}
