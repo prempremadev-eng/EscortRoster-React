@@ -207,10 +207,11 @@ module.exports = function supervisorRoutes(app, h) {
   // happened (DutyLog), plus what needs the supervisor now. About 7 reads per load; no timer.
   const LATE_IN_MIN = 15;
   const plusMin = (hm, n) => { const t = ((Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) + n) % 1440 + 1440) % 1440; return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
-  // Card IN windows at Estancia (Prem, 22 Oct): a swipe from the first time counts for that duty; after the
-  // second time the guard is late ("Due" until then, then "Not IN"). The board's Auto moves to a shift when
-  // its window opens. Escorts: 6 to 5 starts 18:00, 9 to 6 at 21:00 (notes/ESCORT-RULES.md).
+  // Card IN windows at Estancia (Prem, 22 Oct): a swipe from the first time counts for that duty; an IN after
+  // the second time is marked late. The board's Auto moves to a shift when its window opens; "Due" from the
+  // window opening to the shift start, then "Not IN". Escorts: 6 to 5 starts 18:00, 9 to 6 at 21:00.
   const IN_WINDOW = { A: ['05:20', '06:15'], B: ['12:30', '13:15'], G: ['08:20', '09:15'], C: ['20:20', '21:15'], '6 to 5': ['17:20', '18:15'], '9 to 6': ['20:20', '21:15'] };
+  const ESCORT_START = { '6 to 5': '18:00', '9 to 6': '21:00' };
   const windowOf = (code, start) => IN_WINDOW[code] || (start ? [plusMin(start, -40), plusMin(start, LATE_IN_MIN)] : ['', '']);
   const NO_TAKEOVER_MIN = 10;
 
@@ -245,12 +246,13 @@ module.exports = function supervisorRoutes(app, h) {
             const out = last[g] && last[g].direction === 'OUT';
             const [inFrom, inTo] = windowOf(r.batch);
             const late = firstIn[g] && firstIn[g] > inTo ? ' · late' : '';
-            let state = 'due', meta = 'IN from ' + inFrom + ' · by ' + inTo;
+            const startAt = ESCORT_START[r.batch];
+            let state = 'due', meta = 'IN from ' + inFrom + ' · starts ' + startAt;
             if (out) { state = 'empty'; meta = 'Card OUT ' + last[g].punch_time; }
             else if (trip) { state = 'on_duty'; meta = 'On trip · Route ' + trip.route_no + (trip.location ? ' · ' + trip.location : '') + ' · since ' + trip.out_time; }
             else if (firstIn[g]) { state = 'on_duty'; meta = 'IN ' + firstIn[g] + late; }
-            else if (now >= day + ' ' + inTo) {
-              state = 'not_in'; meta = 'Not IN · IN window ended ' + inTo;
+            else if (now >= day + ' ' + startAt) {
+              state = 'not_in'; meta = 'Not IN · started ' + startAt;
               attention.push({ post: 'Escort ' + r.batch + ' · S.No ' + r.seat, postId: '', text: r.guard.guard_name + ' not IN', level: 'red' });
             }
             if (out) attention.push({ post: 'Escort ' + r.batch + ' · S.No ' + r.seat, postId: '', text: r.guard.guard_name + ' card OUT ' + last[g].punch_time, level: 'red' });
@@ -277,7 +279,7 @@ module.exports = function supervisorRoutes(app, h) {
       const day = shiftDate();
       const startStamp = shift.start ? day + ' ' + shift.start : null;
       const started = startStamp && now >= startStamp;
-      const [, inTo] = windowOf(shift.code, shift.start);
+      const [inFrom, inTo] = windowOf(shift.code, shift.start);
       const lateTag = at => (at && inTo && hhmm(at) > inTo ? ' · late IN ' + hhmm(at) : '');
       const shiftsOut = shifts.map(x => { const w = windowOf(x.code, x.start); return { ...x, inFrom: w[0], inTo: w[1] }; });
 
@@ -334,13 +336,12 @@ module.exports = function supervisorRoutes(app, h) {
             }
           }
         } else if (planned.length && started) {
-          // Until the card IN window ends (e.g. A 06:15): "Due" (grey), then "Not IN" (red) and Needs attention.
-          if (now < day + ' ' + inTo) {
-            state = 'due'; meta = 'Shift started ' + shift.start + ' · IN expected by ' + inTo;
-          } else {
-            state = 'not_in'; meta = 'Not IN · shift started ' + shift.start;
-            attention.push({ post: p.post_name, postId: id, text: guard + ' not IN · shift started ' + shift.start, level: 'red' });
-          }
+          // From the shift start: "Not IN" (red) and Needs attention (Prem, 22 Oct: no waiting for the window end).
+          state = 'not_in'; meta = 'Not IN · shift started ' + shift.start;
+          attention.push({ post: p.post_name, postId: id, text: guard + ' not IN · shift started ' + shift.start, level: 'red' });
+        } else if (planned.length && inFrom && now >= day + ' ' + inFrom) {
+          // Card IN window open, shift not started yet (e.g. B 12:30–13:00).
+          state = 'due'; meta = 'IN window open · shift starts ' + shift.start;
         }
         return { ROWID: id, name: p.post_name, state, guard, meta };
       });
