@@ -4,8 +4,8 @@ import '../post/post.css';
 
 // Escort guard after card IN, in the same look as the post guard's screens (src/post/PostDuty.jsx):
 //   Screen 1 "Your seat" → Next → Screen 2 the escort duty rules → Start duty → the escort sheet.
-// Start is remembered on this phone for the duty day only (no server write), so a reload goes
-// straight to the sheet.
+// Start is remembered on this phone for that IN only (no server write): a reload goes straight to the
+// sheet, but after a card OUT and a new IN the screens come again with the new IN time.
 const RULES = [
   ['🚗', 'Wear your seat belt on every trip, the whole time.'],
   ['🪪', 'Keep your ID card visible. Sit in the front seat next to the driver.'],
@@ -15,15 +15,15 @@ const RULES = [
 ];
 
 const greeting = () => { const h = new Date().getHours(); return h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening'; };
-const keyOf = (token, date) => 'esc-start-' + token + '-' + date;
-export const escortStarted = (token, date) => { try { return !!localStorage.getItem(keyOf(token, date)); } catch { return false; } };
+const keyOf = (token, date, inAt) => 'esc-start-' + token + '-' + date + '-' + (inAt || '');
+export const escortStarted = (token, date, inAt) => { try { return !!localStorage.getItem(keyOf(token, date, inAt)); } catch { return false; } };
 
 export default function EscortIntro({ token, data, seat, onStart }) {
   const [view, setView] = useState('seat');
   const shift = data.shift || {};
   const list = (data.postName || '').replace(/^Escort · /, '');
   const start = () => {
-    try { localStorage.setItem(keyOf(token, data.dutyDate), new Date().toTimeString().slice(0, 5)); } catch { /* private window: show the sheet anyway */ }
+    try { localStorage.setItem(keyOf(token, data.dutyDate, data.lastIn || data.inTime), new Date().toTimeString().slice(0, 5)); } catch { /* private window: show the sheet anyway */ }
     onStart();
   };
 
@@ -37,7 +37,7 @@ export default function EscortIntro({ token, data, seat, onStart }) {
         <div className="pd-notice">
           {Icon.bell}
           <div>
-            <div className="pd-notice-sub">Card IN · {data.inTime}</div>
+            <div className="pd-notice-sub">Card IN · {data.lastIn || data.inTime}</div>
             <div className="pd-notice-main">Your escort seat for today is ready</div>
           </div>
         </div>

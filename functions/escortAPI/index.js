@@ -731,6 +731,8 @@ app.get('/guardDay', async (req, res) => {
     if (last && last.direction === 'OUT') {
       return res.status(200).json({ status: 'success', data: { ...base, locked: true, outTime: last.punch_time } });
     }
+    // Latest IN (after an OUT and back IN): the phone starts again from the "Your seat" screen.
+    base.lastIn = last ? last.punch_time : inTime[myId];
 
     const day = dayOf(dutyDate);
     if (base.dutyType !== 'ESCORT' || !myEscortRow || day === 0 || day === 6) {
@@ -754,9 +756,9 @@ app.get('/guardDay', async (req, res) => {
     dayStops.forEach(x => { stopCount[String(x.duty_record_id)] = (stopCount[String(x.duty_record_id)] || 0) + 1; });
     const byEscort = {};
     records.forEach(r => { (byEscort[String(r.escort_id)] = byEscort[String(r.escort_id)] || []).push(r); });
-    // Roster day: the guard's own list (6 to 5 or 9 to 6) with its seat numbers; else the old sheet.
+    // Roster day: both lists (6 to 5, then 9 to 6) with their seat numbers, like the supervisor's sheet; else the old sheet.
     const rows = myRow
-      ? rosterDay.rows.filter(r => r.onDuty && r.batch === myRow.batch).map(r => ({ ROWID: r.guard.escort_id, escort_name: r.guard.guard_name, agency: r.guard.agency || '', seat: r.seat }))
+      ? rosterDay.rows.filter(r => r.onDuty).map(r => ({ ROWID: r.guard.escort_id, escort_name: r.guard.guard_name, agency: r.guard.agency || '', seat: r.seat }))
       : computeDisplayRows(escorts, ROTATION, start && start.setting_value, dutyDate);
     const sheet = rows.map((e, i) => {
       const id = String(e.ROWID);

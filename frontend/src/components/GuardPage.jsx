@@ -25,6 +25,7 @@ export default function GuardPage({ token, testDate }) {
     try {
       setData((await api.guardDay(token, testDate)).data);
       setVersion(v => v + 1);
+      setStarted(false);
       setStatus('ok');
     } catch (err) {
       setError(err.message);
@@ -57,7 +58,7 @@ export default function GuardPage({ token, testDate }) {
   // POST guard: the post handover screens (take over, post timeline).
   if (isPost) return <PostDuty token={token} />;
   // ESCORT guard: "Your seat" → 5 rules → Start duty → the sheet (like the post screens).
-  if (open && hasSheet && !started && !escortStarted(token, data.dutyDate)) {
+  if (open && hasSheet && !started && !escortStarted(token, data.dutyDate, data.lastIn || data.inTime)) {
     return <EscortIntro token={token} data={data} seat={mine.seat} onStart={() => setStarted(true)} />;
   }
 
