@@ -11,7 +11,7 @@ const GENERAL = 'G';
 const { escortDay, EXTRA } = require('./escortRoster.js');
 
 module.exports = function supervisorRoutes(app, h) {
-  const { catalyst, fail, requireRowId, requireDate, getShifts, shiftDate, weekStartOf, nowStamp, hhmm, minutesBetween, cleanText, MAX_TEXT,
+  const { catalyst, fail, requireRowId, requireDate, getShifts, shiftDate, nowStamp, hhmm, minutesBetween, cleanText, MAX_TEXT,
     namesOf, addMessage, timelineData, workView, sendPushToGuard, sendPushToRows, getVapidKeys, auth } = h;
 
   const statusIn = list => '(' + list.map(s => `status = '${s}'`).join(' OR ') + ')';
@@ -295,8 +295,7 @@ module.exports = function supervisorRoutes(app, h) {
       const posts = await branchPosts(req, zcql, branch);
       if (!posts.length) return res.status(200).json({ status: 'success', data: { shift, shifts, date: day, posts: [], kpi: { total: 0, onDuty: 0, waiting: 0, notIn: 0 }, attention: [], works: [] } });
       const ids = idList(posts.map(p => p.ROWID));
-      const [weekly, planned, logs, brks, openW, recentW] = await Promise.all([
-        zcql.executeZCQLQuery(`SELECT guard_id, post_id FROM DutyChart WHERE week_start = '${weekStartOf(day)}' AND shift_code = '${code}' AND post_id IN (${ids})`).then(r => r.map(x => x.DutyChart)),
+      const [planned, logs, brks, openW, recentW] = await Promise.all([
         zcql.executeZCQLQuery(`SELECT guard_id, post_id, shift_code FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${day}' AND published = true`).then(r => r.map(x => x.Schedule)),
         // Today's logs, plus a guard from yesterday who is still at the post (no Card OUT / handover yet);
         // yesterday's finished duty (Card OUT) is not shown on today's board (Prem, 22 Oct).
@@ -305,8 +304,8 @@ module.exports = function supervisorRoutes(app, h) {
         zcql.executeZCQLQuery(`SELECT * FROM WorkUpdates WHERE post_id IN (${ids}) AND finished_at IS NULL`).then(r => r.map(x => x.WorkUpdates)),
         zcql.executeZCQLQuery(`SELECT * FROM WorkUpdates WHERE post_id IN (${ids}) AND started_at >= '${day} 00:00' ORDER BY CREATEDTIME DESC LIMIT 6`).then(r => r.map(x => x.WorkUpdates))
       ]);
-      // A published day schedule replaces the weekly chart for that day.
-      const chart = planned.length ? planned.filter(p => p.shift_code === code && posts.some(x => String(x.ROWID) === String(p.post_id))) : weekly;
+      // Only the published day schedule (the weekly Duty Chart is no longer used, Prem 22 Oct).
+      const chart = planned.filter(p => p.shift_code === code && posts.some(x => String(x.ROWID) === String(p.post_id)));
       const names = await namesOf(zcql, chart.map(c => c.guard_id).concat(logs.map(l => l.guard_id), brks.map(b => b.cover_guard_id)));
       const nameOf = id => (names[String(id)] || {}).guard_name || 'Guard';
       const postName = id => (posts.find(p => String(p.ROWID) === String(id)) || {}).post_name || 'Post';
@@ -364,6 +363,78 @@ module.exports = function supervisorRoutes(app, h) {
           works: recentW.map(w => ({ ...workView(w), post: postName(w.post_id), postId: String(w.post_id) }))
         }
       });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  /* ---------- DUTY HISTORY (read only, replaces the weekly Duty Chart page) ---------- */
+  // One day of one branch: every guard with team, roster letter, post / escort seat, card IN and OUT,
+  // and a status (Present / Late / Absent / Week off / Leave …). Nothing is written. About 6 reads.
+  app.get('/dutyHistory', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const branch = auth.requireBranch(req, requireRowId(req.query.branch));
+      const date = requireDate(req.query.date);
+      const next = new Date(date + 'T00:00:00Z'); next.setUTCDate(next.getUTCDate() + 1);
+      const nextDay = next.toISOString().slice(0, 10);
+      const all = async (sql, table) => {
+        const rows = [];
+        for (let off = 1; ; off += 300) {
+          const page = (await zcql.executeZCQLQuery(`${sql} LIMIT ${off}, 300`)).map(r => r[table]);
+          rows.push(...page);
+          if (page.length < 300) return rows;
+        }
+      };
+      const [posts, shifts, guards, roster, slots] = await Promise.all([
+        branchPosts(req, zcql, branch), getShifts(zcql),
+        all(`SELECT ROWID, id_number, guard_name, area FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
+        all(`SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${date.slice(0, 7)}' ORDER BY ROWID ASC`, 'MonthRoster'),
+        all(`SELECT post_id, shift_code, guard_id FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${date}' AND published = true ORDER BY ROWID ASC`, 'Schedule')
+      ]);
+      // Swipes by real time (a morning A IN is saved under the night's duty day): the day and the next morning.
+      const ids = new Set(guards.map(g => String(g.ROWID)));
+      const swipes = (await all(`SELECT guard_id, direction, punch_time, CREATEDTIME FROM AccessLog WHERE CREATEDTIME >= '${date} 00:00:00' AND CREATEDTIME < '${nextDay} 12:00:00' ORDER BY CREATEDTIME ASC`, 'AccessLog'))
+        .filter(x => ids.has(String(x.guard_id)));
+      const rosterDay = await escortDay(catalystApp, date);
+      const dayIndex = Number(date.slice(8, 10)) - 1;
+      const codeOf = {}, order = {};
+      roster.forEach((r, i) => { const id = String(r.guard_id); codeOf[id] = String(r.codes || '')[dayIndex] || ''; order[id] = i; });
+      const postName = id => (posts.find(p => String(p.ROWID) === String(id)) || {}).post_name || 'Post';
+      const shiftOf = c => shifts.find(x => x.code === c);
+      const now = nowStamp();
+      const stamp = t => String(t || '').slice(0, 16);
+      const rows = guards.map(g => {
+        const id = String(g.ROWID);
+        const code = codeOf[id] || '';
+        const slot = slots.find(x => String(x.guard_id) === id);
+        const esc = rosterDay && rosterDay.rows.find(r => r.guardId === id && r.onDuty);
+        let post = '', shift = '', start = '';
+        if (slot) { post = postName(slot.post_id); shift = slot.shift_code; start = (shiftOf(shift) || {}).start || ''; }
+        else if (esc) { post = 'Escort ' + esc.batch + ' · S.No ' + esc.seat; shift = 'C'; start = esc.batch === '6 to 5' ? '18:00' : '21:00'; }
+        else if ('ABCG'.includes(code) && code) { shift = code; start = (shiftOf(code) || {}).start || ''; }
+        // IN = first IN from 3 h before the start (or the day); OUT = last OUT after that IN.
+        const startAt = start ? date + ' ' + start : '';
+        const from = startAt ? new Date(new Date(startAt.replace(' ', 'T') + ':00Z').getTime() - 3 * 3600000).toISOString().slice(0, 16).replace('T', ' ') : date + ' 00:00';
+        const mine = swipes.filter(x => String(x.guard_id) === id && stamp(x.CREATEDTIME) >= from);
+        const inRow = mine.find(x => x.direction === 'IN');
+        const outRow = inRow ? mine.filter(x => x.direction === 'OUT' && stamp(x.CREATEDTIME) >= stamp(inRow.CREATEDTIME)).pop() : null;
+        let status;
+        if (code === 'O') status = 'Week off';
+        else if (code === 'L') status = 'Leave';
+        else if (inRow) status = startAt && stamp(inRow.CREATEDTIME) > startAt ? 'Late' : 'Present';
+        else if (!post) status = code ? 'No post' : 'No roster';
+        else status = startAt && now < startAt ? 'Not yet' : 'Absent';
+        return {
+          id: g.id_number || '', name: g.guard_name, team: g.area || '', roster: code, post, shift,
+          in: inRow ? inRow.punch_time : '', out: outRow ? outRow.punch_time : '', status, order: order[id] ?? 9999
+        };
+      });
+      const TEAM = ['PKL', 'Lady Guards', 'Medical Mine', 'Ninnakarai', 'Hospital', 'MLCP', 'Escort'];
+      const teamRank = t => { const i = TEAM.indexOf(t); return i < 0 ? 99 : i; };
+      rows.sort((a, b) => teamRank(a.team) - teamRank(b.team) || a.order - b.order || a.name.localeCompare(b.name));
+      res.status(200).json({ status: 'success', data: { date, rows: rows.map(({ order, ...r }) => r) } });
     } catch (err) {
       fail(res, err);
     }
@@ -553,12 +624,7 @@ module.exports = function supervisorRoutes(app, h) {
       const posts = await branchPosts(req, zcql, branch);
       if (!posts.length) return res.status(200).json({ status: 'success', data: { copied: 0, from: 'nothing' } });
       let source = (await dayRows(zcql, branch, yesterday, posts)).map(r => ({ post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id) }));
-      let from = 'yesterday';
-      if (!source.length) {
-        from = 'weekly chart';
-        source = (await zcql.executeZCQLQuery(`SELECT guard_id, post_id, shift_code FROM DutyChart WHERE week_start = '${weekStartOf(date)}' AND post_id IN (${idList(posts.map(p => p.ROWID))}) ORDER BY ROWID ASC`))
-          .map(r => ({ post: String(r.DutyChart.post_id), shift: r.DutyChart.shift_code, guard: String(r.DutyChart.guard_id) }));
-      }
+      const from = 'yesterday';
       const rows = await dayRows(zcql, branch, date, posts);
       const usedCells = new Set(rows.map(r => r.post_id + '|' + r.shift_code));
       // Copying never makes extra duty: a guard already in the day is not copied again.

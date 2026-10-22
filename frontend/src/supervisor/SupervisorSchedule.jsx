@@ -247,7 +247,7 @@ export default function SupervisorSchedule() {
           <button className="pd-chip pd-chip-primary" onClick={publish} disabled={busy || !drafts}>Publish to guards</button>
           <a className="pd-chip" href={'#roster/' + date.slice(0, 7)} title="Month roster: who works which shift each day">📅 Month roster</a>
           <button className="pd-chip" onClick={() => window.print()} title="Print or save as PDF to share">🖨️ Print</button>
-          <a className="pd-chip" href="#chart" title="Weekly Duty Chart (used when a day has no published schedule)">Weekly chart</a>
+          <a className="pd-chip" href="#history" title="Who worked where, IN / OUT, absent, leave (read only)">📖 Duty history</a>
           </>}
           <button className="pd-icon-btn sc-tools" onClick={toggleTools} aria-label={tools ? 'Hide buttons' : 'Show buttons'} title={tools ? 'Hide buttons (bigger sheet)' : 'Show buttons'}>{tools ? '▴' : '▾'}</button>
         </div>

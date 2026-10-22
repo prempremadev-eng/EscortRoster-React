@@ -102,7 +102,7 @@ export default function PostsPage() {
 
       <div className="toolbar no-print">
         <a className="btn secondary" href="#master">🛡️ Guard Master</a>
-        <a className="btn secondary" href="#chart">📅 Duty Chart</a>
+        <a className="btn secondary" href="#history">📖 Duty History</a>
         {data && (
           <div>
             <label htmlFor="p-branch">Branch:</label>

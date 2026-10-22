@@ -179,7 +179,7 @@ export default function GuardMaster() {
 
       <div className="toolbar no-print">
         <a className="btn secondary" href="#posts">📍 Posts</a>
-        <a className="btn secondary" href="#chart">📅 Duty Chart</a>
+        <a className="btn secondary" href="#history">📖 Duty History</a>
         <a className="btn secondary" href="#simulator">🪪 Card Simulator</a>
         <a className="btn secondary" href="#links">🔗 Guard Links</a>
         <div className="spacer"></div>

@@ -36,6 +36,7 @@ The left rail is in this order, so the supervisor just goes top to bottom.
 
 | Rail | For |
 |---|---|
+| History | **Duty History** (read only): a date → every guard's team, roster letter, post / escort seat, card IN / OUT, status (Present / Late / Absent / Week off / Leave / No post). Replaces the weekly Duty Chart page (removed 22 Oct) |
 | Guards | Guard Master (add / edit guards) |
 | Admin | Users, branches, agencies (branch admin and above) |
 | ▴ / ▾ on Schedule | Hide the buttons for a bigger sheet |
@@ -79,3 +80,8 @@ How to build (notes for later):
 
 - The Month Roster upload saves **shifts** only. The guard's **team** (PKL / MLCP / ESCORT / HOSPITAL…) in Guard Master was set once by hand from the October roster headings.
 - When the November roster comes: either make the upload read the **section heading** of each guard and update the team automatically (suggested), or change teams by hand in Guard Master. Decide then (Prem, 22 Oct).
+
+## 🗑️ Weekly Duty Chart removed (Prem, 22 Oct)
+
+- The #chart page is gone (an old link opens Duty History). Card IN, the Live board and "Copy from yesterday" use **only the published Schedule** now (no weekly fallback): a day that is not published has no post.
+- The DutyChart table and its API stay in the database untouched (not used by the pages).

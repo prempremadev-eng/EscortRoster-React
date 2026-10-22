@@ -1136,11 +1136,8 @@ async function dutyOf(zcql, guardId, week, day) {
       c = started[0] || planned.sort((a, b) => startOf(a).localeCompare(startOf(b)))[0];
     } else if (planned.length) c = planned[0];
   }
-  if (!c) {
-    const rows = await zcql.executeZCQLQuery(`SELECT post_id, shift_code FROM DutyChart WHERE guard_id = ${requireRowId(guardId)} AND week_start = '${week}'`);
-    if (!rows.length) return null;
-    c = rows[0].DutyChart;
-  }
+  // The weekly Duty Chart is no longer a fallback (Prem, 22 Oct): no published schedule → no post.
+  if (!c) return null;
   const [posts, shifts] = await Promise.all([
     zcql.executeZCQLQuery(`SELECT ROWID, post_name, post_type FROM Posts WHERE ROWID = ${c.post_id}`),
     getShifts(zcql)
