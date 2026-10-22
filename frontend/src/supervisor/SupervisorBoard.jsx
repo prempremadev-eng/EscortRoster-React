@@ -13,6 +13,7 @@ const STATE = {
   empty: { label: 'Empty', cls: 'sb-red' },
   not_in: { label: 'Not IN', cls: 'sb-red' },
   due: { label: 'Due', cls: 'sb-grey' },
+  vacant: { label: 'Vacant', cls: 'sb-red' },
   none: { label: 'No guard', cls: 'sb-grey' }
 };
 
@@ -133,6 +134,7 @@ export default function SupervisorBoard() {
                 <div className="sb-kpi sb-kpi-green"><div>On duty</div><b>{data.kpi.onDuty}</b></div>
                 <div className="sb-kpi sb-kpi-amber"><div>IN, not taken over</div><b>{data.kpi.waiting}</b></div>
                 <div className="sb-kpi sb-kpi-red"><div>Guard not IN</div><b>{data.kpi.notIn}</b></div>
+                <div className="sb-kpi sb-kpi-red"><div>Vacant</div><b>{data.kpi.vacant || 0}</b></div>
               </div>
               <div className="sb-grid">
                 {data.posts.map(p => (

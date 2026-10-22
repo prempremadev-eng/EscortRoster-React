@@ -361,6 +361,10 @@ module.exports = function supervisorRoutes(app, h) {
         } else if (planned.length && inFrom && now >= day + ' ' + inFrom) {
           // Card IN window open, shift not started yet (e.g. B 12:30–13:00).
           state = 'due'; meta = 'IN window open · shift starts ' + shift.start;
+        } else if (!planned.length && started) {
+          // Nobody scheduled and the shift has started: the post is empty (Prem, 22 Oct).
+          state = 'vacant'; meta = 'No guard scheduled · post empty';
+          attention.push({ post: p.post_name + ' · Vacant', postId: id, text: 'No guard scheduled for shift ' + code, level: 'red' });
         }
         return { ROWID: id, name: p.post_name, state, guard, meta };
       });
@@ -372,7 +376,8 @@ module.exports = function supervisorRoutes(app, h) {
         total: cards.length,
         onDuty: cards.filter(c => c.state === 'on_duty' || c.state === 'break').length,
         waiting: cards.filter(c => c.state === 'waiting').length,
-        notIn: cards.filter(c => c.state === 'not_in').length
+        notIn: cards.filter(c => c.state === 'not_in').length,
+        vacant: cards.filter(c => c.state === 'vacant').length
       };
       res.status(200).json({
         status: 'success',
