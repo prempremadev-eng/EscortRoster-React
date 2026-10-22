@@ -19,6 +19,7 @@ export default function DutyHistory() {
   const [data, setData] = useState(null);
   const [agency, setAgency] = useState('');
   const [team, setTeam] = useState('');
+  const [shift, setShift] = useState('');
   const [status, setStatus] = useState('');
   const [q, setQ] = useState('');
   const [error, setError] = useState('');
@@ -51,8 +52,10 @@ export default function DutyHistory() {
   // Agency (IPF / ISS / BSS …) → its teams → status chips count inside that choice.
   const agencies = [...new Set(rows.map(r => r.agency).filter(Boolean))].sort();
   const teams = [...new Set(rows.filter(r => !agency || r.agency === agency).map(r => r.team).filter(Boolean))];
-  const base = useMemo(() => rows.filter(r => (!agency || r.agency === agency) && (!team || r.team === team)
-    && (!q.trim() || (r.name + ' ' + r.id + ' ' + r.post + ' ' + (r.branch || '')).toLowerCase().includes(q.trim().toLowerCase()))), [rows, agency, team, q]);
+  // Shift filter: A / G / B / C posts, or the escort lists (their roster shift is C).
+  const shiftOk = r => !shift || (shift.startsWith('Escort') ? r.post.startsWith(shift) : (r.shift || r.roster) === shift && !r.post.startsWith('Escort'));
+  const base = useMemo(() => rows.filter(r => (!agency || r.agency === agency) && (!team || r.team === team) && shiftOk(r)
+    && (!q.trim() || (r.name + ' ' + r.id + ' ' + r.post + ' ' + (r.branch || '')).toLowerCase().includes(q.trim().toLowerCase()))), [rows, agency, team, shift, q]);
   const count = s => base.filter(r => r.status === s).length;
   const shown = useMemo(() => base.filter(r => !status || r.status === status), [base, status]);
 
@@ -102,6 +105,14 @@ export default function DutyHistory() {
                 <select value={team} onChange={e => setTeam(e.target.value)}>
                   <option value="">All teams</option>
                   {teams.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </label>
+              <label>Shift
+                <select value={shift} onChange={e => setShift(e.target.value)}>
+                  <option value="">All shifts</option>
+                  {['A', 'G', 'B', 'C'].map(c => <option key={c} value={c}>Shift {c}</option>)}
+                  <option value="Escort 6 to 5">Escort 6 to 5</option>
+                  <option value="Escort 9 to 6">Escort 9 to 6</option>
                 </select>
               </label>
               <label className="master-search">Search name / ID / post
