@@ -1071,3 +1071,12 @@ tbody td.col-name, tbody td.col-name input{font-size:16px;font-weight:400;}
 /* Escort sheet IN column (supervisor, roster days) */
 td.col-in, th.col-in{text-align:center;font-weight:700;min-width:56px;}
 td.in-late{color:#b91c1c;}
+/* Shift Report */
+.sr-table td{font-weight:700;}
+.sr-ok{color:#166534;}
+.sr-late{color:#92400e;background:#fef3c7;}
+.sr-bad{color:#991b1b;background:#fee2e2;}
+.sr-total td{background:#f1f5f9;}
+.sr-off{margin:8px 0 4px;font-size:14px;}
+.sr-block{margin:10px 0 16px;}
+.sr-title{font-weight:700;margin-bottom:6px;color:#1e293b;}

@@ -123,6 +123,7 @@ export const api = {
   endGeneral: (t, note) => apiCall('POST', '/endGeneral', { t, note }),
   supInbox: (branch, seen) => apiCall('POST', '/supInbox', { branch, seen }),
   supPost: post => apiCall('GET', '/supPost?post=' + q(post)),
+  shiftReport: (branch, date) => apiCall('GET', '/shiftReport?branch=' + q(branch) + '&date=' + q(date)),
   dutyHistory: (branch, date) => apiCall('GET', '/dutyHistory?branch=' + q(branch) + '&date=' + q(date)),
   supBoard: (branch, shift) => apiCall('GET', '/supBoard?branch=' + q(branch) + (shift ? '&shift=' + q(shift) : '')),
   supVapid: () => apiCall('GET', '/supVapid'),

@@ -411,6 +411,86 @@ module.exports = function supervisorRoutes(app, h) {
     }
   });
 
+  /* ---------- SHIFT REPORT (read only, for the supervisor's report to the branch admin) ---------- */
+  // Per shift: allotted (roster), posts (slots that day), filled (published), present, late, absent,
+  // spare (on duty, no post), vacant posts; plus the lists behind them (absent, late, leave, spare, vacant).
+  app.get('/shiftReport', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const date = requireDate(req.query.date);
+      const list = req.query.branch === 'ALL'
+        ? (await auth.branchList(zcql)).filter(b => b.is_active === 'true' && auth.branchOk(req, b.ROWID))
+        : [{ ROWID: auth.requireBranch(req, requireRowId(req.query.branch)) }];
+      const out = { date, shifts: [], problems: { vacant: [], absent: [], late: [], leave: [], weekOff: [], spare: [] } };
+      for (const b of list) {
+        const one = await reportOf(req, catalystApp, zcql, String(b.ROWID), date);
+        const name = b.branch_name || '';
+        one.shifts.forEach(r => {
+          const t = out.shifts.find(x => x.key === r.key);
+          if (!t) out.shifts.push({ ...r });
+          else Object.keys(r).forEach(k => { if (typeof r[k] === 'number') t[k] += r[k]; });
+        });
+        Object.keys(out.problems).forEach(k => one.problems[k].forEach(x => out.problems[k].push({ ...x, branch: name })));
+      }
+      res.status(200).json({ status: 'success', data: out });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  async function reportOf(req, catalystApp, zcql, branch, date) {
+    const people = await historyOf(req, catalystApp, zcql, branch, date);
+    const [posts, slots, roster] = await Promise.all([
+      branchPosts(req, zcql, branch),
+      zcql.executeZCQLQuery(`SELECT post_id, shift_code FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${date}' AND published = true LIMIT 0, 300`).then(r => r.map(x => x.Schedule)),
+      zcql.executeZCQLQuery(`SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${date.slice(0, 7)}' LIMIT 0, 300`).then(r => r.map(x => x.MonthRoster))
+    ]);
+    const rosterOf = {};
+    roster.forEach(r => { const c = String(r.codes || '')[Number(date.slice(8, 10)) - 1]; if (c) rosterOf[String(r.guard_id)] = c; });
+    const supNames = posts.some(p => regularOnly(p) && isIncharge(p))
+      ? (await zcql.executeZCQLQuery(`SELECT name FROM UserRoles WHERE role = 'supervisor' AND branch_id = ${branch} AND is_active = true`)).map(x => String(x.UserRoles.name || '').toLowerCase()) : [];
+    const branchGuards = supNames.length ? (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE branch_id = ${branch} AND is_active = 'true' LIMIT 0, 300`)).map(r => r.Guards) : [];
+    const supIds = branchGuards.filter(g => supNames.includes(String(g.guard_name).toLowerCase())).map(g => String(g.ROWID));
+    const filledOn = (p, c) => slots.some(x => String(x.post_id) === String(p.ROWID) && x.shift_code === c);
+    const postsOn = c => posts.filter(p => filledOn(p, c) || ((!postShifts(p) || postShifts(p).includes(c)) && !(weekdayOnly(p) && isWeekend(date))
+      && (!regularOnly(p) || shiftsToday(p, rosterOf, regularIds(p, posts, supIds), '').includes(c))));
+    const isEsc = (r, batch) => r.post.startsWith('Escort ' + batch);
+    const anyEsc = r => r.post.startsWith('Escort ');
+    const shifts = [];
+    const problems = { vacant: [], absent: [], late: [], leave: [], weekOff: [], spare: [] };
+    const tally = (key, label, rows, postCount, filled, vacantPosts) => {
+      shifts.push({
+        key, label, allot: rows.length, posts: postCount, filled,
+        present: rows.filter(r => r.status === 'Present').length, late: rows.filter(r => r.status === 'Late').length,
+        absent: rows.filter(r => r.status === 'Absent').length, notYet: rows.filter(r => r.status === 'Not yet').length,
+        spare: rows.filter(r => r.status === 'No post').length, vacant: vacantPosts.length
+      });
+      vacantPosts.forEach(p => problems.vacant.push({ shift: label, post: p.post_name }));
+    };
+    for (const c of ['A', 'G', 'B', 'C']) {
+      const rows = people.filter(r => r.roster === c && !anyEsc(r));
+      const on = postsOn(c);
+      const filled = on.filter(p => filledOn(p, c));
+      tally(c, 'Shift ' + c, rows, on.length, filled.length, on.filter(p => !filledOn(p, c)));
+    }
+    for (const batch of ['6 to 5', '9 to 6']) {
+      const rows = people.filter(r => isEsc(r, batch));
+      if (rows.length) tally('E' + batch, 'Escort ' + batch, rows, batch === '6 to 5' ? 12 : rows.length, rows.length, []);
+    }
+    people.forEach(r => {
+      const who = { name: r.name, id: r.id, agency: r.agency, team: r.team, shift: r.shift || r.roster, post: r.post, in: r.in };
+      if (r.status === 'Absent') problems.absent.push(who);
+      else if (r.status === 'Late') problems.late.push(who);
+      else if (r.status === 'Leave') problems.leave.push(who);
+      else if (r.status === 'Week off') problems.weekOff.push(who);
+      else if (r.status === 'No post') problems.spare.push(who);
+    });
+    const leave = people.filter(r => r.status === 'Leave').length, weekOff = people.filter(r => r.status === 'Week off').length;
+    shifts.push({ key: 'off', label: 'Leave / Week off', allot: leave + weekOff, posts: 0, filled: 0, present: 0, late: 0, absent: 0, notYet: 0, spare: 0, vacant: 0, leave, weekOff });
+    return { shifts, problems };
+  }
+
   async function historyOf(req, catalystApp, zcql, branch, date) {
     {
       const next = new Date(date + 'T00:00:00Z'); next.setUTCDate(next.getUTCDate() + 1);

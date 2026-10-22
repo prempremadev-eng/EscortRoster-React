@@ -7,6 +7,7 @@ import GuardLinks from './components/GuardLinks.jsx';
 import GuardMaster from './components/GuardMaster.jsx';
 import PostsPage from './components/PostsPage.jsx';
 import DutyHistory from './components/DutyHistory.jsx';
+import ShiftReport from './components/ShiftReport.jsx';
 import GuardSetup from './components/GuardSetup.jsx';
 import GuardPage from './components/GuardPage.jsx';
 import SupervisorInbox from './supervisor/SupervisorInbox.jsx';
@@ -77,7 +78,7 @@ function Root() {
   }
   // Everything else: signed in, with a role (auth/AuthGate.jsx). The supervisor screens have
   // their own side rail, so no top bar there.
-  const supScreen = hash === '#supervisor' || hash.startsWith('#supervisor/') || hash === '#board' || hash === '#schedule' || hash === '#roster' || hash.startsWith('#roster/') || hash === '#history' || hash === '#chart';
+  const supScreen = hash === '#supervisor' || hash.startsWith('#supervisor/') || hash === '#board' || hash === '#schedule' || hash === '#roster' || hash.startsWith('#roster/') || hash === '#history' || hash === '#chart' || hash === '#report';
   return <AuthGate bar={!supScreen}>{page(hash)}</AuthGate>;
 }
 
@@ -92,6 +93,7 @@ function page(hash) {
   if (hash === '#master') return <GuardMaster />;
   if (hash === '#posts') return <PostsPage />;
   // The weekly Duty Chart page is gone (Prem, 22 Oct); an old #chart link opens Duty History.
+  if (hash === '#report') return <SupFrame active="report"><ShiftReport /></SupFrame>;
   if (hash === '#history' || hash === '#chart') return <SupFrame active="history"><DutyHistory /></SupFrame>;
   if (hash === '#simulator') return <CardSimulator />;
   if (hash === '#links') return <GuardLinks />;

@@ -36,7 +36,7 @@ async function isSignedIn() {
 // steps come first, numbered like the rail (notes/SUPERVISOR-FLOW.md), then the other pages.
 function links(user) {
   const l = [['#roster', '1 Month roster'], ['#schedule', '2 Schedule'], ['#board', '3 Live board'], ['#supervisor', '4 Posts'],
-    ['#', 'Escort sheet'], ['#master', 'Guards'], ['#posts', 'Post setup'], ['#history', 'Duty history'], ['#links', 'Guard links']];
+    ['#', 'Escort sheet'], ['#master', 'Guards'], ['#posts', 'Post setup'], ['#report', 'Shift report'], ['#history', 'Duty history'], ['#links', 'Guard links']];
   if (atLeast(user, 'admin')) l.push(['#simulator', 'Card simulator']);
   if (atLeast(user, 'branch_admin')) l.push(['#admin', 'Admin']);
   return l;

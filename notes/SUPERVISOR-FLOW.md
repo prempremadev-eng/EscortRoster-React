@@ -36,6 +36,7 @@ The left rail is in this order, so the supervisor just goes top to bottom.
 
 | Rail | For |
 |---|---|
+| Report | **Shift Report** (read only, for the supervisor's report to the branch admin): per shift Allot (roster) · Posts · Filled · Present · Late · Absent · Not yet · Spare · Vacant posts, Leave / Week off totals, then the lists: Vacant posts, **Absent**, Late, **Leave**, Spare, Week off. Print / PDF; admins also get All my branches |
 | History | **Duty History** (read only, every role sees only its own area; city / state / super admin also get "All my branches" with a Branch column): a date → every guard's team, roster letter, post / escort seat, card IN / OUT, status (Present / Late / Absent / Week off / Leave / No post). Replaces the weekly Duty Chart page (removed 22 Oct) |
 | Guards | Guard Master (add / edit guards) |
 | Admin | Users, branches, agencies (branch admin and above) |
