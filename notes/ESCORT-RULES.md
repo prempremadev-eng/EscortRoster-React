@@ -16,6 +16,7 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 | **E7 · New month** | Fresh start from the new roster. **Day 0 = the first day the whole 6-to-5 batch is on C** (like the real sheet: on 01-10 half the batch was on A/G posts, so 02-10 was Day 0). If the 1st is Sat/Sun → Monday |
 | **E8 · Card IN** | Escort taps card → notification "Your S.No: N" → opens the Escort page → can write **only their own row** (other rows locked) |
 | **E9 · Leave mid-week** | The escort's **row stays empty** that day; nobody else's S.No changes (rotation not disturbed). The empty row shows as unfilled and the **supervisor may put an extra person** there with the picker (a 6-to-5 row has a support point) |
+| **E9b · Joins later** | A person on leave on Monday (or any day) who comes in later that week **joins his list** (6 to 5 if his Sat + Sun are off, else 9 to 6) **at his rotated place** (his roster position + 4 per duty day since Day 0); nobody else's number changes (Prem, 22 Oct) |
 | **E10 · Who does escort duty** | **Only escorts on C** that day (Prem, 21 Oct). An escort whose roster says **A / B / G** works a **post** like anyone else (Auto fill uses them; PKL / MLCP men are still picked first). The 6-to-5 batch also needs C that day. Sunday: all escorts may take posts |
 | **E11 · Who writes the trips** | The **escort writes** their own Route 1–4 (Location · Out · In) after card IN, only on their own row; the **supervisor can correct** any row |
 | **E12 · Trip details** | The trip popup (cab number, driver, employee stops: Emp ID, location, pickup / drop, time) **stays exactly as it is** — the escort fills it for every trip. No changes |
@@ -38,7 +39,7 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 - Schedule page Escort table: same lists and seat numbers.
 - Card IN: "Today your Seat N · Escort 6 to 5 · Shift C". Guard page: their own list, only their row writable; trips saved with the roster seat.
 - Each guard on escort duty gets an Escorts row the first time (linked by Guards.escort_id); trips are kept per Escorts row.
-- Open: the real 21-10 sheet shows 9-to-6 in roster order (not rotated); the app rotates both lists (E5) until Prem decides.
+- **Decided (Prem, 22 Oct): 9 to 6 rotates 4 down every day too (E5).** The real sheet photos were not made with this formula; the app follows Prem's formula, not the photos.
 
 ## Later
 
