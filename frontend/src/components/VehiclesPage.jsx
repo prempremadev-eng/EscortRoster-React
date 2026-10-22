@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { shortDate, plusDay } from '../utils.js';
 import useFullView from './useFullView.js';
-import { VehicleForm, BLANK, TYPES, whoOf } from '../post/VehicleEntry.jsx';
+import { VehicleForm, PhotoView, BLANK, TYPES, whoOf } from '../post/VehicleEntry.jsx';
 
 // Vehicles (supervisor and every admin): one day's vehicle entries of the posts with vehicle entry on,
 // plus vehicles still inside from earlier days. "+ New entry" lets a supervisor / admin enter one too
@@ -25,6 +25,8 @@ export default function VehiclesPage() {
   const [adding, setAdding] = useState(false);
   const [form, setForm] = useState(BLANK);
   const [addPost, setAddPost] = useState('');
+  const [photo, setPhoto] = useState(null);
+  const [showPhoto, setShowPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [formError, setFormError] = useState('');
@@ -62,9 +64,17 @@ export default function VehiclesPage() {
     setBusy(true);
     setFormError('');
     try {
-      await api.vehicleAdd({ ...form, post_id: addPost });
+      const saved = (await api.vehicleAdd({ ...form, post_id: addPost })).data;
+      if (photo) {
+        try {
+          await api.vehiclePhotoAdd(saved.id, photo);
+        } catch (err) {
+          setError('IN is saved, but the photo was not: ' + err.message);
+        }
+      }
       setAdding(false);
       setForm(BLANK);
+      setPhoto(null);
       await load();
     } catch (err) {
       setFormError(err.message);
@@ -90,6 +100,7 @@ export default function VehiclesPage() {
     const posts = data ? data.posts : [];
     setAddPost(post || (posts.length === 1 ? posts[0].id : ''));
     setForm(BLANK);
+    setPhoto(null);
     setFormError('');
     setAdding(true);
   }
@@ -168,7 +179,7 @@ export default function VehiclesPage() {
             <div className="dash-scroll">
               <table className="dash-table dh-table ve-table">
                 <thead>
-                  <tr><th>#</th>{many && <th>Branch</th>}<th>Post</th><th>Vehicle</th><th>Type</th><th>Who</th><th>Phone</th><th>To meet</th><th>IN</th><th>OUT</th><th>Entered by</th><th>Status</th></tr>
+                  <tr><th>#</th>{many && <th>Branch</th>}<th>Post</th><th>Vehicle</th><th>Photo</th><th>Type</th><th>Who</th><th>Phone</th><th>To meet</th><th>IN</th><th>OUT</th><th>Entered by</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                   {shown.map((x, i) => (
@@ -177,6 +188,7 @@ export default function VehiclesPage() {
                       {many && <td className="left">{x.branch}</td>}
                       <td className="left">{x.post}</td>
                       <td className="left"><b className="ve-plate-text">{x.vehicleNo}</b></td>
+                      <td>{x.hasPhoto ? <button className="btn secondary ve-out-btn" onClick={() => setShowPhoto(x)} title="Show photo">📷</button> : '—'}</td>
                       <td><span className={'ve-tag ve-' + x.type}>{x.type}</span></td>
                       <td className="left">{whoOf(x)}</td>
                       <td>{x.phone || '—'}</td>
@@ -189,7 +201,7 @@ export default function VehiclesPage() {
                         : <span className="dh-status dh-ok">Out</span>}</td>
                     </tr>
                   ))}
-                  {shown.length === 0 && <tr><td colSpan={many ? 12 : 11} className="dash-empty">No vehicles.</td></tr>}
+                  {shown.length === 0 && <tr><td colSpan={many ? 13 : 12} className="dash-empty">No vehicles.</td></tr>}
                 </tbody>
               </table>
             </div>
@@ -205,7 +217,7 @@ export default function VehiclesPage() {
               <button className="pd-link" onClick={() => setAdding(false)}>Close</button>
             </div>
             {formError && <div className="pd-card pd-bad">{formError}</div>}
-            <VehicleForm form={form} setForm={setForm} busy={busy} onSubmit={save} submitLabel="Save IN">
+            <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} busy={busy} onSubmit={save} submitLabel="Save IN">
               <label htmlFor="ve-post">Post</label>
               <select id="ve-post" className="ve-select" value={addPost} onChange={e => setAddPost(e.target.value)} required>
                 <option value="">Pick the post</option>
@@ -216,6 +228,7 @@ export default function VehiclesPage() {
           </div>
         </div>
       )}
+      {showPhoto && <PhotoView getUrl={() => api.vehiclePhotoUrl(showPhoto.id)} onClose={() => setShowPhoto(null)} />}
     </>
   );
 }

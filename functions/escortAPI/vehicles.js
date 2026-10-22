@@ -1,7 +1,7 @@
 "use strict"
 
 /* ---------------- VEHICLE ENTRY (posts with Posts.vehicle_entry on) ---------------- */
-// Brought in from the separate vehicle entry app (phase 1: no photo, plate scan or voice yet).
+// Brought in from the separate vehicle entry app (phase 1 + photo; plate scan and voice come later).
 // One VehicleEntries row per vehicle visit: IN (guard or supervisor) → OUT (any guard of the post).
 //   entry_type employee: vehicle no + employee no
 //   entry_type visitor : vehicle no + name, phone, coming from, whom to meet
@@ -9,7 +9,14 @@
 // The names and the small fields live in `details` (JSON text), with who entered and who let it out.
 // Old entries of the separate app are not brought over (Prem, 22 Oct).
 
+const express = require('express');
+
 const TYPES = ['employee', 'visitor', 'vendor'];
+// The vehicle photo (one per entry) goes to the private media bucket, like the post timeline photos;
+// the row keeps only its key (photo_key). Links are made when someone taps the photo (one hour).
+const MEDIA_BUCKET = 'escortcardaccess-media';
+const PHOTO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const PHOTO_MAX = 8 * 1024 * 1024;
 const PLATE_RE = /^[A-Z0-9 -]{4,20}$/;
 const PHONE_RE = /^[0-9+ -]{6,20}$/;
 
@@ -24,7 +31,7 @@ module.exports = function vehicleRoutes(app, h) {
       id: String(row.ROWID), postId: String(row.post_id), post: postName || '', type: row.entry_type, vehicleNo: row.vehicle_no,
       status: row.status, date: row.duty_date, shift: row.shift_code, inTime: row.in_time || '', outTime: row.out_time || '',
       in: hhmm(row.in_time), out: hhmm(row.out_time),
-      empNo: d.emp_no || '', name: d.name || '', phone: d.phone || '', from: d.from || '', meet: d.meet || '', by: d.by || '', outBy: d.out_by || ''
+      hasPhoto: !!row.photo_key, empNo: d.emp_no || '', name: d.name || '', phone: d.phone || '', from: d.from || '', meet: d.meet || '', by: d.by || '', outBy: d.out_by || ''
     };
   }
 
@@ -123,6 +130,88 @@ module.exports = function vehicleRoutes(app, h) {
       ROWID: row.ROWID, status: 'OUT', out_time: nowStamp(), out_guard_id: guardId || null, details: JSON.stringify(d)
     });
   }
+
+  /* ---------- photo (guard or supervisor, after the IN is saved) ---------- */
+
+  async function entryOf(zcql, id) {
+    const rows = await zcql.executeZCQLQuery(`SELECT * FROM VehicleEntries WHERE ROWID = ${requireRowId(id)}`);
+    if (!rows.length) throw new Error('Entry not found.');
+    return rows[0].VehicleEntries;
+  }
+
+  async function savePhoto(req, catalystApp, row) {
+    const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    const ext = PHOTO_TYPES[type];
+    if (!ext) throw new Error('Only a photo can be added here (' + (type || 'unknown') + ').');
+    if (!Buffer.isBuffer(req.body) || !req.body.length) throw new Error('The photo is empty.');
+    if (req.body.length > PHOTO_MAX) throw new Error('Photo is too big (max 8 MB).');
+    const bucket = catalystApp.stratus().bucket(MEDIA_BUCKET);
+    const key = 'vehicle/' + row.post_id + '/' + row.duty_date + '/' + row.ROWID + '.' + ext;
+    await bucket.putObject(key, req.body, { contentType: type });
+    if (row.photo_key && row.photo_key !== key) {
+      try { await bucket.deleteObject(row.photo_key); } catch (err) { console.error('Old vehicle photo not removed:', err.message || err); }
+    }
+    await catalystApp.datastore().table('VehicleEntries').updateRow({ ROWID: row.ROWID, photo_key: key });
+  }
+
+  async function photoLink(catalystApp, row) {
+    if (!row.photo_key) throw new Error('No photo for this entry.');
+    const r = await catalystApp.stratus().bucket(MEDIA_BUCKET).generatePreSignedUrl(row.photo_key, 'GET', { expiryIn: '3600' });
+    return r.signature;
+  }
+
+  // Guard: only entries of the post they stand at now.
+  async function guardEntry(zcql, query) {
+    const { log } = await onDutyLog(zcql, query.t, query.post, true);
+    const row = await entryOf(zcql, query.id);
+    if (String(row.post_id) !== String(log.post_id)) throw new Error('This entry is not of your post.');
+    return row;
+  }
+
+  app.post('/vehiclePhoto', express.raw({ type: () => true, limit: '9mb' }), async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      await savePhoto(req, catalystApp, await guardEntry(catalystApp.zcql(), req.query));
+      res.status(200).json({ status: 'success', data: { saved: true } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  app.get('/vehiclePhotoLink', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      res.status(200).json({ status: 'success', data: { url: await photoLink(catalystApp, await guardEntry(catalystApp.zcql(), req.query)) } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // Supervisor / admins: entries of a vehicle post in their area.
+  async function areaEntry(req, zcql, id) {
+    const row = await entryOf(zcql, id);
+    auth.requireRow(req, await postOf(zcql, row.post_id), 'post');
+    return row;
+  }
+
+  app.post('/vehiclePhotoAdd', express.raw({ type: () => true, limit: '9mb' }), async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      await savePhoto(req, catalystApp, await areaEntry(req, catalystApp.zcql(), req.query.id));
+      res.status(200).json({ status: 'success', data: { saved: true } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  app.get('/vehiclePhotoUrl', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      res.status(200).json({ status: 'success', data: { url: await photoLink(catalystApp, await areaEntry(req, catalystApp.zcql(), req.query.id)) } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
 
   /* ---------- supervisor / admins (Vehicles page) ---------- */
 

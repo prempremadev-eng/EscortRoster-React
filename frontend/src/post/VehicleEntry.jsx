@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { Icon } from './icons.jsx';
+import { compressImage } from './media.js';
 
 // Vehicle entry at a post (Posts.vehicle_entry on), brought in from the separate vehicle app.
 // Same three types and the same must-fill fields as that app; time and name are saved by the server.
-// Photo, number plate scan and voice come later (one by one).
+// The photo (optional) is sent after the IN is saved. Number plate scan and voice come later.
 export const TYPES = [
   { key: 'employee', label: 'Employee' },
   { key: 'visitor', label: 'Visitor' },
@@ -13,9 +14,31 @@ export const TYPES = [
 export const BLANK = { entry_type: 'employee', vehicle_no: '', emp_no: '', name: '', phone: '', from: '', meet: '' };
 
 // The IN form, used by the guard page and by the supervisor's "+ New entry".
-export function VehicleForm({ form, setForm, busy, onSubmit, submitLabel, children }) {
+export function VehicleForm({ form, setForm, photo, setPhoto, busy, onSubmit, submitLabel, children }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const emp = form.entry_type === 'employee';
+  const camera = useRef(null);
+  const [preview, setPreview] = useState('');
+  const [photoError, setPhotoError] = useState('');
+  useEffect(() => {
+    if (!photo) { setPreview(''); return undefined; }
+    const url = URL.createObjectURL(photo);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [photo]);
+
+  // Phone photos are 3–8 MB; a 1280 px JPEG (~200 KB) is enough to read the plate.
+  async function pick(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoError('');
+    try {
+      setPhoto(await compressImage(file));
+    } catch (err) {
+      setPhotoError(err.message);
+    }
+  }
   return (
     <form className="pd-form ve-form" onSubmit={onSubmit}>
       <div className="ve-types" role="tablist">
@@ -25,6 +48,18 @@ export function VehicleForm({ form, setForm, busy, onSubmit, submitLabel, childr
         ))}
       </div>
       {children}
+      <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={pick} />
+      {preview ? (
+        <div className="ve-photo-pick">
+          <img src={preview} alt="Vehicle" />
+          <div className="pd-grow pd-small pd-muted">Photo ready (saved with the IN)</div>
+          <button type="button" className="pd-chip" onClick={() => camera.current.click()}>Retake</button>
+          <button type="button" className="pd-link" onClick={() => setPhoto(null)} aria-label="Remove photo">✕</button>
+        </div>
+      ) : (
+        <button type="button" className="pd-btn pd-btn-outline ve-photo-btn" onClick={() => camera.current.click()}>{Icon.camera} Vehicle photo (optional)</button>
+      )}
+      {photoError && <div className="pd-card pd-bad">{photoError}</div>}
       <label htmlFor="ve-no">Vehicle number</label>
       <input id="ve-no" className="ve-plate" value={form.vehicle_no} onChange={e => set('vehicle_no', e.target.value.toUpperCase())} placeholder="TN 09 AB 1234" maxLength={20} required autoComplete="off" />
       {emp ? <>
@@ -45,6 +80,21 @@ export function VehicleForm({ form, setForm, busy, onSubmit, submitLabel, childr
   );
 }
 
+// Full-screen photo; `getUrl` asks the server for a one-hour link.
+export function PhotoView({ getUrl, onClose }) {
+  const [url, setUrl] = useState('');
+  const [error, setError] = useState('');
+  useEffect(() => {
+    getUrl().then(r => setUrl(r.data.url)).catch(err => setError(err.message));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- once per opened photo
+  return (
+    <div className="ve-photo-dim" onClick={onClose}>
+      {url ? <img src={url} alt="Vehicle" /> : <div className="ve-photo-msg">{error || 'Loading photo...'}</div>}
+      <button className="ve-photo-close" onClick={onClose} aria-label="Close">✕</button>
+    </div>
+  );
+}
+
 // One line of the list: plate, type, who, IN / OUT time.
 export function whoOf(e) {
   return e.type === 'employee' ? 'Emp ' + e.empNo : [e.name, e.from].filter(Boolean).join(' · ');
@@ -53,6 +103,8 @@ export function whoOf(e) {
 export default function VehicleEntry({ token, post, postName, onClose }) {
   const [data, setData] = useState(null);
   const [form, setForm] = useState(BLANK);
+  const [photo, setPhoto] = useState(null);
+  const [showPhoto, setShowPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
@@ -76,6 +128,14 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
       const saved = (await api.vehicleIn(token, form, post)).data;
       setForm(f => ({ ...BLANK, entry_type: f.entry_type }));
       setToast(saved.vehicleNo + ' IN at ' + saved.in);
+      if (photo) {
+        try {
+          await api.vehiclePhoto(token, saved.id, photo, post);
+        } catch (err) {
+          setError('IN is saved, but the photo was not: ' + err.message);
+        }
+        setPhoto(null);
+      }
       await load();
     } catch (err) {
       setError(err.message);
@@ -115,7 +175,7 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
       {toast && <div className="pd-card ve-toast" onClick={() => setToast('')}>{Icon.check} {toast}</div>}
       {error && <div className="pd-card pd-bad">{error}</div>}
 
-      <VehicleForm form={form} setForm={setForm} busy={busy} onSubmit={save} submitLabel="Save IN" />
+      <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} busy={busy} onSubmit={save} submitLabel="Save IN" />
 
       <div className="pd-field-title">Inside now · {inside.length}</div>
       {!data && !error && <div className="pd-muted">Loading...</div>}
@@ -126,6 +186,7 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
             <div className="ve-plate-text">{x.vehicleNo} <span className={'ve-tag ve-' + x.type}>{x.type}</span></div>
             <div className="pd-muted pd-small">{whoOf(x)} · IN {x.in}{x.date !== data.date ? ' (' + x.date.slice(8) + '/' + x.date.slice(5, 7) + ')' : ''}</div>
           </div>
+          {x.hasPhoto && <button className="pd-icon-btn" onClick={() => setShowPhoto(x)} aria-label="Show photo">{Icon.camera}</button>}
           <button className="pd-chip" onClick={() => out(x)} disabled={busy}>OUT</button>
         </div>
       ))}
@@ -138,9 +199,11 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
               <div className="ve-plate-text">{x.vehicleNo} <span className={'ve-tag ve-' + x.type}>{x.type}</span></div>
               <div className="pd-muted pd-small">{whoOf(x)} · IN {x.in} · OUT {x.out}</div>
             </div>
+            {x.hasPhoto && <button className="pd-icon-btn" onClick={() => setShowPhoto(x)} aria-label="Show photo">{Icon.camera}</button>}
           </div>
         ))}
       </>}
+      {showPhoto && <PhotoView getUrl={() => api.vehiclePhotoLink(token, showPhoto.id, post)} onClose={() => setShowPhoto(null)} />}
     </div>
   );
 }

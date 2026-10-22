@@ -319,3 +319,10 @@
 .ve-visitor{background:#FEF3C7;color:#92400E;}
 .ve-vendor{background:#EDE9FE;color:#5B21B6;}
 .ve-toast{flex-direction:row;align-items:center;gap:8px;background:#E7F5EC;border-color:#BFE3CB;color:#166534;}
+.ve-photo-btn{height:52px;font-size:16px;}
+.ve-photo-pick{display:flex;align-items:center;gap:10px;background:var(--pd-surface);border:1px solid var(--pd-border);border-radius:12px;padding:8px;}
+.ve-photo-pick img{width:64px;height:64px;object-fit:cover;border-radius:8px;}
+.ve-photo-dim{position:fixed;inset:0;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;z-index:80;padding:16px;}
+.ve-photo-dim img{max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;}
+.ve-photo-msg{color:#fff;font-size:16px;}
+.ve-photo-close{position:absolute;top:12px;right:12px;width:44px;height:44px;border-radius:50%;border:none;background:rgba(255,255,255,.18);color:#fff;font-size:20px;cursor:pointer;}

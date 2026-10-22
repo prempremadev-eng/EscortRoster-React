@@ -14,8 +14,15 @@ Brought in from the separate vehicle entry app (option A: inside this app). Old 
 | **Saved** | Table **VehicleEntries**: branch_id, post_id, guard_id (IN), out_guard_id, duty_date, shift_code, entry_type, vehicle_no, status IN/OUT, in_time, out_time, details (JSON: emp no / name / phone / from / meet / entered by / out by), photo_key (for later) |
 | **Look** | Our app's colours, the old app's layout (type tabs on top, form, list). Can be changed later |
 
+## Photo (built 22 Oct evening)
+
+- Form: **📷 Vehicle photo (optional)** → phone camera → small preview (Retake / ✕). Made ~200 KB (1280 px JPEG) on the phone.
+- Sent **after** the IN is saved; if only the photo fails, the IN stays ("IN is saved, but the photo was not").
+- Kept in **Stratus** (bucket escortcardaccess-media, `vehicle/<post>/<date>/<entry>.jpg`), not in the Data Store: the row keeps only `photo_key` (the address). A photo is big and every list read would carry it.
+- 📷 on the guard's lists and a **Photo** column on the Vehicles page → full-screen photo (link works one hour).
+- Supervisor's + New entry has the same photo button.
+
 ## Later (one by one)
 
-1. Vehicle photo (Stratus, photo_key)
-2. Number plate scan
-3. Voice to text (needs the API key)
+1. Number plate scan
+2. Voice to text (needs the API key)

@@ -36,6 +36,19 @@ async function uploadMedia(t, blob, { kind, source, duration, reply_to, post }) 
   return json;
 }
 
+// Vehicle photo of one entry: guard (t + post) or supervisor (signed in), the photo is the body.
+async function vehiclePhoto(path, blob) {
+  const res = await fetch(API_BASE + path, { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
+  let json;
+  try {
+    json = await res.json();
+  } catch {
+    throw new Error('Photo upload failed (' + res.status + ')');
+  }
+  if (!res.ok || json.status !== 'success') throw new Error(json.error || 'Photo upload failed (' + res.status + ')');
+  return json;
+}
+
 export const api = {
   getEscorts: () => apiCall('GET', '/getEscorts'),
   addEscort: escort => apiCall('POST', '/addEscort', escort),
@@ -117,6 +130,8 @@ export const api = {
   vehicles: (t, post) => apiCall('GET', '/vehicles?t=' + q(t) + (post ? '&post=' + q(post) : '')),
   vehicleIn: (t, entry, post) => apiCall('POST', '/vehicleIn', { t, ...entry, post }),
   vehicleOut: (t, id, post) => apiCall('POST', '/vehicleOut', { t, id, post }),
+  vehiclePhoto: (t, id, blob, post) => vehiclePhoto('/vehiclePhoto?t=' + q(t) + '&id=' + q(id) + (post ? '&post=' + q(post) : ''), blob),
+  vehiclePhotoLink: (t, id, post) => apiCall('GET', '/vehiclePhotoLink?t=' + q(t) + '&id=' + q(id) + (post ? '&post=' + q(post) : '')),
   sendAlert: (t, text, post) => apiCall('POST', '/sendAlert', { t, text, post }),
   cancelAlert: (t, rowid, post) => apiCall('POST', '/cancelAlert', { t, rowid, post }),
   postHistory: (t, from, to, post) => apiCall('GET', '/postHistory?t=' + q(t) + '&from=' + q(from) + '&to=' + q(to) + (post ? '&post=' + q(post) : '')),
@@ -130,6 +145,8 @@ export const api = {
   vehicleList: (branch, date) => apiCall('GET', '/vehicleList?branch=' + q(branch) + '&date=' + q(date)),
   vehicleAdd: entry => apiCall('POST', '/vehicleAdd', entry),
   vehicleMarkOut: id => apiCall('POST', '/vehicleMarkOut', { id }),
+  vehiclePhotoAdd: (id, blob) => vehiclePhoto('/vehiclePhotoAdd?id=' + q(id), blob),
+  vehiclePhotoUrl: id => apiCall('GET', '/vehiclePhotoUrl?id=' + q(id)),
   dutyHistory: (branch, date) => apiCall('GET', '/dutyHistory?branch=' + q(branch) + '&date=' + q(date)),
   supBoard: (branch, shift) => apiCall('GET', '/supBoard?branch=' + q(branch) + (shift ? '&shift=' + q(shift) : '')),
   supVapid: () => apiCall('GET', '/supVapid'),
