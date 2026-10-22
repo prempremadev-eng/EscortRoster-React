@@ -232,6 +232,8 @@ module.exports = function vehicleRoutes(app, h) {
     if (!plateToken) throw new Error('Number plate scan is not set up yet (no key). Type the number.');
     const form = new FormData();
     form.append('regions', 'in');
+    // "fast" mode: quicker answer; a phone photo of one plate does not need the slow, thorough search.
+    form.append('config', JSON.stringify({ mode: 'fast' }));
     form.append('upload', new Blob([req.body], { type }), 'plate.' + PHOTO_TYPES[type]);
     const r = await fetch(PLATE_URL, { method: 'POST', headers: { Authorization: 'Token ' + plateToken }, body: form });
     if (!r.ok) {
@@ -247,9 +249,12 @@ module.exports = function vehicleRoutes(app, h) {
   app.post('/vehiclePlate', express.raw({ type: () => true, limit: '4mb' }), async (req, res) => {
     try {
       const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
-      const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
-      await postOf(zcql, log.post_id);
-      res.status(200).json({ status: 'success', data: await readPlate(req, zcql) });
+      // The duty check and the scan run side by side (the scan was waiting for 3 reads); the answer
+      // is given only when the guard is on duty at a vehicle post.
+      const started = Date.now();
+      const check = onDutyLog(zcql, req.query.t, req.query.post, true).then(({ log }) => postOf(zcql, log.post_id));
+      const [, plate] = await Promise.all([check, readPlate(req, zcql)]);
+      res.status(200).json({ status: 'success', data: { ...plate, ms: Date.now() - started } });
     } catch (err) {
       fail(res, err);
     }
@@ -258,7 +263,9 @@ module.exports = function vehicleRoutes(app, h) {
   app.post('/vehiclePlateScan', express.raw({ type: () => true, limit: '4mb' }), async (req, res) => {
     try {
       const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
-      res.status(200).json({ status: 'success', data: await readPlate(req, zcql) });
+      const started = Date.now();
+      const plate = await readPlate(req, zcql);
+      res.status(200).json({ status: 'success', data: { ...plate, ms: Date.now() - started } });
     } catch (err) {
       fail(res, err);
     }

@@ -39,13 +39,18 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, busy, onSubm
     if (!file) return;
     setScanMsg('');
     setScanning(true);
+    const started = Date.now();
     try {
-      const small = await compressImage(file);
-      if (!photo) setPhoto(small);
-      const r = (await scan(small)).data;
+      // A smaller copy goes to the scan (quicker upload; a plate reads fine at 960 px), the
+      // 1280 px one is kept as the vehicle photo.
+      const [small, scanCopy] = await Promise.all([photo ? null : compressImage(file), compressImage(file, 960, 0.7)]);
+      if (small) setPhoto(small);
+      const r = (await scan(scanCopy)).data;
+      // Seconds shown for now, to see where the time goes (total on the phone / at the server).
+      const took = ' · ' + ((Date.now() - started) / 1000).toFixed(1) + ' s' + (r.ms ? ' (server ' + (r.ms / 1000).toFixed(1) + ' s)' : '');
       if (r.plate) {
         set('vehicle_no', r.plate);
-        setScanMsg('Read: ' + r.plate + ' · check it with the vehicle');
+        setScanMsg('Read: ' + r.plate + ' · check it with the vehicle' + took);
       } else {
         setScanMsg('No number plate found. Type the number.');
       }
