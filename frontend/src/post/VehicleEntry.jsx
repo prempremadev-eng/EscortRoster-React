@@ -20,6 +20,8 @@ export function VehicleForm({ form, setForm, photo, setPhoto, busy, onSubmit, su
   const camera = useRef(null);
   const [preview, setPreview] = useState('');
   const [photoError, setPhotoError] = useState('');
+  // Making the photo small takes a second or two; Save waits for it (a Save before it saved the IN without the photo).
+  const [preparing, setPreparing] = useState(false);
   useEffect(() => {
     if (!photo) { setPreview(''); return undefined; }
     const url = URL.createObjectURL(photo);
@@ -33,10 +35,13 @@ export function VehicleForm({ form, setForm, photo, setPhoto, busy, onSubmit, su
     e.target.value = '';
     if (!file) return;
     setPhotoError('');
+    setPreparing(true);
     try {
       setPhoto(await compressImage(file));
     } catch (err) {
       setPhotoError(err.message);
+    } finally {
+      setPreparing(false);
     }
   }
   return (
@@ -49,7 +54,9 @@ export function VehicleForm({ form, setForm, photo, setPhoto, busy, onSubmit, su
       </div>
       {children}
       <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={pick} />
-      {preview ? (
+      {preparing ? (
+        <div className="ve-photo-pick pd-muted pd-small">Preparing photo...</div>
+      ) : preview ? (
         <div className="ve-photo-pick">
           <img src={preview} alt="Vehicle" />
           <div className="pd-grow pd-small pd-muted">Photo ready (saved with the IN)</div>
@@ -75,7 +82,7 @@ export function VehicleForm({ form, setForm, photo, setPhoto, busy, onSubmit, su
         <label htmlFor="ve-meet">Whom to meet{form.entry_type === 'vendor' ? ' (optional)' : ''}</label>
         <input id="ve-meet" value={form.meet} onChange={e => set('meet', e.target.value)} maxLength={100} required={form.entry_type === 'visitor'} />
       </>}
-      <button className="pd-btn pd-btn-primary" type="submit" disabled={busy}>{busy ? 'Saving...' : submitLabel}</button>
+      <button className="pd-btn pd-btn-primary" type="submit" disabled={busy || preparing}>{busy ? 'Saving...' : preparing ? 'Preparing photo...' : submitLabel}</button>
     </form>
   );
 }
@@ -105,6 +112,8 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
   const [form, setForm] = useState(BLANK);
   const [photo, setPhoto] = useState(null);
   const [showPhoto, setShowPhoto] = useState(null);
+  const laterInput = useRef(null);
+  const laterFor = useRef(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [toast, setToast] = useState('');
@@ -158,6 +167,25 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
     }
   }
 
+  // 📷 on an entry without a photo: take it now (the IN was saved without one).
+  async function addLater(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    const x = laterFor.current;
+    if (!file || !x) return;
+    setBusy(true);
+    setError('');
+    try {
+      await api.vehiclePhoto(token, x.id, await compressImage(file), post);
+      setToast('Photo added to ' + x.vehicleNo);
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const entries = data ? data.entries : [];
   const inside = entries.filter(x => x.status === 'IN');
   const gone = entries.filter(x => x.status !== 'IN');
@@ -177,6 +205,7 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
 
       <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} busy={busy} onSubmit={save} submitLabel="Save IN" />
 
+      <input ref={laterInput} type="file" accept="image/*" capture="environment" hidden onChange={addLater} />
       <div className="pd-field-title">Inside now · {inside.length}</div>
       {!data && !error && <div className="pd-muted">Loading...</div>}
       {data && inside.length === 0 && <div className="pd-muted pd-small">No vehicle inside.</div>}
@@ -186,7 +215,9 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
             <div className="ve-plate-text">{x.vehicleNo} <span className={'ve-tag ve-' + x.type}>{x.type}</span></div>
             <div className="pd-muted pd-small">{whoOf(x)} · IN {x.in}{x.date !== data.date ? ' (' + x.date.slice(8) + '/' + x.date.slice(5, 7) + ')' : ''}</div>
           </div>
-          {x.hasPhoto && <button className="pd-icon-btn" onClick={() => setShowPhoto(x)} aria-label="Show photo">{Icon.camera}</button>}
+          {x.hasPhoto
+            ? <button className="pd-icon-btn" onClick={() => setShowPhoto(x)} aria-label="Show photo">{Icon.camera}</button>
+            : <button className="pd-chip ve-add-photo" onClick={() => { laterFor.current = x; laterInput.current.click(); }} disabled={busy} aria-label="Add photo">+ {Icon.camera}</button>}
           <button className="pd-chip" onClick={() => out(x)} disabled={busy}>OUT</button>
         </div>
       ))}
