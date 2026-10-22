@@ -164,7 +164,14 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   const [toast, setToast] = useState('');
   const [replyTo, setReplyTo] = useState(null);
   const [sheet, setSheet] = useState(null); // 'menu' | 'alert' | 'safety' | message object
-  const [page, setPage] = useState(null); // 'work' | 'history' | 'vehicle'
+  // 'work' | 'history' | 'vehicle'. History and Vehicle entry stay open after a refresh (kept for this tab).
+  const pageKey = 'pd_page_' + token;
+  const [page, setPage] = useState(() => {
+    try { const v = sessionStorage.getItem(pageKey); return v === 'history' || v === 'vehicle' ? v : null; } catch { return null; }
+  });
+  useEffect(() => {
+    try { if (page === 'history' || page === 'vehicle') sessionStorage.setItem(pageKey, page); else sessionStorage.removeItem(pageKey); } catch { /* private mode */ }
+  }, [page, pageKey]);
   const [alertText, setAlertText] = useState('');
   const [camera, setCamera] = useState(false);
   const [voice, setVoice] = useState(null); // seconds while recording
@@ -438,7 +445,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   if (page === 'history') {
     return <PostHistory token={token} post={viewPost} postName={hereEarly ? hereEarly.post : duty.post} onClose={() => setPage(null)} />;
   }
-  if (page === 'vehicle') {
+  if (page === 'vehicle' && duty.vehicleEntry) {
     return <VehicleEntry token={token} post={viewPost} postName={duty.post} onClose={() => setPage(null)} />;
   }
   if (page === 'work') {
