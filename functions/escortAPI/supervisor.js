@@ -206,16 +206,21 @@ module.exports = function supervisorRoutes(app, h) {
   // One branch, one shift: every post with who should be there (Duty Chart) and what really
   // happened (DutyLog), plus what needs the supervisor now. About 7 reads per load; no timer.
   const LATE_IN_MIN = 15;
-  const plusMin = (hm, n) => { const t = Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) + n; return String(Math.floor(t / 60) % 24).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
-  // Escort duty starts (notes/ESCORT-RULES.md): 6 to 5 at 18:00, 9 to 6 at 21:00.
-  const ESCORT_START = { '6 to 5': '18:00', '9 to 6': '21:00' };
+  const plusMin = (hm, n) => { const t = ((Number(hm.slice(0, 2)) * 60 + Number(hm.slice(3, 5)) + n) % 1440 + 1440) % 1440; return String(Math.floor(t / 60)).padStart(2, '0') + ':' + String(t % 60).padStart(2, '0'); };
+  // Card IN windows at Estancia (Prem, 22 Oct): a swipe from the first time counts for that duty; after the
+  // second time the guard is late ("Due" until then, then "Not IN"). The board's Auto moves to a shift when
+  // its window opens. Escorts: 6 to 5 starts 18:00, 9 to 6 at 21:00 (notes/ESCORT-RULES.md).
+  const IN_WINDOW = { A: ['05:20', '06:15'], B: ['12:30', '13:15'], G: ['08:20', '09:15'], C: ['20:20', '21:15'], '6 to 5': ['17:20', '18:15'], '9 to 6': ['20:20', '21:15'] };
+  const windowOf = (code, start) => IN_WINDOW[code] || (start ? [plusMin(start, -40), plusMin(start, LATE_IN_MIN)] : ['', '']);
   const NO_TAKEOVER_MIN = 10;
 
   // The shift running now (the latest A / B / C that has started today); C before 06:00.
   function runningShift(shifts, now) {
     const hm = now.slice(11, 16);
-    // The general shift (G) never hides the A / B / C shift running beside it.
-    const started = shifts.filter(s => s.code !== GENERAL && s.start && s.start <= hm).sort((a, b) => b.start.localeCompare(a.start));
+    // The general shift (G) never hides the A / B / C shift running beside it. A shift "runs" from the
+    // opening of its card IN window (A from 05:20, B from 12:30, C from 20:20).
+    const open = s => windowOf(s.code, s.start)[0];
+    const started = shifts.filter(s => s.code !== GENERAL && s.start && open(s) <= hm).sort((a, b) => open(b).localeCompare(open(a)));
     return (started[0] || shifts.find(s => s.code === 'C') || shifts[0] || {}).code;
   }
 
@@ -238,13 +243,14 @@ module.exports = function supervisorRoutes(app, h) {
           const rows = list.map(r => {
             const g = r.guardId, trip = running.find(t => String(t.escort_id) === String(r.guard.escort_id));
             const out = last[g] && last[g].direction === 'OUT';
-            const startAt = ESCORT_START[r.batch];
-            let state = 'due', meta = 'Starts ' + startAt;
+            const [inFrom, inTo] = windowOf(r.batch);
+            const late = firstIn[g] && firstIn[g] > inTo ? ' · late' : '';
+            let state = 'due', meta = 'IN from ' + inFrom + ' · by ' + inTo;
             if (out) { state = 'empty'; meta = 'Card OUT ' + last[g].punch_time; }
             else if (trip) { state = 'on_duty'; meta = 'On trip · Route ' + trip.route_no + (trip.location ? ' · ' + trip.location : '') + ' · since ' + trip.out_time; }
-            else if (firstIn[g]) { state = 'on_duty'; meta = 'IN ' + firstIn[g]; }
-            else if (now >= day + ' ' + plusMin(startAt, LATE_IN_MIN)) {
-              state = 'not_in'; meta = 'Not IN · starts ' + startAt;
+            else if (firstIn[g]) { state = 'on_duty'; meta = 'IN ' + firstIn[g] + late; }
+            else if (now >= day + ' ' + inTo) {
+              state = 'not_in'; meta = 'Not IN · IN window ended ' + inTo;
               attention.push({ post: 'Escort ' + r.batch + ' · S.No ' + r.seat, postId: '', text: r.guard.guard_name + ' not IN', level: 'red' });
             }
             if (out) attention.push({ post: 'Escort ' + r.batch + ' · S.No ' + r.seat, postId: '', text: r.guard.guard_name + ' card OUT ' + last[g].punch_time, level: 'red' });
@@ -271,13 +277,16 @@ module.exports = function supervisorRoutes(app, h) {
       const day = shiftDate();
       const startStamp = shift.start ? day + ' ' + shift.start : null;
       const started = startStamp && now >= startStamp;
+      const [, inTo] = windowOf(shift.code, shift.start);
+      const lateTag = at => (at && inTo && hhmm(at) > inTo ? ' · late IN ' + hhmm(at) : '');
+      const shiftsOut = shifts.map(x => { const w = windowOf(x.code, x.start); return { ...x, inFrom: w[0], inTo: w[1] }; });
 
       // Escort tab: escorts only.
       if (req.query.shift === 'ESCORT') {
         const attention = [];
         const escort = await escortBoard(catalystApp, zcql, day, now, attention);
         attention.sort((a, b) => (a.level === b.level ? 0 : a.level === 'red' ? -1 : 1));
-        return res.status(200).json({ status: 'success', data: { view: 'escort', shift, shifts, date: day, posts: [], kpi: { total: 0, onDuty: 0, waiting: 0, notIn: 0 }, attention, escort, works: [] } });
+        return res.status(200).json({ status: 'success', data: { view: 'escort', shift, shifts: shiftsOut, date: day, posts: [], kpi: { total: 0, onDuty: 0, waiting: 0, notIn: 0 }, attention, escort, works: [] } });
       }
       const posts = await branchPosts(req, zcql, branch);
       if (!posts.length) return res.status(200).json({ status: 'success', data: { shift, shifts, date: day, posts: [], kpi: { total: 0, onDuty: 0, waiting: 0, notIn: 0 }, attention: [], works: [] } });
@@ -309,10 +318,10 @@ module.exports = function supervisorRoutes(app, h) {
         let meta = planned.length ? 'Scheduled' : 'No guard scheduled';
         if (log) {
           guard = nameOf(log.guard_id);
-          if (log.status === 'on_duty') { state = 'on_duty'; meta = 'Took over ' + hhmm(log.taken_over_at); }
+          if (log.status === 'on_duty') { state = 'on_duty'; meta = 'Took over ' + hhmm(log.taken_over_at) + lateTag(log.in_at); }
           else if (log.status === 'waiting') {
             const wait = Math.floor(minutesBetween(log.in_at, now));
-            state = 'waiting'; meta = 'IN ' + hhmm(log.in_at) + ' · not taken over · ' + wait + ' min';
+            state = 'waiting'; meta = 'IN ' + hhmm(log.in_at) + (lateTag(log.in_at) ? ' · late' : '') + ' · not taken over · ' + wait + ' min';
             if (wait >= NO_TAKEOVER_MIN) attention.push({ post: p.post_name, postId: id, text: guard + ' IN at ' + hhmm(log.in_at) + ' · no takeover for ' + wait + ' min', level: 'amber' });
           } else if (log.status === 'out') {
             state = 'empty'; meta = 'Card OUT · post empty';
@@ -325,9 +334,9 @@ module.exports = function supervisorRoutes(app, h) {
             }
           }
         } else if (planned.length && started) {
-          // First 15 min of the shift: "Due" (grey), then "Not IN" (red) and Needs attention.
-          if (minutesBetween(startStamp, now) < LATE_IN_MIN) {
-            state = 'due'; meta = 'Shift started ' + shift.start + ' · IN expected by ' + plusMin(shift.start, LATE_IN_MIN);
+          // Until the card IN window ends (e.g. A 06:15): "Due" (grey), then "Not IN" (red) and Needs attention.
+          if (now < day + ' ' + inTo) {
+            state = 'due'; meta = 'Shift started ' + shift.start + ' · IN expected by ' + inTo;
           } else {
             state = 'not_in'; meta = 'Not IN · shift started ' + shift.start;
             attention.push({ post: p.post_name, postId: id, text: guard + ' not IN · shift started ' + shift.start, level: 'red' });
@@ -348,7 +357,7 @@ module.exports = function supervisorRoutes(app, h) {
       res.status(200).json({
         status: 'success',
         data: {
-          shift, shifts, date: day, posts: cards, kpi, attention,
+          shift, shifts: shiftsOut, date: day, posts: cards, kpi, attention,
           works: recentW.map(w => ({ ...workView(w), post: postName(w.post_id), postId: String(w.post_id) }))
         }
       });

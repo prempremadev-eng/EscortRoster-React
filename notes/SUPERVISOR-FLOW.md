@@ -40,3 +40,18 @@ The left rail is in this order, so the supervisor just goes top to bottom.
 | Admin | Users, branches, agencies (branch admin and above) |
 | ▴ / ▾ on Schedule | Hide the buttons for a bigger sheet |
 | 🖨️ Print | The sheet + Day summary + free guards on paper / PDF |
+
+## ⏰ Estancia shift and card IN times (Prem, 22 Oct)
+
+| Duty | Shift time | Card IN window |
+|---|---|---|
+| A | 06:00 – 15:00 | 05:20 – 06:15 |
+| B | 13:00 – 21:00 | 12:30 – 13:15 |
+| G | 09:00 – 18:00 | 08:20 – 09:15 |
+| C | 21:00 – 06:00 | 20:20 – 21:15 |
+| Escort 6 to 5 | 18:00 – 05:00 | 17:20 – 18:15 |
+| Escort 9 to 6 | 21:00 – 06:00 | 20:20 – 21:15 |
+
+- Shift times live in the **Shifts** table (B changed 14:00 → 13:00). IN windows are in `supervisor.js` (`IN_WINDOW`).
+- Live board: **Auto** moves to a shift when its IN window opens; a post / escort is **Due** until the window ends, then **Not IN** (red, Needs attention); an IN after the window shows **late**.
+- Live board tabs: **A · G · B · C** = posts only; **🚗 Escort** = 6 to 5 and 9 to 6 only.

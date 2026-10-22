@@ -76,12 +76,13 @@ export default function SupervisorBoard() {
     return () => document.removeEventListener('visibilitychange', onShow);
   }, [load]);
 
-  // Auto: one reload at the next shift start (A / B / C), so the board moves on by itself without polling.
+  // Auto: one reload when the next shift's IN window opens (A / B / C), so the board moves on by itself without polling.
   useEffect(() => {
     if (shift || !data) return undefined;
     const now = new Date();
     const mins = now.getHours() * 60 + now.getMinutes();
-    const starts = data.shifts.filter(s => s.code !== 'G' && s.start).map(s => Number(s.start.slice(0, 2)) * 60 + Number(s.start.slice(3, 5)));
+    // A shift's board starts when its card IN window opens (A 05:20, B 12:30, C 20:20).
+    const starts = data.shifts.filter(s => s.code !== 'G' && (s.inFrom || s.start)).map(s => { const t = s.inFrom || s.start; return Number(t.slice(0, 2)) * 60 + Number(t.slice(3, 5)); });
     if (!starts.length) return undefined;
     const next = starts.map(t => (t - mins + 1440) % 1440 || 1440).sort((a, b) => a - b)[0];
     const t = setTimeout(load, (next * 60 - now.getSeconds() + 5) * 1000);
