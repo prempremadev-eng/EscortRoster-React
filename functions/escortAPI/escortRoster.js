@@ -11,7 +11,6 @@
 // time (linked by Guards.escort_id).
 
 const ROTATION = 4;
-const SUPPORT_POINTS = 12;
 // EscortDay.support_point of a guard the supervisor sent to escort for one day (any team): he goes
 // to the end of 9 to 6, gets a seat, and his card IN / guard page work like any escort's.
 const EXTRA = 'Extra 9 to 6';
@@ -72,15 +71,16 @@ async function escortDay(catalystApp, date) {
     guardId: id, guard: byId.get(id), batch: label, seat: after + ((i + ROTATION * turns) % ids.length) + 1,
     onDuty: code(id, date) === 'C', code: code(id, date)
   })).sort((a, b) => a.seat - b.seat);
-  // 6 to 5 keeps 12 rows (12 support points) even when fewer are on the list, so 9 to 6 starts at 13.
-  const rows = [...seatList(batch, '6 to 5', 0), ...seatList(night, '9 to 6', Math.max(batch.length, SUPPORT_POINTS))];
+  // 6 to 5 has as many rows as that week's Sat + Sun-off escorts (not a fixed 12, Prem 22 Oct: about 10 a
+  // week with 40 escorts, 12 with 46–48), so 9 to 6 starts right after it.
+  const rows = [...seatList(batch, '6 to 5', 0), ...seatList(night, '9 to 6', batch.length)];
 
   // Extra escorts for the day (Schedule page "→ Escort"), after the last 9 to 6 seat, in the order added.
   const extraIds = (await all(zcql, `SELECT guard_id FROM EscortDay WHERE sched_date = '${date}' AND support_point = '${EXTRA}' ORDER BY ROWID ASC`, 'EscortDay'))
     .map(x => String(x.guard_id)).filter((id, i, a) => a.indexOf(id) === i && !rows.some(r => r.guardId === id && r.onDuty));
   if (extraIds.length) {
     const extraGuards = await all(zcql, `SELECT ROWID, guard_name, id_number, phone, agency, escort_id FROM Guards WHERE ROWID IN (${extraIds.join(', ')}) ORDER BY ROWID ASC`, 'Guards');
-    let last = Math.max(Math.max(batch.length, SUPPORT_POINTS) + night.length, ...rows.map(r => r.seat));
+    let last = Math.max(batch.length + night.length, ...rows.map(r => r.seat));
     extraIds.forEach(id => {
       const g = extraGuards.find(x => String(x.ROWID) === id);
       if (!g) return;

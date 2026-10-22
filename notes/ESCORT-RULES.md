@@ -22,7 +22,7 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 | **E12 · Trip details** | The trip popup (cab number, driver, employee stops: Emp ID, location, pickup / drop, time) **stays exactly as it is** — the escort fills it for every trip. No changes |
 | **E13 · Everything else** | The rest of the Escort sheet **stays exactly as it is** (Saturday leave, Sunday pickup sheet, extra today-only rows, remarks, print, dashboard). Don't touch it (Prem, 21 Oct) |
 | **E14 · Sunday** | The Schedule page shows **no escort list on Sunday** (escorts take posts that day) |
-| **E15 · Numbering** | One running S.No like the real sheet: **6 to 5 = 1 … 12** (12 rows even if fewer, 12 support points), **9 to 6 carries on from 13**. Each list still turns 4 down on its own |
+| **E15 · Numbering** | One running S.No like the real sheet: **6 to 5 = 1 … n**, where **n = that week's escorts with Sat + Sun off** (not fixed: about 10 a week with 40 escorts, 12 with 46–48; Prem 22 Oct), then **9 to 6 carries on from n + 1**. Each list still turns 4 down on its own |
 | **E16 · Extra escort for a day** | Schedule page → ON DUTY, NO POST → **→ Escort** (only guards on **C** that day): that guard (any team) goes to the **end of 9 to 6** for the day with the next S.No; his card IN gives his seat and his own row on the guard page. ✕ on his escort row removes him. **That day only** (Prem: next day he is back to the normal rules; tap again if needed). Saved as EscortDay.support_point = `Extra 9 to 6` (no new table). The escort sheet's "+ Add Extra" stays for people outside the app (no notification) |
 | **E17 · Phone screens** | Like the post guard: card IN → **Your seat** (S.No, list, shift) → **5 escort rules** (seat belt, ID card + front seat, cab number + driver, safe drop, Out/In time + call supervisor) → **Start duty** → the escort sheet. Start is kept on that phone for the duty day (not on the server yet; the rules text is a draft for Prem to change) |
 | **E18 · Card OUT in between** | Last swipe = OUT → the escort page **locks** ("Card OUT since hh:mm") and trip writes are refused; an OUT notification makes an open page refresh. Swipe IN again the same duty day → page opens again, a new IN notification comes, and the phone starts again from **Your seat** (new IN time) → rules → Start duty. The phone sheet shows **both lists** (6 to 5 and 9 to 6), like the supervisor's sheet |
@@ -30,7 +30,7 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 
 ## Seen in the real sheets (to confirm)
 
-- 6-to-5 is always **12** people (12 support points: ERT Booth 1–3, Tower Main Gate, Smoking Zone, Lancor 2, North Plaza, MLCP Main Gate, MD House, PKL, PKL 1, Potheri).
+- The 6-to-5 size follows the Sat + Sun-off count of the week (not fixed). Support points seen: ERT Booth 1–3, Tower Main Gate, Smoking Zone, Lancor 2, North Plaza, MLCP Main Gate, MD House, PKL, PKL 1, Potheri.
 - Schedule page Escort table is sorted A–Z now → should follow roster order (E2).
 
 ## Built (21 Oct evening)
