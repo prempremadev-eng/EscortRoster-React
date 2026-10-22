@@ -65,6 +65,8 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
     }
   }, [token, post]);
   useEffect(() => { load(); }, [load]);
+  // An old error ("already IN …") goes away once the guard changes the form.
+  useEffect(() => { setError(''); }, [form]);
 
   async function save(e) {
     e.preventDefault();
