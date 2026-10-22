@@ -194,3 +194,7 @@
 .sh-esc-btn{all:unset;cursor:pointer;color:#1D4ED8;font-weight:700;font-size:10.5px;}
 .sh-esc-btn:hover{text-decoration:underline;}
 .sh-esc-x{all:unset;cursor:pointer;color:#B91C1C;font-weight:700;margin-left:6px;}
+/* KPI boxes are filters on the Live board */
+button.sb-kpi{text-align:left;cursor:pointer;font-family:inherit;}
+button.sb-kpi:hover{border-color:#94a3b8;}
+.sb-kpi-on{outline:3px solid #1e3a8a;outline-offset:-1px;}

@@ -49,6 +49,9 @@ export default function SupervisorBoard() {
   // '' = follow the running shift (Auto); a tapped tab pins that shift.
   const [shift, setShift] = useState('');
   const [data, setData] = useState(null);
+  // Tap a KPI box → only those cards (e.g. "Guard not IN" = the absent posts). Tap again / Total → all.
+  const [pick, setPick] = useState('');
+  useEffect(() => { setPick(''); }, [shift, branch]);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -97,6 +100,13 @@ export default function SupervisorBoard() {
   }
 
   const b = branches.find(x => String(x.ROWID) === String(branch));
+  const kpiBox = (key, label, value, cls) => (
+    <button className={'sb-kpi ' + cls + (pick === key ? ' sb-kpi-on' : '')} onClick={() => setPick(pick === key ? '' : key)} title={key ? 'Show only these' : 'Show all'}>
+      <div>{label}</div><b>{value}</b>
+    </button>
+  );
+  const postPicked = p => !pick || (pick === 'on_duty' ? ['on_duty', 'break'].includes(p.state) : p.state === pick);
+  const escortPicked = r => !pick || (pick === 'e_in' ? r.state === 'on_duty' : pick === 'e_trip' ? r.meta.startsWith('On trip') : pick === 'e_not_in' ? r.state === 'not_in' : true);
   const escortView = !!(data && data.view === 'escort');
   const shifts = data ? data.shifts.slice().sort((x, y) => SHIFT_ORDER.indexOf(x.code) - SHIFT_ORDER.indexOf(y.code)) : [];
 
@@ -130,14 +140,14 @@ export default function SupervisorBoard() {
             <div className="sb-main">
               {!escortView && <>
               <div className="sb-kpis">
-                <div className="sb-kpi"><div>Total posts</div><b>{data.kpi.total}</b></div>
-                <div className="sb-kpi sb-kpi-green"><div>On duty</div><b>{data.kpi.onDuty}</b></div>
-                <div className="sb-kpi sb-kpi-amber"><div>IN, not taken over</div><b>{data.kpi.waiting}</b></div>
-                <div className="sb-kpi sb-kpi-red"><div>Guard not IN</div><b>{data.kpi.notIn}</b></div>
-                <div className="sb-kpi sb-kpi-red"><div>Vacant</div><b>{data.kpi.vacant || 0}</b></div>
+                {kpiBox('', 'Total posts', data.kpi.total, '')}
+                {kpiBox('on_duty', 'On duty', data.kpi.onDuty, 'sb-kpi-green')}
+                {kpiBox('waiting', 'IN, not taken over', data.kpi.waiting, 'sb-kpi-amber')}
+                {kpiBox('not_in', 'Guard not IN', data.kpi.notIn, 'sb-kpi-red')}
+                {kpiBox('vacant', 'Vacant', data.kpi.vacant || 0, 'sb-kpi-red')}
               </div>
               <div className="sb-grid">
-                {data.posts.map(p => (
+                {data.posts.filter(postPicked).map(p => (
                   <button key={p.ROWID} className={'sb-card ' + STATE[p.state].cls} onClick={() => openPost(p.ROWID)}>
                     <div className="pd-row-between"><b>{p.name}</b><span className="sb-label">{STATE[p.state].label}</span></div>
                     <div className="sb-guard">{p.guard || '—'}</div>
@@ -150,17 +160,17 @@ export default function SupervisorBoard() {
               {escortView && !data.escort && <div className="pd-muted">No escort duty today (Saturday / Sunday, or no month roster).</div>}
               {escortView && data.escort && (
                 <div className="sb-kpis">
-                  <div className="sb-kpi"><div>Escorts today</div><b>{data.escort.kpi.total}</b></div>
-                  <div className="sb-kpi sb-kpi-green"><div>IN</div><b>{data.escort.kpi.in}</b></div>
-                  <div className="sb-kpi sb-kpi-amber"><div>On trip now</div><b>{data.escort.kpi.onTrip}</b></div>
-                  <div className="sb-kpi sb-kpi-red"><div>Not IN</div><b>{data.escort.kpi.notIn}</b></div>
+                  {kpiBox('', 'Escorts today', data.escort.kpi.total, '')}
+                  {kpiBox('e_in', 'IN', data.escort.kpi.in, 'sb-kpi-green')}
+                  {kpiBox('e_trip', 'On trip now', data.escort.kpi.onTrip, 'sb-kpi-amber')}
+                  {kpiBox('e_not_in', 'Not IN', data.escort.kpi.notIn, 'sb-kpi-red')}
                 </div>
               )}
               {escortView && data.escort && (
                 <>
                   <div className="pd-label">6 TO 5 (starts 18:00) · 9 TO 6 (starts 21:00)</div>
                   <div className="sb-grid">
-                    {data.escort.rows.map(r => (
+                    {data.escort.rows.filter(escortPicked).map(r => (
                       <button key={r.batch + r.seat} className={'sb-card ' + STATE[r.state].cls} onClick={() => openPost('')}>
                         <div className="pd-row-between"><b>S.No {r.seat} · {r.batch}</b><span className="sb-label">{r.state === 'on_duty' && r.meta.startsWith('On trip') ? 'On trip' : STATE[r.state].label}</span></div>
                         <div className="sb-guard">{r.name}</div>
