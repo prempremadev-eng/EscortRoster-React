@@ -55,3 +55,22 @@ The left rail is in this order, so the supervisor just goes top to bottom.
 - Shift times live in the **Shifts** table (B changed 14:00 → 13:00). IN windows are in `supervisor.js` (`IN_WINDOW`).
 - Live board: **Auto** moves to a shift when its IN window opens; a post / escort is **Due** from the window opening to the **shift start**, then **Not IN** at once (red, Needs attention); an IN **after the shift start** shows **late** (e.g. B IN 13:05).
 - Live board tabs: **A · G · B · C** = posts only; **🚗 Escort** = 6 to 5 and 9 to 6 only.
+
+## ⏳ Decided, not built yet: "no duty" after the IN window (Prem, 22 Oct)
+
+Prem: build this when it can be tested with real card swipes (Gallagher), not now.
+
+| Swipe (B example) | Rule |
+|---|---|
+| 12:30 – 13:00 | Duty, on time |
+| 13:01 – 13:15 | Duty, **late** mark (built) |
+| **After 13:15** (window end) | **No duty that day**: the swipe is still saved in AccessLog, but it does **not** count as IN — no post / escort page, the post stays **Not IN**, and the phone gets "IN 13:20 is after 13:15. No duty today. Meet your supervisor." |
+
+Same for every duty, with its window end: A 06:15 · B 13:15 · G 09:15 · C 21:15 · Escort 6 to 5 18:15 · Escort 9 to 6 21:15.
+
+How to build (notes for later):
+- Only the **first IN of the duty day** is checked; an IN again after a card OUT (break) is allowed.
+- Window check by minutes from the window opening (C crosses midnight): late-reject when `windowLength < minutesSinceOpen <= 12 h`; an early swipe before the window opens is not rejected.
+- Places: `onCardIn` (skip `post.onPostIn`, send the "no duty" notification), `/guardDay` and `/postDuty` (locked with that message), escort trip writes (`guardOnDuty`), Live board (post Not IN; escort card "Late IN · no duty").
+- Move `IN_WINDOW` from `supervisor.js` to a shared module so `index.js` / `post.js` use the same times.
+- Maybe later: a supervisor override ("allow duty") for a late guard.
