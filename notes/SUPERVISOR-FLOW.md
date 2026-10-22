@@ -55,7 +55,7 @@ The left rail is in this order, so the supervisor just goes top to bottom.
 
 - Shift times live in the **Shifts** table (B changed 14:00 → 13:00). IN windows are in `supervisor.js` (`IN_WINDOW`).
 - Live board: **Auto** moves to a shift when its IN window opens; a post / escort is **Due** from the window opening to the **shift start**, then **Not IN** at once (red, Needs attention); an IN **after the shift start** shows **late** (e.g. B IN 13:05).
-- Live board tabs: **A · G · B · C** = posts only; **🚗 Escort** = 6 to 5 and 9 to 6 only.
+- Live board tabs: **A · G · B · C** = posts only (only the posts that work that shift today, same rules as the Schedule page, so Total posts = that shift's slots); **🚗 Escort** = 6 to 5 and 9 to 6 only.
 
 ## ⏳ Decided, not built yet: "no duty" after the IN window (Prem, 22 Oct)
 

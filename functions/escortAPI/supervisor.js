@@ -310,8 +310,26 @@ module.exports = function supervisorRoutes(app, h) {
       const nameOf = id => (names[String(id)] || {}).guard_name || 'Guard';
       const postName = id => (posts.find(p => String(p.ROWID) === String(id)) || {}).post_name || 'Post';
 
+      // Only the posts that work this shift today, by the same rules as the Schedule page (shift letters,
+      // R / RG rows only when their person works it, W = weekdays only). A post with a published guard or
+      // someone at it now always stays. So "Total posts" = this shift's real slots (Prem, 22 Oct).
+      const needRoster = posts.some(p => regularOnly(p));
+      const [roster, supNames, branchGuards] = needRoster ? await Promise.all([
+        zcql.executeZCQLQuery(`SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${day.slice(0, 7)}' LIMIT 0, 300`).then(r => r.map(x => x.MonthRoster)),
+        zcql.executeZCQLQuery(`SELECT name FROM UserRoles WHERE role = 'supervisor' AND branch_id = ${branch} AND is_active = true`).then(r => r.map(x => String(x.UserRoles.name || '').toLowerCase())),
+        zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE branch_id = ${branch} AND is_active = 'true' LIMIT 0, 300`).then(r => r.map(x => x.Guards))
+      ]) : [[], [], []];
+      const rosterOf = {};
+      roster.forEach(r => { const c = String(r.codes || '')[Number(day.slice(8, 10)) - 1]; if (c) rosterOf[String(r.guard_id)] = c; });
+      const supIds = branchGuards.filter(g => supNames.includes(String(g.guard_name).toLowerCase())).map(g => String(g.ROWID));
+      const busyHere = new Set(chart.map(c => String(c.post_id)).concat(logs.map(l => String(l.post_id))));
+      const boardPosts = posts.filter(p => busyHere.has(String(p.ROWID)) || (
+        (!postShifts(p) || postShifts(p).includes(code))
+        && !(weekdayOnly(p) && isWeekend(day))
+        && (!regularOnly(p) || shiftsToday(p, rosterOf, regularIds(p, posts, supIds), '').includes(code))));
+
       const attention = [];
-      const cards = posts.map(p => {
+      const cards = boardPosts.map(p => {
         const id = String(p.ROWID);
         const log = logs.find(l => String(l.post_id) === id);
         const planned = chart.filter(c => String(c.post_id) === id);
