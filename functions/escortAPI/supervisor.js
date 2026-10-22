@@ -291,9 +291,10 @@ module.exports = function supervisorRoutes(app, h) {
       openW.filter(w => w.permit_end && now > w.permit_end).forEach(w => {
         attention.push({ post: postName(w.post_id) + ' · Permit expired', postId: String(w.post_id), text: w.contractor + ' still working after ' + w.permit_to, level: 'red' });
       });
-      // Escort section (Shift C board, weekdays): today's escort lists with IN / OUT and the trip running now.
+      // Escort section (Shift B and C boards, weekdays): 6 to 5 starts 18:00 and 9 to 6 at 21:00, both inside
+      // Shift B, and run on through C. Today's escort lists with IN / OUT and the trip running now.
       let escort = null;
-      if (code === 'C') {
+      if (code === 'B' || code === 'C') {
         const rosterDay = await escortDay(catalystApp, day);
         if (rosterDay) {
           const list = rosterDay.rows.filter(r => r.onDuty);
