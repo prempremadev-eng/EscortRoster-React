@@ -36,7 +36,7 @@ async function uploadMedia(t, blob, { kind, source, duration, reply_to, post }) 
   return json;
 }
 
-// Vehicle photo of one entry: guard (t + post) or supervisor (signed in), the photo is the body.
+// Vehicle photo of one entry, or a photo to read the number plate from: the photo is the body.
 async function vehiclePhoto(path, blob) {
   const res = await fetch(API_BASE + path, { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
   let json;
@@ -131,6 +131,7 @@ export const api = {
   vehicleIn: (t, entry, post) => apiCall('POST', '/vehicleIn', { t, ...entry, post }),
   vehicleOut: (t, id, post) => apiCall('POST', '/vehicleOut', { t, id, post }),
   vehiclePhoto: (t, id, blob, post) => vehiclePhoto('/vehiclePhoto?t=' + q(t) + '&id=' + q(id) + (post ? '&post=' + q(post) : ''), blob),
+  vehiclePlate: (t, blob, post) => vehiclePhoto('/vehiclePlate?t=' + q(t) + (post ? '&post=' + q(post) : ''), blob),
   vehiclePhotoLink: (t, id, post) => apiCall('GET', '/vehiclePhotoLink?t=' + q(t) + '&id=' + q(id) + (post ? '&post=' + q(post) : '')),
   sendAlert: (t, text, post) => apiCall('POST', '/sendAlert', { t, text, post }),
   cancelAlert: (t, rowid, post) => apiCall('POST', '/cancelAlert', { t, rowid, post }),
@@ -146,6 +147,7 @@ export const api = {
   vehicleAdd: entry => apiCall('POST', '/vehicleAdd', entry),
   vehicleMarkOut: id => apiCall('POST', '/vehicleMarkOut', { id }),
   vehiclePhotoAdd: (id, blob) => vehiclePhoto('/vehiclePhotoAdd?id=' + q(id), blob),
+  vehiclePlateScan: blob => vehiclePhoto('/vehiclePlateScan', blob),
   vehiclePhotoUrl: id => apiCall('GET', '/vehiclePhotoUrl?id=' + q(id)),
   dutyHistory: (branch, date) => apiCall('GET', '/dutyHistory?branch=' + q(branch) + '&date=' + q(date)),
   supBoard: (branch, shift) => apiCall('GET', '/supBoard?branch=' + q(branch) + (shift ? '&shift=' + q(shift) : '')),

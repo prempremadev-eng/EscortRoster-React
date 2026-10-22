@@ -22,7 +22,12 @@ Brought in from the separate vehicle entry app (option A: inside this app). Old 
 - 📷 on the guard's lists and a **Photo** column on the Vehicles page → full-screen photo (link works one hour).
 - Supervisor's + New entry has the same photo button.
 
-## Later (one by one)
+## Number plate scan (built 22 Oct evening)
 
-1. Number plate scan
-2. Voice to text (needs the API key)
+- **Scan** button next to the vehicle number → camera → the number is filled in ("check it with the vehicle"); the guard can still change it.
+- The scan photo also becomes the vehicle photo when none was taken yet (one photo, two uses).
+- Service: **Plate Recognizer** (same as the old app), Indian plates. Its key is in the **Settings** table (`plate_recognizer_token`), **not in git** (public repo). No key / limit reached / no plate → a message, the guard types the number.
+
+## Later
+
+1. Voice to text (needs the API key)

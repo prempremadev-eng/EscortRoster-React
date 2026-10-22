@@ -5,7 +5,8 @@ import { compressImage } from './media.js';
 
 // Vehicle entry at a post (Posts.vehicle_entry on), brought in from the separate vehicle app.
 // Same three types and the same must-fill fields as that app; time and name are saved by the server.
-// The photo (optional) is sent after the IN is saved. Number plate scan and voice come later.
+// The photo (optional) is sent after the IN is saved. "Scan" reads the number plate from a photo
+// (that photo also becomes the vehicle photo when there is none yet). Voice comes later.
 export const TYPES = [
   { key: 'employee', label: 'Employee' },
   { key: 'visitor', label: 'Visitor' },
@@ -14,10 +15,13 @@ export const TYPES = [
 export const BLANK = { entry_type: 'employee', vehicle_no: '', emp_no: '', name: '', phone: '', from: '', meet: '' };
 
 // The IN form, used by the guard page and by the supervisor's "+ New entry".
-export function VehicleForm({ form, setForm, photo, setPhoto, busy, onSubmit, submitLabel, children }) {
+export function VehicleForm({ form, setForm, photo, setPhoto, scan, busy, onSubmit, submitLabel, children }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const emp = form.entry_type === 'employee';
   const camera = useRef(null);
+  const scanInput = useRef(null);
+  const [scanning, setScanning] = useState(false);
+  const [scanMsg, setScanMsg] = useState('');
   const [preview, setPreview] = useState('');
   const [photoError, setPhotoError] = useState('');
   // Making the photo small takes a second or two; Save waits for it (a Save before it saved the IN without the photo).
@@ -28,6 +32,29 @@ export function VehicleForm({ form, setForm, photo, setPhoto, busy, onSubmit, su
     setPreview(url);
     return () => URL.revokeObjectURL(url);
   }, [photo]);
+
+  async function scanPlate(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setScanMsg('');
+    setScanning(true);
+    try {
+      const small = await compressImage(file);
+      if (!photo) setPhoto(small);
+      const r = (await scan(small)).data;
+      if (r.plate) {
+        set('vehicle_no', r.plate);
+        setScanMsg('Read: ' + r.plate + ' · check it with the vehicle');
+      } else {
+        setScanMsg('No number plate found. Type the number.');
+      }
+    } catch (err) {
+      setScanMsg(err.message);
+    } finally {
+      setScanning(false);
+    }
+  }
 
   // Phone photos are 3–8 MB; a 1280 px JPEG (~200 KB) is enough to read the plate.
   async function pick(e) {
@@ -68,7 +95,14 @@ export function VehicleForm({ form, setForm, photo, setPhoto, busy, onSubmit, su
       )}
       {photoError && <div className="pd-card pd-bad">{photoError}</div>}
       <label htmlFor="ve-no">Vehicle number</label>
-      <input id="ve-no" className="ve-plate" value={form.vehicle_no} onChange={e => set('vehicle_no', e.target.value.toUpperCase())} placeholder="TN 09 AB 1234" maxLength={20} required autoComplete="off" />
+      <div className="ve-no-row">
+        <input id="ve-no" className="ve-plate" value={form.vehicle_no} onChange={e => set('vehicle_no', e.target.value.toUpperCase())} placeholder="TN 09 AB 1234" maxLength={20} required autoComplete="off" />
+        {scan && <>
+          <input ref={scanInput} type="file" accept="image/*" capture="environment" hidden onChange={scanPlate} />
+          <button type="button" className="pd-btn pd-btn-outline ve-scan" onClick={() => scanInput.current.click()} disabled={scanning}>{Icon.camera}{scanning ? 'Reading...' : 'Scan'}</button>
+        </>}
+      </div>
+      {scanMsg && <div className="pd-muted pd-small">{scanMsg}</div>}
       {emp ? <>
         <label htmlFor="ve-emp">Employee number</label>
         <input id="ve-emp" value={form.emp_no} onChange={e => set('emp_no', e.target.value)} placeholder="Employee ID" maxLength={30} required autoComplete="off" />
@@ -82,7 +116,7 @@ export function VehicleForm({ form, setForm, photo, setPhoto, busy, onSubmit, su
         <label htmlFor="ve-meet">Whom to meet{form.entry_type === 'vendor' ? ' (optional)' : ''}</label>
         <input id="ve-meet" value={form.meet} onChange={e => set('meet', e.target.value)} maxLength={100} required={form.entry_type === 'visitor'} />
       </>}
-      <button className="pd-btn pd-btn-primary" type="submit" disabled={busy || preparing}>{busy ? 'Saving...' : preparing ? 'Preparing photo...' : submitLabel}</button>
+      <button className="pd-btn pd-btn-primary" type="submit" disabled={busy || preparing || scanning}>{busy ? 'Saving...' : preparing ? 'Preparing photo...' : submitLabel}</button>
     </form>
   );
 }
@@ -203,7 +237,7 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
       {toast && <div className="pd-card ve-toast" onClick={() => setToast('')}>{Icon.check} {toast}</div>}
       {error && <div className="pd-card pd-bad">{error}</div>}
 
-      <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} busy={busy} onSubmit={save} submitLabel="Save IN" />
+      <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={blob => api.vehiclePlate(token, blob, post)} busy={busy} onSubmit={save} submitLabel="Save IN" />
 
       <input ref={laterInput} type="file" accept="image/*" capture="environment" hidden onChange={addLater} />
       <div className="pd-field-title">Inside now · {inside.length}</div>

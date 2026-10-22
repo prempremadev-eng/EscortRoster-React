@@ -33,7 +33,7 @@ const TIMELINE_LIMIT = 100;
 
 module.exports = function postRoutes(app, h) {
   const { catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, sendPushToRows, getVapidKeys,
-    getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN, auth } = h;
+    getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN, auth, getSetting } = h;
 
   // "2026-10-16 05:58" in India time. Date and time together, because Shift C runs past midnight.
   function nowStamp() {
@@ -720,7 +720,7 @@ module.exports = function postRoutes(app, h) {
 
   // Vehicle entry (vehicles.js): posts with vehicle entry on.
   require('./vehicles.js')(app, {
-    catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, isTrue, onDutyLog, shiftDate, auth
+    catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, isTrue, onDutyLog, shiftDate, auth, getSetting
   });
 
   // Supervisor inbox (supervisor.js).

@@ -1,7 +1,7 @@
 "use strict"
 
 /* ---------------- VEHICLE ENTRY (posts with Posts.vehicle_entry on) ---------------- */
-// Brought in from the separate vehicle entry app (phase 1 + photo; plate scan and voice come later).
+// Brought in from the separate vehicle entry app (phase 1 + photo + plate scan; voice comes later).
 // One VehicleEntries row per vehicle visit: IN (guard or supervisor) → OUT (any guard of the post).
 //   entry_type employee: vehicle no + employee no
 //   entry_type visitor : vehicle no + name, phone, coming from, whom to meet
@@ -17,11 +17,15 @@ const TYPES = ['employee', 'visitor', 'vendor'];
 const MEDIA_BUCKET = 'escortcardaccess-media';
 const PHOTO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const PHOTO_MAX = 8 * 1024 * 1024;
+// Number plate scan: Plate Recognizer (same service as the old app), Indian plates. The token is kept in
+// Settings (setting_key 'plate_recognizer_token'), not in git: this repo is public.
+const PLATE_URL = 'https://api.platerecognizer.com/v1/plate-reader/';
+const PLATE_MAX = 3 * 1024 * 1024; // the service's limit
 const PLATE_RE = /^[A-Z0-9 -]{4,20}$/;
 const PHONE_RE = /^[0-9+ -]{6,20}$/;
 
 module.exports = function vehicleRoutes(app, h) {
-  const { catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, isTrue, onDutyLog, shiftDate, auth } = h;
+  const { catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, isTrue, onDutyLog, shiftDate, auth, getSetting } = h;
 
   const detailsOf = row => { try { return JSON.parse(row.details || '{}'); } catch { return {}; } };
 
@@ -208,6 +212,53 @@ module.exports = function vehicleRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       res.status(200).json({ status: 'success', data: { url: await photoLink(catalystApp, await areaEntry(req, catalystApp.zcql(), req.query.id)) } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  /* ---------- number plate scan (the photo is read, not saved) ---------- */
+
+  let plateToken = null; // kept while the function stays warm (one Settings read)
+  async function readPlate(req, zcql) {
+    const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    if (!PHOTO_TYPES[type]) throw new Error('Scan needs a photo.');
+    if (!Buffer.isBuffer(req.body) || !req.body.length) throw new Error('The photo is empty.');
+    if (req.body.length > PLATE_MAX) throw new Error('Photo is too big to scan (max 3 MB).');
+    if (!plateToken) {
+      const row = await getSetting(zcql, 'plate_recognizer_token');
+      plateToken = row && row.setting_value ? String(row.setting_value).trim() : null;
+    }
+    if (!plateToken) throw new Error('Number plate scan is not set up yet (no key). Type the number.');
+    const form = new FormData();
+    form.append('regions', 'in');
+    form.append('upload', new Blob([req.body], { type }), 'plate.' + PHOTO_TYPES[type]);
+    const r = await fetch(PLATE_URL, { method: 'POST', headers: { Authorization: 'Token ' + plateToken }, body: form });
+    if (!r.ok) {
+      console.error('Plate scan failed:', r.status, await r.text());
+      if (r.status === 401 || r.status === 403) plateToken = null;
+      throw new Error(r.status === 429 ? 'Scan limit reached for now. Type the number.' : 'Scan did not work. Type the number.');
+    }
+    const best = ((await r.json()).results || [])[0];
+    return best ? { plate: String(best.plate).toUpperCase(), score: best.score } : { plate: '', score: 0 };
+  }
+
+  // Guard: only while on duty at a vehicle post.
+  app.post('/vehiclePlate', express.raw({ type: () => true, limit: '4mb' }), async (req, res) => {
+    try {
+      const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
+      const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
+      await postOf(zcql, log.post_id);
+      res.status(200).json({ status: 'success', data: await readPlate(req, zcql) });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  app.post('/vehiclePlateScan', express.raw({ type: () => true, limit: '4mb' }), async (req, res) => {
+    try {
+      const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
+      res.status(200).json({ status: 'success', data: await readPlate(req, zcql) });
     } catch (err) {
       fail(res, err);
     }
