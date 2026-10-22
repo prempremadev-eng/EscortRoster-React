@@ -86,7 +86,10 @@ export default function Dashboard() {
   const [status, setStatus] = useState('loading');
   const [open, setOpen] = useState(null);
   // Guard wise: tap a guard → that guard's trips (their history in this period) open under the row.
-  const [openGuard, setOpenGuard] = useState(null);
+  // Opened from a Live board escort card: that escort's trips start open.
+  const [openGuard, setOpenGuard] = useState(() => {
+    try { const g = JSON.parse(localStorage.getItem('dash_guard') || 'null'); localStorage.removeItem('dash_guard'); return g; } catch { return null; }
+  });
 
   const [from, to] = rangeFor(kind, anchor);
 

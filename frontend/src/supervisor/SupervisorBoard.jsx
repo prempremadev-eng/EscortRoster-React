@@ -93,6 +93,12 @@ export default function SupervisorBoard() {
     return () => clearTimeout(t);
   }, [shift, data, load]);
 
+  // An escort card → the Escort Dashboard with that escort's trips open (Prem, 22 Oct).
+  function openEscort(name) {
+    keep('dash_guard', name);
+    window.location.hash = '#dashboard';
+  }
+
   function openPost(id) {
     if (!id) { window.location.hash = '#'; return; } // an escort line opens the escort duty sheet
     keep('sup_open', id);
@@ -171,7 +177,7 @@ export default function SupervisorBoard() {
                   <div className="pd-label">6 TO 5 (starts 18:00) · 9 TO 6 (starts 21:00)</div>
                   <div className="sb-grid">
                     {data.escort.rows.filter(escortPicked).map(r => (
-                      <button key={r.batch + r.seat} className={'sb-card ' + STATE[r.state].cls} onClick={() => openPost('')}>
+                      <button key={r.batch + r.seat} className={'sb-card ' + STATE[r.state].cls} onClick={() => openEscort(r.name)} title="Open this escort's trips in the Escort Dashboard">
                         <div className="pd-row-between"><b>S.No {r.seat} · {r.batch}</b><span className="sb-label">{r.state === 'on_duty' && r.meta.startsWith('On trip') ? 'On trip' : STATE[r.state].label}</span></div>
                         <div className="sb-guard">{r.name}</div>
                         <div className="pd-small pd-muted">{r.meta}</div>
