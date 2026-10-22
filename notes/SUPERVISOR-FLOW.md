@@ -36,7 +36,7 @@ The left rail is in this order, so the supervisor just goes top to bottom.
 
 | Rail | For |
 |---|---|
-| History | **Duty History** (read only): a date → every guard's team, roster letter, post / escort seat, card IN / OUT, status (Present / Late / Absent / Week off / Leave / No post). Replaces the weekly Duty Chart page (removed 22 Oct) |
+| History | **Duty History** (read only, every role sees only its own area; city / state / super admin also get "All my branches" with a Branch column): a date → every guard's team, roster letter, post / escort seat, card IN / OUT, status (Present / Late / Absent / Week off / Leave / No post). Replaces the weekly Duty Chart page (removed 22 Oct) |
 | Guards | Guard Master (add / edit guards) |
 | Admin | Users, branches, agencies (branch admin and above) |
 | ▴ / ▾ on Schedule | Hide the buttons for a bigger sheet |

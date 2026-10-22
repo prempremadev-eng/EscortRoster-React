@@ -45,10 +45,12 @@ export default function DutyHistory() {
   useEffect(() => { load(); }, [load]);
 
   const rows = data ? data.rows : [];
+  // "All my branches" (city / state / super admin): one table with a Branch column.
+  const many = branch === 'ALL';
   const teams = [...new Set(rows.map(r => r.team).filter(Boolean))];
   const count = s => rows.filter(r => r.status === s).length;
   const shown = useMemo(() => rows.filter(r => (!team || r.team === team) && (!status || r.status === status)
-    && (!q.trim() || (r.name + ' ' + r.id + ' ' + r.post).toLowerCase().includes(q.trim().toLowerCase()))), [rows, team, status, q]);
+    && (!q.trim() || (r.name + ' ' + r.id + ' ' + r.post + ' ' + (r.branch || '')).toLowerCase().includes(q.trim().toLowerCase()))), [rows, team, status, q]);
 
   return (
     <>
@@ -65,6 +67,7 @@ export default function DutyHistory() {
         </div>
         {branches.length > 1 && (
           <select value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">
+            <option value="ALL">All my branches ({branches.length})</option>
             {branches.map(b => <option key={b.ROWID} value={b.ROWID}>{b.branch_name} · {b.city}</option>)}
           </select>
         )}
@@ -99,12 +102,13 @@ export default function DutyHistory() {
             <div className="dash-scroll">
               <table className="dash-table dh-table">
                 <thead>
-                  <tr><th>S.No</th><th>Name</th><th>ID</th><th>Team</th><th>Roster</th><th>Post</th><th>Shift</th><th>IN</th><th>OUT</th><th>Status</th></tr>
+                  <tr><th>S.No</th>{many && <th>Branch</th>}<th>Name</th><th>ID</th><th>Team</th><th>Roster</th><th>Post</th><th>Shift</th><th>IN</th><th>OUT</th><th>Status</th></tr>
                 </thead>
                 <tbody>
                   {shown.map((r, i) => (
-                    <tr key={r.id + r.name}>
+                    <tr key={r.branch + r.id + r.name}>
                       <td>{i + 1}</td>
+                      {many && <td className="left">{r.branch}</td>}
                       <td className="left"><b>{r.name}</b></td>
                       <td>{r.id}</td>
                       <td>{r.team}</td>
@@ -116,7 +120,7 @@ export default function DutyHistory() {
                       <td><span className={'dh-status ' + (STATUS_CLS[r.status] || '')}>{r.status}</span></td>
                     </tr>
                   ))}
-                  {shown.length === 0 && <tr><td colSpan={10} className="dash-empty">Nobody matches.</td></tr>}
+                  {shown.length === 0 && <tr><td colSpan={many ? 11 : 10} className="dash-empty">Nobody matches.</td></tr>}
                 </tbody>
               </table>
             </div>

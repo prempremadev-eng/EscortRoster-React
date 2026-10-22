@@ -371,12 +371,25 @@ module.exports = function supervisorRoutes(app, h) {
   /* ---------- DUTY HISTORY (read only, replaces the weekly Duty Chart page) ---------- */
   // One day of one branch: every guard with team, roster letter, post / escort seat, card IN and OUT,
   // and a status (Present / Late / Absent / Week off / Leave …). Nothing is written. About 6 reads.
+  // branch=ALL (city / state / super admin): every active branch in the login's area, one table with a Branch column.
   app.get('/dutyHistory', async (req, res) => {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
-      const branch = auth.requireBranch(req, requireRowId(req.query.branch));
       const date = requireDate(req.query.date);
+      const list = req.query.branch === 'ALL'
+        ? (await auth.branchList(zcql)).filter(b => b.is_active === 'true' && auth.branchOk(req, b.ROWID))
+        : [{ ROWID: auth.requireBranch(req, requireRowId(req.query.branch)) }];
+      const rows = [];
+      for (const b of list) (await historyOf(req, catalystApp, zcql, String(b.ROWID), date)).forEach(r => rows.push({ ...r, branch: b.branch_name || '' }));
+      res.status(200).json({ status: 'success', data: { date, rows } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  async function historyOf(req, catalystApp, zcql, branch, date) {
+    {
       const next = new Date(date + 'T00:00:00Z'); next.setUTCDate(next.getUTCDate() + 1);
       const nextDay = next.toISOString().slice(0, 10);
       const all = async (sql, table) => {
@@ -434,11 +447,9 @@ module.exports = function supervisorRoutes(app, h) {
       const TEAM = ['PKL', 'Lady Guards', 'Medical Mine', 'Ninnakarai', 'Hospital', 'MLCP', 'Escort'];
       const teamRank = t => { const i = TEAM.indexOf(t); return i < 0 ? 99 : i; };
       rows.sort((a, b) => teamRank(a.team) - teamRank(b.team) || a.order - b.order || a.name.localeCompare(b.name));
-      res.status(200).json({ status: 'success', data: { date, rows: rows.map(({ order, ...r }) => r) } });
-    } catch (err) {
-      fail(res, err);
+      return rows.map(({ order, ...r }) => r);
     }
-  });
+  }
 
   /* ---------- SCHEDULE (screen 12) ---------- */
   // One day of one branch: posts × shifts, one guard per slot and one slot per guard per day.
