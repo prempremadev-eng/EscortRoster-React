@@ -214,13 +214,14 @@ tfoot td{
 }
 
 .page-bottom-label{
-  padding:8px 20px;
+  /* a light mark only, not a highlight (Prem, 22 Oct) */
+  padding:6px 20px;
   text-align:right;
-  font-size:13px;
-  font-weight:bold;
-  color:var(--blue-dark);
-  background:var(--blue-band);
-  border-top:1px solid var(--border);
+  font-size:11px;
+  font-weight:400;
+  color:#b6c0cc;
+  background:transparent;
+  border-top:1px solid #eef1f5;
 }
 
 .print-page-header{
