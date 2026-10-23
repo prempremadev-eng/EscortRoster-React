@@ -453,3 +453,6 @@
 .ve-page{min-height:100vh;min-height:100dvh;}
 .ve-spacer{flex:1 1 0;min-height:0;margin:-8px 0;}
 .ve-head{margin-top:0;}
+/* Title a little higher than the centred form, and one step bigger (23 Oct). */
+.ve-head{margin-top:-16px;margin-bottom:16px;}
+.ve-head-title{font-size:26px;}
