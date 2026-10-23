@@ -22,6 +22,8 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, busy, onSubm
   const scanInput = useRef(null);
   const [scanning, setScanning] = useState(false);
   const [scanMsg, setScanMsg] = useState('');
+  // The "Read: …" line belongs to the number on screen; it goes when the form is cleared after Save.
+  useEffect(() => { if (!form.vehicle_no) setScanMsg(''); }, [form.vehicle_no]);
   const [preview, setPreview] = useState('');
   const [photoError, setPhotoError] = useState('');
   // Making the photo small takes a second or two; Save waits for it (a Save before it saved the IN without the photo).
@@ -41,13 +43,15 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, busy, onSubm
     setScanning(true);
     const started = Date.now();
     try {
-      // A smaller copy goes to the scan (quicker upload; a plate reads fine at 960 px), the
-      // 1280 px one is kept as the vehicle photo.
-      const [small, scanCopy] = await Promise.all([photo ? null : compressImage(file), compressImage(file, 960, 0.7)]);
-      if (small) setPhoto(small);
-      const r = (await scan(scanCopy)).data;
-      // Seconds shown for now, to see where the time goes (total on the phone / at the server).
-      const took = ' · ' + ((Date.now() - started) / 1000).toFixed(1) + ' s' + (r.ms ? ' (server ' + (r.ms / 1000).toFixed(1) + ' s)' : '');
+      // One decode of the big camera photo (two in a row took ~15 s on a phone, 23 Oct); the same
+      // 1280 px copy is read for the plate and kept as the vehicle photo.
+      const small = await compressImage(file);
+      const ready = Date.now();
+      if (!photo) setPhoto(small);
+      const r = (await scan(small)).data;
+      // Seconds shown for now, to see where the time goes: photo on the phone / send + server / server.
+      const sec = ms => (ms / 1000).toFixed(1) + ' s';
+      const took = ' · photo ' + sec(ready - started) + ', send ' + sec(Date.now() - ready) + (r.ms ? ' (server ' + sec(r.ms) + ')' : '');
       if (r.plate) {
         set('vehicle_no', r.plate);
         setScanMsg('Read: ' + r.plate + ' · check it with the vehicle' + took);
