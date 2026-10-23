@@ -402,3 +402,5 @@
 .ve-card-head .ve-lang{white-space:nowrap;gap:6px;min-width:0;}
 .ve-card-head .ve-lang select{max-width:118px;min-width:0;}
 .ve-form .ve-card input.ve-plate{font-size:18px;letter-spacing:.04em;}
+/* Save IN sat too low on the phone (half under the browser's bottom bar, Prem 23 Oct): higher, and above the iPhone home bar. */
+.ve-save{bottom:calc(24px + env(safe-area-inset-bottom, 0px));margin-top:4px;}
