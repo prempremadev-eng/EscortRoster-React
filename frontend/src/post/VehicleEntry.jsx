@@ -24,8 +24,13 @@ const plateKey = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, inside, onOut, busy, onSubmit, submitLabel, children }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const mic = useVoiceInput(voice || (() => Promise.reject(new Error('No voice here.'))), (k, v) => set(k, v), ['emp_no', 'phone']);
-  // An input with a 🎤 button on its right (only when this phone can record).
-  const field = (k, input) => (!voice || !mic.isSupported ? input : (
+  // An input with a 🎤 button on its right (only when this phone can record); what the mic is doing
+  // shows right under that input (listening / writing / error / time).
+  const micLine = k => (mic.activeField === k ? <div className="pd-small ve-listen">🎤 Listening… speak now (it stops after a pause)</div>
+    : mic.busyField === k ? <div className="pd-muted pd-small">Writing what you said…</div>
+    : mic.lastField === k && mic.error ? <div className="pd-small ve-mic-err">{mic.error}</div>
+    : mic.lastField === k && mic.took ? <div className="pd-muted pd-small">🎤 Done · {mic.took}</div> : null);
+  const field = (k, input) => (!voice || !mic.isSupported ? input : <>
     <div className="ve-no-row">
       {input}
       <button type="button" className={'pd-btn pd-btn-outline ve-mic' + (mic.activeField === k ? ' on' : '')}
@@ -34,7 +39,8 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, insid
         {mic.busyField === k ? '…' : mic.activeField === k ? '■' : Icon.mic}
       </button>
     </div>
-  ));
+    {micLine(k)}
+  </>);
   const already = form.vehicle_no && (inside || []).find(x => plateKey(x.vehicleNo) === plateKey(form.vehicle_no));
   const emp = form.entry_type === 'employee';
   const camera = useRef(null);
@@ -130,9 +136,7 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, insid
         <label htmlFor="ve-meet">Whom to meet{form.entry_type === 'vendor' ? ' (optional)' : ''}</label>
         {field('meet', <input id="ve-meet" value={form.meet} onChange={e => set('meet', e.target.value)} maxLength={100} required={form.entry_type === 'visitor'} />)}
       </>}
-      {mic.activeField && <div className="pd-small ve-listen">🎤 Listening… speak now (it stops after a pause)</div>}
-      {mic.busyField && <div className="pd-muted pd-small">Writing what you said…</div>}
-      {mic.error && <div className="pd-muted pd-small">{mic.error}</div>}
+
       <button className="pd-btn pd-btn-primary" type="submit" disabled={busy || preparing || scanning}>{busy ? 'Saving...' : preparing ? 'Preparing photo...' : submitLabel}</button>
       </>}
     </form>

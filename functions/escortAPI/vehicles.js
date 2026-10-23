@@ -307,9 +307,10 @@ module.exports = function vehicleRoutes(app, h) {
   app.post('/vehicleVoice', express.raw({ type: () => true, limit: '11mb' }), async (req, res) => {
     try {
       const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
+      const started = Date.now();
       const check = onDutyLog(zcql, req.query.t, req.query.post, true).then(({ log }) => postOf(zcql, log.post_id));
       const [, voice] = await Promise.all([check, readVoice(req, zcql)]);
-      res.status(200).json({ status: 'success', data: voice });
+      res.status(200).json({ status: 'success', data: { ...voice, ms: Date.now() - started } });
     } catch (err) {
       fail(res, err);
     }
@@ -318,7 +319,9 @@ module.exports = function vehicleRoutes(app, h) {
   app.post('/vehicleVoiceText', express.raw({ type: () => true, limit: '11mb' }), async (req, res) => {
     try {
       const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
-      res.status(200).json({ status: 'success', data: await readVoice(req, zcql) });
+      const started = Date.now();
+      const voice = await readVoice(req, zcql);
+      res.status(200).json({ status: 'success', data: { ...voice, ms: Date.now() - started } });
     } catch (err) {
       fail(res, err);
     }

@@ -36,6 +36,8 @@ export function useVoiceInput(transcribe, onResult, digitFields) {
   const [activeField, setActiveField] = useState(null);
   const [busyField, setBusyField] = useState(null); // text on its way back
   const [error, setError] = useState('');
+  const [lastField, setLastField] = useState(null); // the field the message / time below belongs to
+  const [took, setTook] = useState(''); // "1.8 s (server 1.2 s)": shown for now, for the manager to see
   const recorderRef = useRef(null);
   const chunks = useRef([]);
   const streamRef = useRef(null);
@@ -86,6 +88,8 @@ export function useVoiceInput(transcribe, onResult, digitFields) {
   async function start(field) {
     if (!isSupported || activeField || busyField) return;
     setError('');
+    setTook('');
+    setLastField(field);
     chunks.current = [];
     pendingStop.current = false;
     heardSound.current = false;
@@ -118,8 +122,12 @@ export function useVoiceInput(transcribe, onResult, digitFields) {
       const blob = new Blob(chunks.current, { type: recorder.mimeType || 'audio/webm' });
       if (!blob.size) { setError("Didn't catch that. Tap 🎤 and speak again."); return; }
       setBusyField(field);
+      const sent = Date.now();
       try {
-        const text = String((await transcribe(blob)).data.text || '').trim();
+        const answer = (await transcribe(blob)).data;
+        const text = String(answer.text || '').trim();
+        const sec = ms => (ms / 1000).toFixed(1) + ' s';
+        setTook(sec(Date.now() - sent) + (answer.ms ? ' (server ' + sec(answer.ms) + ')' : ''));
         const value = digitFields && digitFields.includes(field) ? wordsToDigits(text) : text;
         if (!value) setError("Didn't catch that. Tap 🎤 and speak again.");
         else onResult(field, value);
@@ -141,7 +149,7 @@ export function useVoiceInput(transcribe, onResult, digitFields) {
     else pendingStop.current = true;
   }
 
-  return { isSupported, activeField, busyField, error, start, stop };
+  return { isSupported, activeField, busyField, lastField, error, took, start, stop };
 }
 
 const DIGIT_WORDS = { zero: '0', oh: '0', o: '0', one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9' };
