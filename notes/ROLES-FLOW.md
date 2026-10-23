@@ -57,6 +57,20 @@ Supervisor (branch + agency) → Branch Admin (branch) → City Admin (city) →
 
 The doing is done by Supervisor + Branch Admin; the levels above watch and track.
 
+## New customer setup (decided 23 Oct)
+
+| Who | Sets up |
+|---|---|
+| Admin | Branch (site, city, state), agencies, the Branch Admin user |
+| Branch Admin | Posts and shifts, Supervisor users |
+| Supervisor | Guards (Excel), month roster, guard links |
+
+## Build order (next)
+
+1. State Admin role · 2. City / State / Admin view only · 3. Vehicle delete for Branch Admin only ·
+4. Shift report Send (+45 min auto) · 5. Report chain with app totals and notifications ·
+6. Forward a guard message to the Branch Admin · 7. Check the setup rights above.
+
 ## Next to discuss
 
 - Branch Admin: daily work, what they see, what they approve.
