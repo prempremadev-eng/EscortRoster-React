@@ -13,7 +13,7 @@ guard → supervisor → branch admin → … Names of real people stay out of t
 |---|---|---|---|
 | 1 | Upload the month roster | Once a month | ✅ |
 | 2 | Put names in the schedule (Auto fill + changes) and Publish | Every day | ✅ |
-| 3 | Create posts | When needed | ⚠️ Branch Admin only now → **give to Supervisor** |
+| 3 | Create posts | When needed | **Not now** (Prem, 23 Oct): stays with the Branch Admin. Later maybe: supervisor *requests* a post → ⏳ pending → Branch Admin approves / rejects (with a notification both ways) |
 | 4 | Add guards | New person | ✅ |
 | 5 | Read guard messages; send important problems to the Branch Admin | Always | ⚠️ reading ✅, **forward to Branch Admin missing** |
 | 6 | Shift report to the Branch Admin: posts A / B / C / G, IN, late, absent, leave, off, vacant | Every shift | ⚠️ Report page ✅, **sending missing** |
