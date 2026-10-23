@@ -1029,7 +1029,10 @@ module.exports = function supervisorRoutes(app, h) {
       const date = requireDate(req.body.date);
       const drafts = (await dayRows(zcql, branch, date, await branchPosts(req, zcql, branch))).filter(r => !isOn(r.published));
       const table = catalystApp.datastore().table('Schedule');
-      for (const r of drafts) await table.updateRow({ ROWID: r.ROWID, published: true });
+      // Bulk update, 100 rows per call like the roster upload (one by one took up to 4 s for a day, 23 Oct).
+      for (let i = 0; i < drafts.length; i += 100) {
+        await table.updateRows(drafts.slice(i, i + 100).map(r => ({ ROWID: r.ROWID, published: true })));
+      }
       // Guards already card IN today get "your post is ready" (their page opens without a new swipe).
       let told = 0;
       if (date === shiftDate() && drafts.length) {
