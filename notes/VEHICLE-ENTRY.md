@@ -25,6 +25,7 @@ Brought in from the separate vehicle entry app (option A: inside this app). Old 
 ## Number plate scan (built 22 Oct evening)
 
 - **Scan** button next to the vehicle number → **camera inside the app** (live picture, like the old app) → **Capture** → the number is filled in (no camera app, no OK step, no 12 MP photo: was ~15 s, 23 Oct) ("check it with the vehicle"); the guard can still change it.
+- Number on screen (scanned or typed) is a vehicle **inside** at that post → yellow box "… is inside since hh:mm" with **Mark OUT now** (scan at the gate does the OUT too, Prem 23 Oct).
 - The scan photo also becomes the vehicle photo when none was taken yet (one photo, two uses).
 - Service: **Plate Recognizer** (same as the old app), Indian plates. Its key is in the **Settings** table (`plate_recognizer_token`), **not in git** (public repo). No key / limit reached / no plate → a message, the guard types the number.
 

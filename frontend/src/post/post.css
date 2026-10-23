@@ -340,3 +340,4 @@
 .ve-scan-msg{font-size:15px;color:var(--pd-ink);text-align:center;min-height:20px;}
 .ve-scan-btns{display:grid;grid-template-columns:1fr 2fr;gap:10px;}
 .ve-scan-cancel{height:56px;}
+.ve-inside{background:#FEF3C7;border-color:#FCD34D;color:#78350F;gap:10px;}

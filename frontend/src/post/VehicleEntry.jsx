@@ -16,8 +16,12 @@ export const TYPES = [
 export const BLANK = { entry_type: 'employee', vehicle_no: '', emp_no: '', name: '', phone: '', from: '', meet: '' };
 
 // The IN form, used by the guard page and by the supervisor's "+ New entry".
-export function VehicleForm({ form, setForm, photo, setPhoto, scan, busy, onSubmit, submitLabel, children }) {
+// `inside` = vehicles inside at this post; when the number on screen is one of them the form offers
+// "Mark OUT" (`onOut`) instead of a second IN (Prem, 23 Oct: scan at the gate does the OUT too).
+const plateKey = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+export function VehicleForm({ form, setForm, photo, setPhoto, scan, inside, onOut, busy, onSubmit, submitLabel, children }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const already = form.vehicle_no && (inside || []).find(x => plateKey(x.vehicleNo) === plateKey(form.vehicle_no));
   const emp = form.entry_type === 'employee';
   const camera = useRef(null);
   const [scanning, setScanning] = useState(false); // the in-app camera is open
@@ -91,6 +95,12 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, busy, onSubm
         </>}
       </div>
       {scanMsg && <div className="pd-muted pd-small">{scanMsg}</div>}
+      {already && onOut && (
+        <div className="pd-card ve-inside">
+          <div><b>{already.vehicleNo}</b> is inside since {already.in}· {whoOf(already)}</div>
+          <button type="button" className="pd-btn pd-btn-primary" onClick={() => onOut(already)} disabled={busy}>Mark OUT now</button>
+        </div>
+      )}
       {emp ? <>
         <label htmlFor="ve-emp">Employee number</label>
         <input id="ve-emp" value={form.emp_no} onChange={e => set('emp_no', e.target.value)} placeholder="Employee ID" maxLength={30} required autoComplete="off" />
@@ -175,12 +185,17 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
     }
   }
 
-  async function out(x) {
+  // From the list, or from the form when the scanned / typed number is inside (the form is cleared then).
+  async function out(x, fromForm) {
     setBusy(true);
     setError('');
     try {
       const done = (await api.vehicleOut(token, x.id, post)).data;
       setToast(done.vehicleNo + ' OUT at ' + done.out);
+      if (fromForm) {
+        setForm(f => ({ ...BLANK, entry_type: f.entry_type }));
+        setPhoto(null);
+      }
       await load();
     } catch (err) {
       setError(err.message);
@@ -225,7 +240,7 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
       {toast && <div className="pd-card ve-toast" onClick={() => setToast('')}>{Icon.check} {toast}</div>}
       {error && <div className="pd-card pd-bad">{error}</div>}
 
-      <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={blob => api.vehiclePlate(token, blob, post)} busy={busy} onSubmit={save} submitLabel="Save IN" />
+      <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={blob => api.vehiclePlate(token, blob, post)} inside={inside} onOut={x => out(x, true)} busy={busy} onSubmit={save} submitLabel="Save IN" />
 
       <input ref={laterInput} type="file" accept="image/*" capture="environment" hidden onChange={addLater} />
       <div className="pd-field-title">Inside now · {inside.length}</div>
