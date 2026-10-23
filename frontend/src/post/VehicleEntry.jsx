@@ -167,6 +167,16 @@ export function PhotoView({ getUrl, onClose }) {
   );
 }
 
+// Day of an IN, in words (no number dates for the guard, Prem 23 Oct): '' today, "Yesterday",
+// else "Wed 21 Oct".
+export function dayWord(date, today) {
+  if (!date || date === today) return '';
+  const d = new Date(today + 'T00:00:00Z');
+  d.setUTCDate(d.getUTCDate() - 1);
+  if (d.toISOString().slice(0, 10) === date) return 'Yesterday';
+  return new Date(date + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
 // One line of the list: plate, type, who, IN / OUT time.
 export function whoOf(e) {
   return e.type === 'employee' ? 'Emp ' + e.empNo : [e.name, e.from].filter(Boolean).join(' · ');
@@ -283,7 +293,7 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
         <div key={x.id} className="ve-row">
           <div className="pd-grow">
             <div className="ve-plate-text">{x.vehicleNo} <span className={'ve-tag ve-' + x.type}>{x.type}</span></div>
-            <div className="pd-muted pd-small">{whoOf(x)} · IN {x.in}{x.date !== data.date ? ' (' + x.date.slice(8) + '/' + x.date.slice(5, 7) + ')' : ''}</div>
+            <div className="pd-muted pd-small">{whoOf(x)} · IN {[dayWord(x.date, data.date), x.in].filter(Boolean).join(' ')}</div>
           </div>
           {x.hasPhoto
             ? <button className="pd-icon-btn" onClick={() => setShowPhoto(x)} aria-label="Show photo">{Icon.camera}</button>

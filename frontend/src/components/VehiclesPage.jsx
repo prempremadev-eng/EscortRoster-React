@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { shortDate, plusDay } from '../utils.js';
 import useFullView from './useFullView.js';
-import { VehicleForm, PhotoView, BLANK, TYPES, whoOf } from '../post/VehicleEntry.jsx';
+import { VehicleForm, PhotoView, BLANK, TYPES, whoOf, dayWord } from '../post/VehicleEntry.jsx';
 
 // Vehicles (supervisor and every admin): one day's vehicle entries of the posts with vehicle entry on,
 // plus vehicles still inside from earlier days. "+ New entry" lets a supervisor / admin enter one too
@@ -193,7 +193,7 @@ export default function VehiclesPage() {
                       <td className="left">{whoOf(x)}</td>
                       <td>{x.phone || '—'}</td>
                       <td className="left">{x.meet || '—'}</td>
-                      <td>{x.in}{x.date !== date ? <div className="ve-small">{dayText(x.date)}</div> : null}</td>
+                      <td>{x.in}{x.date !== date ? <div className="ve-small">{dayWord(x.date, data.today) || 'Today'}</div> : null}</td>
                       <td>{x.out || '—'}</td>
                       <td className="left">{x.by}{x.outBy ? <div className="ve-small">OUT: {x.outBy}</div> : null}</td>
                       <td>{x.status === 'IN'
