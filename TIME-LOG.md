@@ -94,3 +94,4 @@
 | Time | Event |
 |---|---|
 | 11:35 | ▶️ Start ("good morning") |
+| 20:17 | 🍛 Break ("saptu vanthudre", said lunch) |
