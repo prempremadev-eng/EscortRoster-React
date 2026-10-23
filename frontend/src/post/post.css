@@ -449,3 +449,7 @@
 .ve-head{margin-top:6px;padding-top:6px;}
 .ve-head-title{font-size:24px;font-weight:600;}
 .ve-save{background:var(--ve-soft);color:var(--ve-accent);border:none;border-radius:28px;box-shadow:none;font-weight:700;}
+/* Content centred on the screen (23 Oct). */
+.ve-page{min-height:100vh;min-height:100dvh;}
+.ve-spacer{flex:1 1 0;min-height:0;margin:-8px 0;}
+.ve-head{margin-top:0;}

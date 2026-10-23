@@ -369,6 +369,9 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
 
   return (
     <div className="pd pd-page ve-page">
+      {/* Spacers above and below centre the content on the screen; when the lists are open they shrink
+          to nothing, so nothing is cut at the top (Prem, 23 Oct). */}
+      <div className="ve-spacer" aria-hidden="true"></div>
       <div className="ve-head">
         <button type="button" className="ve-back" onClick={onClose} aria-label="Back">{Icon.back}</button>
         <div className="ve-head-text">
@@ -427,6 +430,7 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
         </>}
       </>}
       {showPhoto && <PhotoView getUrl={() => api.vehiclePhotoLink(token, showPhoto.id, post)} onClose={() => setShowPhoto(null)} />}
+      <div className="ve-spacer" aria-hidden="true"></div>
     </div>
   );
 }
