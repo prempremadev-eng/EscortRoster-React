@@ -992,6 +992,35 @@ module.exports = function supervisorRoutes(app, h) {
     }
   });
 
+  // Published now for today: each guard whose last swipe today is IN hears "Your post is ready".
+  async function tellReady(catalystApp, zcql, branch, date, rows) {
+    const ids = [...new Set(rows.map(r => String(r.guard_id)).filter(Boolean))].map(requireRowId);
+    if (!ids.length) return 0;
+    const [swipes, guards, posts, shifts] = await Promise.all([
+      zcql.executeZCQLQuery(`SELECT guard_id, direction, CREATEDTIME FROM AccessLog WHERE duty_date = '${date}' AND guard_id IN (${ids.join(', ')}) ORDER BY CREATEDTIME DESC LIMIT 0, 300`).then(r => r.map(x => x.AccessLog)),
+      zcql.executeZCQLQuery(`SELECT ROWID, guard_token FROM Guards WHERE ROWID IN (${ids.join(', ')})`).then(r => r.map(x => x.Guards)),
+      zcql.executeZCQLQuery(`SELECT ROWID, post_name FROM Posts WHERE branch_id = ${requireRowId(branch)}`).then(r => r.map(x => x.Posts)),
+      getShifts(zcql)
+    ]);
+    const lastSwipe = {};
+    swipes.forEach(s => { if (!lastSwipe[String(s.guard_id)]) lastSwipe[String(s.guard_id)] = s.direction; });
+    let told = 0;
+    for (const r of rows) {
+      const id = String(r.guard_id);
+      if (lastSwipe[id] !== 'IN') continue;
+      const g = guards.find(x => String(x.ROWID) === id);
+      const p = posts.find(x => String(x.ROWID) === String(r.post_id));
+      const sh = shifts.find(x => x.code === r.shift_code);
+      await sendPushToGuard(catalystApp, id, {
+        title: '✅ Your post is ready',
+        body: (p ? p.post_name : 'Post') + (sh ? ' · Shift ' + sh.code + ' (' + sh.start + '–' + sh.end + ')' : '') + ' · open your page',
+        url: g && g.guard_token ? 'index.html#guard/' + g.guard_token : 'index.html'
+      });
+      told++;
+    }
+    return told;
+  }
+
   app.post('/schedulePublish', async (req, res) => {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
@@ -1001,7 +1030,12 @@ module.exports = function supervisorRoutes(app, h) {
       const drafts = (await dayRows(zcql, branch, date, await branchPosts(req, zcql, branch))).filter(r => !isOn(r.published));
       const table = catalystApp.datastore().table('Schedule');
       for (const r of drafts) await table.updateRow({ ROWID: r.ROWID, published: true });
-      res.status(200).json({ status: 'success', data: { published: drafts.length } });
+      // Guards already card IN today get "your post is ready" (their page opens without a new swipe).
+      let told = 0;
+      if (date === shiftDate() && drafts.length) {
+        try { told = await tellReady(catalystApp, zcql, branch, date, drafts); } catch (err) { console.error('Publish push failed:', err.message || err); }
+      }
+      res.status(200).json({ status: 'success', data: { published: drafts.length, told } });
     } catch (err) {
       fail(res, err);
     }

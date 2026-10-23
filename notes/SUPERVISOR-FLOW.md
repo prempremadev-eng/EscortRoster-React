@@ -86,3 +86,12 @@ How to build (notes for later):
 
 - The #chart page is gone (an old link opens Duty History). Card IN, the Live board and "Copy from yesterday" use **only the published Schedule** now (no weekly fallback): a day that is not published has no post.
 - The DutyChart table and its API stay in the database untouched (not used by the pages).
+
+## Publish after the guard's card IN (23 Oct)
+
+- Card IN before the day is published → guard page says **"Today's schedule is not published yet… no need to swipe again"** (not "not assigned").
+- **Publish** (today) → every guard whose last swipe today is IN gets **"✅ Your post is ready · <post> · Shift X"**; opening the page makes their duty row with the **card IN time** (late mark stays right). No second swipe.
+
+## App update on phones (23 Oct)
+
+- When the app comes back to the screen it checks (at most once a minute) whether a new build was deployed and reloads itself. No Data Store read.

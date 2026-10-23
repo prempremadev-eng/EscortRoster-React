@@ -743,6 +743,11 @@ app.get('/guardDay', async (req, res) => {
     }
     // Latest IN (after an OUT and back IN): the phone starts again from the "Your seat" screen.
     base.lastIn = last ? last.punch_time : inTime[myId];
+    // No post yet: is today's schedule made but not published? (the page then says so, not "not assigned")
+    if (!base.dutyType) {
+      const drafts = await zcql.executeZCQLQuery(`SELECT ROWID FROM Schedule WHERE guard_id = ${requireRowId(me.ROWID)} AND sched_date = '${chartDay}' AND published = false LIMIT 1`);
+      base.waitPublish = drafts.length > 0;
+    }
 
     const day = dayOf(dutyDate);
     if (base.dutyType !== 'ESCORT' || !myEscortRow || day === 0 || day === 6) {

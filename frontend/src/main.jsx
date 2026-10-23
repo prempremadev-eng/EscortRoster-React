@@ -57,6 +57,27 @@ if ('serviceWorker' in navigator) {
   });
 }
 
+// New version deployed while a phone kept the old page open (guards never press reload; on 23 Oct even
+// Prem's phone stayed on the old build twice). When the page comes back to the screen, the app asks the
+// server which build is current (index.html names its script file) and reloads itself if it changed.
+// index.html is a small static file, no Data Store read. Asked at most once a minute.
+const myScript = (document.querySelector('script[type="module"][src*="assets/index-"]') || {}).src || '';
+let lastCheck = 0;
+async function newVersion() {
+  if (!myScript || Date.now() - lastCheck < 60000) return false;
+  lastCheck = Date.now();
+  try {
+    const html = await (await fetch('index.html?v=' + Date.now(), { cache: 'no-store' })).text();
+    const m = html.match(/assets\/index-[^"']+\.js/);
+    return !!m && !myScript.endsWith(m[0]);
+  } catch {
+    return false; // offline: keep the page as it is
+  }
+}
+document.addEventListener('visibilitychange', async () => {
+  if (document.visibilityState === 'visible' && await newVersion()) window.location.reload();
+});
+
 // Pages without a router: the duty sheet, #dashboard, #master, #posts, #chart, #simulator, #links, #admin, #roster, #supervisor, #board, #schedule (supervisor)
 // and #setup/<token>, #guard/<token> (guard's phone).
 // The browser Back button works because each page is a URL hash.

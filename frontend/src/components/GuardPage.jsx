@@ -118,7 +118,9 @@ export default function GuardPage({ token, testDate }) {
                 {isPost
                   ? <>Today your post is <b>{data.postName}</b>, {shiftLine}.</>
                   : notAssigned
-                    ? 'Your duty for this week is not assigned yet. Ask your supervisor.'
+                    ? (data.waitPublish
+                      ? "Today's schedule is not published yet. Your post shows here when your supervisor publishes it (no need to swipe again)."
+                      : 'No post for you in today\'s schedule. Ask your supervisor.')
                     : 'No escort duty sheet today (Saturday / Sunday).'}
               </div>
               <p className="sim-note guard-foot">This page closes at 08:00. Tomorrow it opens again after your card IN.</p>
