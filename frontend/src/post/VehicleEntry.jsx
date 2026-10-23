@@ -262,6 +262,10 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
   const [photo, setPhoto] = useState(null);
   const [showPhoto, setShowPhoto] = useState(null);
   const [find, setFind] = useState('');
+  // "Fri 23 Oct · 7:34 PM", moved on every minute.
+  const clockText = () => { const d = new Date(); return d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' }) + ' · ' + d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' }); };
+  const [nowLine, setNowLine] = useState(clockText);
+  useEffect(() => { const t = setInterval(() => setNowLine(clockText()), 30000); return () => clearInterval(t); }, []);
   const listsKey = 've_lists';
   const [showLists, setShowLists] = useState(() => { try { return localStorage.getItem(listsKey) === '1'; } catch { return false; } });
   useEffect(() => { try { localStorage.setItem(listsKey, showLists ? '1' : '0'); } catch { /* private mode */ } }, [showLists]);
@@ -367,10 +371,13 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
     <div className="pd pd-page ve-page">
       <div className="ve-head">
         <button type="button" className="ve-back" onClick={onClose} aria-label="Back">{Icon.back}</button>
-        <div className="pd-grow">
+        <div className="ve-head-text">
           <div className="ve-head-title">{(data && data.post) || postName}</div>
           <div className="ve-head-sub">🚗 Vehicle entry</div>
+          {/* Day, time, shift and who: context for the guard (and for anyone seeing a screenshot). */}
+          <div className="ve-head-when">{nowLine}{data && data.shift ? ' · Shift ' + data.shift : ''}{data && data.guard ? ' · ' + data.guard : ''}</div>
         </div>
+        <span className="ve-back-space" aria-hidden="true"></span>
       </div>
 
       {toast && <div className="pd-card ve-toast" onClick={() => setToast('')}>{Icon.check} {toast}</div>}

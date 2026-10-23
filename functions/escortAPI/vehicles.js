@@ -106,10 +106,10 @@ module.exports = function vehicleRoutes(app, h) {
   app.get('/vehicles', async (req, res) => {
     try {
       const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
-      const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
+      const { me, log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
       const post = await postOf(zcql, log.post_id);
       const rows = await postEntries(zcql, log.post_id, log.duty_date);
-      res.status(200).json({ status: 'success', data: { post: post.post_name, date: log.duty_date, entries: rows.map(r => view(r, post.post_name)) } });
+      res.status(200).json({ status: 'success', data: { post: post.post_name, date: log.duty_date, guard: me.guard_name, shift: log.shift_code, entries: rows.map(r => view(r, post.post_name)) } });
     } catch (err) {
       fail(res, err);
     }

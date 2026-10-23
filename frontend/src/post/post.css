@@ -435,3 +435,12 @@
 .ve-lists-bar{display:flex;align-items:center;gap:8px;width:100%;min-height:50px;border:1px solid var(--pd-border);border-radius:12px;background:var(--pd-surface);padding:8px 14px;font-family:inherit;font-size:15px;font-weight:600;color:var(--pd-ink);cursor:pointer;text-align:left;}
 .ve-lists-count{flex:1;text-align:right;font-weight:400;color:var(--pd-muted);font-size:14px;}
 .ve-lists-arrow{color:var(--pd-muted);}
+/* Fourth pass (23 Oct): centred title like the old app, a bit bigger; date / time / shift / guard line; solid Save. */
+.ve-head{align-items:flex-start;}
+.ve-head-text{flex:1;min-width:0;text-align:center;}
+.ve-back-space{width:40px;flex-shrink:0;}
+.ve-head-title{font-size:22px;line-height:1.25;}
+.ve-head-sub{font-size:14px;}
+.ve-head-when{font-size:13px;color:var(--pd-muted);margin-top:2px;}
+.ve-save{background:var(--ve-accent);color:#fff;border:none;box-shadow:none;}
+.ve-head-when{text-wrap:balance;}
