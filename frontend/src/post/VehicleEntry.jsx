@@ -138,7 +138,7 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known
       {photoError && <div className="pd-card pd-bad">{photoError}</div>}
       <label htmlFor="ve-no">Vehicle number</label>
       <div className="ve-no-row">
-        <input id="ve-no" className="ve-plate" value={form.vehicle_no} onChange={e => set('vehicle_no', formatPlate(e.target.value))} onBlur={() => set('vehicle_no', formatPlate(form.vehicle_no, true))} autoCapitalize="characters" placeholder="TN 09 AB 1234" maxLength={20} required autoComplete="off" />
+        <input id="ve-no" className="ve-plate" value={form.vehicle_no} onChange={e => set('vehicle_no', formatPlate(e.target.value))} onBlur={() => setForm(f => ({ ...f, vehicle_no: formatPlate(f.vehicle_no, true) }))} autoCapitalize="characters" placeholder="TN 09 AB 1234" maxLength={20} required autoComplete="off" />
         {scan && <>
           <button type="button" className="pd-btn pd-btn-outline ve-scan" onClick={() => { setScanMsg(''); setScanning(true); }}>{Icon.camera}Scan</button>
           {scanning && <PlateScanner scan={scan} onDone={scanned} onClose={() => setScanning(false)} />}
@@ -149,7 +149,9 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known
         <div className="ve-suggest" role="listbox" aria-label="Vehicles seen before">
           <div className="pd-muted pd-small">Seen before · tap to fill</div>
           {suggestions.map(k => (
-            <button type="button" key={k.vehicleNo} className="ve-suggest-row" onClick={() => pick(k)}>
+            // Tapping must not take the focus off the number box first: that blur wrote the old typed
+            // number back over the picked one on the phone, so the tap looked dead (23 Oct).
+            <button type="button" key={k.vehicleNo} className="ve-suggest-row" onPointerDown={e => e.preventDefault()} onMouseDown={e => e.preventDefault()} onClick={() => pick(k)}>
               <span className="ve-plate-text">{k.vehicleNo}</span>
               <span className={'ve-tag ve-' + k.type}>{k.type}</span>
               <span className="pd-grow pd-muted pd-small ve-suggest-who">{k.type === 'employee' ? 'Emp ' + k.empNo : [k.name, k.from].filter(Boolean).join(' · ')}</span>
