@@ -423,3 +423,15 @@
 .ve-foot .ve-lang{font-size:13px;gap:4px;}
 .ve-foot .ve-lang select{min-height:32px;font-size:14px;padding:2px 6px;}
 .ve-card .ve-inside{margin-top:6px;}
+/* Third pass (23 Oct): plain header like the old app, light Scan / Save (only the type tab is strong),
+   lists behind a "Today's vehicles" bar. */
+.ve-head{background:transparent;color:var(--pd-ink);margin:-8px 0 0;padding:0;}
+.ve-back{background:var(--pd-surface);border:1px solid var(--pd-border);color:var(--pd-ink);}
+.ve-head-title{color:#2F6FED;}
+.ve-head-sub{opacity:1;color:var(--pd-muted);}
+.ve-line .ve-scan{background:var(--ve-soft);color:var(--ve-accent);}
+.ve-line .ve-scan svg{color:var(--ve-accent);}
+.ve-save{background:var(--ve-soft);color:var(--ve-accent);border:1.5px solid var(--ve-accent);box-shadow:none;font-weight:700;}
+.ve-lists-bar{display:flex;align-items:center;gap:8px;width:100%;min-height:50px;border:1px solid var(--pd-border);border-radius:12px;background:var(--pd-surface);padding:8px 14px;font-family:inherit;font-size:15px;font-weight:600;color:var(--pd-ink);cursor:pointer;text-align:left;}
+.ve-lists-count{flex:1;text-align:right;font-weight:400;color:var(--pd-muted);font-size:14px;}
+.ve-lists-arrow{color:var(--pd-muted);}

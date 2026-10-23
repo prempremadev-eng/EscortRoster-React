@@ -262,6 +262,9 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
   const [photo, setPhoto] = useState(null);
   const [showPhoto, setShowPhoto] = useState(null);
   const [find, setFind] = useState('');
+  const listsKey = 've_lists';
+  const [showLists, setShowLists] = useState(() => { try { return localStorage.getItem(listsKey) === '1'; } catch { return false; } });
+  useEffect(() => { try { localStorage.setItem(listsKey, showLists ? '1' : '0'); } catch { /* private mode */ } }, [showLists]);
   const laterInput = useRef(null);
   const laterFor = useRef(null);
   const [busy, setBusy] = useState(false);
@@ -376,37 +379,45 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
       <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={blob => api.vehiclePlate(token, blob, post)} voice={(blob, lang) => api.vehicleVoice(token, blob, post, lang)} known={known} inside={inside} onOut={x => out(x, true)} busy={busy} onSubmit={save} submitLabel="Save IN" />
 
       <input ref={laterInput} type="file" accept="image/*" capture="environment" hidden onChange={addLater} />
-      {entries.length > SEARCH_FROM && (
-        <input type="search" className="ve-find" value={find} onChange={e => setFind(e.target.value)} placeholder="🔍 Find: number, name, emp ID" aria-label="Find a vehicle" />
-      )}
-      <div className="pd-field-title">Inside now · {needle ? insideShown.length + ' of ' + inside.length : inside.length}</div>
-      {!data && !error && <div className="pd-muted">Loading...</div>}
-      {data && inside.length === 0 && <div className="pd-muted pd-small">No vehicle inside.</div>}
-      {needle && insideShown.length === 0 && inside.length > 0 && <div className="pd-muted pd-small">No vehicle inside matches "{find.trim()}".</div>}
-      {insideShown.map(x => (
-        <div key={x.id} className="ve-row">
-          <div className="pd-grow">
-            <div className="ve-plate-text">{x.vehicleNo}</div>
-            <div className="pd-muted pd-small"><span className={'ve-tag ve-' + x.type}>{x.type}</span> {whoOf(x)} · IN {[dayWord(x.date, data.date), x.in].filter(Boolean).join(' ')}</div>
-          </div>
-          {x.hasPhoto
-            ? <button className="pd-icon-btn" onClick={() => setShowPhoto(x)} aria-label="Show photo">{Icon.camera}</button>
-            : <button className="pd-chip ve-add-photo" onClick={() => { laterFor.current = x; laterInput.current.click(); }} disabled={busy} aria-label="Add photo">+ {Icon.camera}</button>}
-          <button className="pd-chip" onClick={() => out(x)} disabled={busy}>OUT</button>
-        </div>
-      ))}
-
-      {gone.length > 0 && <>
-        <div className="pd-field-title">Out today · {needle ? goneShown.length + ' of ' + gone.length : gone.length}</div>
-        {goneShown.map(x => (
-          <div key={x.id} className="ve-row ve-row-out">
+      {/* The page shows the form; the lists open with this bar (Prem, 23 Oct). Remembered on the phone. */}
+      <button type="button" className="ve-lists-bar" onClick={() => setShowLists(v => !v)} aria-expanded={showLists}>
+        <span>📋 Today's vehicles</span>
+        <span className="ve-lists-count">Inside <b>{inside.length}</b> · Out <b>{gone.length}</b></span>
+        <span className="ve-lists-arrow">{showLists ? '▴' : '▾'}</span>
+      </button>
+      {showLists && <>
+        {entries.length > SEARCH_FROM && (
+          <input type="search" className="ve-find" value={find} onChange={e => setFind(e.target.value)} placeholder="🔍 Find: number, name, emp ID" aria-label="Find a vehicle" />
+        )}
+        <div className="pd-field-title">Inside now · {needle ? insideShown.length + ' of ' + inside.length : inside.length}</div>
+        {!data && !error && <div className="pd-muted">Loading...</div>}
+        {data && inside.length === 0 && <div className="pd-muted pd-small">No vehicle inside.</div>}
+        {needle && insideShown.length === 0 && inside.length > 0 && <div className="pd-muted pd-small">No vehicle inside matches "{find.trim()}".</div>}
+        {insideShown.map(x => (
+          <div key={x.id} className="ve-row">
             <div className="pd-grow">
               <div className="ve-plate-text">{x.vehicleNo}</div>
-              <div className="pd-muted pd-small"><span className={'ve-tag ve-' + x.type}>{x.type}</span> {whoOf(x)} · IN {x.in} · OUT {x.out}</div>
+              <div className="pd-muted pd-small"><span className={'ve-tag ve-' + x.type}>{x.type}</span> {whoOf(x)} · IN {[dayWord(x.date, data.date), x.in].filter(Boolean).join(' ')}</div>
             </div>
-            {x.hasPhoto && <button className="pd-icon-btn" onClick={() => setShowPhoto(x)} aria-label="Show photo">{Icon.camera}</button>}
+            {x.hasPhoto
+              ? <button className="pd-icon-btn" onClick={() => setShowPhoto(x)} aria-label="Show photo">{Icon.camera}</button>
+              : <button className="pd-chip ve-add-photo" onClick={() => { laterFor.current = x; laterInput.current.click(); }} disabled={busy} aria-label="Add photo">+ {Icon.camera}</button>}
+            <button className="pd-chip" onClick={() => out(x)} disabled={busy}>OUT</button>
           </div>
         ))}
+
+        {gone.length > 0 && <>
+          <div className="pd-field-title">Out today · {needle ? goneShown.length + ' of ' + gone.length : gone.length}</div>
+          {goneShown.map(x => (
+            <div key={x.id} className="ve-row ve-row-out">
+              <div className="pd-grow">
+                <div className="ve-plate-text">{x.vehicleNo}</div>
+                <div className="pd-muted pd-small"><span className={'ve-tag ve-' + x.type}>{x.type}</span> {whoOf(x)} · IN {x.in} · OUT {x.out}</div>
+              </div>
+              {x.hasPhoto && <button className="pd-icon-btn" onClick={() => setShowPhoto(x)} aria-label="Show photo">{Icon.camera}</button>}
+            </div>
+          ))}
+        </>}
       </>}
       {showPhoto && <PhotoView getUrl={() => api.vehiclePhotoLink(token, showPhoto.id, post)} onClose={() => setShowPhoto(null)} />}
     </div>
