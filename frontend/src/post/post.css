@@ -345,3 +345,7 @@
 .pd-btn.ve-mic.on{background:#FEE2E2;border-color:#F87171;color:#B91C1C;}
 .ve-listen{color:#B91C1C;font-weight:600;}
 .ve-mic-err{color:#B91C1C;}
+/* Nothing on the vehicle page may push it sideways (23 Oct: the page slid right, 🎤 and OUT half cut). */
+.ve-page{overflow-x:hidden;}
+.ve-page > *, .ve-form > *{min-width:0;max-width:100%;}
+.ve-page .pd-small, .ve-page .pd-muted{overflow-wrap:anywhere;}

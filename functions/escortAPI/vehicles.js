@@ -290,12 +290,21 @@ module.exports = function vehicleRoutes(app, h) {
       sarvamKey = row && row.setting_value ? String(row.setting_value).trim() : null;
     }
     if (!sarvamKey) throw new Error('Voice is not set up yet (no key). Type it.');
-    const form = new FormData();
-    form.append('file', new Blob([req.body], { type }), 'input.' + ext);
-    form.append('model', 'saaras:v3');
-    form.append('mode', 'codemix');
-    form.append('language_code', 'ta-IN');
-    const r = await fetch(SARVAM_URL, { method: 'POST', headers: { 'api-subscription-key': sarvamKey }, body: form });
+    // "translit": the register is in English letters, so Tamil words come back in English letters too
+    // ("Zoho", not "சோஹோ"; codemix gave Tamil script, 23 Oct). codemix only if translit is refused.
+    const ask = mode => {
+      const form = new FormData();
+      form.append('file', new Blob([req.body], { type }), 'input.' + ext);
+      form.append('model', 'saaras:v3');
+      form.append('mode', mode);
+      form.append('language_code', 'ta-IN');
+      return fetch(SARVAM_URL, { method: 'POST', headers: { 'api-subscription-key': sarvamKey }, body: form });
+    };
+    let r = await ask('translit');
+    if (r.status === 400 || r.status === 422) {
+      console.error('Sarvam translit refused:', r.status, await r.text());
+      r = await ask('codemix');
+    }
     if (!r.ok) {
       console.error('Sarvam failed:', r.status, await r.text());
       if (r.status === 401 || r.status === 403) sarvamKey = null;

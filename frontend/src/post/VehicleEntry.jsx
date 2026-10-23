@@ -252,7 +252,7 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
   const gone = entries.filter(x => x.status !== 'IN');
 
   return (
-    <div className="pd pd-page">
+    <div className="pd pd-page ve-page">
       <div className="pd-form-head">
         <button type="button" className="pd-icon-btn" onClick={onClose} aria-label="Back">{Icon.back}</button>
         <div>
