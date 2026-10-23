@@ -32,6 +32,18 @@ guard → supervisor → branch admin → … Names of real people stay out of t
 - **How it arrives (3-a):** app notification + the Report page (WhatsApp / email later, if wanted).
 - Same pattern for every supervisor (each for their own agency).
 
+## Report chain (decided 23 Oct)
+
+```
+Supervisor (branch + agency) → Branch Admin (branch) → City Admin (city) → State Admin (state, NEW) → Admin (all)
+```
+
+- **Every shift** the report goes all the way up (Prem: who did not come and today's count are the main thing; the upper levels know the planned strength already and only track plan vs actual).
+- **State Admin is added** between City Admin and Admin (Branches already have a state).
+- **The app adds the reports up** — nobody adds by hand: one combined message per shift for each level (Branch Admin: agencies of the branch; City Admin: branches of the city; State Admin: cities; Admin: states). A tap opens the detail.
+- Supervisor checks and taps Send (start + 30 min; the app sends by itself at + 45 min). Above the supervisor **the app forwards by itself** (about start + 45 min); a Branch Admin may add a note before that. Nobody else has to press Send.
+- Each report: posts A / B / C / G, planned, IN, late, absent, leave, off, vacant, notes / problems.
+
 ## Next to discuss
 
 - Branch Admin: daily work, what they see, what they approve.
