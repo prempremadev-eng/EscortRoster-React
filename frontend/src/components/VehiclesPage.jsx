@@ -26,6 +26,12 @@ export default function VehiclesPage() {
   const [form, setForm] = useState(BLANK);
   const [addPost, setAddPost] = useState('');
   const [photo, setPhoto] = useState(null);
+  // Vehicles seen before at the picked post's branch (number suggestions in "+ New entry").
+  const [known, setKnown] = useState([]);
+  useEffect(() => {
+    if (!adding || !addPost) { setKnown([]); return; }
+    api.vehicleKnownAt(addPost).then(r => setKnown(r.data)).catch(() => setKnown([]));
+  }, [adding, addPost]);
   const [showPhoto, setShowPhoto] = useState(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -217,7 +223,7 @@ export default function VehiclesPage() {
               <button className="pd-link" onClick={() => setAdding(false)}>Close</button>
             </div>
             {formError && <div className="pd-card pd-bad">{formError}</div>}
-            <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={api.vehiclePlateScan} voice={api.vehicleVoiceText}
+            <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={api.vehiclePlateScan} voice={api.vehicleVoiceText} known={known}
               inside={entries.filter(x => x.status === 'IN' && x.postId === addPost)} onOut={async x => { setAdding(false); await markOut(x); }} busy={busy} onSubmit={save} submitLabel="Save IN">
               <label htmlFor="ve-post">Post</label>
               <select id="ve-post" className="ve-select" value={addPost} onChange={e => setAddPost(e.target.value)} required>

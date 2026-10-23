@@ -18,6 +18,8 @@ Brought in from the separate vehicle entry app (option A: inside this app). Old 
 
 - Always **TN 12 AB 0987**: capitals, a space where letters and digits meet (while typing), RTO number padded to 2 and the last number to 4 digits (on leaving the box, after a scan, and on the server). Bharat series stays **22 BH 1234 AA**.
 - "Already IN" check ignores spaces (older entries were saved without them).
+- The last number takes at most **4 digits**.
+- **Seen before**: typing 3+ letters / digits of the number (usually the last 4 digits) lists the branch's earlier vehicles (last 300 entries, one read when the page opens). A tap fills the number, **type** and details (emp no / name / phone / from / meet); changing the number again clears what the tap filled. A picked vehicle that is inside shows **Mark OUT**.
 
 ## Photo (built 22 Oct evening)
 

@@ -39,7 +39,8 @@ function formatPlate(value, full) {
   let out = raw.replace(/([A-Z])(?=[0-9])|([0-9])(?=[A-Z])/g, '$1$2 ');
   const m = full && out.match(/^([A-Z]{2}) ([0-9]{1,2})(?: ([A-Z]{1,3}))? ([0-9]{1,4})$/);
   if (m) out = [m[1], m[2].padStart(2, '0'), m[3], m[4].padStart(4, '0')].filter(Boolean).join(' ');
-  return out;
+  // The last number has at most 4 digits ("TN 12 AB 09875" → "TN 12 AB 0987").
+  return out.replace(/([0-9]{4})[0-9]+$/, '$1');
 }
 
 module.exports = function vehicleRoutes(app, h) {
@@ -155,6 +156,45 @@ module.exports = function vehicleRoutes(app, h) {
       ROWID: row.ROWID, status: 'OUT', out_time: nowStamp(), out_guard_id: guardId || null, details: JSON.stringify(d)
     });
   }
+
+  /* ---------- vehicles seen before (number suggestions in the form) ---------- */
+
+  // The branch's last 300 entries, one per vehicle (newest details): the phone matches the typed digits
+  // and a tap fills the form (Prem, 23 Oct). One read when the page opens.
+  async function knownOf(zcql, branchId) {
+    const rows = (await zcql.executeZCQLQuery(`SELECT vehicle_no, entry_type, details, duty_date FROM VehicleEntries WHERE branch_id = ${requireRowId(branchId)} ORDER BY CREATEDTIME DESC LIMIT 0, 300`)).map(r => r.VehicleEntries);
+    const seen = new Set();
+    const list = [];
+    rows.forEach(r => {
+      const key = String(r.vehicle_no || '').replace(/[^A-Z0-9]/g, '');
+      if (!key || seen.has(key)) return;
+      seen.add(key);
+      const d = detailsOf(r);
+      list.push({ vehicleNo: formatPlate(r.vehicle_no, true), type: r.entry_type, empNo: d.emp_no || '', name: d.name || '', phone: d.phone || '', from: d.from || '', meet: d.meet || '', last: r.duty_date });
+    });
+    return list;
+  }
+
+  app.get('/vehicleKnown', async (req, res) => {
+    try {
+      const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
+      const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
+      const post = await postOf(zcql, log.post_id);
+      res.status(200).json({ status: 'success', data: await knownOf(zcql, post.branch_id) });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  app.get('/vehicleKnownAt', async (req, res) => {
+    try {
+      const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
+      const post = auth.requireRow(req, await postOf(zcql, req.query.post), 'post');
+      res.status(200).json({ status: 'success', data: await knownOf(zcql, post.branch_id) });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
 
   /* ---------- photo (guard or supervisor, after the IN is saved) ---------- */
 

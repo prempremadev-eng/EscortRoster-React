@@ -21,8 +21,29 @@ export const BLANK = { entry_type: 'employee', vehicle_no: '', emp_no: '', name:
 // `inside` = vehicles inside at this post; when the number on screen is one of them the form offers
 // "Mark OUT" (`onOut`) instead of a second IN (Prem, 23 Oct: scan at the gate does the OUT too).
 const plateKey = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, inside, onOut, busy, onSubmit, submitLabel, children }) {
+// `known` = vehicles seen before at this branch: typing 3+ letters / digits of the number (the last 4
+// digits usually) lists them; a tap fills the number, type and details; changing the number again
+// clears what the tap filled (Prem, 23 Oct).
+const SUGGEST_FROM = 3;
+const DETAIL_KEYS = ['emp_no', 'name', 'phone', 'from', 'meet'];
+export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known, inside, onOut, busy, onSubmit, submitLabel, children }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const [filledFrom, setFilledFrom] = useState(null); // number of the vehicle picked from the list
+  const typed = plateKey(form.vehicle_no);
+  const suggestions = !filledFrom && typed.length >= SUGGEST_FROM
+    ? (known || []).filter(k => plateKey(k.vehicleNo).includes(typed)).slice(0, 6)
+    : [];
+  function pick(k) {
+    setFilledFrom(k.vehicleNo);
+    setForm(f => ({ ...f, entry_type: k.type, vehicle_no: k.vehicleNo, emp_no: k.empNo, name: k.name, phone: k.phone, from: k.from, meet: k.meet }));
+  }
+  // The number changed after a pick: the picked vehicle's details go (they belong to that vehicle).
+  useEffect(() => {
+    if (filledFrom && plateKey(form.vehicle_no) !== plateKey(filledFrom)) {
+      setFilledFrom(null);
+      setForm(f => { const c = { ...f }; DETAIL_KEYS.forEach(k => { c[k] = ''; }); return c; });
+    }
+  }, [form.vehicle_no, filledFrom, setForm]);
   // The language the guard speaks in (this phone remembers it).
   const [lang, setLang] = useState(savedVoiceLang);
   const mic = useVoiceInput(voice ? blob => voice(blob, lang) : () => Promise.reject(new Error('No voice here.')), (k, v) => set(k, v), ['emp_no', 'phone']);
@@ -124,6 +145,19 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, insid
         </>}
       </div>
       {scanMsg && <div className="pd-muted pd-small">{scanMsg}</div>}
+      {suggestions.length > 0 && (
+        <div className="ve-suggest" role="listbox" aria-label="Vehicles seen before">
+          <div className="pd-muted pd-small">Seen before · tap to fill</div>
+          {suggestions.map(k => (
+            <button type="button" key={k.vehicleNo} className="ve-suggest-row" onClick={() => pick(k)}>
+              <span className="ve-plate-text">{k.vehicleNo}</span>
+              <span className={'ve-tag ve-' + k.type}>{k.type}</span>
+              <span className="pd-grow pd-muted pd-small ve-suggest-who">{k.type === 'employee' ? 'Emp ' + k.empNo : [k.name, k.from].filter(Boolean).join(' · ')}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {filledFrom && <div className="pd-muted pd-small">Filled from the last visit of {filledFrom} · check the details</div>}
       {already && onOut && (
         <div className="pd-card ve-inside">
           <div><b>{already.vehicleNo}</b> is inside since {already.in} · {whoOf(already)}</div>
@@ -185,7 +219,8 @@ export function formatPlate(value, full) {
   let out = raw.replace(/([A-Z])(?=[0-9])|([0-9])(?=[A-Z])/g, '$1$2 ');
   const m = full && out.match(/^([A-Z]{2}) ([0-9]{1,2})(?: ([A-Z]{1,3}))? ([0-9]{1,4})$/);
   if (m) out = [m[1], m[2].padStart(2, '0'), m[3], m[4].padStart(4, '0')].filter(Boolean).join(' ');
-  return out;
+  // The last number has at most 4 digits ("TN 12 AB 09875" → "TN 12 AB 0987").
+  return out.replace(/([0-9]{4})[0-9]+$/, '$1');
 }
 
 // One line of the list: plate, type, who, IN / OUT time.
@@ -221,6 +256,13 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
     }
   }, [token, post]);
   useEffect(() => { load(); }, [load]);
+  // Vehicles seen before at this branch, for the number suggestions (one read per page open).
+  const [known, setKnown] = useState([]);
+  useEffect(() => { api.vehicleKnown(token, post).then(r => setKnown(r.data)).catch(() => setKnown([])); }, [token, post]);
+  const remember = (f, saved) => setKnown(list => [
+    { vehicleNo: saved.vehicleNo, type: f.entry_type, empNo: f.emp_no || '', name: f.name || '', phone: f.phone || '', from: f.from || '', meet: f.meet || '' },
+    ...list.filter(k => plateKey(k.vehicleNo) !== plateKey(saved.vehicleNo))
+  ]);
   // An old error ("already IN …") goes away once the guard changes the form.
   useEffect(() => { setError(''); }, [form]);
 
@@ -230,6 +272,7 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
     setError('');
     try {
       const saved = (await api.vehicleIn(token, form, post)).data;
+      remember(form, saved);
       setForm(f => ({ ...BLANK, entry_type: f.entry_type }));
       setToast(saved.vehicleNo + ' IN at ' + saved.in);
       if (photo) {
@@ -310,7 +353,7 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
       {toast && <div className="pd-card ve-toast" onClick={() => setToast('')}>{Icon.check} {toast}</div>}
       {error && <div className="pd-card pd-bad">{error}</div>}
 
-      <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={blob => api.vehiclePlate(token, blob, post)} voice={(blob, lang) => api.vehicleVoice(token, blob, post, lang)} inside={inside} onOut={x => out(x, true)} busy={busy} onSubmit={save} submitLabel="Save IN" />
+      <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={blob => api.vehiclePlate(token, blob, post)} voice={(blob, lang) => api.vehicleVoice(token, blob, post, lang)} known={known} inside={inside} onOut={x => out(x, true)} busy={busy} onSubmit={save} submitLabel="Save IN" />
 
       <input ref={laterInput} type="file" accept="image/*" capture="environment" hidden onChange={addLater} />
       {entries.length > SEARCH_FROM && (

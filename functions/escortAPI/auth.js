@@ -25,7 +25,7 @@ const GUARD_ROUTES = new Set([
   '/pinMessage', '/forwardMessage', '/addWork', '/finishWork', '/safety', '/addSafety', '/sendAlert', '/cancelAlert',
   '/postHistory', '/postWorks', '/pastShift',
   '/coverCandidates', '/startBreak', '/cancelBreak', '/respondCover', '/pingBack', '/replyPing', '/backOnDuty',
-  '/coverReturned', '/leaveCover', '/vehicles', '/vehicleIn', '/vehicleOut', '/vehiclePhoto', '/vehiclePhotoLink', '/vehiclePlate', '/vehicleVoice'
+  '/coverReturned', '/leaveCover', '/vehicles', '/vehicleIn', '/vehicleOut', '/vehiclePhoto', '/vehiclePhotoLink', '/vehiclePlate', '/vehicleVoice', '/vehicleKnown'
 ]);
 
 const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;
