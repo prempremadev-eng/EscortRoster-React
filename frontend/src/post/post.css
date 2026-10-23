@@ -359,3 +359,46 @@
 /* Type tag at the start of the second line: the plate keeps its own line (tag no longer wraps under it). */
 .ve-row .pd-small .ve-tag{margin-left:0;margin-right:4px;}
 .ve-save{position:sticky;bottom:10px;z-index:5;box-shadow:0 4px 14px rgba(30,79,184,.35);}
+
+/* ===== Vehicle entry look, 23 Oct (Prem: the flat beige form looked dull) =====
+   The picked type colours the form: Employee blue, Visitor amber, Vendor purple (same as the list tags). */
+.ve-form{--ve-accent:#1E4FB8;--ve-soft:#DBEAFE;gap:12px;}
+.ve-t-visitor{--ve-accent:#B45309;--ve-soft:#FEF3C7;}
+.ve-t-vendor{--ve-accent:#6D28D9;--ve-soft:#EDE9FE;}
+/* Dark header bar across the top of the page */
+.ve-head{display:flex;align-items:center;gap:12px;margin:-24px -20px 4px;padding:16px 20px;background:#16306B;color:#fff;}
+.ve-back{width:40px;height:40px;flex-shrink:0;border-radius:10px;border:none;background:rgba(255,255,255,.14);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.ve-head-title{font-family:Archivo,sans-serif;font-weight:700;font-size:19px;line-height:1.2;}
+.ve-head-sub{font-size:13px;opacity:.8;}
+/* Type tabs: the picked one in its own colour */
+.ve-types{background:var(--pd-surface);border:1px solid var(--pd-border);margin-bottom:0;}
+.ve-type.on{color:#fff;box-shadow:none;}
+.ve-type-employee.on{background:#1E4FB8;}
+.ve-type-visitor.on{background:#B45309;}
+.ve-type-vendor.on{background:#6D28D9;}
+/* Cards */
+.ve-card{display:flex;flex-direction:column;gap:8px;background:var(--pd-surface);border:1px solid var(--pd-border);border-top:4px solid var(--ve-accent);border-radius:14px;padding:12px 14px 14px;box-shadow:0 1px 3px rgba(26,31,43,.06);}
+.ve-card-head{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:700;font-size:15px;color:var(--ve-accent);}
+.ve-card-head .ve-lang{font-weight:600;}
+.ve-card input{background:#FBFAF7;}
+/* Scan: the quick way, so the strong button */
+.pd-btn.ve-scan{background:var(--ve-accent);color:#fff;border:none;font-weight:700;padding:0 16px;}
+.pd-btn.ve-scan svg{color:#fff;}
+.ve-photo-link{align-self:flex-start;display:flex;align-items:center;gap:6px;background:none;border:none;padding:6px 0;font-family:inherit;font-size:15px;color:var(--ve-accent);font-weight:600;cursor:pointer;}
+.ve-photo-link svg{width:20px;height:20px;}
+.ve-photo-link span{color:var(--pd-muted);font-weight:400;}
+/* 🎤 inside the input, on the right */
+.ve-field{position:relative;}
+.ve-field input{padding-right:52px;}
+.ve-mic{position:absolute;right:4px;top:50%;transform:translateY(-50%);width:42px;height:40px;border:none;border-radius:10px;background:var(--ve-soft);color:var(--ve-accent);display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;}
+.ve-mic svg{width:20px;height:20px;}
+.ve-mic.on{background:#DC2626;color:#fff;}
+.ve-mic:disabled{opacity:.45;}
+.ve-field.listening input{border-color:#DC2626;box-shadow:0 0 0 3px rgba(220,38,38,.15);}
+/* Save in the type colour */
+.ve-save{background:var(--ve-accent);color:#fff;box-shadow:0 4px 14px rgba(26,31,43,.25);}
+.ve-page > .ve-head{max-width:none;}
+.ve-card-head > span{white-space:nowrap;}
+.ve-card-head .ve-lang{white-space:nowrap;gap:6px;min-width:0;}
+.ve-card-head .ve-lang select{max-width:118px;min-width:0;}
+.ve-form .ve-card input.ve-plate{font-size:18px;letter-spacing:.04em;}

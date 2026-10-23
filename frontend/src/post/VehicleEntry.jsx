@@ -61,10 +61,11 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known
     : mic.busyField === k ? <div className="pd-muted pd-small">Writing what you said…</div>
     : mic.lastField === k && mic.error ? <div className="pd-small ve-mic-err">{mic.error}</div>
     : mic.lastField === k && mic.took ? <div className="pd-muted pd-small">🎤 Done · {mic.took}</div> : null);
+  // The 🎤 sits inside the input on the right (one clean box, not a second box beside it).
   const field = (k, input) => (!voice || !mic.isSupported ? input : <>
-    <div className="ve-no-row">
+    <div className={'ve-field' + (mic.activeField === k ? ' listening' : '')}>
       {input}
-      <button type="button" className={'pd-btn pd-btn-outline ve-mic' + (mic.activeField === k ? ' on' : '')}
+      <button type="button" className={'ve-mic' + (mic.activeField === k ? ' on' : '')}
         onClick={() => (mic.activeField === k ? mic.stop() : mic.start(k))} disabled={!!mic.busyField || (!!mic.activeField && mic.activeField !== k)}
         aria-label={mic.activeField === k ? 'Stop' : 'Speak'}>
         {mic.busyField === k ? '…' : mic.activeField === k ? '■' : Icon.mic}
@@ -114,59 +115,61 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known
       setPreparing(false);
     }
   }
+  // Layout (Prem, 23 Oct: the flat beige form looked dull): the picked type colours the form
+  // (Employee blue, Visitor amber, Vendor purple, same as the list tags); a 🚗 Vehicle card and a
+  // 👤 person card; Scan is the big button; the photo is a small optional line.
+  const typeLabel = (TYPES.find(t => t.key === form.entry_type) || TYPES[0]).label;
   return (
-    <form className="pd-form ve-form" onSubmit={onSubmit}>
+    <form className={'pd-form ve-form ve-t-' + form.entry_type} onSubmit={onSubmit}>
       <div className="ve-types" role="tablist">
         {TYPES.map(t => (
           <button key={t.key} type="button" role="tab" aria-selected={form.entry_type === t.key}
-            className={'ve-type' + (form.entry_type === t.key ? ' on' : '')} onClick={() => set('entry_type', t.key)}>{t.label}</button>
+            className={'ve-type ve-type-' + t.key + (form.entry_type === t.key ? ' on' : '')} onClick={() => set('entry_type', t.key)}>{t.label}</button>
         ))}
       </div>
       {children}
-      {voice && mic.isSupported && (
-        <label className="ve-lang">🎤 I speak
-          <select value={lang} onChange={e => { setLang(e.target.value); saveVoiceLang(e.target.value); }} aria-label="Language I speak">
-            {VOICE_LANGS.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
-          </select>
-        </label>
-      )}
-      <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={pick} />
-      {preparing ? (
-        <div className="ve-photo-pick pd-muted pd-small">Preparing photo...</div>
-      ) : preview ? (
-        <div className="ve-photo-pick">
-          <img src={preview} alt="Vehicle" />
-          <div className="pd-grow pd-small pd-muted">Photo ready (saved with the IN)</div>
-          <button type="button" className="pd-chip" onClick={() => camera.current.click()}>Retake</button>
-          <button type="button" className="pd-link" onClick={() => setPhoto(null)} aria-label="Remove photo">✕</button>
+
+      <div className="ve-card">
+        <div className="ve-card-head">🚗 Vehicle</div>
+        <label htmlFor="ve-no">Vehicle number</label>
+        <div className="ve-no-row">
+          <input id="ve-no" className="ve-plate" value={form.vehicle_no} onChange={e => set('vehicle_no', formatPlate(e.target.value))} onBlur={() => setForm(f => ({ ...f, vehicle_no: formatPlate(f.vehicle_no, true) }))} autoCapitalize="characters" placeholder="TN 09 AB 1234" maxLength={20} required autoComplete="off" />
+          {scan && <>
+            <button type="button" className="pd-btn ve-scan" onClick={() => { setScanMsg(''); setScanning(true); }}>{Icon.camera}Scan</button>
+            {scanning && <PlateScanner scan={scan} onDone={scanned} onClose={() => setScanning(false)} />}
+          </>}
         </div>
-      ) : (
-        <button type="button" className="pd-btn pd-btn-outline ve-photo-btn" onClick={() => camera.current.click()}>{Icon.camera} Vehicle photo (optional)</button>
-      )}
-      {photoError && <div className="pd-card pd-bad">{photoError}</div>}
-      <label htmlFor="ve-no">Vehicle number</label>
-      <div className="ve-no-row">
-        <input id="ve-no" className="ve-plate" value={form.vehicle_no} onChange={e => set('vehicle_no', formatPlate(e.target.value))} onBlur={() => setForm(f => ({ ...f, vehicle_no: formatPlate(f.vehicle_no, true) }))} autoCapitalize="characters" placeholder="TN 09 AB 1234" maxLength={20} required autoComplete="off" />
-        {scan && <>
-          <button type="button" className="pd-btn pd-btn-outline ve-scan" onClick={() => { setScanMsg(''); setScanning(true); }}>{Icon.camera}Scan</button>
-          {scanning && <PlateScanner scan={scan} onDone={scanned} onClose={() => setScanning(false)} />}
-        </>}
+        {scanMsg && <div className="pd-muted pd-small">{scanMsg}</div>}
+        {suggestions.length > 0 && (
+          <div className="ve-suggest" role="listbox" aria-label="Vehicles seen before">
+            <div className="pd-muted pd-small">Seen before · tap to fill</div>
+            {suggestions.map(k => (
+              // mousedown default off: the number box keeps the focus, so its blur cannot rewrite the number.
+              <button type="button" key={k.vehicleNo} className="ve-suggest-row" onMouseDown={e => e.preventDefault()} onClick={() => pickKnown(k)}>
+                <span className="ve-plate-text">{k.vehicleNo}</span>
+                <span className={'ve-tag ve-' + k.type}>{k.type}</span>
+                <span className="pd-grow pd-muted pd-small ve-suggest-who">{k.type === 'employee' ? 'Emp ' + k.empNo : [k.name, k.from].filter(Boolean).join(' · ')}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {filledFrom && <div className="pd-muted pd-small">Filled from the last visit of {filledFrom} · check the details</div>}
+        <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={pick} />
+        {preparing ? (
+          <div className="ve-photo-pick pd-muted pd-small">Preparing photo...</div>
+        ) : preview ? (
+          <div className="ve-photo-pick">
+            <img src={preview} alt="Vehicle" />
+            <div className="pd-grow pd-small pd-muted">Photo ready (saved with the IN)</div>
+            <button type="button" className="pd-chip" onClick={() => camera.current.click()}>Retake</button>
+            <button type="button" className="pd-link" onClick={() => setPhoto(null)} aria-label="Remove photo">✕</button>
+          </div>
+        ) : (
+          <button type="button" className="ve-photo-link" onClick={() => camera.current.click()}>{Icon.camera} Add vehicle photo <span>(optional)</span></button>
+        )}
+        {photoError && <div className="pd-card pd-bad">{photoError}</div>}
       </div>
-      {scanMsg && <div className="pd-muted pd-small">{scanMsg}</div>}
-      {suggestions.length > 0 && (
-        <div className="ve-suggest" role="listbox" aria-label="Vehicles seen before">
-          <div className="pd-muted pd-small">Seen before · tap to fill</div>
-          {suggestions.map(k => (
-            // mousedown default off: the number box keeps the focus, so its blur cannot rewrite the number.
-            <button type="button" key={k.vehicleNo} className="ve-suggest-row" onMouseDown={e => e.preventDefault()} onClick={() => pickKnown(k)}>
-              <span className="ve-plate-text">{k.vehicleNo}</span>
-              <span className={'ve-tag ve-' + k.type}>{k.type}</span>
-              <span className="pd-grow pd-muted pd-small ve-suggest-who">{k.type === 'employee' ? 'Emp ' + k.empNo : [k.name, k.from].filter(Boolean).join(' · ')}</span>
-            </button>
-          ))}
-        </div>
-      )}
-      {filledFrom && <div className="pd-muted pd-small">Filled from the last visit of {filledFrom} · check the details</div>}
+
       {already && onOut && (
         <div className="pd-card ve-inside">
           <div><b>{already.vehicleNo}</b> is inside since {already.in} · {whoOf(already)}</div>
@@ -175,22 +178,34 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known
       )}
       {/* Inside already: only OUT makes sense, so the IN fields and Save IN are hidden. */}
       {already && onOut ? null : <>
-      {emp ? <>
-        <label htmlFor="ve-emp">Employee number</label>
-        {field('emp_no', <input id="ve-emp" value={form.emp_no} onChange={e => set('emp_no', e.target.value)} placeholder="Employee ID" maxLength={30} required autoComplete="off" />)}
-      </> : <>
-        <label htmlFor="ve-name">Name</label>
-        {field('name', <input id="ve-name" value={form.name} onChange={e => set('name', e.target.value)} maxLength={100} required />)}
-        <label htmlFor="ve-phone">Phone</label>
-        {field('phone', <input id="ve-phone" value={form.phone} onChange={e => set('phone', e.target.value)} inputMode="tel" maxLength={20} required />)}
-        <label htmlFor="ve-from">Coming from</label>
-        {field('from', <input id="ve-from" value={form.from} onChange={e => set('from', e.target.value)} placeholder="Company / place" maxLength={100} required />)}
-        <label htmlFor="ve-meet">Whom to meet{form.entry_type === 'vendor' ? ' (optional)' : ''}</label>
-        {field('meet', <input id="ve-meet" value={form.meet} onChange={e => set('meet', e.target.value)} maxLength={100} required={form.entry_type === 'visitor'} />)}
-      </>}
+      <div className="ve-card">
+        <div className="ve-card-head">
+          <span>👤 {typeLabel}</span>
+          {voice && mic.isSupported && (
+            <label className="ve-lang">🎤 I speak
+              <select value={lang} onChange={e => { setLang(e.target.value); saveVoiceLang(e.target.value); }} aria-label="Language I speak">
+                {VOICE_LANGS.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+              </select>
+            </label>
+          )}
+        </div>
+        {emp ? <>
+          <label htmlFor="ve-emp">Employee number</label>
+          {field('emp_no', <input id="ve-emp" value={form.emp_no} onChange={e => set('emp_no', e.target.value)} placeholder="Employee ID" maxLength={30} required autoComplete="off" />)}
+        </> : <>
+          <label htmlFor="ve-name">Name</label>
+          {field('name', <input id="ve-name" value={form.name} onChange={e => set('name', e.target.value)} maxLength={100} required />)}
+          <label htmlFor="ve-phone">Phone</label>
+          {field('phone', <input id="ve-phone" value={form.phone} onChange={e => set('phone', e.target.value)} inputMode="tel" maxLength={20} required />)}
+          <label htmlFor="ve-from">Coming from</label>
+          {field('from', <input id="ve-from" value={form.from} onChange={e => set('from', e.target.value)} placeholder="Company / place" maxLength={100} required />)}
+          <label htmlFor="ve-meet">Whom to meet{form.entry_type === 'vendor' ? ' (optional)' : ''}</label>
+          {field('meet', <input id="ve-meet" value={form.meet} onChange={e => set('meet', e.target.value)} maxLength={100} required={form.entry_type === 'visitor'} />)}
+        </>}
+      </div>
 
       {/* Stays in sight at the bottom while the long Visitor form scrolls (only inside the form). */}
-      <button className="pd-btn pd-btn-primary ve-save" type="submit" disabled={busy || preparing || scanning}>{busy ? 'Saving...' : preparing ? 'Preparing photo...' : submitLabel}</button>
+      <button className="pd-btn ve-save" type="submit" disabled={busy || preparing || scanning}>{busy ? 'Saving...' : preparing ? 'Preparing photo...' : submitLabel + ' · ' + typeLabel}</button>
       </>}
     </form>
   );
@@ -352,11 +367,11 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
 
   return (
     <div className="pd pd-page ve-page">
-      <div className="pd-form-head">
-        <button type="button" className="pd-icon-btn" onClick={onClose} aria-label="Back">{Icon.back}</button>
-        <div>
-          <div className="pd-title pd-title-sm">{(data && data.post) || postName}</div>
-          <div className="pd-muted pd-small">Vehicle entry</div>
+      <div className="ve-head">
+        <button type="button" className="ve-back" onClick={onClose} aria-label="Back">{Icon.back}</button>
+        <div className="pd-grow">
+          <div className="ve-head-title">{(data && data.post) || postName}</div>
+          <div className="ve-head-sub">🚗 Vehicle entry</div>
         </div>
       </div>
 
