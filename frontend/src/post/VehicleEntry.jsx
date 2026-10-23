@@ -195,6 +195,7 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
   }, [typeKey, form.entry_type]);
   const [photo, setPhoto] = useState(null);
   const [showPhoto, setShowPhoto] = useState(null);
+  const [find, setFind] = useState('');
   const laterInput = useRef(null);
   const laterFor = useRef(null);
   const [busy, setBusy] = useState(false);
@@ -277,6 +278,13 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
   const entries = data ? data.entries : [];
   const inside = entries.filter(x => x.status === 'IN');
   const gone = entries.filter(x => x.status !== 'IN');
+  // 🔍 over the lists, only on this phone (no Data Store read): number (spaces ignored), name, emp no, place.
+  // Shown when the lists get long (Prem, 23 Oct); history by date stays on the supervisor's Vehicles page.
+  const SEARCH_FROM = 5;
+  const needle = find.trim().toUpperCase().replace(/\s+/g, '');
+  const hit = x => !needle || [x.vehicleNo, x.name, x.empNo, x.from, x.meet, x.phone].some(v => String(v || '').toUpperCase().replace(/\s+/g, '').includes(needle));
+  const insideShown = inside.filter(hit);
+  const goneShown = gone.filter(hit);
 
   return (
     <div className="pd pd-page ve-page">
@@ -294,10 +302,14 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
       <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={blob => api.vehiclePlate(token, blob, post)} voice={(blob, lang) => api.vehicleVoice(token, blob, post, lang)} inside={inside} onOut={x => out(x, true)} busy={busy} onSubmit={save} submitLabel="Save IN" />
 
       <input ref={laterInput} type="file" accept="image/*" capture="environment" hidden onChange={addLater} />
-      <div className="pd-field-title">Inside now · {inside.length}</div>
+      {entries.length > SEARCH_FROM && (
+        <input type="search" className="ve-find" value={find} onChange={e => setFind(e.target.value)} placeholder="🔍 Find: number, name, emp ID" aria-label="Find a vehicle" />
+      )}
+      <div className="pd-field-title">Inside now · {needle ? insideShown.length + ' of ' + inside.length : inside.length}</div>
       {!data && !error && <div className="pd-muted">Loading...</div>}
       {data && inside.length === 0 && <div className="pd-muted pd-small">No vehicle inside.</div>}
-      {inside.map(x => (
+      {needle && insideShown.length === 0 && inside.length > 0 && <div className="pd-muted pd-small">No vehicle inside matches "{find.trim()}".</div>}
+      {insideShown.map(x => (
         <div key={x.id} className="ve-row">
           <div className="pd-grow">
             <div className="ve-plate-text">{x.vehicleNo} <span className={'ve-tag ve-' + x.type}>{x.type}</span></div>
@@ -311,8 +323,8 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
       ))}
 
       {gone.length > 0 && <>
-        <div className="pd-field-title">Out today · {gone.length}</div>
-        {gone.map(x => (
+        <div className="pd-field-title">Out today · {needle ? goneShown.length + ' of ' + gone.length : gone.length}</div>
+        {goneShown.map(x => (
           <div key={x.id} className="ve-row ve-row-out">
             <div className="pd-grow">
               <div className="ve-plate-text">{x.vehicleNo} <span className={'ve-tag ve-' + x.type}>{x.type}</span></div>
