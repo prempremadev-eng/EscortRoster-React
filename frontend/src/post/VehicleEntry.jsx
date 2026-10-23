@@ -33,7 +33,8 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known
   const suggestions = !filledFrom && typed.length >= SUGGEST_FROM
     ? (known || []).filter(k => plateKey(k.vehicleNo).includes(typed)).slice(0, 6)
     : [];
-  function pick(k) {
+  // (Not named `pick`: the photo picker below has that name and silently replaced this one, 23 Oct.)
+  function pickKnown(k) {
     setFilledFrom(k.vehicleNo);
     setForm(f => ({ ...f, entry_type: k.type, vehicle_no: k.vehicleNo, emp_no: k.empNo, name: k.name, phone: k.phone, from: k.from, meet: k.meet }));
   }
@@ -149,9 +150,8 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known
         <div className="ve-suggest" role="listbox" aria-label="Vehicles seen before">
           <div className="pd-muted pd-small">Seen before · tap to fill</div>
           {suggestions.map(k => (
-            // Tapping must not take the focus off the number box first: that blur wrote the old typed
-            // number back over the picked one on the phone, so the tap looked dead (23 Oct).
-            <button type="button" key={k.vehicleNo} className="ve-suggest-row" onPointerDown={e => e.preventDefault()} onMouseDown={e => e.preventDefault()} onClick={() => pick(k)}>
+            // mousedown default off: the number box keeps the focus, so its blur cannot rewrite the number.
+            <button type="button" key={k.vehicleNo} className="ve-suggest-row" onMouseDown={e => e.preventDefault()} onClick={() => pickKnown(k)}>
               <span className="ve-plate-text">{k.vehicleNo}</span>
               <span className={'ve-tag ve-' + k.type}>{k.type}</span>
               <span className="pd-grow pd-muted pd-small ve-suggest-who">{k.type === 'employee' ? 'Emp ' + k.empNo : [k.name, k.from].filter(Boolean).join(' · ')}</span>
