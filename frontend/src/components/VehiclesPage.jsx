@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { shortDate, plusDay } from '../utils.js';
 import useFullView from './useFullView.js';
+import { useUser } from '../auth/user.js';
 import { VehicleForm, PhotoView, BLANK, TYPES, whoOf, dayWord } from '../post/VehicleEntry.jsx';
 
 // Vehicles (supervisor and every admin): one day's vehicle entries of the posts with vehicle entry on,
@@ -84,6 +85,22 @@ export default function VehiclesPage() {
       await load();
     } catch (err) {
       setFormError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  // Delete a wrong entry: Branch Admin (and the Super Admin) only; the others only see.
+  const me = useUser();
+  const canDelete = !!me && (me.role === 'branch_admin' || me.role === 'super_admin');
+  async function remove(x) {
+    if (!window.confirm('Delete ' + x.vehicleNo + ' (' + x.type + ', IN ' + x.in + ')? This cannot be undone.')) return;
+    setBusy(true);
+    try {
+      await api.vehicleDelete(x.id);
+      await load();
+    } catch (err) {
+      setError(err.message);
     } finally {
       setBusy(false);
     }
@@ -204,7 +221,8 @@ export default function VehiclesPage() {
                       <td className="left">{x.by}{x.outBy ? <div className="ve-small">OUT: {x.outBy}</div> : null}</td>
                       <td>{x.status === 'IN'
                         ? <button className="btn secondary ve-out-btn no-print" onClick={() => markOut(x)} disabled={busy} title="Mark OUT now">Inside · OUT</button>
-                        : <span className="dh-status dh-ok">Out</span>}</td>
+                        : <span className="dh-status dh-ok">Out</span>}
+                        {canDelete && <button className="btn secondary ve-out-btn no-print ve-del" onClick={() => remove(x)} disabled={busy} title="Delete this wrong entry">🗑</button>}</td>
                     </tr>
                   ))}
                   {shown.length === 0 && <tr><td colSpan={many ? 13 : 12} className="dash-empty">No vehicles.</td></tr>}

@@ -148,6 +148,7 @@ export const api = {
   vehicleList: (branch, date) => apiCall('GET', '/vehicleList?branch=' + q(branch) + '&date=' + q(date)),
   vehicleAdd: entry => apiCall('POST', '/vehicleAdd', entry),
   vehicleMarkOut: id => apiCall('POST', '/vehicleMarkOut', { id }),
+  vehicleDelete: id => apiCall('POST', '/vehicleDelete', { id }),
   vehiclePhotoAdd: (id, blob) => vehiclePhoto('/vehiclePhotoAdd?id=' + q(id), blob),
   vehiclePlateScan: blob => vehiclePhoto('/vehiclePlateScan', blob),
   vehicleVoiceText: (blob, lang) => vehiclePhoto('/vehicleVoiceText?lang=' + q(lang || 'ta-IN'), blob),

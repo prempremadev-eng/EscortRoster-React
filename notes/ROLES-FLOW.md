@@ -67,7 +67,7 @@ The doing is done by Supervisor + Branch Admin; the levels above watch and track
 
 ## Build order (next)
 
-1. State Admin role · 2. City / State / Admin view only · 3. Vehicle delete for Branch Admin only ·
+1. ✅ State Admin role (UserRoles.state, 24 Oct) · 2. ✅ City / State Admin view only, Admin only setup (server refuses other changes; Super Admin may do all) · 3. ✅ Vehicle delete for Branch Admin (🗑 on the Vehicles page) · Branches / agencies now saved by Admin only ·
 4. Shift report Send (+45 min auto) · 5. Report chain with app totals and notifications ·
 6. Forward a guard message to the Branch Admin · 7. Check the setup rights above.
 

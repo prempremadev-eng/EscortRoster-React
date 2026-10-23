@@ -4,16 +4,17 @@ import { useUser, atLeast } from '../auth/user.js';
 import { agencyBranches, worksIn } from '../agency.js';
 import { Toggle, IconBtn } from '../components/RowControls.jsx';
 
-const ROLE_NAME = { super_admin: 'Super Admin', admin: 'Admin', city_admin: 'City Admin', branch_admin: 'Branch Admin', supervisor: 'Supervisor' };
+const ROLE_NAME = { super_admin: 'Super Admin', admin: 'Admin', state_admin: 'State Admin', city_admin: 'City Admin', branch_admin: 'Branch Admin', supervisor: 'Supervisor' };
 const ROLE_HELP = {
   super_admin: 'Everything, and can add other Super Admins.',
-  admin: 'Every city, every branch.',
-  city_admin: 'Every branch of one city.',
+  admin: 'Every state and branch. Sets up branches, agencies and users; sees reports (no daily changes).',
+  state_admin: 'Every branch of one state. Sees reports only (no changes).',
+  city_admin: 'Every branch of one city. Sees reports only (no changes).',
   branch_admin: 'One branch, every agency.',
   supervisor: 'One branch, only the posts and guards of one agency.'
 };
 const MAIL_TEXT = { invited: 'Invite mail sent.', already: 'Already a user, so no mail (they sign in with their password).', reset: 'Password link sent.' };
-const BLANK_USER = { email: '', name: '', role: '', city: '', branch_id: '', agency_id: '' };
+const BLANK_USER = { email: '', name: '', role: '', city: '', state: '', branch_id: '', agency_id: '' };
 const BLANK_AGENCY = { agency_name: '', branch_ids: [] };
 const BLANK_BRANCH = { branch_code: '', branch_name: '', state_id: '', city_id: '' };
 const isOn = v => v === true || v === 'true';
@@ -61,7 +62,7 @@ export default function AdminPage() {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const branchName = id => { const b = data && data.branches.find(x => String(x.ROWID) === String(id)); return b ? b.branch_name + (b.area ? ' (' + b.area + ')' : '') + ' · ' + b.city : ''; };
   const agencyName = id => ((data && data.agencies.find(a => String(a.ROWID) === String(id))) || {}).agency_name || '';
-  const area = u => u.role === 'city_admin' ? u.city : u.role === 'branch_admin' ? branchName(u.branch_id) : u.role === 'supervisor' ? branchName(u.branch_id) + ' · ' + agencyName(u.agency_id) : 'All';
+  const area = u => u.role === 'state_admin' ? u.state : u.role === 'city_admin' ? u.city : u.role === 'branch_admin' ? branchName(u.branch_id) : u.role === 'supervisor' ? branchName(u.branch_id) + ' · ' + agencyName(u.agency_id) : 'All';
   const canCity = atLeast(me, 'city_admin');
 
   function open(kind, row) {
@@ -73,7 +74,7 @@ export default function AdminPage() {
 
   function saveUser(e) {
     e.preventDefault();
-    const body = { ROWID: form.ROWID, email: form.email, name: form.name, role: form.role, city: form.city, branch_id: form.branch_id, agency_id: form.agency_id };
+    const body = { ROWID: form.ROWID, email: form.email, name: form.name, role: form.role, city: form.city, state: form.state, branch_id: form.branch_id, agency_id: form.agency_id };
     if (form.ROWID) run(() => api.userUpdate(body), () => '✅ ' + form.name + ' saved.');
     else run(() => api.userAdd(body), r => '✅ ' + form.name + ' added. ' + MAIL_TEXT[r.data.mail]);
   }
@@ -154,6 +155,14 @@ export default function AdminPage() {
                   {data.roles.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}
                 </select>
               </label>
+              {form.role === 'state_admin' && (
+                <label>State
+                  <select value={form.state} onChange={e => set('state', e.target.value)} required>
+                    <option value="">Pick the state</option>
+                    {(data.states || []).map(st => <option key={st.ROWID}>{st.state_name}</option>)}
+                  </select>
+                </label>
+              )}
               {form.role === 'city_admin' && (
                 <label>City
                   <select value={form.city} onChange={e => set('city', e.target.value)} required>
@@ -320,7 +329,7 @@ export default function AdminPage() {
                       <td><Toggle on={!off} label={u.name} disabled={busy || !u.canEdit} onChange={() => run(() => api.userActive(u.ROWID, off), () => off ? '↩️ ' + u.name + ' can sign in again.' : '🚫 ' + u.name + ' cannot sign in now.')} /></td>
                       <td className="adm-actions">
                         {u.canEdit && !off && <>
-                          <IconBtn icon="✏️" label={'Edit ' + u.name} onClick={() => open('user', { ...BLANK_USER, ...u, city: u.city || '', branch_id: u.branch_id || '', agency_id: u.agency_id || '' })} />
+                          <IconBtn icon="✏️" label={'Edit ' + u.name} onClick={() => open('user', { ...BLANK_USER, ...u, city: u.city || '', state: u.state || '', branch_id: u.branch_id || '', agency_id: u.agency_id || '' })} />
                           <IconBtn icon="📧" label={'Mail ' + u.name + ' again'} disabled={busy} onClick={() => run(() => api.userMail(u.ROWID), r => '📧 ' + u.name + ': ' + MAIL_TEXT[r.data.mail])} />
                         </>}
                       </td>

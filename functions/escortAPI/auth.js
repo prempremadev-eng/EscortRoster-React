@@ -12,10 +12,18 @@
 //
 // A higher role creates the lower ones, always inside its own area.
 
-const ROLES = ['supervisor', 'branch_admin', 'city_admin', 'admin', 'super_admin'];
+// State Admin added on 23 Oct (notes/ROLES-FLOW.md): one state, between City Admin and Admin.
+const ROLES = ['supervisor', 'branch_admin', 'city_admin', 'state_admin', 'admin', 'super_admin'];
 const RANK = {};
 ROLES.forEach((r, i) => { RANK[r] = i + 1; });
-const ROLE_NAME = { supervisor: 'Supervisor', branch_admin: 'Branch Admin', city_admin: 'City Admin', admin: 'Admin', super_admin: 'Super Admin' };
+const ROLE_NAME = { supervisor: 'Supervisor', branch_admin: 'Branch Admin', city_admin: 'City Admin', state_admin: 'State Admin', admin: 'Admin', super_admin: 'Super Admin' };
+
+// Who does the work (notes/ROLES-FLOW.md, 23 Oct): Supervisor and Branch Admin change things; City and
+// State Admin only watch; an Admin only sets up (users, places, agencies) and runs the card simulator.
+// The Super Admin (app owner) may do everything. POSTs that only read or subscribe stay open to all.
+const VIEW_ONLY = new Set(['city_admin', 'state_admin']);
+const SETUP_ROUTES = new Set(['/userAdd', '/userUpdate', '/userActive', '/userMail', '/branchSave', '/citySave', '/stateSave', '/agencySave', '/addAccessLog']);
+const READ_POSTS = new Set(['/supInbox', '/supSubscribe']);
 
 // Routes a guard's phone calls with its secret link. Everything else needs a login.
 const GUARD_ROUTES = new Set([
@@ -81,6 +89,7 @@ module.exports = function auth(catalyst, selectAll) {
     let ids = [];
     if (!all) {
       if (role.role === 'city_admin') ids = branches.filter(b => String(b.city || '').toLowerCase() === String(role.city || '').toLowerCase()).map(b => String(b.ROWID));
+      else if (role.role === 'state_admin') ids = branches.filter(b => String(b.state || '').toLowerCase() === String(role.state || '').toLowerCase()).map(b => String(b.ROWID));
       else if (role.branch_id) ids = [String(role.branch_id)];
     }
     return {
@@ -106,10 +115,14 @@ module.exports = function auth(catalyst, selectAll) {
       }
       req.user = {
         email, name: role.name || req.login.name || email, role: role.role, rank: RANK[role.role],
-        city: role.city || '', branch_id: role.branch_id ? String(role.branch_id) : '', agency_id: role.agency_id ? String(role.agency_id) : '',
+        city: role.city || '', state: role.state || '', branch_id: role.branch_id ? String(role.branch_id) : '', agency_id: role.agency_id ? String(role.agency_id) : '',
         rowid: String(role.ROWID)
       };
       req.scope = scopeOf(role, await branchList(zcql));
+      if (req.method !== 'GET' && !READ_POSTS.has(req.path)
+        && (VIEW_ONLY.has(role.role) || (role.role === 'admin' && !SETUP_ROUTES.has(req.path)))) {
+        return res.status(403).json({ status: 'failure', error: 'View only: ' + ROLE_NAME[role.role] + ' can see this, but the Branch Admin or Supervisor makes the change.' });
+      }
       next();
     } catch (err) {
       res.status(400).json({ status: 'failure', error: err.message || String(err) });

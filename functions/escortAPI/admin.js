@@ -73,10 +73,10 @@ module.exports = function adminRoutes(app, h) {
         branchList(zcql),
         agencyList(zcql),
         placeList(zcql),
-        selectAll(zcql, 'UserRoles', 'SELECT ROWID, email, name, role, city, branch_id, agency_id, is_active, created_by, CREATEDTIME FROM UserRoles ORDER BY name ASC')
+        selectAll(zcql, 'UserRoles', 'SELECT ROWID, email, name, role, city, state, branch_id, agency_id, is_active, created_by, CREATEDTIME FROM UserRoles ORDER BY name ASC')
       ]);
       ok(res, {
-        me: { email: req.user.email, role: req.user.role, city: req.user.city, branch_id: req.user.branch_id },
+        me: { email: req.user.email, role: req.user.role, city: req.user.city, state: req.user.state, branch_id: req.user.branch_id },
         roles: ROLES.filter(r => RANK[r] < req.user.rank || req.user.role === 'super_admin').reverse().map(r => ({ code: r, name: ROLE_NAME[r] })),
         branches: branches.filter(b => branchOk(req, b.ROWID)),
         agencies,
@@ -97,7 +97,13 @@ module.exports = function adminRoutes(app, h) {
     const role = String(b.role || '');
     if (!RANK[role]) throw new Error('Pick a role');
     if (!(RANK[role] < req.user.rank || req.user.role === 'super_admin')) throw new Error('You cannot give the role ' + ROLE_NAME[role] + '.');
-    const row = { name: requireText(b.name, 'Name', 100), role, city: null, branch_id: null, agency_id: null };
+    const row = { name: requireText(b.name, 'Name', 100), role, city: null, state: null, branch_id: null, agency_id: null };
+    if (role === 'state_admin') {
+      const state = requireText(b.state, 'State', 50);
+      const { states } = await placeList(zcql);
+      if (!states.some(x => x.state_name.toLowerCase() === state.toLowerCase())) throw new Error('State ' + state + ' not found. Add it in States first.');
+      row.state = state;
+    }
     if (role === 'city_admin') {
       const city = requireText(b.city, 'City', 100);
       const { cities } = await placeList(zcql);
@@ -212,7 +218,7 @@ module.exports = function adminRoutes(app, h) {
 
   app.post('/branchSave', async (req, res) => {
     try {
-      need(req, 'city_admin');
+      need(req, 'admin'); // setup flow (23 Oct): the Admin adds branches
       const catalystApp = admin(req);
       const b = req.body || {};
       const phone = String(b.supervisor_phone || '').trim();
@@ -323,7 +329,7 @@ module.exports = function adminRoutes(app, h) {
 
   app.post('/agencySave', async (req, res) => {
     try {
-      need(req, 'city_admin');
+      need(req, 'admin'); // setup flow (23 Oct): the Admin adds agencies
       const catalystApp = admin(req);
       const zcql = catalystApp.zcql();
       const b = req.body || {};

@@ -449,6 +449,23 @@ module.exports = function vehicleRoutes(app, h) {
     }
   });
 
+  // A wrong entry: only the Branch Admin deletes it (notes/ROLES-FLOW.md, 23 Oct); its photo goes too.
+  app.post('/vehicleDelete', async (req, res) => {
+    try {
+      auth.need(req, 'branch_admin');
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const row = await areaEntry(req, zcql, req.body.id);
+      if (row.photo_key) {
+        try { await catalystApp.stratus().bucket(MEDIA_BUCKET).deleteObject(row.photo_key); } catch (err) { console.error('Vehicle photo not removed:', err.message || err); }
+      }
+      await catalystApp.datastore().table('VehicleEntries').deleteRow(row.ROWID);
+      res.status(200).json({ status: 'success', data: { deleted: String(row.ROWID) } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   app.post('/vehicleMarkOut', async (req, res) => {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
