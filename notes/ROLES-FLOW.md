@@ -44,6 +44,19 @@ Supervisor (branch + agency) → Branch Admin (branch) → City Admin (city) →
 - Supervisor checks and taps Send (start + 30 min; the app sends by itself at + 45 min). Above the supervisor **the app forwards by itself** (about start + 45 min); a Branch Admin may add a note before that. Nobody else has to press Send.
 - Each report: posts A / B / C / G, planned, IN, late, absent, leave, off, vacant, notes / problems.
 
+## Who may change what (decided 23 Oct)
+
+| Thing | Supervisor | Branch Admin | City / State / Admin |
+|---|---|---|---|
+| Schedule changes, Publish | ✅ | ✅ | 👀 view only |
+| Month roster upload | ✅ | ✅ | 👀 view only |
+| Guards add / remove | ✅ | ✅ | 👀 view only |
+| Posts create / edit | ❌ (later: request → approval) | ✅ | 👀 view only |
+| Vehicle entry: new entry / OUT | ✅ | ✅ | 👀 view only |
+| Vehicle entry: correct / delete | ❌ | ✅ (delete only here) | 👀 view only |
+
+The doing is done by Supervisor + Branch Admin; the levels above watch and track.
+
 ## Next to discuss
 
 - Branch Admin: daily work, what they see, what they approve.
