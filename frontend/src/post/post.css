@@ -444,3 +444,8 @@
 .ve-head-when{font-size:13px;color:var(--pd-muted);margin-top:2px;}
 .ve-save{background:var(--ve-accent);color:#fff;border:none;box-shadow:none;}
 .ve-head-when{text-wrap:balance;}
+/* Fifth pass (23 Oct): title a little bigger and lower (it touched the top); Save in the Scan style
+   (soft type colour, coloured text, no border / glow) instead of a loud solid bar. */
+.ve-head{margin-top:6px;padding-top:6px;}
+.ve-head-title{font-size:24px;font-weight:600;}
+.ve-save{background:var(--ve-soft);color:var(--ve-accent);border:none;border-radius:28px;box-shadow:none;font-weight:700;}
