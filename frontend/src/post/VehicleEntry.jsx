@@ -64,7 +64,7 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, insid
   function scanned({ plate, blob, took, server }) {
     setScanning(false);
     if (!photo) setPhoto(blob);
-    set('vehicle_no', plate);
+    set('vehicle_no', formatPlate(plate, true));
     // Seconds shown for now, to see the time (all / at the server).
     const sec = ms => (ms / 1000).toFixed(1) + ' s';
     setScanMsg('Read: ' + plate + ' · check it with the vehicle · ' + sec(took) + (server ? ' (server ' + sec(server) + ')' : ''));
@@ -117,7 +117,7 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, insid
       {photoError && <div className="pd-card pd-bad">{photoError}</div>}
       <label htmlFor="ve-no">Vehicle number</label>
       <div className="ve-no-row">
-        <input id="ve-no" className="ve-plate" value={form.vehicle_no} onChange={e => set('vehicle_no', e.target.value.toUpperCase())} placeholder="TN 09 AB 1234" maxLength={20} required autoComplete="off" />
+        <input id="ve-no" className="ve-plate" value={form.vehicle_no} onChange={e => set('vehicle_no', formatPlate(e.target.value))} onBlur={() => set('vehicle_no', formatPlate(form.vehicle_no, true))} autoCapitalize="characters" placeholder="TN 09 AB 1234" maxLength={20} required autoComplete="off" />
         {scan && <>
           <button type="button" className="pd-btn pd-btn-outline ve-scan" onClick={() => { setScanMsg(''); setScanning(true); }}>{Icon.camera}Scan</button>
           {scanning && <PlateScanner scan={scan} onDone={scanned} onClose={() => setScanning(false)} />}
@@ -175,6 +175,17 @@ export function dayWord(date, today) {
   d.setUTCDate(d.getUTCDate() - 1);
   if (d.toISOString().slice(0, 10) === date) return 'Yesterday';
   return new Date(date + 'T00:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+}
+
+// Number plate in the Indian layout "TN 12 AB 0987" (Prem, 23 Oct): capitals, a space wherever letters
+// and digits meet; `full` also pads the RTO number to 2 and the last number to 4 digits.
+// Bharat series ("22 BH 1234 AA") keeps its own order. Same rule on the phone and the server.
+export function formatPlate(value, full) {
+  const raw = String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  let out = raw.replace(/([A-Z])(?=[0-9])|([0-9])(?=[A-Z])/g, '$1$2 ');
+  const m = full && out.match(/^([A-Z]{2}) ([0-9]{1,2})(?: ([A-Z]{1,3}))? ([0-9]{1,4})$/);
+  if (m) out = [m[1], m[2].padStart(2, '0'), m[3], m[4].padStart(4, '0')].filter(Boolean).join(' ');
+  return out;
 }
 
 // One line of the list: plate, type, who, IN / OUT time.

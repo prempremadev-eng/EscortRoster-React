@@ -31,6 +31,17 @@ const VOICE_TYPES = { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/x-m4a': '
 const PLATE_RE = /^[A-Z0-9 -]{4,20}$/;
 const PHONE_RE = /^[0-9+ -]{6,20}$/;
 
+// Number plate in the Indian layout "TN 12 AB 0987" (Prem, 23 Oct): capitals, a space wherever letters
+// and digits meet; `full` also pads the RTO number to 2 and the last number to 4 digits.
+// Bharat series ("22 BH 1234 AA") keeps its own order. Same rule on the phone and the server.
+function formatPlate(value, full) {
+  const raw = String(value || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  let out = raw.replace(/([A-Z])(?=[0-9])|([0-9])(?=[A-Z])/g, '$1$2 ');
+  const m = full && out.match(/^([A-Z]{2}) ([0-9]{1,2})(?: ([A-Z]{1,3}))? ([0-9]{1,4})$/);
+  if (m) out = [m[1], m[2].padStart(2, '0'), m[3], m[4].padStart(4, '0')].filter(Boolean).join(' ');
+  return out;
+}
+
 module.exports = function vehicleRoutes(app, h) {
   const { catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, isTrue, onDutyLog, shiftDate, auth, getSetting } = h;
 
@@ -50,7 +61,7 @@ module.exports = function vehicleRoutes(app, h) {
   function readEntry(body) {
     const type = String(body.entry_type || '').toLowerCase();
     if (!TYPES.includes(type)) throw new Error('Pick Employee, Visitor or Vendor.');
-    const plate = String(body.vehicle_no || '').toUpperCase().replace(/\s+/g, ' ').trim();
+    const plate = formatPlate(body.vehicle_no, true);
     if (!plate) throw new Error('Vehicle number is needed.');
     if (!PLATE_RE.test(plate)) throw new Error('Vehicle number looks wrong (letters and numbers only).');
     const d = {};
@@ -68,8 +79,11 @@ module.exports = function vehicleRoutes(app, h) {
 
   // A vehicle already inside at this post cannot come IN again before its OUT.
   async function refuseTwice(zcql, postId, plate) {
-    const rows = await zcql.executeZCQLQuery(`SELECT in_time FROM VehicleEntries WHERE post_id = ${requireRowId(postId)} AND vehicle_no = '${plate}' AND status = 'IN'`);
-    if (rows.length) throw new Error(plate + ' is already IN since ' + hhmm(rows[0].VehicleEntries.in_time) + '. Mark it OUT first.');
+    // Compared without spaces: entries saved before the plate layout (22 Oct) have none.
+    const key = v => String(v || '').replace(/[^A-Z0-9]/g, '');
+    const rows = (await zcql.executeZCQLQuery(`SELECT vehicle_no, in_time FROM VehicleEntries WHERE post_id = ${requireRowId(postId)} AND status = 'IN'`)).map(r => r.VehicleEntries);
+    const same = rows.find(r => key(r.vehicle_no) === key(plate));
+    if (same) throw new Error(plate + ' is already IN since ' + hhmm(same.in_time) + '. Mark it OUT first.');
   }
 
   async function postOf(zcql, postId) {

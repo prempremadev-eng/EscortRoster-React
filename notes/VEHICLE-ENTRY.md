@@ -14,6 +14,11 @@ Brought in from the separate vehicle entry app (option A: inside this app). Old 
 | **Saved** | Table **VehicleEntries**: branch_id, post_id, guard_id (IN), out_guard_id, duty_date, shift_code, entry_type, vehicle_no, status IN/OUT, in_time, out_time, details (JSON: emp no / name / phone / from / meet / entered by / out by), photo_key (for later) |
 | **Look** | Our app's colours, the old app's layout (type tabs on top, form, list). Can be changed later |
 
+## Number plate layout (23 Oct)
+
+- Always **TN 12 AB 0987**: capitals, a space where letters and digits meet (while typing), RTO number padded to 2 and the last number to 4 digits (on leaving the box, after a scan, and on the server). Bharat series stays **22 BH 1234 AA**.
+- "Already IN" check ignores spaces (older entries were saved without them).
+
 ## Photo (built 22 Oct evening)
 
 - Form: **📷 Vehicle photo (optional)** → phone camera → small preview (Retake / ✕). Made ~200 KB (1280 px JPEG) on the phone.
