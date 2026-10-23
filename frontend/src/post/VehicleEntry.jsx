@@ -184,7 +184,15 @@ export function whoOf(e) {
 
 export default function VehicleEntry({ token, post, postName, onClose }) {
   const [data, setData] = useState(null);
-  const [form, setForm] = useState(BLANK);
+  // The type tab (Employee / Visitor / Vendor) stays after a refresh: this phone remembers the last one
+  // used at this post (a vendor gate mostly gets vendors, Prem 23 Oct).
+  const typeKey = 've_type_' + (post || postName || '');
+  const [form, setForm] = useState(() => {
+    try { const t = localStorage.getItem(typeKey); return TYPES.some(x => x.key === t) ? { ...BLANK, entry_type: t } : BLANK; } catch { return BLANK; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(typeKey, form.entry_type); } catch { /* private mode */ }
+  }, [typeKey, form.entry_type]);
   const [photo, setPhoto] = useState(null);
   const [showPhoto, setShowPhoto] = useState(null);
   const laterInput = useRef(null);
