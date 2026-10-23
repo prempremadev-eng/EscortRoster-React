@@ -349,3 +349,5 @@
 .ve-page{overflow-x:hidden;}
 .ve-page > *, .ve-form > *{min-width:0;max-width:100%;}
 .ve-page .pd-small, .ve-page .pd-muted{overflow-wrap:anywhere;}
+.ve-lang{display:flex;align-items:center;justify-content:flex-end;gap:8px;font-size:14px;color:var(--pd-muted);font-weight:600;}
+.ve-lang select{min-height:36px;border:1px solid var(--pd-border-input);border-radius:8px;background:#FAF9F5;padding:4px 8px;font-size:15px;font-family:inherit;color:var(--pd-ink);}

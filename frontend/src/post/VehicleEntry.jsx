@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { Icon } from './icons.jsx';
 import { compressImage } from './media.js';
 import PlateScanner from './PlateScanner.jsx';
-import { useVoiceInput } from './voice.js';
+import { useVoiceInput, VOICE_LANGS, savedVoiceLang, saveVoiceLang } from './voice.js';
 
 // Vehicle entry at a post (Posts.vehicle_entry on), brought in from the separate vehicle app.
 // Same three types and the same must-fill fields as that app; time and name are saved by the server.
@@ -23,7 +23,9 @@ export const BLANK = { entry_type: 'employee', vehicle_no: '', emp_no: '', name:
 const plateKey = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, inside, onOut, busy, onSubmit, submitLabel, children }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
-  const mic = useVoiceInput(voice || (() => Promise.reject(new Error('No voice here.'))), (k, v) => set(k, v), ['emp_no', 'phone']);
+  // The language the guard speaks in (this phone remembers it).
+  const [lang, setLang] = useState(savedVoiceLang);
+  const mic = useVoiceInput(voice ? blob => voice(blob, lang) : () => Promise.reject(new Error('No voice here.')), (k, v) => set(k, v), ['emp_no', 'phone']);
   // An input with a 🎤 button on its right (only when this phone can record); what the mic is doing
   // shows right under that input (listening / writing / error / time).
   const micLine = k => (mic.activeField === k ? <div className="pd-small ve-listen">🎤 Listening… speak now (it stops after a pause)</div>
@@ -92,6 +94,13 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, insid
         ))}
       </div>
       {children}
+      {voice && mic.isSupported && (
+        <label className="ve-lang">🎤 I speak
+          <select value={lang} onChange={e => { setLang(e.target.value); saveVoiceLang(e.target.value); }} aria-label="Language I speak">
+            {VOICE_LANGS.map(([code, name]) => <option key={code} value={code}>{name}</option>)}
+          </select>
+        </label>
+      )}
       <input ref={camera} type="file" accept="image/*" capture="environment" hidden onChange={pick} />
       {preparing ? (
         <div className="ve-photo-pick pd-muted pd-small">Preparing photo...</div>
@@ -264,7 +273,7 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
       {toast && <div className="pd-card ve-toast" onClick={() => setToast('')}>{Icon.check} {toast}</div>}
       {error && <div className="pd-card pd-bad">{error}</div>}
 
-      <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={blob => api.vehiclePlate(token, blob, post)} voice={blob => api.vehicleVoice(token, blob, post)} inside={inside} onOut={x => out(x, true)} busy={busy} onSubmit={save} submitLabel="Save IN" />
+      <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={blob => api.vehiclePlate(token, blob, post)} voice={(blob, lang) => api.vehicleVoice(token, blob, post, lang)} inside={inside} onOut={x => out(x, true)} busy={busy} onSubmit={save} submitLabel="Save IN" />
 
       <input ref={laterInput} type="file" accept="image/*" capture="environment" hidden onChange={addLater} />
       <div className="pd-field-title">Inside now · {inside.length}</div>

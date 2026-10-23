@@ -152,6 +152,19 @@ export function useVoiceInput(transcribe, onResult, digitFields) {
   return { isSupported, activeField, busyField, lastField, error, took, start, stop };
 }
 
+// Spoken language for 🎤, kept on this phone. The text always comes back in English letters.
+export const VOICE_LANGS = [
+  ['ta-IN', 'Tamil'], ['en-IN', 'English'], ['hi-IN', 'Hindi'], ['te-IN', 'Telugu'], ['kn-IN', 'Kannada'], ['ml-IN', 'Malayalam'],
+  ['bn-IN', 'Bengali'], ['od-IN', 'Odia'], ['mr-IN', 'Marathi'], ['gu-IN', 'Gujarati'], ['pa-IN', 'Punjabi'], ['unknown', 'Any (auto)']
+];
+const LANG_KEY = 'voice_lang';
+export function savedVoiceLang() {
+  try { const v = localStorage.getItem(LANG_KEY); return VOICE_LANGS.some(l => l[0] === v) ? v : 'ta-IN'; } catch { return 'ta-IN'; }
+}
+export function saveVoiceLang(v) {
+  try { localStorage.setItem(LANG_KEY, v); } catch { /* private mode: only for now */ }
+}
+
 const DIGIT_WORDS = { zero: '0', oh: '0', o: '0', one: '1', two: '2', three: '3', four: '4', five: '5', six: '6', seven: '7', eight: '8', nine: '9' };
 const TEEN_WORDS = { ten: '10', eleven: '11', twelve: '12', thirteen: '13', fourteen: '14', fifteen: '15', sixteen: '16', seventeen: '17', eighteen: '18', nineteen: '19' };
 const TENS_WORDS = { twenty: 20, thirty: 30, forty: 40, fifty: 50, sixty: 60, seventy: 70, eighty: 80, ninety: 90 };

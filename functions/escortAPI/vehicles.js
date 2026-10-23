@@ -25,6 +25,8 @@ const PLATE_MAX = 3 * 1024 * 1024; // the service's limit
 // (setting_key 'sarvam_api_key'), not in git. iPhone records mp4 / m4a, Android webm.
 const SARVAM_URL = 'https://api.sarvam.ai/speech-to-text';
 const VOICE_MAX = 10 * 1024 * 1024;
+// Spoken language, picked on the phone (Tamil by default); 'unknown' = Sarvam finds it.
+const VOICE_LANGS = ['ta-IN', 'en-IN', 'hi-IN', 'te-IN', 'kn-IN', 'ml-IN', 'bn-IN', 'od-IN', 'mr-IN', 'gu-IN', 'pa-IN', 'unknown'];
 const VOICE_TYPES = { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'aac', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/wav': 'wav' };
 const PLATE_RE = /^[A-Z0-9 -]{4,20}$/;
 const PHONE_RE = /^[0-9+ -]{6,20}$/;
@@ -290,6 +292,7 @@ module.exports = function vehicleRoutes(app, h) {
       sarvamKey = row && row.setting_value ? String(row.setting_value).trim() : null;
     }
     if (!sarvamKey) throw new Error('Voice is not set up yet (no key). Type it.');
+    const lang = VOICE_LANGS.includes(String(req.query.lang)) ? String(req.query.lang) : 'ta-IN';
     // "translit": the register is in English letters, so Tamil words come back in English letters too
     // ("Zoho", not "சோஹோ"; codemix gave Tamil script, 23 Oct). codemix only if translit is refused.
     const ask = mode => {
@@ -297,7 +300,7 @@ module.exports = function vehicleRoutes(app, h) {
       form.append('file', new Blob([req.body], { type }), 'input.' + ext);
       form.append('model', 'saaras:v3');
       form.append('mode', mode);
-      form.append('language_code', 'ta-IN');
+      form.append('language_code', lang);
       return fetch(SARVAM_URL, { method: 'POST', headers: { 'api-subscription-key': sarvamKey }, body: form });
     };
     let r = await ask('translit');

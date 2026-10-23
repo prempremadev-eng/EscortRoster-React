@@ -33,6 +33,7 @@ Brought in from the separate vehicle entry app (option A: inside this app). Old 
 
 - 🎤 next to Employee no, Name, Phone, Coming from, Whom to meet: tap → beep → speak → stops by itself after a short pause (or tap ■).
 - Same as the old app: the phone records a clip (MediaRecorder; iPhone mp4, Android webm), our server sends it to **Sarvam** (`saaras:v3`, ta-IN, mode **translit** = English letters; codemix gave Tamil script) and fills the text. Numbers spoken as words become digits ("double two five" → 225) in Employee no and Phone.
+- **I speak** (above the fields): Tamil (default), English, Hindi, Telugu, Kannada, Malayalam, Bengali, Odia, Marathi, Gujarati, Punjabi or Any (auto). Kept on that phone. The text always comes in English letters.
 - The browser's own speech recognition is not used (the old app found it hangs on iPhone Safari).
 - Key in **Settings** (`sarvam_api_key`), not in git. No key / limit / error → a message, the guard types.
 - iPhone needs **iOS 14.5 or newer** (MediaRecorder) and microphone allowed for Safari.
