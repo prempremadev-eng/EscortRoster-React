@@ -2,11 +2,12 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { Icon } from './icons.jsx';
 import { compressImage } from './media.js';
+import PlateScanner from './PlateScanner.jsx';
 
 // Vehicle entry at a post (Posts.vehicle_entry on), brought in from the separate vehicle app.
 // Same three types and the same must-fill fields as that app; time and name are saved by the server.
-// The photo (optional) is sent after the IN is saved. "Scan" reads the number plate from a photo
-// (that photo also becomes the vehicle photo when there is none yet). Voice comes later.
+// The photo (optional) is sent after the IN is saved. "Scan" opens the camera inside the app and
+// reads the number plate (that picture also becomes the vehicle photo when none yet). Voice comes later.
 export const TYPES = [
   { key: 'employee', label: 'Employee' },
   { key: 'visitor', label: 'Visitor' },
@@ -19,8 +20,7 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, busy, onSubm
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const emp = form.entry_type === 'employee';
   const camera = useRef(null);
-  const scanInput = useRef(null);
-  const [scanning, setScanning] = useState(false);
+  const [scanning, setScanning] = useState(false); // the in-app camera is open
   const [scanMsg, setScanMsg] = useState('');
   // The "Read: …" line belongs to the number on screen; it goes when the form is cleared after Save.
   useEffect(() => { if (!form.vehicle_no) setScanMsg(''); }, [form.vehicle_no]);
@@ -35,34 +35,13 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, busy, onSubm
     return () => URL.revokeObjectURL(url);
   }, [photo]);
 
-  async function scanPlate(e) {
-    const file = e.target.files && e.target.files[0];
-    e.target.value = '';
-    if (!file) return;
-    setScanMsg('');
-    setScanning(true);
-    const started = Date.now();
-    try {
-      // One decode of the big camera photo (two in a row took ~15 s on a phone, 23 Oct); the same
-      // 1280 px copy is read for the plate and kept as the vehicle photo.
-      const small = await compressImage(file);
-      const ready = Date.now();
-      if (!photo) setPhoto(small);
-      const r = (await scan(small)).data;
-      // Seconds shown for now, to see where the time goes: photo on the phone / send + server / server.
-      const sec = ms => (ms / 1000).toFixed(1) + ' s';
-      const took = ' · photo ' + sec(ready - started) + ', send ' + sec(Date.now() - ready) + (r.ms ? ' (server ' + sec(r.ms) + ')' : '');
-      if (r.plate) {
-        set('vehicle_no', r.plate);
-        setScanMsg('Read: ' + r.plate + ' · check it with the vehicle' + took);
-      } else {
-        setScanMsg('No number plate found. Type the number.');
-      }
-    } catch (err) {
-      setScanMsg(err.message);
-    } finally {
-      setScanning(false);
-    }
+  function scanned({ plate, blob, took, server }) {
+    setScanning(false);
+    if (!photo) setPhoto(blob);
+    set('vehicle_no', plate);
+    // Seconds shown for now, to see the time (all / at the server).
+    const sec = ms => (ms / 1000).toFixed(1) + ' s';
+    setScanMsg('Read: ' + plate + ' · check it with the vehicle · ' + sec(took) + (server ? ' (server ' + sec(server) + ')' : ''));
   }
 
   // Phone photos are 3–8 MB; a 1280 px JPEG (~200 KB) is enough to read the plate.
@@ -107,8 +86,8 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, busy, onSubm
       <div className="ve-no-row">
         <input id="ve-no" className="ve-plate" value={form.vehicle_no} onChange={e => set('vehicle_no', e.target.value.toUpperCase())} placeholder="TN 09 AB 1234" maxLength={20} required autoComplete="off" />
         {scan && <>
-          <input ref={scanInput} type="file" accept="image/*" capture="environment" hidden onChange={scanPlate} />
-          <button type="button" className="pd-btn pd-btn-outline ve-scan" onClick={() => scanInput.current.click()} disabled={scanning}>{Icon.camera}{scanning ? 'Reading...' : 'Scan'}</button>
+          <button type="button" className="pd-btn pd-btn-outline ve-scan" onClick={() => { setScanMsg(''); setScanning(true); }}>{Icon.camera}Scan</button>
+          {scanning && <PlateScanner scan={scan} onDone={scanned} onClose={() => setScanning(false)} />}
         </>}
       </div>
       {scanMsg && <div className="pd-muted pd-small">{scanMsg}</div>}
