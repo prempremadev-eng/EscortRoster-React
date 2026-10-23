@@ -1,0 +1,39 @@
+# 👥 Roles and flow (fresh start, with Prem, 23 Oct 2026)
+
+The app is close to finished and will be sold, so roles are set again from the bottom up:
+guard → supervisor → branch admin → … Names of real people stay out of this file (public repo).
+
+## Guard (done)
+
+- Secret link, no login. Card IN opens their post or escort seat; vehicle entry on vehicle posts.
+
+## Supervisor (one branch, one agency)
+
+| # | Work | When | In the app now |
+|---|---|---|---|
+| 1 | Upload the month roster | Once a month | ✅ |
+| 2 | Put names in the schedule (Auto fill + changes) and Publish | Every day | ✅ |
+| 3 | Create posts | When needed | ⚠️ Branch Admin only now → **give to Supervisor** |
+| 4 | Add guards | New person | ✅ |
+| 5 | Read guard messages; send important problems to the Branch Admin | Always | ⚠️ reading ✅, **forward to Branch Admin missing** |
+| 6 | Shift report to the Branch Admin: posts A / B / C / G, IN, late, absent, leave, off, vacant | Every shift | ⚠️ Report page ✅, **sending missing** |
+
+### Shift report timing (decided)
+
+| Shift | Start | Late after | Report to Branch Admin |
+|---|---|---|---|
+| A | 06:00 | 06:15 | **06:30** |
+| G | 09:00 | 09:15 | **09:30** |
+| B | 13:00 | 13:15 | **13:30** |
+| C | 21:00 | 21:15 | **21:30** |
+
+- **Who sends (1-c):** at start + 30 min the app makes the report ready; the supervisor checks it, can add a note and taps **Send**. Not sent by start + 45 min → the app sends it by itself.
+- **Several agencies in a branch (2-b):** the Branch Admin gets **one combined report**, split by agency.
+- **How it arrives (3-a):** app notification + the Report page (WhatsApp / email later, if wanted).
+- Same pattern for every supervisor (each for their own agency).
+
+## Next to discuss
+
+- Branch Admin: daily work, what they see, what they approve.
+- City / Admin / Super Admin, then new-customer setup flow.
+- Who may edit or delete (vehicle entries, schedule).
