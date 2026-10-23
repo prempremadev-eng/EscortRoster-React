@@ -97,10 +97,12 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, inside, onOu
       {scanMsg && <div className="pd-muted pd-small">{scanMsg}</div>}
       {already && onOut && (
         <div className="pd-card ve-inside">
-          <div><b>{already.vehicleNo}</b> is inside since {already.in}· {whoOf(already)}</div>
+          <div><b>{already.vehicleNo}</b> is inside since {already.in} · {whoOf(already)}</div>
           <button type="button" className="pd-btn pd-btn-primary" onClick={() => onOut(already)} disabled={busy}>Mark OUT now</button>
         </div>
       )}
+      {/* Inside already: only OUT makes sense, so the IN fields and Save IN are hidden. */}
+      {already && onOut ? null : <>
       {emp ? <>
         <label htmlFor="ve-emp">Employee number</label>
         <input id="ve-emp" value={form.emp_no} onChange={e => set('emp_no', e.target.value)} placeholder="Employee ID" maxLength={30} required autoComplete="off" />
@@ -115,6 +117,7 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, inside, onOu
         <input id="ve-meet" value={form.meet} onChange={e => set('meet', e.target.value)} maxLength={100} required={form.entry_type === 'visitor'} />
       </>}
       <button className="pd-btn pd-btn-primary" type="submit" disabled={busy || preparing || scanning}>{busy ? 'Saving...' : preparing ? 'Preparing photo...' : submitLabel}</button>
+      </>}
     </form>
   );
 }
