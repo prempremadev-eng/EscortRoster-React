@@ -413,3 +413,13 @@
 .ve-line .ve-mic.on{border-color:#E5484D;background:rgba(229,72,77,.12);color:#E5484D;animation:ve-pulse 1.2s ease-in-out infinite;}
 .ve-line.listening input{border-bottom-color:#E5484D;}
 @keyframes ve-pulse{0%,100%{box-shadow:0 0 0 0 rgba(229,72,77,.45);}50%{box-shadow:0 0 0 7px rgba(229,72,77,0);}}
+/* One simple card (23 Oct, second pass): no card headings, no coloured top border, plate on an underline too. */
+.ve-card{border-top:1px solid var(--pd-border);gap:2px;padding:8px 14px 10px;}
+.ve-form .ve-card .ve-line input.ve-plate{font-size:18px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;}
+.ve-line .ve-scan{flex-shrink:0;display:flex;align-items:center;gap:5px;height:38px;padding:0 12px;border:none;border-radius:19px;background:var(--ve-accent);color:#fff;font-family:inherit;font-size:14px;font-weight:700;cursor:pointer;}
+.ve-line .ve-scan svg{width:18px;height:18px;}
+.ve-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding-top:8px;margin-top:4px;border-top:1px dashed var(--pd-border);}
+.ve-foot .ve-photo-link{font-size:14px;padding:4px 0;}
+.ve-foot .ve-lang{font-size:13px;gap:4px;}
+.ve-foot .ve-lang select{min-height:32px;font-size:14px;padding:2px 6px;}
+.ve-card .ve-inside{margin-top:6px;}
