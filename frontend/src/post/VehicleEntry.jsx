@@ -189,7 +189,8 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known
         {field('meet', <input id="ve-meet" value={form.meet} onChange={e => set('meet', e.target.value)} maxLength={100} required={form.entry_type === 'visitor'} />)}
       </>}
 
-      <button className="pd-btn pd-btn-primary" type="submit" disabled={busy || preparing || scanning}>{busy ? 'Saving...' : preparing ? 'Preparing photo...' : submitLabel}</button>
+      {/* Stays in sight at the bottom while the long Visitor form scrolls (only inside the form). */}
+      <button className="pd-btn pd-btn-primary ve-save" type="submit" disabled={busy || preparing || scanning}>{busy ? 'Saving...' : preparing ? 'Preparing photo...' : submitLabel}</button>
       </>}
     </form>
   );
@@ -375,8 +376,8 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
       {insideShown.map(x => (
         <div key={x.id} className="ve-row">
           <div className="pd-grow">
-            <div className="ve-plate-text">{x.vehicleNo} <span className={'ve-tag ve-' + x.type}>{x.type}</span></div>
-            <div className="pd-muted pd-small">{whoOf(x)} · IN {[dayWord(x.date, data.date), x.in].filter(Boolean).join(' ')}</div>
+            <div className="ve-plate-text">{x.vehicleNo}</div>
+            <div className="pd-muted pd-small"><span className={'ve-tag ve-' + x.type}>{x.type}</span> {whoOf(x)} · IN {[dayWord(x.date, data.date), x.in].filter(Boolean).join(' ')}</div>
           </div>
           {x.hasPhoto
             ? <button className="pd-icon-btn" onClick={() => setShowPhoto(x)} aria-label="Show photo">{Icon.camera}</button>
@@ -390,8 +391,8 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
         {goneShown.map(x => (
           <div key={x.id} className="ve-row ve-row-out">
             <div className="pd-grow">
-              <div className="ve-plate-text">{x.vehicleNo} <span className={'ve-tag ve-' + x.type}>{x.type}</span></div>
-              <div className="pd-muted pd-small">{whoOf(x)} · IN {x.in} · OUT {x.out}</div>
+              <div className="ve-plate-text">{x.vehicleNo}</div>
+              <div className="pd-muted pd-small"><span className={'ve-tag ve-' + x.type}>{x.type}</span> {whoOf(x)} · IN {x.in} · OUT {x.out}</div>
             </div>
             {x.hasPhoto && <button className="pd-icon-btn" onClick={() => setShowPhoto(x)} aria-label="Show photo">{Icon.camera}</button>}
           </div>

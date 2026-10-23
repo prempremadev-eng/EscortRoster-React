@@ -356,3 +356,6 @@
 .ve-suggest-row{display:flex;align-items:center;gap:8px;min-height:44px;border:1px solid var(--pd-border);border-radius:10px;background:#FAF9F5;padding:6px 10px;font-family:inherit;font-size:15px;color:var(--pd-ink);text-align:left;cursor:pointer;}
 .ve-suggest-row .ve-tag{margin-left:0;}
 .ve-suggest-who{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+/* Type tag at the start of the second line: the plate keeps its own line (tag no longer wraps under it). */
+.ve-row .pd-small .ve-tag{margin-left:0;margin-right:4px;}
+.ve-save{position:sticky;bottom:10px;z-index:5;box-shadow:0 4px 14px rgba(30,79,184,.35);}
