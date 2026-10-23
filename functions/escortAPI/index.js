@@ -1682,7 +1682,7 @@ async function activeBranches(req, zcql) {
 
 const post = require('./post.js')(app, {
   catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, sendPushToRows, getVapidKeys,
-  getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN, auth, getSetting
+  getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN, auth, getSetting, dutyOf, istNow
 });
 
 module.exports = app;

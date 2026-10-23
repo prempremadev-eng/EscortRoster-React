@@ -33,7 +33,7 @@ const TIMELINE_LIMIT = 100;
 
 module.exports = function postRoutes(app, h) {
   const { catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, sendPushToRows, getVapidKeys,
-    getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN, auth, getSetting } = h;
+    getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN, auth, getSetting, dutyOf, istNow } = h;
 
   // "2026-10-16 05:58" in India time. Date and time together, because Shift C runs past midnight.
   function nowStamp() {
@@ -91,7 +91,8 @@ module.exports = function postRoutes(app, h) {
 
   // F1: called on a card IN of a guard whose chart row is a POST.
   // Makes their DutyLog row (waiting) unless today's row is already there.
-  async function onPostIn(catalystApp, guard, duty) {
+  // inAt: the card IN time when the row is made later than the swipe (see lateStart).
+  async function onPostIn(catalystApp, guard, duty, inAt) {
     const zcql = catalystApp.zcql();
     // Today's row only: an old row left open yesterday must not swallow today's duty.
     const existing = await myLog(zcql, guard.ROWID, true);
@@ -99,9 +100,23 @@ module.exports = function postRoutes(app, h) {
     if (existing) return { log: existing, created: false };
     const log = await catalystApp.datastore().table('DutyLog').insertRow({
       guard_id: guard.ROWID, post_id: duty.post.ROWID, shift_code: duty.shift.code,
-      duty_date: shiftDate(), status: 'waiting', in_at: nowStamp()
+      duty_date: shiftDate(), status: 'waiting', in_at: inAt || nowStamp()
     });
     return { log, created: true };
+  }
+
+  // Card IN came before the supervisor published the day's schedule: the swipe found no post, so
+  // no DutyLog row was made. When the page opens later and the last swipe of the duty day is still
+  // IN and a post is published now, the row is made here (with the card IN time), so the guard
+  // does not walk back to the card reader (Prem, 23 Oct).
+  async function lateStart(catalystApp, zcql, guard) {
+    const rows = await zcql.executeZCQLQuery(`SELECT direction, CREATEDTIME FROM AccessLog WHERE guard_id = ${requireRowId(guard.ROWID)} AND duty_date = '${istNow().dutyDate}' ORDER BY CREATEDTIME DESC LIMIT 1`);
+    const last = rows.length ? rows[0].AccessLog : null;
+    if (!last || last.direction !== 'IN') return null;
+    const day = shiftDate();
+    const duty = await dutyOf(zcql, guard.ROWID, weekStartOf(day), day);
+    if (!duty || duty.post.post_type !== 'POST') return null;
+    return (await onPostIn(catalystApp, guard, duty, String(last.CREATEDTIME).slice(0, 16))).log;
   }
 
   // OUT / IN again notice to the guard's own phone; an open page refreshes itself on it.
@@ -144,7 +159,7 @@ module.exports = function postRoutes(app, h) {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const me = await guardByToken(zcql, req.query.t);
-      const log = await myLog(zcql, me.ROWID);
+      const log = (await myLog(zcql, me.ROWID)) || (await lateStart(catalystApp, zcql, me));
       if (!log) {
         return res.status(200).json({ status: 'success', data: { name: me.guard_name, locked: true } });
       }
