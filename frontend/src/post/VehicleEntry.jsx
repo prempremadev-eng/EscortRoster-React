@@ -39,12 +39,19 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known
     setForm(f => ({ ...f, entry_type: k.type, vehicle_no: k.vehicleNo, emp_no: k.empNo, name: k.name, phone: k.phone, from: k.from, meet: k.meet }));
   }
   // The number changed after a pick: the picked vehicle's details go (they belong to that vehicle).
+  // A full number that is exactly a vehicle seen before fills by itself, no tap needed (Prem, 23 Oct:
+  // remove the last digit → details go; type it back → details come back).
   useEffect(() => {
     if (filledFrom && plateKey(form.vehicle_no) !== plateKey(filledFrom)) {
       setFilledFrom(null);
       setForm(f => { const c = { ...f }; DETAIL_KEYS.forEach(k => { c[k] = ''; }); return c; });
+      return;
     }
-  }, [form.vehicle_no, filledFrom, setForm]);
+    if (!filledFrom && typed.length >= SUGGEST_FROM) {
+      const exact = (known || []).filter(k => plateKey(k.vehicleNo) === typed);
+      if (exact.length === 1) pickKnown(exact[0]);
+    }
+  }, [form.vehicle_no, filledFrom, setForm, known]); // eslint-disable-line react-hooks/exhaustive-deps
   // The language the guard speaks in (this phone remembers it).
   const [lang, setLang] = useState(savedVoiceLang);
   const mic = useVoiceInput(voice ? blob => voice(blob, lang) : () => Promise.reject(new Error('No voice here.')), (k, v) => set(k, v), ['emp_no', 'phone']);
