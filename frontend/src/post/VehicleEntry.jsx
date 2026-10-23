@@ -26,6 +26,14 @@ const plateKey = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
 // clears what the tap filled (Prem, 23 Oct).
 const SUGGEST_FROM = 3;
 const DETAIL_KEYS = ['emp_no', 'name', 'phone', 'from', 'meet'];
+const MIC_TRIAL = {
+  name: <span className="ve-mic-emoji">🎙️</span>,                                    // A: studio mic emoji
+  phone: <svg width="22" height="22" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><rect x="8" y="2" width="8" height="13" rx="4"></rect><path d="M5 11a7 7 0 0 0 14 0" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"></path><path d="M12 18v3.5M8.5 21.5h7" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"></path></svg>, // B: thick filled mic
+  from: <span className="ve-mic-text">🎤 Speak</span>,                               // C: icon + word
+  meet: <svg width="24" height="22" viewBox="0 0 24 22" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M3 9v4M7.5 5v12M12 2v18M16.5 6v10M21 9v4"></path></svg>, // D: sound wave
+  emp_no: <span className="ve-mic-circle"><svg width="16" height="16" viewBox="0 0 24 24" fill="#fff" aria-hidden="true"><rect x="8" y="2" width="8" height="13" rx="4"></rect><path d="M5 11a7 7 0 0 0 14 0" fill="none" stroke="#fff" strokeWidth="2.6" strokeLinecap="round"></path><path d="M12 18v4" stroke="#fff" strokeWidth="2.6" strokeLinecap="round"></path></svg></span> // E: white mic in a colour circle
+};
+
 export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known, inside, onOut, busy, onSubmit, submitLabel, children }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
   const [filledFrom, setFilledFrom] = useState(null); // number of the vehicle picked from the list
@@ -61,6 +69,8 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known
     : mic.busyField === k ? <div className="pd-muted pd-small">Writing what you said…</div>
     : mic.lastField === k && mic.error ? <div className="pd-small ve-mic-err">{mic.error}</div>
     : mic.lastField === k && mic.took ? <div className="pd-muted pd-small">🎤 Done · {mic.took}</div> : null);
+  // TRIAL (23 Oct): each field shows a different mic symbol so Prem can pick one on the phone; then
+  // all fields get the chosen one and MIC_TRIAL goes.
   // The 🎤 sits inside the input on the right (one clean box, not a second box beside it).
   const field = (k, input) => (!voice || !mic.isSupported ? input : <>
     <div className={'ve-field' + (mic.activeField === k ? ' listening' : '')}>
@@ -68,7 +78,7 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known
       <button type="button" className={'ve-mic' + (mic.activeField === k ? ' on' : '')}
         onClick={() => (mic.activeField === k ? mic.stop() : mic.start(k))} disabled={!!mic.busyField || (!!mic.activeField && mic.activeField !== k)}
         aria-label={mic.activeField === k ? 'Stop' : 'Speak'}>
-        {mic.busyField === k ? '…' : mic.activeField === k ? '■' : Icon.mic}
+        {mic.busyField === k ? '…' : mic.activeField === k ? '■' : MIC_TRIAL[k] || Icon.mic}
       </button>
     </div>
     {micLine(k)}

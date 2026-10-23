@@ -404,3 +404,9 @@
 .ve-form .ve-card input.ve-plate{font-size:18px;letter-spacing:.04em;}
 /* Save IN sat too low on the phone (half under the browser's bottom bar, Prem 23 Oct): higher, and above the iPhone home bar. */
 .ve-save{bottom:calc(24px + env(safe-area-inset-bottom, 0px));margin-top:4px;}
+/* TRIAL mic symbols (23 Oct), one per field */
+.ve-mic-emoji{font-size:22px;line-height:1;}
+.ve-mic-text{font-size:13px;font-weight:700;white-space:nowrap;}
+.ve-field:has(.ve-mic-text) .ve-mic{width:auto;padding:0 10px;}
+.ve-field:has(.ve-mic-text) input{padding-right:96px;}
+.ve-mic-circle{width:32px;height:32px;border-radius:50%;background:var(--ve-accent);display:flex;align-items:center;justify-content:center;}
