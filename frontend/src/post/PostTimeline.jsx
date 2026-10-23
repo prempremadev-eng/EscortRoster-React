@@ -172,6 +172,20 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   useEffect(() => {
     try { if (page === 'history' || page === 'vehicle') sessionStorage.setItem(pageKey, page); else sessionStorage.removeItem(pageKey); } catch { /* private mode */ }
   }, [page, pageKey]);
+  // Phone Back on an open page (vehicle entry, history, work) comes back to this chat page instead of
+  // leaving the app (Prem, 23 Oct): opening a page adds one browser history step; Back removes it.
+  useEffect(() => {
+    if (!page) return undefined;
+    if (!(window.history.state && window.history.state.pdPage)) window.history.pushState({ pdPage: page }, '');
+    const onBack = () => setPage(null);
+    window.addEventListener('popstate', onBack);
+    return () => window.removeEventListener('popstate', onBack);
+  }, [page]);
+  // The page's own ‹ button: take back that history step too, so Back is not needed twice later.
+  const closePage = () => {
+    if (window.history.state && window.history.state.pdPage) window.history.back();
+    else setPage(null);
+  };
   const [alertText, setAlertText] = useState('');
   const [camera, setCamera] = useState(false);
   const [voice, setVoice] = useState(null); // seconds while recording
@@ -443,13 +457,13 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
 
   const hereEarly = bs && bs.coveringHere;
   if (page === 'history') {
-    return <PostHistory token={token} post={viewPost} postName={hereEarly ? hereEarly.post : duty.post} onClose={() => setPage(null)} />;
+    return <PostHistory token={token} post={viewPost} postName={hereEarly ? hereEarly.post : duty.post} onClose={closePage} />;
   }
   if (page === 'vehicle' && duty.vehicleEntry) {
-    return <VehicleEntry token={token} post={viewPost} postName={duty.post} onClose={() => setPage(null)} />;
+    return <VehicleEntry token={token} post={viewPost} postName={duty.post} onClose={closePage} />;
   }
   if (page === 'work') {
-    return <AddWork token={token} post={viewPost} postName={hereEarly ? hereEarly.post : duty.post} onClose={saved => { setPage(null); if (saved) load(); }} />;
+    return <AddWork token={token} post={viewPost} postName={hereEarly ? hereEarly.post : duty.post} onClose={saved => { closePage(); if (saved) load(); }} />;
   }
 
   const expired = openWorks.filter(w => w.expired);
