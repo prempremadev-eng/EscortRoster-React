@@ -1,7 +1,7 @@
 "use strict"
 
 /* ---------------- VEHICLE ENTRY (posts with Posts.vehicle_entry on) ---------------- */
-// Brought in from the separate vehicle entry app (phase 1 + photo + plate scan; voice comes later).
+// Brought in from the separate vehicle entry app (phase 1 + photo + plate scan + voice).
 // One VehicleEntries row per vehicle visit: IN (guard or supervisor) → OUT (any guard of the post).
 //   entry_type employee: vehicle no + employee no
 //   entry_type visitor : vehicle no + name, phone, coming from, whom to meet
@@ -21,6 +21,11 @@ const PHOTO_MAX = 8 * 1024 * 1024;
 // Settings (setting_key 'plate_recognizer_token'), not in git: this repo is public.
 const PLATE_URL = 'https://api.platerecognizer.com/v1/plate-reader/';
 const PLATE_MAX = 3 * 1024 * 1024; // the service's limit
+// Voice to text: Sarvam (same as the old app: saaras:v3, Tamil + English mixed speech). Key in Settings
+// (setting_key 'sarvam_api_key'), not in git. iPhone records mp4 / m4a, Android webm.
+const SARVAM_URL = 'https://api.sarvam.ai/speech-to-text';
+const VOICE_MAX = 10 * 1024 * 1024;
+const VOICE_TYPES = { 'audio/webm': 'webm', 'audio/mp4': 'm4a', 'audio/x-m4a': 'm4a', 'audio/aac': 'aac', 'audio/ogg': 'ogg', 'audio/mpeg': 'mp3', 'audio/wav': 'wav' };
 const PLATE_RE = /^[A-Z0-9 -]{4,20}$/;
 const PHONE_RE = /^[0-9+ -]{6,20}$/;
 
@@ -266,6 +271,54 @@ module.exports = function vehicleRoutes(app, h) {
       const started = Date.now();
       const plate = await readPlate(req, zcql);
       res.status(200).json({ status: 'success', data: { ...plate, ms: Date.now() - started } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  /* ---------- voice to text (the clip is read, not saved) ---------- */
+
+  let sarvamKey = null; // kept while the function stays warm
+  async function readVoice(req, zcql) {
+    const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    const ext = VOICE_TYPES[type];
+    if (!ext) throw new Error('Voice: this recording type is not known (' + (type || 'unknown') + ').');
+    if (!Buffer.isBuffer(req.body) || !req.body.length) throw new Error("Didn't catch that. Tap 🎤 and speak again.");
+    if (req.body.length > VOICE_MAX) throw new Error('Recording is too long.');
+    if (!sarvamKey) {
+      const row = await getSetting(zcql, 'sarvam_api_key');
+      sarvamKey = row && row.setting_value ? String(row.setting_value).trim() : null;
+    }
+    if (!sarvamKey) throw new Error('Voice is not set up yet (no key). Type it.');
+    const form = new FormData();
+    form.append('file', new Blob([req.body], { type }), 'input.' + ext);
+    form.append('model', 'saaras:v3');
+    form.append('mode', 'codemix');
+    form.append('language_code', 'ta-IN');
+    const r = await fetch(SARVAM_URL, { method: 'POST', headers: { 'api-subscription-key': sarvamKey }, body: form });
+    if (!r.ok) {
+      console.error('Sarvam failed:', r.status, await r.text());
+      if (r.status === 401 || r.status === 403) sarvamKey = null;
+      throw new Error(r.status === 429 ? 'Voice limit reached for now. Type it.' : 'Voice did not work. Type it.');
+    }
+    return { text: String((await r.json()).transcript || '') };
+  }
+
+  app.post('/vehicleVoice', express.raw({ type: () => true, limit: '11mb' }), async (req, res) => {
+    try {
+      const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
+      const check = onDutyLog(zcql, req.query.t, req.query.post, true).then(({ log }) => postOf(zcql, log.post_id));
+      const [, voice] = await Promise.all([check, readVoice(req, zcql)]);
+      res.status(200).json({ status: 'success', data: voice });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  app.post('/vehicleVoiceText', express.raw({ type: () => true, limit: '11mb' }), async (req, res) => {
+    try {
+      const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
+      res.status(200).json({ status: 'success', data: await readVoice(req, zcql) });
     } catch (err) {
       fail(res, err);
     }

@@ -29,6 +29,14 @@ Brought in from the separate vehicle entry app (option A: inside this app). Old 
 - The scan photo also becomes the vehicle photo when none was taken yet (one photo, two uses).
 - Service: **Plate Recognizer** (same as the old app), Indian plates. Its key is in the **Settings** table (`plate_recognizer_token`), **not in git** (public repo). No key / limit reached / no plate → a message, the guard types the number.
 
+## Voice to text (built 23 Oct)
+
+- 🎤 next to Employee no, Name, Phone, Coming from, Whom to meet: tap → beep → speak → stops by itself after a short pause (or tap ■).
+- Same as the old app: the phone records a clip (MediaRecorder; iPhone mp4, Android webm), our server sends it to **Sarvam** (`saaras:v3`, codemix, ta-IN) and fills the text. Numbers spoken as words become digits ("double two five" → 225) in Employee no and Phone.
+- The browser's own speech recognition is not used (the old app found it hangs on iPhone Safari).
+- Key in **Settings** (`sarvam_api_key`), not in git. No key / limit / error → a message, the guard types.
+- iPhone needs **iOS 14.5 or newer** (MediaRecorder) and microphone allowed for Safari.
+
 ## Later
 
-1. Voice to text (needs the API key)
+- Own speech model (open source + training): later, as a separate project (Prem, 23 Oct).

@@ -341,3 +341,6 @@
 .ve-scan-btns{display:grid;grid-template-columns:1fr 2fr;gap:10px;}
 .ve-scan-cancel{height:56px;}
 .ve-inside{background:#FEF3C7;border-color:#FCD34D;color:#78350F;gap:10px;}
+.pd-btn.ve-mic{width:52px;height:auto;min-height:48px;padding:0;flex-shrink:0;font-size:18px;}
+.pd-btn.ve-mic.on{background:#FEE2E2;border-color:#F87171;color:#B91C1C;}
+.ve-listen{color:#B91C1C;font-weight:600;}

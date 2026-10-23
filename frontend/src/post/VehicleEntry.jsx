@@ -3,11 +3,13 @@ import { api } from '../api.js';
 import { Icon } from './icons.jsx';
 import { compressImage } from './media.js';
 import PlateScanner from './PlateScanner.jsx';
+import { useVoiceInput } from './voice.js';
 
 // Vehicle entry at a post (Posts.vehicle_entry on), brought in from the separate vehicle app.
 // Same three types and the same must-fill fields as that app; time and name are saved by the server.
 // The photo (optional) is sent after the IN is saved. "Scan" opens the camera inside the app and
-// reads the number plate (that picture also becomes the vehicle photo when none yet). Voice comes later.
+// reads the number plate (that picture also becomes the vehicle photo when none yet). 🎤 next to a
+// field: speak, and the text is filled in (Sarvam, see voice.js).
 export const TYPES = [
   { key: 'employee', label: 'Employee' },
   { key: 'visitor', label: 'Visitor' },
@@ -19,8 +21,20 @@ export const BLANK = { entry_type: 'employee', vehicle_no: '', emp_no: '', name:
 // `inside` = vehicles inside at this post; when the number on screen is one of them the form offers
 // "Mark OUT" (`onOut`) instead of a second IN (Prem, 23 Oct: scan at the gate does the OUT too).
 const plateKey = v => String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
-export function VehicleForm({ form, setForm, photo, setPhoto, scan, inside, onOut, busy, onSubmit, submitLabel, children }) {
+export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, inside, onOut, busy, onSubmit, submitLabel, children }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }));
+  const mic = useVoiceInput(voice || (() => Promise.reject(new Error('No voice here.'))), (k, v) => set(k, v), ['emp_no', 'phone']);
+  // An input with a 🎤 button on its right (only when this phone can record).
+  const field = (k, input) => (!voice || !mic.isSupported ? input : (
+    <div className="ve-no-row">
+      {input}
+      <button type="button" className={'pd-btn pd-btn-outline ve-mic' + (mic.activeField === k ? ' on' : '')}
+        onClick={() => (mic.activeField === k ? mic.stop() : mic.start(k))} disabled={!!mic.busyField || (!!mic.activeField && mic.activeField !== k)}
+        aria-label={mic.activeField === k ? 'Stop' : 'Speak'}>
+        {mic.busyField === k ? '…' : mic.activeField === k ? '■' : Icon.mic}
+      </button>
+    </div>
+  ));
   const already = form.vehicle_no && (inside || []).find(x => plateKey(x.vehicleNo) === plateKey(form.vehicle_no));
   const emp = form.entry_type === 'employee';
   const camera = useRef(null);
@@ -105,17 +119,20 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, inside, onOu
       {already && onOut ? null : <>
       {emp ? <>
         <label htmlFor="ve-emp">Employee number</label>
-        <input id="ve-emp" value={form.emp_no} onChange={e => set('emp_no', e.target.value)} placeholder="Employee ID" maxLength={30} required autoComplete="off" />
+        {field('emp_no', <input id="ve-emp" value={form.emp_no} onChange={e => set('emp_no', e.target.value)} placeholder="Employee ID" maxLength={30} required autoComplete="off" />)}
       </> : <>
         <label htmlFor="ve-name">Name</label>
-        <input id="ve-name" value={form.name} onChange={e => set('name', e.target.value)} maxLength={100} required />
+        {field('name', <input id="ve-name" value={form.name} onChange={e => set('name', e.target.value)} maxLength={100} required />)}
         <label htmlFor="ve-phone">Phone</label>
-        <input id="ve-phone" value={form.phone} onChange={e => set('phone', e.target.value)} inputMode="tel" maxLength={20} required />
+        {field('phone', <input id="ve-phone" value={form.phone} onChange={e => set('phone', e.target.value)} inputMode="tel" maxLength={20} required />)}
         <label htmlFor="ve-from">Coming from</label>
-        <input id="ve-from" value={form.from} onChange={e => set('from', e.target.value)} placeholder="Company / place" maxLength={100} required />
+        {field('from', <input id="ve-from" value={form.from} onChange={e => set('from', e.target.value)} placeholder="Company / place" maxLength={100} required />)}
         <label htmlFor="ve-meet">Whom to meet{form.entry_type === 'vendor' ? ' (optional)' : ''}</label>
-        <input id="ve-meet" value={form.meet} onChange={e => set('meet', e.target.value)} maxLength={100} required={form.entry_type === 'visitor'} />
+        {field('meet', <input id="ve-meet" value={form.meet} onChange={e => set('meet', e.target.value)} maxLength={100} required={form.entry_type === 'visitor'} />)}
       </>}
+      {mic.activeField && <div className="pd-small ve-listen">🎤 Listening… speak now (it stops after a pause)</div>}
+      {mic.busyField && <div className="pd-muted pd-small">Writing what you said…</div>}
+      {mic.error && <div className="pd-muted pd-small">{mic.error}</div>}
       <button className="pd-btn pd-btn-primary" type="submit" disabled={busy || preparing || scanning}>{busy ? 'Saving...' : preparing ? 'Preparing photo...' : submitLabel}</button>
       </>}
     </form>
@@ -243,7 +260,7 @@ export default function VehicleEntry({ token, post, postName, onClose }) {
       {toast && <div className="pd-card ve-toast" onClick={() => setToast('')}>{Icon.check} {toast}</div>}
       {error && <div className="pd-card pd-bad">{error}</div>}
 
-      <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={blob => api.vehiclePlate(token, blob, post)} inside={inside} onOut={x => out(x, true)} busy={busy} onSubmit={save} submitLabel="Save IN" />
+      <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={blob => api.vehiclePlate(token, blob, post)} voice={blob => api.vehicleVoice(token, blob, post)} inside={inside} onOut={x => out(x, true)} busy={busy} onSubmit={save} submitLabel="Save IN" />
 
       <input ref={laterInput} type="file" accept="image/*" capture="environment" hidden onChange={addLater} />
       <div className="pd-field-title">Inside now · {inside.length}</div>

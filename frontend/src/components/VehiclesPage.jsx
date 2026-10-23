@@ -217,7 +217,7 @@ export default function VehiclesPage() {
               <button className="pd-link" onClick={() => setAdding(false)}>Close</button>
             </div>
             {formError && <div className="pd-card pd-bad">{formError}</div>}
-            <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={api.vehiclePlateScan}
+            <VehicleForm form={form} setForm={setForm} photo={photo} setPhoto={setPhoto} scan={api.vehiclePlateScan} voice={api.vehicleVoiceText}
               inside={entries.filter(x => x.status === 'IN' && x.postId === addPost)} onOut={async x => { setAdding(false); await markOut(x); }} busy={busy} onSubmit={save} submitLabel="Save IN">
               <label htmlFor="ve-post">Post</label>
               <select id="ve-post" className="ve-select" value={addPost} onChange={e => setAddPost(e.target.value)} required>
