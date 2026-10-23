@@ -137,7 +137,7 @@ export function VehicleForm({ form, setForm, photo, setPhoto, scan, voice, known
       <div className="ve-card">
         <div className="ve-line">
           <span className="ve-ic" aria-hidden="true">🚗</span>
-          <input id="ve-no" className="ve-plate" aria-label="Vehicle number" value={form.vehicle_no} onChange={e => set('vehicle_no', formatPlate(e.target.value))} onBlur={() => setForm(f => ({ ...f, vehicle_no: formatPlate(f.vehicle_no, true) }))} autoCapitalize="characters" placeholder="TN 09 AB 1234" maxLength={20} required autoComplete="off" />
+          <input id="ve-no" className="ve-plate" aria-label="Vehicle number" value={form.vehicle_no} onChange={e => set('vehicle_no', formatPlate(e.target.value))} onBlur={() => setForm(f => ({ ...f, vehicle_no: formatPlate(f.vehicle_no, true) }))} autoCapitalize="characters" placeholder="XX 00 XX 0000" maxLength={20} required autoComplete="off" />
           {scan && <>
             <button type="button" className="ve-scan" onClick={() => { setScanMsg(''); setScanning(true); }}>{Icon.camera}Scan</button>
             {scanning && <PlateScanner scan={scan} onDone={scanned} onClose={() => setScanning(false)} />}

@@ -457,3 +457,6 @@
 .ve-head{margin-top:-16px;margin-bottom:16px;}
 .ve-head-title{font-size:26px;}
 .ve-head{margin-top:-36px;margin-bottom:36px;}
+/* The plate hint looked like a typed number (bold, dark): now a pale, plain "XX 00 XX 0000" (23 Oct). */
+.ve-form .ve-card .ve-line input.ve-plate::placeholder{font-weight:400;color:#C2BCAE;letter-spacing:.08em;}
+.ve-form .ve-card .ve-line input::placeholder{color:#A9A496;}
