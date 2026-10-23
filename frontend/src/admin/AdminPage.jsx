@@ -25,6 +25,7 @@ const uniq = list => [...new Set(list.filter(Boolean))].sort();
 export default function AdminPage() {
   const me = useUser();
   const canAll = atLeast(me, 'admin');
+  const [openNodes, setOpenNodes] = useState(() => new Set(['all']));
   const [tab, setTab] = useState(() => (atLeast(me, 'admin') ? 'states' : atLeast(me, 'city_admin') ? 'branches' : 'users'));
   const [data, setData] = useState(null);
   const [form, setForm] = useState(null);
@@ -312,35 +313,88 @@ export default function AdminPage() {
           </form>
         )}
 
-        {data && tab === 'users' && (
-          <div className="dash-scroll">
-            <table className="dash-table adm-table">
-              <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Area</th><th>Status</th><th></th></tr></thead>
-              <tbody>
-                {data.users.map(u => {
-                  const self = u.email === me.email;
-                  const off = !isOn(u.is_active);
-                  return (
-                    <tr key={u.ROWID} className={off ? 'master-left' : ''}>
-                      <td className="left">{u.name}{self ? ' (you)' : ''}</td>
-                      <td className="left">{u.email}</td>
-                      <td>{u.owner ? '👑 Owner · ' : ''}{ROLE_NAME[u.role]}</td>
-                      <td className="left">{area(u)}</td>
-                      <td><Toggle on={!off} label={u.name} disabled={busy || !u.canEdit} onChange={() => run(() => api.userActive(u.ROWID, off), () => off ? '↩️ ' + u.name + ' can sign in again.' : '🚫 ' + u.name + ' cannot sign in now.')} /></td>
-                      <td className="adm-actions">
-                        {u.canEdit && !off && <>
-                          <IconBtn icon="✏️" label={'Edit ' + u.name} onClick={() => open('user', { ...BLANK_USER, ...u, city: u.city || '', state: u.state || '', branch_id: u.branch_id || '', agency_id: u.agency_id || '' })} />
-                          <IconBtn icon="📧" label={'Mail ' + u.name + ' again'} disabled={busy} onClick={() => run(() => api.userMail(u.ROWID), r => '📧 ' + u.name + ': ' + MAIL_TEXT[r.data.mail])} />
-                        </>}
-                      </td>
-                    </tr>
-                  );
-                })}
-                {data.users.length === 0 && <tr><td colSpan="6">No users yet. Press ➕ Add user.</td></tr>}
-              </tbody>
-            </table>
-          </div>
-        )}
+        {data && tab === 'users' && (() => {
+          // Users as a tree (Prem, 23 Oct: easy to show the Admin): India → state → city → branch;
+          // a tap on a line opens the next level. Inside a branch: Branch Admin first, then supervisors by agency.
+          const lc = v => String(v || '').toLowerCase();
+          const userRow = (u, depth) => {
+            const self = u.email === me.email;
+            const off = !isOn(u.is_active);
+            return (
+              <tr key={u.ROWID} className={'adm-tree-user' + (off ? ' master-left' : '')}>
+                <td className="left" style={{ paddingLeft: 12 + depth * 22 }}>👤 {u.name}{self ? ' (you)' : ''}</td>
+                <td className="left">{u.email}</td>
+                <td>{u.owner ? '👑 Owner · ' : ''}{ROLE_NAME[u.role]}{u.role === 'supervisor' && u.agency_id ? ' · ' + agencyName(u.agency_id) : ''}</td>
+                <td><Toggle on={!off} label={u.name} disabled={busy || !u.canEdit} onChange={() => run(() => api.userActive(u.ROWID, off), () => off ? '↩️ ' + u.name + ' can sign in again.' : '🚫 ' + u.name + ' cannot sign in now.')} /></td>
+                <td className="adm-actions">
+                  {u.canEdit && !off && <>
+                    <IconBtn icon="✏️" label={'Edit ' + u.name} onClick={() => open('user', { ...BLANK_USER, ...u, city: u.city || '', state: u.state || '', branch_id: u.branch_id || '', agency_id: u.agency_id || '' })} />
+                    <IconBtn icon="📧" label={'Mail ' + u.name + ' again'} disabled={busy} onClick={() => run(() => api.userMail(u.ROWID), r => '📧 ' + u.name + ': ' + MAIL_TEXT[r.data.mail])} />
+                  </>}
+                </td>
+              </tr>
+            );
+          };
+          const head = (key, depth, icon, label, users) => (
+            <tr key={'h' + key} className={'adm-tree-head adm-tree-' + depth} onClick={() => setOpenNodes(o => { const n = new Set(o); if (n.has(key)) n.delete(key); else n.add(key); return n; })}>
+              <td colSpan="5" className="left" style={{ paddingLeft: 10 + depth * 22 }}>
+                <span className="adm-tree-arrow">{openNodes.has(key) ? '▾' : '▸'}</span> {icon} <b>{label}</b> <span className="adm-tree-count">· {users.length} user{users.length === 1 ? '' : 's'}</span>
+              </td>
+            </tr>
+          );
+          const order = ['branch_admin', 'supervisor'];
+          const top = data.users.filter(u => u.role === 'super_admin' || u.role === 'admin');
+          const placed = new Set(top.map(u => u.ROWID));
+          const rows = [];
+          if (top.length) {
+            rows.push(head('all', 0, '🌐', 'All India (Super Admin / Admin)', top));
+            if (openNodes.has('all')) top.forEach(u => rows.push(userRow(u, 1)));
+          }
+          const stateNames = uniq(data.states.map(st => st.state_name).concat(data.branches.map(b => b.state)).filter(Boolean));
+          stateNames.forEach(stName => {
+            const stBranches = data.branches.filter(b => lc(b.state) === lc(stName));
+            const cityNames = uniq(stBranches.map(b => b.city).concat(data.cities.filter(c => { const st = data.states.find(x => String(x.ROWID) === String(c.state_id)); return st && lc(st.state_name) === lc(stName); }).map(c => c.city_name)));
+            const stUsers = data.users.filter(u => (u.role === 'state_admin' && lc(u.state) === lc(stName))
+              || (u.role === 'city_admin' && cityNames.some(c => lc(c) === lc(u.city)))
+              || ((u.role === 'branch_admin' || u.role === 'supervisor') && stBranches.some(b => String(b.ROWID) === String(u.branch_id))));
+            stUsers.forEach(u => placed.add(u.ROWID));
+            const kS = 's:' + stName;
+            rows.push(head(kS, 0, '🗺️', stName, stUsers));
+            if (!openNodes.has(kS)) return;
+            stUsers.filter(u => u.role === 'state_admin').forEach(u => rows.push(userRow(u, 1)));
+            cityNames.forEach(cName => {
+              const cBranches = stBranches.filter(b => lc(b.city) === lc(cName));
+              const cUsers = stUsers.filter(u => (u.role === 'city_admin' && lc(u.city) === lc(cName)) || cBranches.some(b => String(b.ROWID) === String(u.branch_id)));
+              const kC = kS + '/c:' + cName;
+              rows.push(head(kC, 1, '🏙️', cName, cUsers));
+              if (!openNodes.has(kC)) return;
+              cUsers.filter(u => u.role === 'city_admin').forEach(u => rows.push(userRow(u, 2)));
+              cBranches.forEach(b => {
+                const bUsers = cUsers.filter(u => String(u.branch_id) === String(b.ROWID))
+                  .sort((x, y) => order.indexOf(x.role) - order.indexOf(y.role) || agencyName(x.agency_id).localeCompare(agencyName(y.agency_id)) || x.name.localeCompare(y.name));
+                const kB = kC + '/b:' + b.ROWID;
+                rows.push(head(kB, 2, '🏢', b.branch_name + (b.area ? ' (' + b.area + ')' : ''), bUsers));
+                if (openNodes.has(kB)) bUsers.forEach(u => rows.push(userRow(u, 3)));
+              });
+            });
+          });
+          const rest = data.users.filter(u => !placed.has(u.ROWID));
+          if (rest.length) {
+            rows.push(head('rest', 0, '❔', 'Not placed (state / city / branch not found)', rest));
+            if (openNodes.has('rest')) rest.forEach(u => rows.push(userRow(u, 1)));
+          }
+          return (
+            <div className="dash-scroll">
+              <table className="dash-table adm-table adm-tree">
+                <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
+                <tbody>
+                  {rows}
+                  {data.users.length === 0 && <tr><td colSpan="5">No users yet. Press ➕ Add user.</td></tr>}
+                </tbody>
+              </table>
+            </div>
+          );
+        })()}
 
         {data && tab === 'branches' && (
           <div className="dash-scroll">
