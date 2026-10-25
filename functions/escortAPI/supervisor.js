@@ -314,14 +314,12 @@ module.exports = function supervisorRoutes(app, h) {
       // R / RG rows only when their person works it, W = weekdays only). A post with a published guard or
       // someone at it now always stays. So "Total posts" = this shift's real slots (Prem, 22 Oct).
       const needRoster = posts.some(p => regularOnly(p));
-      const [roster, supNames, branchGuards] = needRoster ? await Promise.all([
+      const [roster, supIds] = needRoster ? await Promise.all([
         zcql.executeZCQLQuery(`SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${day.slice(0, 7)}' LIMIT 0, 300`).then(r => r.map(x => x.MonthRoster)),
-        zcql.executeZCQLQuery(`SELECT name FROM UserRoles WHERE role = 'supervisor' AND branch_id = ${branch} AND is_active = true`).then(r => r.map(x => String(x.UserRoles.name || '').toLowerCase())),
-        zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE branch_id = ${branch} AND is_active = 'true' LIMIT 0, 300`).then(r => r.map(x => x.Guards))
-      ]) : [[], [], []];
+        inchargeIds(zcql, branch)
+      ]) : [[], []];
       const rosterOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[Number(day.slice(8, 10)) - 1]; if (c) rosterOf[String(r.guard_id)] = c; });
-      const supIds = branchGuards.filter(g => supNames.includes(String(g.guard_name).toLowerCase())).map(g => String(g.ROWID));
       const busyHere = new Set(chart.map(c => String(c.post_id)).concat(logs.map(l => String(l.post_id))));
       const boardPosts = posts.filter(p => busyHere.has(String(p.ROWID)) || (
         (!postShifts(p) || postShifts(p).includes(code))
@@ -448,10 +446,7 @@ module.exports = function supervisorRoutes(app, h) {
     ]);
     const rosterOf = {};
     roster.forEach(r => { const c = String(r.codes || '')[Number(date.slice(8, 10)) - 1]; if (c) rosterOf[String(r.guard_id)] = c; });
-    const supNames = posts.some(p => regularOnly(p) && isIncharge(p))
-      ? (await zcql.executeZCQLQuery(`SELECT name FROM UserRoles WHERE role = 'supervisor' AND branch_id = ${branch} AND is_active = true`)).map(x => String(x.UserRoles.name || '').toLowerCase()) : [];
-    const branchGuards = supNames.length ? (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE branch_id = ${branch} AND is_active = 'true' LIMIT 0, 300`)).map(r => r.Guards) : [];
-    const supIds = branchGuards.filter(g => supNames.includes(String(g.guard_name).toLowerCase())).map(g => String(g.ROWID));
+    const supIds = posts.some(p => regularOnly(p) && isIncharge(p)) ? await inchargeIds(zcql, branch) : [];
     const filledOn = (p, c) => slots.some(x => String(x.post_id) === String(p.ROWID) && x.shift_code === c);
     const postsOn = c => posts.filter(p => filledOn(p, c) || ((!postShifts(p) || postShifts(p).includes(c)) && !(weekdayOnly(p) && isWeekend(date))
       && (!regularOnly(p) || shiftsToday(p, rosterOf, regularIds(p, posts, supIds), '').includes(c))));
@@ -574,6 +569,15 @@ module.exports = function supervisorRoutes(app, h) {
   // "F" in the same part: never leave it empty (filled from any free man right after its own list).
   const mustFill = p => String(String((p && p.relief_guards) || '').split(';')[3] || '').includes('F');
   const isIncharge = p => String(p.post_name || '').toLowerCase().endsWith('shift incharge');
+  // Who may stand at a Shift Incharge post: the guards ticked as shift incharges of the agencies working in
+  // the branch (Agencies.incharge_ids, Prem 25 Oct). Before, supervisor login names were matched with guard
+  // names, which broke when the personal supervisor logins became agency logins.
+  async function inchargeIds(zcql, branch) {
+    const rows = (await zcql.executeZCQLQuery('SELECT branch_ids, incharge_ids FROM Agencies WHERE is_active = true')).map(r => r.Agencies);
+    const ids = rows.filter(a => String(a.branch_ids || '').split(',').map(x => x.trim()).includes(String(branch)))
+      .flatMap(a => String(a.incharge_ids || '').split(',').map(x => x.trim()).filter(Boolean));
+    return [...new Set(ids)];
+  }
   const listIds = p => String(p.regular_guards || '').split(',').map(x => x.trim()).filter(Boolean);
   const regularIds = (p, posts, supIds) => {
     if (listIds(p).length || !isIncharge(p)) return listIds(p);
@@ -621,9 +625,7 @@ module.exports = function supervisorRoutes(app, h) {
       const rosterOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[dayIndex]; if (c && c !== '-') rosterOf[String(r.guard_id)] = c; });
       const rows = await dayRows(zcql, branch, date, posts);
-      const supNames = posts.some(p => regularOnly(p) && isIncharge(p))
-        ? (await zcql.executeZCQLQuery(`SELECT name FROM UserRoles WHERE role = 'supervisor' AND branch_id = ${branch} AND is_active = true`)).map(x => String(x.UserRoles.name || '').toLowerCase()) : [];
-      const supIds = guards.filter(g => supNames.includes(String(g.guard_name).toLowerCase())).map(g => String(g.ROWID));
+      const supIds = posts.some(p => regularOnly(p) && isIncharge(p)) ? await inchargeIds(zcql, branch) : [];
       const dayShifts = p => shiftsToday(p, rosterOf, regularIds(p, posts, supIds), rows.filter(r => String(r.post_id) === String(p.ROWID)).map(r => r.shift_code));
       const dayPosts = posts.filter(p => (!regularOnly(p) || dayShifts(p)) && !(weekdayOnly(p) && isWeekend(date) && !rows.some(r => String(r.post_id) === String(p.ROWID))));
 
@@ -796,8 +798,9 @@ module.exports = function supervisorRoutes(app, h) {
         branchPosts(req, zcql, branch),
         pages(zcql, `SELECT ROWID, guard_name, area FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
         pages(zcql, `SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${date.slice(0, 7)}' ORDER BY ROWID ASC`, 'MonthRoster'),
-        zcql.executeZCQLQuery(`SELECT name FROM UserRoles WHERE role = 'supervisor' AND branch_id = ${branch} AND is_active = true`).then(r => r.map(x => String(x.UserRoles.name || '').toLowerCase()))
+        inchargeIds(zcql, branch)
       ]);
+      const supSet = new Set(sups);
       if (!roster.length) throw new Error('No month roster for ' + date.slice(0, 7) + '. Upload it in Month roster first.');
       const rows = await dayRows(zcql, branch, date, posts);
       // Posts in their Posts-page order (sort_order), so the more important post of a group is filled
@@ -810,7 +813,7 @@ module.exports = function supervisorRoutes(app, h) {
       const day = Number(date.slice(8, 10)) - 1;
       const codeOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[day]; if (c) codeOf[String(r.guard_id)] = c; });
-      const supIds = guards.filter(g => sups.includes(String(g.guard_name).toLowerCase())).map(g => String(g.ROWID));
+      const supIds = guards.filter(g => supSet.has(String(g.ROWID))).map(g => String(g.ROWID));
       const allows = (p, shift) => !(weekdayOnly(p) && isWeekend(date)) && (!postShifts(p) || postShifts(p).includes(shift)) && shiftsToday(p, codeOf, regularIds(p, posts, supIds), '').includes(shift);
       // Escorts: only those on C do the escort cab (Mon–Sat); an escort whose roster says A / B / G that
       // day works a post like anyone else (Prem, 21 Oct, as on the real sheets). Sunday: all take posts.
@@ -834,7 +837,7 @@ module.exports = function supervisorRoutes(app, h) {
         .sort((x, y) => (y.post_name.toLowerCase() === 'shift incharge') - (x.post_name.toLowerCase() === 'shift incharge'));
       if (incharges.length) {
         const r1 = { no: 1, rule: 'Shift Incharge', filled: [], empty: [] };
-        const supOn = (shift, only) => guards.find(g => sups.includes(String(g.guard_name).toLowerCase()) && codeOf[String(g.ROWID)] === shift && !busyGuard.has(String(g.ROWID)) && (!only || only.includes(String(g.ROWID))));
+        const supOn = (shift, only) => guards.find(g => supSet.has(String(g.ROWID)) && codeOf[String(g.ROWID)] === shift && !busyGuard.has(String(g.ROWID)) && (!only || only.includes(String(g.ROWID))));
         for (const pass of ['own', 'any']) {
           for (const p of incharges) {
             const own = String(p.regular_guards || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -870,7 +873,7 @@ module.exports = function supervisorRoutes(app, h) {
           // any free PKL / MLCP man on that shift now, before the later posts take them (escorts on Sunday).
           if (!g && mustFill(p)) {
             const free = guards.map(x => String(x.ROWID)).filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !restDay(p, id)
-              && !sups.includes(String(nameOf.get(id)).toLowerCase()) && ['pkl', 'mlcp', 'escort'].includes(teamAt.get(id)));
+              && !supSet.has(id) && ['pkl', 'mlcp', 'escort'].includes(teamAt.get(id)));
             g = free.find(id => teamAt.get(id) !== 'escort') || free[0];
           }
           if (g) { put(p, shift, g); r2.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else r2.empty.push(p.post_name + ' ' + shift);
@@ -975,7 +978,7 @@ module.exports = function supervisorRoutes(app, h) {
         for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
           if (taken.has(p.ROWID + '|' + shift)) continue;
           const g = guards.map(x => String(x.ROWID))
-            .filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !sups.includes(String(nameOf.get(id)).toLowerCase()) && areaOf.get(id).toLowerCase() !== 'lady guards' && !restDay(p, id))
+            .filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !supSet.has(id) && areaOf.get(id).toLowerCase() !== 'lady guards' && !restDay(p, id))
             .filter(id => !daily || ['pkl', 'mlcp'].includes(areaOf.get(id).toLowerCase()) || isEscort(id))
             .filter(id => areaOf.get(id).toLowerCase() !== 'ninnakarai' || team.toLowerCase() === 'ninnakarai')
             .sort((a, b) => (areaOf.get(b) === team) - (areaOf.get(a) === team) || isEscort(a) - isEscort(b))[0];

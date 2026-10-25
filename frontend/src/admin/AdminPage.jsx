@@ -26,6 +26,9 @@ export default function AdminPage() {
   const me = useUser();
   const canAll = atLeast(me, 'admin');
   const [openNodes, setOpenNodes] = useState(() => new Set(['all']));
+  // Guards for the agency's shift incharge ticks, read once when an agency is opened for editing.
+  const [agencyGuards, setAgencyGuards] = useState(null);
+  const [inchargeFind, setInchargeFind] = useState('');
   const [tab, setTab] = useState(() => (atLeast(me, 'admin') ? 'states' : atLeast(me, 'city_admin') ? 'branches' : 'users'));
   const [data, setData] = useState(null);
   const [form, setForm] = useState(null);
@@ -71,6 +74,8 @@ export default function AdminPage() {
     setNote('');
     setForm({ kind, ...row });
     window.scrollTo({ top: 0 });
+    if (kind === 'agency' && row.ROWID && !agencyGuards) api.getGuards().then(r => setAgencyGuards(r.data)).catch(() => setAgencyGuards([]));
+    setInchargeFind('');
   }
 
   function saveUser(e) {
@@ -311,6 +316,24 @@ export default function AdminPage() {
               {activeBranches.length === 0 && <span className="pd-muted">Add a branch first (tab 3).</span>}
             </div>
             <div className="sim-note">Posts, guards and supervisors of a branch can pick only the agencies ticked here.</div>
+            {form.ROWID && <>
+              {/* Only the guards ticked here stand at the Shift Incharge posts (Auto fill, Schedule, Live board). */}
+              <div className="master-form-title">Shift incharges ({(form.incharge_ids || []).length})</div>
+              <input className="agency-find" type="search" value={inchargeFind} onChange={e => setInchargeFind(e.target.value)} placeholder="Find a guard of this agency: name or ID" />
+              <div className="agency-branches">
+                {!agencyGuards && <span className="pd-muted">Loading guards...</span>}
+                {agencyGuards && agencyGuards
+                  .filter(g => String(g.agency_id) === String(form.ROWID))
+                  .filter(g => (form.incharge_ids || []).includes(String(g.ROWID)) || (inchargeFind.trim().length >= 2 && (g.guard_name + ' ' + g.id_number).toLowerCase().includes(inchargeFind.trim().toLowerCase())))
+                  .map(g => (
+                    <label key={g.ROWID} className="master-check">
+                      <input type="checkbox" checked={(form.incharge_ids || []).includes(String(g.ROWID))}
+                        onChange={e => set('incharge_ids', e.target.checked ? [...(form.incharge_ids || []), String(g.ROWID)] : form.incharge_ids.filter(id => id !== String(g.ROWID)))} />
+                      {g.guard_name} · {g.id_number}
+                    </label>
+                  ))}
+              </div>
+            </>}
             <div className="link-actions">
               <button className="btn" type="submit" disabled={busy}>{busy ? 'Saving...' : 'Save agency'}</button>
               <button className="btn secondary" type="button" onClick={() => setForm(null)}>Cancel</button>
@@ -438,7 +461,7 @@ export default function AdminPage() {
                       <td className="left">{a.agency_name}</td>
                       <td className="left">{agencyBranches(a).map(branchName).filter(Boolean).join(', ') || '⚠️ None ticked'}</td>
                       <td><Toggle on={!off} label={a.agency_name} disabled={busy} onChange={() => run(() => api.agencySave({ ...a, is_active: off }), () => a.agency_name + (off ? ' is on again.' : ' is switched off.'))} /></td>
-                      <td className="adm-actions"><IconBtn icon="✏️" label={'Edit ' + a.agency_name} onClick={() => open('agency', { ...BLANK_AGENCY, ...a, branch_ids: agencyBranches(a) })} /></td>
+                      <td className="adm-actions"><IconBtn icon="✏️" label={'Edit ' + a.agency_name} onClick={() => open('agency', { ...BLANK_AGENCY, ...a, branch_ids: agencyBranches(a), incharge_ids: String(a.incharge_ids || '').split(',').map(x => x.trim()).filter(Boolean) })} /></td>
                     </tr>
                   );
                 })}

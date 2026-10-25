@@ -38,7 +38,7 @@ module.exports = function adminRoutes(app, h) {
 
   // Agencies are a short list everybody signed in may read (dropdowns).
   async function agencyList(zcql) {
-    return selectAll(zcql, 'Agencies', 'SELECT ROWID, agency_name, branch_ids, is_active FROM Agencies ORDER BY agency_name ASC');
+    return selectAll(zcql, 'Agencies', 'SELECT ROWID, agency_name, branch_ids, incharge_ids, is_active FROM Agencies ORDER BY agency_name ASC');
   }
   // branch_ids is a comma list of the branches the agency works in.
   const branchIdsOf = a => String((a && a.branch_ids) || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -381,6 +381,12 @@ module.exports = function adminRoutes(app, h) {
         branch_ids: [...new Set(kept.concat(given))].join(','),
         is_active: b.is_active !== false
       };
+      // Shift incharges (Prem, 25 Oct): only these guards of this agency stand at Shift Incharge posts.
+      if (Array.isArray(b.incharge_ids) && self) {
+        const ids = b.incharge_ids.map(x => String(requireRowId(x)));
+        const mine = ids.length ? (await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE agency_id = ${requireRowId(self)} AND ROWID IN (${ids.join(', ')})`)).map(r => String(r.Guards.ROWID)) : [];
+        row.incharge_ids = mine.join(',');
+      }
       const table = catalystApp.datastore().table('Agencies');
       const saved = self ? await table.updateRow({ ROWID: self, ...row }) : await table.insertRow(row);
       // Guards keep the agency name as text too (older screens show it): keep it in step.

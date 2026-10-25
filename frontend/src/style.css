@@ -1102,3 +1102,4 @@ td.in-late{color:#b91c1c;}
 /* Escort sheet for shift incharges of other agencies: look only (25 Oct). */
 .esc-view-note{margin:8px 16px;padding:8px 12px;border-radius:8px;background:#eef2ff;color:#3730a3;font-size:14px;}
 .esc-view-only input, .esc-view-only button, .esc-view-only select, .esc-view-only textarea, .esc-view-only .route-cell{pointer-events:none;}
+.agency-find{width:100%;max-width:420px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;margin:4px 0 8px;}
