@@ -68,6 +68,12 @@ export default function DutyHistory() {
           <div className="full-date">{shortDate(date)}</div>
           <h1 className="full-title">📖 Duty History</h1>
           <div className="full-btns">
+            {branches.length > 1 && (
+              <select className="full-agency" value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">
+                <option value="ALL">All my branches ({branches.length})</option>
+                {branches.map(x => <option key={x.ROWID} value={x.ROWID}>{x.branch_name} · {x.city}</option>)}
+              </select>
+            )}
             {agencies.length > 1 && (
               <select className="full-agency" value={agency} onChange={e => { setAgency(e.target.value); setTeam(''); }} aria-label="Agency">
                 <option value="">All agencies</option>

@@ -66,6 +66,12 @@ export default function ShiftReport() {
           <div className="full-date">{shortDate(date)}</div>
           <h1 className="full-title">📊 Shift Report</h1>
           <div className="full-btns">
+            {branches.length > 1 && (
+              <select className="full-agency" value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">
+                <option value="ALL">All my branches ({branches.length})</option>
+                {branches.map(x => <option key={x.ROWID} value={x.ROWID}>{x.branch_name} · {x.city}</option>)}
+              </select>
+            )}
             {pickAgency && branchAgencies.length > 0 && (
               <select className="full-agency" value={ag} onChange={e => chooseAgency(e.target.value)} aria-label="Agency">
                 {branchAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
