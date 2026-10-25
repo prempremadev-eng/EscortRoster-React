@@ -180,15 +180,41 @@ module.exports = function adminRoutes(app, h) {
       const u = await managedUser(req, zcql, req.body && req.body.ROWID);
       if (u.email === req.user.email) throw new Error('You cannot change your own role. Ask another admin.');
       const row = await userFromBody(req, zcql, req.body);
+      // A new email (Prem, 25 Oct): the login moves to it and the new address gets the invite mail.
+      const email = String(req.body.email || u.email).trim().toLowerCase();
+      if (!EMAIL_RE.test(email)) throw new Error('Enter a valid email');
+      let mail = null;
+      if (email !== u.email) {
+        const same = await zcql.executeZCQLQuery(`SELECT ROWID FROM UserRoles WHERE email = '${email}'`);
+        if (same.length) throw new Error(email + ' already has a login.');
+        row.email = email;
+      }
       await catalystApp.datastore().table('UserRoles').updateRow({ ROWID: u.ROWID, ...row });
       forgetUser(u.email);
-      ok(res, { saved: true });
+      if (row.email) { forgetUser(email); mail = await invite(catalystApp, email, row.name); }
+      ok(res, { saved: true, mail });
     } catch (err) {
       fail(res, err);
     }
   });
 
-  // Switch a login off (or on again). Never deleted, so "created by" stays readable.
+  // Delete a login (Prem, 25 Oct). Only the role row goes; schedules, reports and names in the history stay.
+  app.post('/userDelete', async (req, res) => {
+    try {
+      need(req, 'branch_admin');
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const u = await managedUser(req, zcql, req.body && req.body.ROWID);
+      if (u.email === req.user.email) throw new Error('You cannot delete your own login.');
+      await catalystApp.datastore().table('UserRoles').deleteRow(u.ROWID);
+      forgetUser(u.email);
+      ok(res, { deleted: true });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // Switch a login off (or on again); kept, so it can come back.
   app.put('/userActive', async (req, res) => {
     try {
       need(req, 'branch_admin');

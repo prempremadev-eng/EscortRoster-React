@@ -22,7 +22,7 @@ const ROLE_NAME = { supervisor: 'Supervisor', branch_admin: 'Branch Admin', city
 // State Admin only watch; an Admin only sets up (users, places, agencies) and runs the card simulator.
 // The Super Admin (app owner) may do everything. POSTs that only read or subscribe stay open to all.
 const VIEW_ONLY = new Set(['city_admin', 'state_admin']);
-const SETUP_ROUTES = new Set(['/userAdd', '/userUpdate', '/userActive', '/userMail', '/branchSave', '/citySave', '/stateSave', '/agencySave', '/addAccessLog']);
+const SETUP_ROUTES = new Set(['/userAdd', '/userUpdate', '/userActive', '/userMail', '/userDelete', '/branchSave', '/citySave', '/stateSave', '/agencySave', '/addAccessLog']);
 const READ_POSTS = new Set(['/supInbox', '/supSubscribe']);
 // Escort sheet changes: a supervisor only when their agency has the Escort team (others only look).
 const ESCORT_WRITES = new Set(['/addDutyRecord', '/updateDutyRecord', '/deleteDutyRecord', '/addExtraDutyRecord', '/updateExtraDutyRecord',

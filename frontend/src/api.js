@@ -187,6 +187,7 @@ export const api = {
   userUpdate: user => apiCall('PUT', '/userUpdate', user),
   userActive: (ROWID, active) => apiCall('PUT', '/userActive', { ROWID, active }),
   userMail: ROWID => apiCall('POST', '/userMail', { ROWID }),
+  userDelete: ROWID => apiCall('POST', '/userDelete', { ROWID }),
   branchSave: branch => apiCall('POST', '/branchSave', branch),
   agencySave: agency => apiCall('POST', '/agencySave', agency),
   stateSave: state => apiCall('POST', '/stateSave', state),

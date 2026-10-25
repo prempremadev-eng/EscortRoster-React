@@ -76,7 +76,7 @@ export default function AdminPage() {
   function saveUser(e) {
     e.preventDefault();
     const body = { ROWID: form.ROWID, email: form.email, name: form.name, role: form.role, city: form.city, state: form.state, branch_id: form.branch_id, agency_id: form.agency_id };
-    if (form.ROWID) run(() => api.userUpdate(body), () => '✅ ' + form.name + ' saved.');
+    if (form.ROWID) run(() => api.userUpdate(body), r => '✅ ' + form.name + ' saved.' + (r.data.mail ? ' New email: ' + MAIL_TEXT[r.data.mail] : ''));
     else run(() => api.userAdd(body), r => '✅ ' + form.name + ' added. ' + MAIL_TEXT[r.data.mail]);
   }
   function saveBranch(e) {
@@ -178,7 +178,7 @@ export default function AdminPage() {
                 </label>
               )}
               <label>Name (guards see it)<input value={form.name} onChange={e => set('name', e.target.value)} maxLength={100} required /></label>
-              <label>Email (they sign in with it)<input type="email" value={form.email} onChange={e => set('email', e.target.value)} disabled={!!form.ROWID} required /></label>
+              <label>Email (they sign in with it{form.ROWID ? '; a new email gets the invite mail' : ''})<input type="email" value={form.email} onChange={e => set('email', e.target.value)} required /></label>
             </div>
             <div className="sim-note">{ROLE_HELP[form.role]}{form.ROWID ? '' : ' A new user gets a mail to set their password.'}</div>
             <div className="link-actions">
@@ -336,6 +336,7 @@ export default function AdminPage() {
                     <IconBtn icon="✏️" label={'Edit ' + u.name} onClick={() => open('user', { ...BLANK_USER, ...u, city: u.city || '', state: u.state || '', branch_id: u.branch_id || '', agency_id: u.agency_id || '' })} />
                     <IconBtn icon="📧" label={'Mail ' + u.name + ' again'} disabled={busy} onClick={() => run(() => api.userMail(u.ROWID), r => '📧 ' + u.name + ': ' + MAIL_TEXT[r.data.mail])} />
                   </>}
+                  {u.canEdit && <IconBtn icon="🗑" label={'Delete ' + u.name} disabled={busy} onClick={() => { if (window.confirm('Delete the login of ' + u.name + ' (' + u.email + ')? Their past work stays. This cannot be undone.')) run(() => api.userDelete(u.ROWID), () => '🗑 ' + u.name + ' deleted.'); }} />}
                 </td>
               </tr>
             );
