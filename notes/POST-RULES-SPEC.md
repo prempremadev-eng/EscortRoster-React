@@ -57,6 +57,11 @@ Rules that always hold:
 
 Each agency and branch has its own rules, so Auto fill is **taken out of Post setup** (no tick, no details, no column). The IPF · Estancia posts set up before keep it; the Schedule shows **⚡ Auto fill** only when the day's posts use it (other agencies fill by hand: "Put the names"). The form code for the lists and flags stays in PostsPage.jsx for later.
 
+### Simple post form and G on demand (25 Oct)
+
+- Post setup asks only: Branch, Agency, Post name, Shifts **A / B / C** (+ 🚗 vehicle entry). Type, section, row, extra duty and Auto fill are not asked (old posts keep theirs).
+- **G is not fixed on a post**: on the Schedule, a free G guard ("On duty, no post" → **G today → Post…**) goes to any post for that day; the post's G row shows only that day. Empty G is never counted as vacant. Posts saved before with G keep it.
+
 ### Set in the app (25 Oct)
 
 Post setup → ➕ Add post / ✏️ edit, in this order: 1 Branch · 2 Agency · 3 Post name · 4 Type · 5 Section + row · 6 Shifts · options (🚗 vehicle entry, ⭐ extra duty, ⚡ Auto fill) · **8 Auto fill details** (shown when Auto fill is on): **Regular guards** and **Relief guards** (ordered lists of that branch + agency's guards, ↑ to move up), **Priority 1–9**, **F**, **D**, **W**, **R** (+ shifts). The weekend list and lady shifts are kept as they are (not in the form yet). The list has Agency and post-name filters.

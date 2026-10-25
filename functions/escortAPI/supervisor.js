@@ -626,7 +626,12 @@ module.exports = function supervisorRoutes(app, h) {
       roster.forEach(r => { const c = String(r.codes || '')[dayIndex]; if (c && c !== '-') rosterOf[String(r.guard_id)] = c; });
       const rows = await dayRows(zcql, branch, date, posts);
       const supIds = posts.some(p => regularOnly(p) && isIncharge(p)) ? await inchargeIds(zcql, branch) : [];
-      const dayShifts = p => shiftsToday(p, rosterOf, regularIds(p, posts, supIds), rows.filter(r => String(r.post_id) === String(p.ROWID)).map(r => r.shift_code));
+      // G on demand (Prem, 25 Oct): a post without G gets a G row only on a day someone was put there.
+      const dayShifts = p => {
+        const filled = rows.filter(r => String(r.post_id) === String(p.ROWID)).map(r => r.shift_code);
+        const s = shiftsToday(p, rosterOf, regularIds(p, posts, supIds), filled);
+        return s && filled.includes('G') && !s.includes('G') ? s + 'G' : s;
+      };
       const dayPosts = posts.filter(p => (!regularOnly(p) || dayShifts(p)) && !(weekdayOnly(p) && isWeekend(date) && !rows.some(r => String(r.post_id) === String(p.ROWID))));
 
       // Escorts. Mon–Fri: the week's 6-to-5 batch = escorts whose roster has the coming Saturday
@@ -697,7 +702,8 @@ module.exports = function supervisorRoutes(app, h) {
       const posts = await branchPosts(req, zcql, branch);
       const thePost = posts.find(p => String(p.ROWID) === String(post));
       if (!thePost) throw new Error('That post is not in your area.');
-      if (postShifts(thePost) && !postShifts(thePost).includes(shift)) throw new Error(thePost.post_name + ' has no Shift ' + shift + '.');
+      // G may be added to any post for one day (G on demand, Prem 25 Oct); A / B / C only where the post has them.
+      if (postShifts(thePost) && !postShifts(thePost).includes(shift) && shift !== 'G') throw new Error(thePost.post_name + ' has no Shift ' + shift + '.');
       const rows = await dayRows(zcql, branch, date, posts);
       const table = catalystApp.datastore().table('Schedule');
       const cell = rows.find(r => String(r.post_id) === String(post) && r.shift_code === shift);

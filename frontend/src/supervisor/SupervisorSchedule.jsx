@@ -162,6 +162,7 @@ export default function SupervisorSchedule() {
   const escortIds = new Set(data ? [...data.escort.batch, ...data.escort.night].map(e => e.guard) : []);
   const idle = data ? data.guards.filter(g => ['A', 'B', 'C', 'G'].includes(g.roster) && !data.slots.some(s => s.guard === g.ROWID) && !escortIds.has(g.ROWID))
     .sort((x, y) => 'ABCG'.indexOf(x.roster) - 'ABCG'.indexOf(y.roster) || x.name.localeCompare(y.name)) : [];
+  const hasG = idle.some(g => g.roster === 'G');
   const filled = data ? data.slots.length : 0;
   const drafts = data ? data.slots.filter(s => !s.published).length : 0;
   // Taken = already in a slot of the picked shift. A guard in another shift that day can still be
@@ -370,15 +371,23 @@ export default function SupervisorSchedule() {
                   <table className="sh-t">
                     <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code" /><col className="w-code2" /></colgroup>
                     <thead>
-                      <tr className="sh-head sh-head-off"><th colSpan={data.escort.canAdd ? 5 : 4}>ON DUTY, NO POST · {sheetDate}</th></tr>
-                      <tr className="sh-cols"><th>S No</th><th>NAME</th><th>SHIFT</th><th>TEAM</th>{data.escort.canAdd && <th className="no-print">ESCORT</th>}</tr>
+                      <tr className="sh-head sh-head-off"><th colSpan={(data.escort.canAdd ? 5 : 4) + (hasG ? 1 : 0)}>ON DUTY, NO POST · {sheetDate}</th></tr>
+                      <tr className="sh-cols"><th>S No</th><th>NAME</th><th>SHIFT</th><th>TEAM</th>{data.escort.canAdd && <th className="no-print">ESCORT</th>}{hasG && <th className="no-print">G TODAY</th>}</tr>
                     </thead>
                     <tbody>
                       {idle.map((g, i) => (
                         <tr key={g.ROWID}><td className="sh-no">{i + 1}</td><td className="sh-name">{g.name}</td><td className="sh-code">{g.roster}</td><td className="sh-code">{g.area}</td>
-                          {data.escort.canAdd && <td className="sh-code no-print">{g.roster === 'C' && <button className="sh-esc-btn" onClick={() => toEscort(g.ROWID, true)} disabled={busy} title="Send to Escort 9 to 6 for today (C shift only)">→ Escort</button>}</td>}</tr>
+                          {data.escort.canAdd && <td className="sh-code no-print">{g.roster === 'C' && <button className="sh-esc-btn" onClick={() => toEscort(g.ROWID, true)} disabled={busy} title="Send to Escort 9 to 6 for today (C shift only)">→ Escort</button>}</td>}
+                          {/* G on demand (Prem, 25 Oct): a G guard goes to any post for this day only; the G row shows then. */}
+                          {hasG && <td className="sh-code no-print">{g.roster === 'G' && (
+                            <select className="sh-g-pick" value="" disabled={busy} aria-label={'G duty today for ' + g.name}
+                              onChange={e => e.target.value && run(() => api.scheduleSet(branch, date, e.target.value, 'G', g.ROWID, ag), () => setNote(g.name + ' → ' + (data.posts.find(x => x.ROWID === e.target.value) || {}).name + ' · G today'))}>
+                              <option value="">→ Post…</option>
+                              {data.posts.map(x => <option key={x.ROWID} value={x.ROWID}>{x.name}</option>)}
+                            </select>
+                          )}</td>}</tr>
                       ))}
-                      {idle.length === 0 && <tr><td colSpan={data.escort.canAdd ? 5 : 4} className="sh-empty">{data.hasRoster ? 'Everyone on duty has a post' : 'No month roster'}</td></tr>}
+                      {idle.length === 0 && <tr><td colSpan={(data.escort.canAdd ? 5 : 4) + (hasG ? 1 : 0)} className="sh-empty">{data.hasRoster ? 'Everyone on duty has a post' : 'No month roster'}</td></tr>}
                     </tbody>
                   </table>
                 </div>
