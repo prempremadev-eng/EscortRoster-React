@@ -1103,3 +1103,6 @@ td.in-late{color:#b91c1c;}
 .esc-view-note{margin:8px 16px;padding:8px 12px;border-radius:8px;background:#eef2ff;color:#3730a3;font-size:14px;}
 .esc-view-only input, .esc-view-only button, .esc-view-only select, .esc-view-only textarea, .esc-view-only .route-cell{pointer-events:none;}
 .agency-find{width:100%;max-width:420px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;margin:4px 0 8px;}
+/* Guards page: shift incharge badge and filter (25 Oct) */
+.gm-incharge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;white-space:nowrap;}
+.gm-incharge-filter span:last-child{display:flex;align-items:center;gap:6px;font-size:14px;color:#1e293b;min-height:32px;}

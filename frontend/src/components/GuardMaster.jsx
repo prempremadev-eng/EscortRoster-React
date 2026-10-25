@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { worksIn } from '../agency.js';
 import { Toggle, IconBtn } from './RowControls.jsx';
 
-const NO_FILTERS = { state: '', city: '', branch: '', agency: '', area: '', q: '' };
+const NO_FILTERS = { state: '', city: '', branch: '', agency: '', area: '', q: '', incharge: false };
 const BLANK_GUARD = { id_number: '', card_number: '', guard_name: '', agency_id: '', branch_id: '', area: '', escort_id: '', phone: '' };
 const when = t => String(t || '').slice(0, 16);
 
@@ -59,7 +59,10 @@ export default function GuardMaster() {
 
   const q = filters.q.trim().toLowerCase();
   // Everything except the status filter, so the summary boxes count the same group.
+  // ⭐ Shift incharges: the guards ticked in Admin → Agencies (they stand at Shift Incharge posts).
+  const incharges = new Set((data ? data.agencies : []).flatMap(a => String(a.incharge_ids || '').split(',').map(x => x.trim()).filter(Boolean)));
   const base = guards.filter(g => {
+    if (filters.incharge && !incharges.has(String(g.ROWID))) return false;
     const b = branchById[String(g.branch_id)];
     if (!b) return !filters.state && !filters.city && !filters.branch;
     return (!filters.state || b.state === filters.state)
@@ -282,6 +285,10 @@ export default function GuardMaster() {
                   {uniq(guards.map(g => g.area).filter(Boolean)).sort().map(a => <option key={a}>{a}</option>)}
                 </select>
               </label>
+              <label className="gm-incharge-filter">
+                <span>Shift incharges</span>
+                <span><input type="checkbox" checked={filters.incharge} onChange={e => setFilter('incharge', e.target.checked)} /> ⭐ only ({incharges.size})</span>
+              </label>
               <label className="master-search">Search name / ID / card
                 <input id="f-q" type="search" value={filters.q} onChange={e => setFilter('q', e.target.value)} placeholder="Name, ID or card no." />
               </label>
@@ -311,7 +318,7 @@ export default function GuardMaster() {
                         <td className="master-sub">{i + 1}</td>
                         <td>{g.id_number}</td>
                         <td>{g.card_number || '—'}</td>
-                        <td className="left">{g.photo_key ? '📷 ' : ''}{g.guard_name}</td>
+                        <td className="left">{g.photo_key ? '📷 ' : ''}{g.guard_name}{incharges.has(String(g.ROWID)) && <span className="gm-incharge" title="Shift incharge (Admin → Agencies)">⭐ Shift Incharge</span>}</td>
                         <td>{g.agency}</td>
                         <td className="left">{b ? branchLabel(b) : '—'}<div className="master-sub">{b ? b.city + ', ' + b.state : ''}</div></td>
                         <td>{g.phone || '—'}</td>
