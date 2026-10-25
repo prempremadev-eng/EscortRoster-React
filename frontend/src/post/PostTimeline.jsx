@@ -7,7 +7,7 @@ import VehicleEntry from './VehicleEntry.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
 import BreakSheet from './BreakSheet.jsx';
 import PostHistory, { forgetHistory } from './PostHistory.jsx';
-import { useSwipeReply } from './swipe.jsx';
+import { useSwipeReply, jumpTo } from './swipe.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from './VoiceNote.jsx';
 import { MAX_VIDEO_MB, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, clock, compressImage, recorderType, videoSeconds } from './media.js';
 
@@ -50,7 +50,7 @@ function Bubble({ m, onMenu, onReply }) {
       {swipe.icon}
       {!m.mine && <div className={'pd-author' + (m.kind === 'supervisor' || m.office ? ' pd-author-sup' : '')}>{m.author}{m.kind === 'supervisor' && !m.author.includes(' · ') ? ' · Supervisor' : ''}</div>}
       {m.reply && (
-        <div className="pd-quote">
+        <div className="pd-quote pd-quote-tap" onClick={e => { e.stopPropagation(); jumpTo(m.reply.id); }}>
           <div className="pd-quote-name">{m.reply.author}</div>
           <div className="pd-quote-text">{m.reply.text}</div>
         </div>
@@ -535,7 +535,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
           const day = m.date !== lastDate ? m.date : null;
           lastDate = m.date;
           return (
-            <div key={m.ROWID} className="pd-msg-wrap">
+            <div key={m.ROWID} id={'msg-' + m.ROWID} className="pd-msg-wrap">
               {day && <div className="pd-day">{day}</div>}
               {m.kind === 'system' && <div className="pd-sys pd-sys-green">{Icon.check}{m.text}</div>}
               {m.kind === 'system_red' && <div className="pd-sys pd-sys-red">{m.text}</div>}

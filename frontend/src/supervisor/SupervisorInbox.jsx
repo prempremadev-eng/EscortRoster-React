@@ -9,7 +9,7 @@ import Rail from './Rail.jsx';
 import AddWork from '../post/AddWork.jsx';
 import SafetySheet from '../post/SafetySheet.jsx';
 import PostHistory, { forgetHistory } from '../post/PostHistory.jsx';
-import { useSwipeReply } from '../post/swipe.jsx';
+import { useSwipeReply, jumpTo } from '../post/swipe.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from '../post/VoiceNote.jsx';
 import { useUser } from '../auth/user.js';
 
@@ -100,7 +100,7 @@ function Message({ m, onReply }) {
     <div className={'pd-bubble ' + (mine ? 'pd-bubble-me sup-bubble-sup' : 'pd-bubble-other')} {...swipe.handlers} style={swipe.style}>
       {swipe.icon}
       <div className="pd-author">{m.kind === 'supervisor' || m.office ? supAuthor(m.author, me) : m.author}</div>
-      {m.reply && <div className="pd-quote"><div className="pd-quote-name">{m.reply.author}</div><div className="pd-quote-text">{m.reply.text}</div></div>}
+      {m.reply && <div className="pd-quote pd-quote-tap" onClick={() => jumpTo(m.reply.id)}><div className="pd-quote-name">{m.reply.author}</div><div className="pd-quote-text">{m.reply.text}</div></div>}
       {m.media && m.media.url && m.kind === 'photo' && <a href={m.media.url} target="_blank" rel="noreferrer"><img src={m.media.url} alt="Photo from the post" className="pd-media-img" /></a>}
       {m.media && m.media.url && m.kind === 'video' && <video src={m.media.url} controls playsInline preload="metadata" className="pd-media-img" />}
       {m.media && m.media.url && m.kind === 'voice' && <VoiceNote url={m.media.url} duration={m.media.duration} />}
@@ -496,7 +496,7 @@ export default function SupervisorInbox({ initialPost }) {
                 const day = m.date !== lastDate ? m.date : null;
                 lastDate = m.date;
                 return (
-                  <div key={m.ROWID} className="pd-msg-wrap">
+                  <div key={m.ROWID} id={'msg-' + m.ROWID} className="pd-msg-wrap">
                     {day && <div className="pd-day">{day}</div>}
                     <Message m={m} onReply={x => { setReplyTo(x); const box = document.getElementById('sup-msg'); if (box) box.focus(); }} />
                   </div>

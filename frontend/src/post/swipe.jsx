@@ -44,3 +44,23 @@ export function useSwipeReply(onReply, onLong) {
     icon: <span className="pd-swipe-icon" style={{ opacity: Math.min(1, dx / REPLY_AT) }} aria-hidden="true">↩</span>
   };
 }
+
+// Tap the quote in a reply → scroll to the message it answers and flash it (WhatsApp, Prem 26 Oct).
+// Only the last 100 messages are on the page; an older one says so instead.
+export function jumpTo(id) {
+  const el = id && document.getElementById('msg-' + id);
+  if (!el) { toast('That message is older than this page shows.'); return; }
+  el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  el.classList.remove('pd-flash');
+  void el.offsetWidth; // restart the animation on a second tap
+  el.classList.add('pd-flash');
+  setTimeout(() => el.classList.remove('pd-flash'), 1600);
+}
+
+function toast(text) {
+  const t = document.createElement('div');
+  t.className = 'pd-toast';
+  t.textContent = text;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2500);
+}
