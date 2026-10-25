@@ -136,12 +136,13 @@ module.exports = function auth(catalyst, selectAll) {
         return res.status(403).json({ status: 'failure', error: 'View only: ' + ROLE_NAME[role.role] + ' can see this, but the Branch Admin or Supervisor makes the change.' });
       }
       if (!req.scope.all && ESCORT_READS.has(req.path)) {
-        const ids = [...req.scope.branches].map(Number).filter(Boolean);
+        // ROWIDs stay text: Number() rounds 17 digits (50225000000094413 → …94420) and matched no branch.
+        const ids = [...req.scope.branches].filter(id => /^[0-9]+$/.test(id));
         const team = ids.length ? await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE branch_id IN (${ids.join(', ')}) AND area = 'Escort' LIMIT 1`) : [];
         if (!team.length) return res.status(403).json({ status: 'failure', error: 'No escort duty in your branch.' });
       }
       if (role.role === 'supervisor' && ESCORT_WRITES.has(req.path)) {
-        const team = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE agency_id = ${Number(role.agency_id) || 0} AND area = 'Escort' LIMIT 1`);
+        const team = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE agency_id = ${/^[0-9]+$/.test(String(role.agency_id || '')) ? role.agency_id : 0} AND area = 'Escort' LIMIT 1`);
         if (!team.length) return res.status(403).json({ status: 'failure', error: 'View only: the escort sheet is changed by the shift incharge of the escort agency.' });
       }
       next();
