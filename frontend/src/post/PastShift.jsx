@@ -33,7 +33,8 @@ export default function PastShift({ token, post, logId, onClose }) {
   const s = toMin(data.start);
   const e = Math.max(toMin(data.end), s + 1);
   const pct = m => ((m - s) / (e - s)) * 100;
-  const segs = data.presence.filter(p => toMin(p.to) > toMin(p.from) || p.from === p.to);
+  // null = this login may not see who stood at the post (guards, shift incharges).
+  const segs = (data.presence || []).filter(p => toMin(p.to) > toMin(p.from) || p.from === p.to);
 
   // "Who was here at hh:mm": the time is on the shift's day, or the next day for a night shift.
   function whoAt() {
@@ -61,7 +62,7 @@ export default function PastShift({ token, post, logId, onClose }) {
         </div>
       </div>
 
-      <div className="pd-card pd-gap8">
+      {data.presence && <div className="pd-card pd-gap8">
         <div className="pd-row-between">
           <div className="pd-label">WHO WAS AT THIS POST</div>
           {data.open && <span className="pd-pill pd-pill-sm pd-green">Live till now</span>}
@@ -86,7 +87,7 @@ export default function PastShift({ token, post, logId, onClose }) {
           <input type="time" value={at} onChange={ev => setAt(ev.target.value)} aria-label="Time" />
           <b>→ {whoAt()}</b>
         </div>
-      </div>
+      </div>}
 
       <div className="pd-label">TIMELINE</div>
       {data.messages.length === 0 && <div className="pd-muted">No notes in this shift.</div>}

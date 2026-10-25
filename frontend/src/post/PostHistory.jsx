@@ -139,7 +139,7 @@ export default function PostHistory({ token, post, postName, onClose }) {
         return (
           <div key={date} className="pd-day-group">
             <div className="pd-label">{date === today ? 'TODAY' : nice(date).toUpperCase()}</div>
-            {date === today && <div className="pd-small pd-muted">Touch a shift to see who was at the post, minute by minute.</div>}
+            {date === today && <div className="pd-small pd-muted">Touch a shift to see its timeline.</div>}
             {dayRows.map(r => (
               <button key={r.ROWID} className={'pd-hrow' + (r.status === 'on_duty' || r.status === 'on_break' ? ' pd-hrow-now' : '')} onClick={() => openRow(r)}>
                 <span className="pd-avatar pd-avatar-sm">{initials(r.name)}</span>

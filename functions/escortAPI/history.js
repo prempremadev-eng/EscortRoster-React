@@ -108,8 +108,11 @@ module.exports = function historyRoutes(app, h) {
       const start = shiftLog.in_at || shiftStart(shiftLog.duty_date, shift) || shiftLog.duty_date + ' 00:00';
       const end = shiftLog.handed_over_at || nowStamp();
 
+      // "Who was at this post" (minute by minute) is for Branch Admin and above only (Prem, 25 Oct): never
+      // sent to a guard's link or a shift incharge. Relief / cover notes in the timeline stay for everyone.
+      const seesPresence = !!req.user && req.user.role !== 'supervisor';
       const [presence, msgs] = await Promise.all([
-        all(zcql, 'Presence', `SELECT guard_id, kind, from_at, to_at FROM Presence WHERE post_id = ${postId} AND from_at <= '${end}' ORDER BY CREATEDTIME ASC`),
+        !seesPresence ? Promise.resolve([]) : all(zcql, 'Presence', `SELECT guard_id, kind, from_at, to_at FROM Presence WHERE post_id = ${postId} AND from_at <= '${end}' ORDER BY CREATEDTIME ASC`),
         all(zcql, 'PostMessages', `SELECT ROWID, guard_id, kind, text, pinned, ref_id, media_key, media_source, duration, CREATEDTIME FROM PostMessages WHERE post_id = ${postId} AND CREATEDTIME >= '${start}:00' AND CREATEDTIME <= '${end}:59' ORDER BY CREATEDTIME ASC`)
       ]);
       const segs = presence.filter(p => !p.to_at || p.to_at >= start);
@@ -127,7 +130,7 @@ module.exports = function historyRoutes(app, h) {
         data: {
           name: nameOf(shiftLog.guard_id), shift, date: shiftLog.duty_date, start, end, open: !shiftLog.handed_over_at,
           // Clipped to the shift window; open rows (still there) end now.
-          presence: segs.map(p => ({
+          presence: !seesPresence ? null : segs.map(p => ({
             name: nameOf(p.guard_id), kind: p.kind,
             from: p.from_at < start ? start : p.from_at, to: !p.to_at || p.to_at > end ? end : p.to_at
           })),
