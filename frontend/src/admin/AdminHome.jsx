@@ -76,6 +76,7 @@ function Tile({ g, on, begun, onPick }) {
   );
 }
 
+const SHIFT_ICON = { A: '☀️', G: '🕘', B: '🌇', C: '🌙' };
 const STATE = { absent: ['Absent', 'ah-n-red'], due: ['Not IN yet', 'ah-n-grey'], present: ['IN', 'ah-n-green'], leave: ['Leave', 'ah-n-amber'], off: ['Week off', 'ah-n-grey'] };
 
 export default function AdminHome({ hash }) {
@@ -110,11 +111,11 @@ export default function AdminHome({ hash }) {
   const controls = (
     <div className="ah-controls">
       <input type="date" value={date} max={today()} onChange={e => e.target.value && setDate(e.target.value)} aria-label="Date" />
-      <div className="ah-shifts" role="tablist">
+      {view !== 'total' && <div className="ah-shifts" role="tablist">
         {(data ? data.shifts.map(s => s.code) : ['A', 'G', 'B', 'C']).sort((a, b) => 'AGBC'.indexOf(a) - 'AGBC'.indexOf(b)).map(c => (
           <button key={c} className={shift === c ? 'on' : ''} onClick={() => setShift(c)}>Shift {c}</button>
         ))}
-      </div>
+      </div>}
       <button className="ah-refresh" onClick={load} aria-label="Refresh">↻</button>
     </div>
   );
@@ -125,7 +126,8 @@ export default function AdminHome({ hash }) {
         <div>
           <div className="ah-kicker">{view === 'total' ? 'Overall strength' : view === 'list' ? 'Branches & agencies' : 'Branch · agency'}</div>
           <h1>{niceDate(date)}</h1>
-          {shiftObj && <div className="ah-sub">Shift {shiftObj.code} · {shiftObj.start} – {shiftObj.end}</div>}
+          {shiftObj && view !== 'total' && <div className="ah-sub">Shift {shiftObj.code} · {shiftObj.start} – {shiftObj.end}</div>}
+          {view === 'total' && <div className="ah-sub">All branches and agencies in your area</div>}
         </div>
         {controls}
       </header>
@@ -133,13 +135,47 @@ export default function AdminHome({ hash }) {
       {!data && !error && <div className="ah-loading">Loading…</div>}
 
       {data && view === 'total' && (
-        <section className="ah-total">
-          <div className="ah-hero">
-            <Ring present={data.totals ? data.totals.present : 0} allotted={data.totals ? data.totals.allotted : 0} />
-            <Stats t={data.totals || { allotted: 0, present: 0, absent: 0, leave: 0, off: 0 }} begun={data.begun} />
-          </div>
+        <section className="ah-day">
+          {/* The whole day first, then Shift A, G, B, C one line each, coming in one by one (Prem, 26 Oct). */}
+          {(() => {
+            const all = data.byShift.reduce((t, x) => ({ allotted: t.allotted + x.allotted, present: t.present + x.present, absent: t.absent + x.absent }), { allotted: 0, present: 0, absent: 0 });
+            return (
+              <div className="ah-daytotal">
+                <div className="ah-daytotal-main">
+                  <span className="ah-daytotal-label">Whole day</span>
+                  <b>{all.present}<small> / {all.allotted}</small></b>
+                  <span className="ah-daytotal-sub">guards came · {pct(all.present, all.allotted)}%</span>
+                </div>
+                <div className="ah-daytotal-chips">
+                  <span className="ah-chip ah-n-red">❌ {all.absent} absent</span>
+                  <span className="ah-chip ah-n-amber">🌴 {data.day.leave} leave</span>
+                  <span className="ah-chip ah-n-grey">🛌 {data.day.off} week off</span>
+                </div>
+              </div>
+            );
+          })()}
+          {data.byShift.map((x, i) => (
+            <button key={x.code} className={'ah-shiftrow ah-sh-' + x.code + (x.code === runningShift() && date === today() ? ' ah-shiftrow-now' : '')} style={{ animationDelay: (0.12 + i * 0.15) + 's' }}
+              onClick={() => { setShift(x.code); go('#home/list'); }}>
+              <span className="ah-shift-badge">{SHIFT_ICON[x.code] || '🕘'}<b>{x.code}</b></span>
+              <span className="ah-shift-name">
+                <b>Shift {x.code}</b>
+                <span>{x.start} – {x.end}{x.code === runningShift() && date === today() ? ' · now' : ''}</span>
+              </span>
+              <span className="ah-shift-bar">
+                <span className="ah-bar"><span className="ah-bar-fill" style={{ width: pct(x.present, x.allotted) + '%' }}></span></span>
+                <span className="ah-bar-text">{x.allotted ? pct(x.present, x.allotted) + '% present' : 'No guards'}</span>
+              </span>
+              <span className="ah-shift-nums">
+                <span><b>{x.allotted}</b>Allotted</span>
+                <span className="ah-green-t"><b>{x.present}</b>Present</span>
+                <span className="ah-red-t"><b>{x.begun ? x.absent : '–'}</b>{x.begun ? 'Absent' : 'Not started'}</span>
+              </span>
+              <span className="ah-shift-go">›</span>
+            </button>
+          ))}
           <button className="ah-cta" onClick={() => go('#home/list')}>
-            <span>🏢 View branches &amp; agencies</span><b>{groups.length}</b><span className="ah-cta-arrow">→</span>
+            <span>🏢 Branches &amp; agencies</span><b>{groups.length}</b><span className="ah-cta-arrow">→</span>
           </button>
         </section>
       )}

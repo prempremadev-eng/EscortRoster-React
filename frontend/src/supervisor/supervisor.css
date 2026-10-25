@@ -382,3 +382,49 @@ button.sb-kpi:hover{border-color:#94a3b8;}
   .ah-stat b{font-size:28px;}
   .ah-grid{grid-template-columns:repeat(2,1fr);gap:10px;}
 }
+
+/* Admin home, overall page (26 Oct): the whole day, then one line per shift sliding in one by one. */
+.ah-day{display:flex;flex-direction:column;gap:12px;}
+.ah-daytotal{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;background:#1A1F2B;color:#fff;border-radius:20px;padding:20px 24px;animation:ah-in .5s ease both;}
+.ah-daytotal-main{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;}
+.ah-daytotal-label{font-size:13px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9FB3D9;}
+.ah-daytotal b{font-family:Archivo,sans-serif;font-size:44px;line-height:1;}
+.ah-daytotal b small{font-size:24px;color:#9FB3D9;}
+.ah-daytotal-sub{color:#C9D2E3;}
+.ah-daytotal-chips{display:flex;gap:8px;flex-wrap:wrap;}
+.ah-chip{font-size:14px;font-weight:700;border-radius:20px;padding:6px 12px;}
+.ah-shiftrow{display:grid;grid-template-columns:auto minmax(120px,170px) 1fr auto auto;align-items:center;gap:18px;width:100%;text-align:left;border:none;border-radius:18px;background:#fff;padding:14px 18px;font-family:inherit;color:#1A1F2B;cursor:pointer;box-shadow:0 2px 12px rgba(26,31,43,.06);animation:ah-in .5s ease both;transition:transform .15s ease,box-shadow .15s ease;}
+.ah-shiftrow:hover{transform:translateX(4px);box-shadow:0 6px 18px rgba(26,31,43,.1);}
+.ah-shiftrow-now{outline:3px solid #F9C846;outline-offset:-1px;}
+.ah-shift-badge{width:58px;height:58px;border-radius:16px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:18px;line-height:1;color:#fff;}
+.ah-shift-badge b{font-family:Archivo,sans-serif;font-size:20px;margin-top:2px;}
+.ah-sh-A .ah-shift-badge{background:linear-gradient(135deg,#F2A93B,#E07B1F);}
+.ah-sh-G .ah-shift-badge{background:linear-gradient(135deg,#2BA59A,#1B7C73);}
+.ah-sh-B .ah-shift-badge{background:linear-gradient(135deg,#3C7BE0,#1E4FB8);}
+.ah-sh-C .ah-shift-badge{background:linear-gradient(135deg,#4B4F9E,#2A2D63);}
+.ah-shift-name{display:flex;flex-direction:column;}
+.ah-shift-name b{font-family:Archivo,sans-serif;font-size:18px;}
+.ah-shift-name span{color:var(--ah-grey);font-size:14px;}
+.ah-shift-bar{display:flex;flex-direction:column;gap:6px;min-width:0;}
+.ah-bar{height:12px;border-radius:6px;background:var(--ah-track);overflow:hidden;}
+.ah-bar-fill{display:block;height:100%;border-radius:6px;background:linear-gradient(90deg,#2FB36A,#1B8A4B);animation:ah-grow 1s .4s ease both;transform-origin:left;}
+.ah-bar-text{font-size:13px;color:var(--ah-grey);font-weight:600;}
+.ah-shift-nums{display:flex;gap:18px;}
+.ah-shift-nums span{display:flex;flex-direction:column;align-items:center;font-size:12px;color:var(--ah-grey);font-weight:600;min-width:56px;}
+.ah-shift-nums b{font-family:Archivo,sans-serif;font-size:26px;color:#1A1F2B;line-height:1.1;}
+.ah-green-t b{color:var(--ah-green);} .ah-red-t b{color:var(--ah-red);}
+.ah-shift-go{font-size:28px;color:#B9B4A8;}
+.ah-day .ah-cta{margin-top:6px;animation:ah-in .5s .8s ease both;}
+@keyframes ah-in{from{opacity:0;transform:translateY(16px)}to{opacity:1;transform:none}}
+@keyframes ah-grow{from{transform:scaleX(0)}to{transform:scaleX(1)}}
+@media (max-width:700px){
+  .ah-daytotal{padding:16px 18px;}
+  .ah-daytotal b{font-size:36px;}
+  .ah-shiftrow{grid-template-columns:auto 1fr auto;grid-template-areas:"badge name go" "bar bar bar" "nums nums nums";gap:10px 12px;padding:14px;}
+  .ah-shift-badge{grid-area:badge;width:50px;height:50px;}
+  .ah-shift-name{grid-area:name;}
+  .ah-shift-go{grid-area:go;}
+  .ah-shift-bar{grid-area:bar;}
+  .ah-shift-nums{grid-area:nums;justify-content:space-around;}
+}
+@media (prefers-reduced-motion:reduce){.ah-shiftrow,.ah-daytotal,.ah-bar-fill,.ah-day .ah-cta{animation:none;}}

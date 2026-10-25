@@ -45,9 +45,24 @@ module.exports = function strengthRoutes(app, h) {
       slots.filter(s => s.shift_code === shift.code).forEach(s => { onShift[String(s.guard_id)] = String(s.post_id); });
 
       // Shift started 15 min ago? Before that nobody is "absent" yet.
-      const startAt = date + ' ' + shift.start;
-      const nightNext = shift.start < '06:00';
-      const begun = (nightNext ? addDay(date) + ' ' + shift.start : startAt) <= minus(nowStamp(), LATE_MIN);
+      const begunOf = sh => (sh.start < '06:00' ? addDay(date) : date) + ' ' + sh.start <= minus(nowStamp(), LATE_MIN);
+      const begun = begunOf(shift);
+
+      // Every shift of the day in one go, for the home page's A / G / B / C lines (Prem, 26 Oct), plus the
+      // day's leave and week off (roster L / O, not per shift).
+      const branchOk = new Set(branches.map(b => String(b.ROWID)));
+      const inArea = guards.filter(g => g.branch_id && branchOk.has(String(g.branch_id)));
+      const byShift = shifts.map(sh => {
+        const on = new Set(slots.filter(x => x.shift_code === sh.code).map(x => String(x.guard_id)));
+        let allotted = 0, present = 0;
+        inArea.forEach(g => {
+          const id = String(g.ROWID);
+          if (on.has(id) || (!scheduled.has(String(g.branch_id)) && codeOf[id] === sh.code)) { allotted++; if (firstIn[id]) present++; }
+        });
+        const b = begunOf(sh);
+        return { code: sh.code, start: sh.start, end: sh.end, begun: b, allotted, present, absent: b ? allotted - present : 0 };
+      }).sort((x, y) => 'AGBC'.indexOf(x.code) - 'AGBC'.indexOf(y.code));
+      const day0 = { leave: inArea.filter(g => codeOf[String(g.ROWID)] === 'L').length, off: inArea.filter(g => codeOf[String(g.ROWID)] === 'O').length };
 
       const groups = {};
       const groupOf = g => {
@@ -93,7 +108,7 @@ module.exports = function strengthRoutes(app, h) {
 
       const totals = { allotted: 0, present: 0, absent: 0, leave: 0, off: 0 };
       list.forEach(g => Object.keys(totals).forEach(k => { totals[k] += g[k]; }));
-      res.status(200).json({ status: 'success', data: { date, shift, shifts, begun, totals, groups: list } });
+      res.status(200).json({ status: 'success', data: { date, shift, shifts, begun, totals, groups: list, byShift, day: day0 } });
     } catch (err) {
       fail(res, err);
     }
