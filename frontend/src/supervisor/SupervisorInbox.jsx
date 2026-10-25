@@ -9,6 +9,7 @@ import Rail from './Rail.jsx';
 import AddWork from '../post/AddWork.jsx';
 import SafetySheet from '../post/SafetySheet.jsx';
 import PostHistory from '../post/PostHistory.jsx';
+import { useSwipeReply } from '../post/swipe.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from '../post/VoiceNote.jsx';
 import { useUser } from '../auth/user.js';
 
@@ -60,8 +61,10 @@ function keyToBytes(base64url) {
 }
 const deviceType = () => (/iPhone|iPad|iPod/.test(navigator.userAgent) ? 'iphone' : /Android/.test(navigator.userAgent) ? 'android' : 'other');
 
-function Message({ m }) {
+function Message({ m, onReply }) {
   const me = useUser();
+  // Swipe right to reply, like WhatsApp (Prem, 26 Oct).
+  const swipe = useSwipeReply(() => onReply && onReply(m));
   if (m.kind === 'system') return <div className="pd-sys pd-sys-green">{Icon.check}{m.text}</div>;
   if (m.kind === 'system_red') return <div className="pd-sys pd-sys-red">{m.text}</div>;
   if (m.kind === 'work' && m.work) {
@@ -93,7 +96,8 @@ function Message({ m }) {
   }
   const mine = (m.kind === 'supervisor' || m.office) && m.mine;
   return (
-    <div className={'pd-bubble ' + (mine ? 'pd-bubble-me sup-bubble-sup' : 'pd-bubble-other')}>
+    <div className={'pd-bubble ' + (mine ? 'pd-bubble-me sup-bubble-sup' : 'pd-bubble-other')} {...swipe.handlers} style={swipe.style}>
+      {swipe.icon}
       <div className="pd-author">{m.kind === 'supervisor' || m.office ? supAuthor(m.author, me) : m.author}</div>
       {m.reply && <div className="pd-quote"><div className="pd-quote-name">{m.reply.author}</div><div className="pd-quote-text">{m.reply.text}</div></div>}
       {m.media && m.media.url && m.kind === 'photo' && <a href={m.media.url} target="_blank" rel="noreferrer"><img src={m.media.url} alt="Photo from the post" className="pd-media-img" /></a>}
@@ -271,6 +275,8 @@ export default function SupervisorInbox({ initialPost }) {
   // + menu (Prem, 25 Oct): work update and vehicle entry from the office too.
   const [sheet, setSheet] = useState(false);
   const [showBreaks, setShowBreaks] = useState(false);
+  const [replyTo, setReplyTo] = useState(null);
+  useEffect(() => { setReplyTo(null); }, [openId]);
   const [showPick, setShowPick] = useState(false);
   const [showFind, setShowFind] = useState(false);
   // What the guard sees at the post, the office sees too (Prem, 25 Oct): Safety today, works going on, history.
@@ -287,7 +293,8 @@ export default function SupervisorInbox({ initialPost }) {
     setBusy(true);
     setError('');
     try {
-      await api.supMedia(openId, blob, { kind, source, duration });
+      await api.supMedia(openId, blob, { kind, source, duration, reply_to: replyTo ? replyTo.ROWID : null });
+      setReplyTo(null);
       await loadPost(openId);
       loadList();
     } catch (err) {
@@ -324,7 +331,8 @@ export default function SupervisorInbox({ initialPost }) {
     setBusy(true);
     setError('');
     try {
-      await api.supMessage(openId, text);
+      await api.supMessage(openId, text, replyTo ? replyTo.ROWID : null);
+      setReplyTo(null);
       setText('');
       await loadPost(openId);
       loadList();
@@ -486,13 +494,22 @@ export default function SupervisorInbox({ initialPost }) {
                 return (
                   <div key={m.ROWID} className="pd-msg-wrap">
                     {day && <div className="pd-day">{day}</div>}
-                    <Message m={m} />
+                    <Message m={m} onReply={x => { setReplyTo(x); const box = document.getElementById('sup-msg'); if (box) box.focus(); }} />
                   </div>
                 );
               })}
               <div ref={endRef}></div>
             </div>
             {error && <div className="pd-error-bar">{error}</div>}
+            {replyTo && (
+              <div className="pd-reply-bar">
+                <div className="pd-row-between">
+                  <div className="pd-quote-name">Replying to {replyTo.mine ? 'yourself' : replyTo.author}</div>
+                  <button className="pd-x" onClick={() => setReplyTo(null)} aria-label="Cancel reply">×</button>
+                </div>
+                <div className="pd-quote-text">{replyTo.text || (replyTo.kind === 'voice' ? 'Voice note' : replyTo.kind === 'video' ? 'Video' : 'Photo')}</div>
+              </div>
+            )}
             <form className="pd-composer" onSubmit={send}>
               {rec.locked && <LockedRecorder r={rec} />}
               {rec.recording && !rec.locked && <RecordingRow secs={rec.secs} slide={rec.slide} />}

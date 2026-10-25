@@ -1203,13 +1203,21 @@ module.exports = function supervisorRoutes(app, h) {
       // "Name · Role" (Prem, 25 Oct): an Admin's message no longer reads "Supervisor" on the guard's phone.
       const name = (supName(req) + ' · ' + auth.ROLE_NAME[req.user.role]).slice(0, 100);
       const text = cleanText(req.body.text, 'Message', MAX_TEXT, true);
-      const saved = await addMessage(catalystApp, { post_id: postId, kind: 'supervisor', author_name: name, text });
+      const saved = await addMessage(catalystApp, { post_id: postId, kind: 'supervisor', author_name: name, text, ...(await replyOf(zcql, postId, req.body.reply_to)) });
       const sentTo = await tellGuards(req, catalystApp, zcql, postId, text);
       res.status(200).json({ status: 'success', data: { ROWID: saved.ROWID, sentTo } });
     } catch (err) {
       fail(res, err);
     }
   });
+
+  // Swipe-to-reply from the office (Prem, 26 Oct): only a message of the same post can be quoted.
+  async function replyOf(zcql, postId, rowid) {
+    if (!rowid) return {};
+    const rows = await zcql.executeZCQLQuery(`SELECT ROWID, post_id FROM PostMessages WHERE ROWID = ${requireRowId(rowid)}`);
+    if (!rows.length || String(rows[0].PostMessages.post_id) !== String(postId)) throw new Error('That message is not on this post.');
+    return { reply_to_id: rows[0].PostMessages.ROWID };
+  }
 
   // The guards on duty at a post get the office message as a notification; returns how many.
   async function tellGuards(req, catalystApp, zcql, postId, body) {
@@ -1280,7 +1288,7 @@ module.exports = function supervisorRoutes(app, h) {
       const key = 'post/' + postId + '/' + nowStamp().slice(0, 10) + '/office-' + h.crypto.randomBytes(8).toString('hex') + '.' + ext;
       await catalystApp.stratus().bucket(h.MEDIA_BUCKET).putObject(key, body, { contentType: type });
       const name = (supName(req) + ' · ' + auth.ROLE_NAME[req.user.role]).slice(0, 100);
-      const saved = await addMessage(catalystApp, { post_id: postId, kind, text: '', media_key: key, media_source: source, duration, author_name: name });
+      const saved = await addMessage(catalystApp, { post_id: postId, kind, text: '', media_key: key, media_source: source, duration, author_name: name, ...(await replyOf(zcql, postId, req.query.reply_to)) });
       const sentTo = await tellGuards(req, catalystApp, zcql, postId, h.mediaLabel(kind));
       res.status(200).json({ status: 'success', data: { ROWID: saved.ROWID, sentTo } });
     } catch (err) {

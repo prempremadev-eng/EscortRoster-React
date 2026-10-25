@@ -7,6 +7,7 @@ import VehicleEntry from './VehicleEntry.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
 import BreakSheet from './BreakSheet.jsx';
 import PostHistory from './PostHistory.jsx';
+import { useSwipeReply } from './swipe.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from './VoiceNote.jsx';
 import { MAX_VIDEO_MB, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, clock, compressImage, recorderType, videoSeconds } from './media.js';
 
@@ -38,31 +39,15 @@ function ring() {
 
 // A text bubble: hold it (or right-click) for the menu, swipe it right to reply (WhatsApp style).
 function Bubble({ m, onMenu, onReply }) {
-  const touch = useRef(null);
-
-  function start(e) {
-    const t = e.touches[0];
-    touch.current = { x: t.clientX, y: t.clientY, timer: setTimeout(() => { touch.current = null; onMenu(m); }, 500) };
-  }
-  function move(e) {
-    if (!touch.current) return;
-    const t = e.touches[0];
-    const dx = t.clientX - touch.current.x;
-    const dy = Math.abs(t.clientY - touch.current.y);
-    if (dy > 12 || dx < -12) { clearTimeout(touch.current.timer); touch.current = null; return; }
-    if (dx > 60) { clearTimeout(touch.current.timer); touch.current = null; onReply(m); }
-  }
-  function end() {
-    if (touch.current) clearTimeout(touch.current.timer);
-    touch.current = null;
-  }
+  const swipe = useSwipeReply(() => onReply(m), () => onMenu(m));
 
   return (
     <div
       className={'pd-bubble ' + (m.mine ? 'pd-bubble-me' : 'pd-bubble-other') + (m.kind === 'supervisor' || m.office ? ' pd-bubble-sup' : '')}
-      onTouchStart={start} onTouchMove={move} onTouchEnd={end} onTouchCancel={end}
+      {...swipe.handlers} style={swipe.style}
       onContextMenu={e => { e.preventDefault(); onMenu(m); }}
     >
+      {swipe.icon}
       {!m.mine && <div className={'pd-author' + (m.kind === 'supervisor' || m.office ? ' pd-author-sup' : '')}>{m.author}{m.kind === 'supervisor' && !m.author.includes(' · ') ? ' · Supervisor' : ''}</div>}
       {m.reply && (
         <div className="pd-quote">
