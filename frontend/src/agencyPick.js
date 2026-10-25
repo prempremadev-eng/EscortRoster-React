@@ -11,7 +11,8 @@ export function useAgencyPick(branch, agencies) {
   const pickAgency = !!me && me.role !== 'supervisor';
   const [agency, setAgency] = useState(() => { try { return localStorage.getItem(KEY) || ''; } catch { return ''; } });
   const chooseAgency = v => { setAgency(v); try { localStorage.setItem(KEY, v); } catch { /* private window */ } };
-  const branchAgencies = (agencies || []).filter(a => (a.is_active === true || a.is_active === 'true') && worksIn(a, branch));
+  // "All my branches" (Shift report, Vehicles): every active agency.
+  const branchAgencies = (agencies || []).filter(a => (a.is_active === true || a.is_active === 'true') && (branch === 'ALL' || worksIn(a, branch)));
   const ag = !pickAgency ? '' : branchAgencies.some(a => String(a.ROWID) === agency) ? agency : (branchAgencies[0] ? String(branchAgencies[0].ROWID) : '');
   return { pickAgency, branchAgencies, ag, chooseAgency };
 }
