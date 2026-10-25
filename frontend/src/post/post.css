@@ -516,20 +516,19 @@
 .pd-swipe-icon{position:absolute;left:-34px;top:50%;margin-top:-14px;width:28px;height:28px;border-radius:50%;background:var(--pd-surface);box-shadow:0 1px 3px rgba(0,0,0,.15);display:flex;align-items:center;justify-content:center;font-size:15px;color:var(--pd-muted);pointer-events:none;}
 .pd-work{position:relative;transition:transform .15s ease;}
 
-/* Duty history table: work / alert badges, and on a phone one card per day (shift rows) instead of
-   5 columns that scroll sideways (Prem, 26 Oct). */
-.pd-hbadges{display:flex;gap:4px;margin-top:2px;}
+/* Duty history table: work / alert badges. On a phone the same table fits the width (Prem, 26 Oct:
+   keep the table, no sideways scroll): fixed columns, short headers, small cells. */
+.pd-hbadges{display:flex;gap:3px;margin-top:2px;flex-wrap:wrap;}
 .pd-hbadges em{font-style:normal;font-size:11px;background:var(--pd-amber-bg);color:var(--pd-amber);border-radius:6px;padding:0 4px;}
+.pd-hsub{display:block;font-weight:400;font-size:10px;}
 @media (max-width:600px){
-  .pd-htable thead{display:none;}
-  .pd-htable,.pd-htable tbody{display:block;}
-  .pd-htable tr{display:block;background:var(--pd-surface);border:1px solid var(--pd-border);border-radius:12px;padding:6px 10px;margin-bottom:8px;}
-  .pd-htable td{display:flex;align-items:flex-start;gap:10px;border-bottom:none;padding:4px 0;}
-  .pd-htable td.pd-hdate{font-weight:700;color:var(--pd-ink);padding-bottom:6px;border-bottom:1px solid #ECE8DF;margin-bottom:2px;}
-  .pd-htable td[data-shift]::before{content:attr(data-shift);flex-shrink:0;width:28px;height:28px;border-radius:50%;background:var(--pd-bg);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;color:var(--pd-ink);}
-  .pd-htable td.pd-hempty{display:none;}
-  .pd-htable .pd-hcell{flex-direction:row;align-items:center;gap:8px;flex-wrap:wrap;margin:0;}
-  .pd-htable .pd-hbadges{margin-top:0;margin-left:auto;}
-  .pd-htable td[data-shift]{flex-wrap:nowrap;}
-  .pd-htable td[data-shift] > .pd-hcell + .pd-hcell{margin-top:4px;}
+  .pd-table-wrap{overflow-x:visible;}
+  .pd-htable{table-layout:fixed;font-size:12px;}
+  .pd-htable th{white-space:normal;padding:4px 2px;font-size:12px;line-height:1.15;}
+  .pd-htable th:first-child,.pd-htable td.pd-hdate{width:46px;}
+  .pd-htable td{padding:3px 2px;}
+  .pd-hdate{white-space:normal;font-size:11px;line-height:1.2;}
+  .pd-hcell{padding:3px 4px;font-size:11px;border-radius:6px;}
+  .pd-hcell b{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .pd-hbadges em{font-size:10px;padding:0 3px;}
 }

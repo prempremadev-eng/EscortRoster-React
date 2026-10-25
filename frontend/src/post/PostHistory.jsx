@@ -171,7 +171,7 @@ export default function PostHistory({ token, post, postName, onClose }) {
       {tab === 'table' && data && (
         <div className="pd-table-wrap">
           <table className="pd-htable">
-            <thead><tr><th>Date</th>{shifts.map(s => <th key={s.code}>{s.code} · {s.start.slice(0, 2).replace(/^0/, '')}–{s.end.slice(0, 2).replace(/^0/, '')}</th>)}</tr></thead>
+            <thead><tr><th>Date</th>{shifts.map(s => <th key={s.code}>{s.code}<span className="pd-hsub">{s.start.slice(0, 2).replace(/^0/, '')}–{s.end.slice(0, 2).replace(/^0/, '')}</span></th>)}</tr></thead>
             <tbody>
               {datesBetween(from, to).map(date => (
                 <tr key={date}>
@@ -179,7 +179,7 @@ export default function PostHistory({ token, post, postName, onClose }) {
                   {shifts.map(s => {
                     const cell = data.rows.filter(r => r.date === date && r.shift === s.code);
                     return (
-                      <td key={s.code} data-shift={s.code} className={cell.length ? '' : 'pd-hempty'}>
+                      <td key={s.code}>
                         {cell.map(r => (
                           <button key={r.ROWID} className={'pd-hcell' + (r.status === 'on_duty' || r.status === 'on_break' ? ' pd-hcell-now' : r.late ? ' pd-hcell-late' : '')} onClick={() => openRow(r)}>
                             <b>{r.name.split(' ')[0]}</b><span>{r.took || '—'}</span>
