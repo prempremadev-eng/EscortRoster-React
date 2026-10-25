@@ -6,6 +6,16 @@ import { clock } from '../post/media.js';
 import '../post/post.css';
 import './supervisor.css';
 import Rail from './Rail.jsx';
+import { useUser } from '../auth/user.js';
+
+// "Name · Role" since 25 Oct; older messages have only the name and were all from supervisors.
+// "You" only for my own messages, not every office message.
+function supAuthor(author, me) {
+  const at = String(author || '').lastIndexOf(' · ');
+  const name = at < 0 ? author : author.slice(0, at);
+  const role = at < 0 ? 'Supervisor' : author.slice(at + 3);
+  return (me && name === me.name ? 'You' : name) + ' · ' + role;
+}
 
 const STATUS = {
   alert: { label: 'Alert', cls: 'pd-red' },
@@ -47,6 +57,7 @@ function keyToBytes(base64url) {
 const deviceType = () => (/iPhone|iPad|iPod/.test(navigator.userAgent) ? 'iphone' : /Android/.test(navigator.userAgent) ? 'android' : 'other');
 
 function Message({ m }) {
+  const me = useUser();
   if (m.kind === 'system') return <div className="pd-sys pd-sys-green">{Icon.check}{m.text}</div>;
   if (m.kind === 'system_red') return <div className="pd-sys pd-sys-red">{m.text}</div>;
   if (m.kind === 'work' && m.work) {
@@ -79,7 +90,7 @@ function Message({ m }) {
   const mine = m.kind === 'supervisor' && m.mine;
   return (
     <div className={'pd-bubble ' + (mine ? 'pd-bubble-me sup-bubble-sup' : 'pd-bubble-other')}>
-      <div className="pd-author">{m.kind === 'supervisor' ? (mine ? 'You' : m.author) + ' · Supervisor' : m.author}</div>
+      <div className="pd-author">{m.kind === 'supervisor' ? supAuthor(m.author, me) : m.author}</div>
       {m.reply && <div className="pd-quote"><div className="pd-quote-name">{m.reply.author}</div><div className="pd-quote-text">{m.reply.text}</div></div>}
       {m.media && m.media.url && m.kind === 'photo' && <a href={m.media.url} target="_blank" rel="noreferrer"><img src={m.media.url} alt="Photo from the post" className="pd-media-img" /></a>}
       {m.media && m.media.url && m.kind === 'video' && <video src={m.media.url} controls playsInline preload="metadata" className="pd-media-img" />}

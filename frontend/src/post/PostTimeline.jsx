@@ -62,7 +62,7 @@ function Bubble({ m, onMenu, onReply }) {
       onTouchStart={start} onTouchMove={move} onTouchEnd={end} onTouchCancel={end}
       onContextMenu={e => { e.preventDefault(); onMenu(m); }}
     >
-      {!m.mine && <div className={'pd-author' + (m.kind === 'supervisor' ? ' pd-author-sup' : '')}>{m.author}{m.kind === 'supervisor' ? ' · Supervisor' : ''}</div>}
+      {!m.mine && <div className={'pd-author' + (m.kind === 'supervisor' ? ' pd-author-sup' : '')}>{m.author}{m.kind === 'supervisor' && !m.author.includes(' · ') ? ' · Supervisor' : ''}</div>}
       {m.reply && (
         <div className="pd-quote">
           <div className="pd-quote-name">{m.reply.author}</div>
@@ -481,10 +481,12 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
           <div className={'pd-avatar ' + (onBreak ? 'pd-avatar-off' : 'pd-avatar-on')}>{initials(duty.name)}</div>
           <div className="pd-chat-title">
             <div className="pd-title pd-title-sm">{postTitle}</div>
+            {/* Two short lines instead of one that wraps (Prem, 25 Oct): who, then which shift. */}
+            <div className="pd-chat-who">{duty.name}</div>
             <div className="pd-muted pd-small">
-              {here ? duty.name + ' · covering for ' + here.guard
-                : onBreak ? duty.name + ' · ' + myBreak.typeLabel + ' break · since ' + myBreak.start
-                  : shiftLine + ' · ' + duty.name}
+              {here ? 'Covering for ' + here.guard
+                : onBreak ? myBreak.typeLabel + ' break · since ' + myBreak.start
+                  : shiftLine}
             </div>
           </div>
           {here ? <div className="pd-pill pd-amber">Covering</div>
@@ -568,7 +570,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
         )}
 
         <button className="pd-safety-row" onClick={() => setSheet('safety')}>
-          <span className="pd-safety-icon">{Icon.shield}</span><span className="pd-grow">Safety</span>{Icon.chevron}
+          <span className="pd-safety-icon">{Icon.shield}</span><span className="pd-grow">Safety today</span>{Icon.chevron}
         </button>
         {expired.length > 0 ? (
           <button className="pd-strip pd-strip-red" onClick={() => showWork(expired[0])}>

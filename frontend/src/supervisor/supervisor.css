@@ -263,3 +263,17 @@ button.sb-kpi:hover{border-color:#94a3b8;}
   .sup-inbox .sup-list-head .pd-title{display:none;}
   .sup-inbox .sup-list-head .pd-row-between{justify-content:flex-end;gap:8px;}
 }
+
+/* Office chat in the guard page's look (Prem, 25 Oct): soft header shadow, round grey buttons,
+   lighter background, small shadows on the bubbles. */
+.sup-pane{background:var(--pd-bg);}
+.sup-pane-head{border-bottom:none;box-shadow:0 2px 8px rgba(26,31,43,.06);position:relative;z-index:1;}
+.sup-pane-head .pd-avatar{background:var(--pd-green-bg);color:var(--pd-green);font-family:Archivo,sans-serif;}
+.sup-pane-head .pd-icon-btn{border:none;border-radius:50%;background:var(--pd-bg);}
+.sup-pane-body .pd-day{font-weight:600;box-shadow:0 1px 2px rgba(26,31,43,.08);}
+.sup-pane-body .pd-sys{box-shadow:0 1px 2px rgba(26,31,43,.06);}
+.sup-pane-body .pd-bubble{box-shadow:0 1px 2px rgba(26,31,43,.08);border-radius:14px;}
+.sup-pane-body .pd-bubble-me{border-bottom-right-radius:4px;}
+.sup-pane-body .pd-bubble-other{border-bottom-left-radius:4px;}
+.sup-pane .pd-composer{border-top:none;box-shadow:0 -2px 8px rgba(26,31,43,.05);}
+.sup-list-head .pd-icon-btn{border:none;border-radius:50%;background:var(--pd-bg);}

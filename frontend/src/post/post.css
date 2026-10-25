@@ -460,3 +460,23 @@
 /* The plate hint looked like a typed number (bold, dark): now a pale, plain "XX 00 XX 0000" (23 Oct). */
 .ve-form .ve-card .ve-line input.ve-plate::placeholder{font-weight:400;color:#C2BCAE;letter-spacing:.08em;}
 .ve-form .ve-card .ve-line input::placeholder{color:#A9A496;}
+
+/* Post page, lighter look (Prem, 25 Oct: like the vehicle entry page): soft header shadow, filled avatar,
+   round grey icon buttons, a green Safety bar, small shadows on the chat cards. */
+.pd-chat-top{border-bottom:none;box-shadow:0 2px 8px rgba(26,31,43,.06);position:relative;z-index:1;}
+.pd-chat-head .pd-avatar{width:46px;height:46px;font-family:Archivo,sans-serif;font-size:16px;}
+.pd-chat-head .pd-avatar-on{background:var(--pd-green-bg);color:var(--pd-green);}
+.pd-chat-head .pd-title-sm{font-size:20px;line-height:1.15;}
+.pd-chat-who{font-size:14px;font-weight:600;color:var(--pd-ink);line-height:1.3;}
+.pd-chat-head .pd-icon-btn{border:none;border-radius:50%;background:var(--pd-bg);width:40px;height:40px;}
+.pd-chat-head .pd-icon-btn + .pd-icon-btn{margin-left:0;}
+.pd-chat-head .pd-icon-btn svg{width:20px;height:20px;}
+.pd-safety-row{border:none;background:var(--pd-green-bg);color:var(--pd-green);height:42px;font-size:14px;}
+.pd-safety-row svg{color:var(--pd-green);}
+.pd-chat-body{background:var(--pd-bg);padding:16px 14px;}
+.pd-day{font-weight:600;box-shadow:0 1px 2px rgba(26,31,43,.08);}
+.pd-chat-body .pd-sys{box-shadow:0 1px 2px rgba(26,31,43,.06);}
+.pd-chat-body .pd-bubble{box-shadow:0 1px 2px rgba(26,31,43,.08);border-radius:14px;}
+.pd-chat-body .pd-bubble-me{border-bottom-right-radius:4px;}
+.pd-chat-body .pd-bubble-other{border-bottom-left-radius:4px;}
+.pd-composer{border-top:none;box-shadow:0 -2px 8px rgba(26,31,43,.05);}

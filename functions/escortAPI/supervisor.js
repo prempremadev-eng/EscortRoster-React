@@ -1182,7 +1182,8 @@ module.exports = function supervisorRoutes(app, h) {
       const zcql = catalystApp.zcql();
       const postId = requireRowId(req.body.post);
       await myPost(req, zcql, postId);
-      const name = supName(req);
+      // "Name · Role" (Prem, 25 Oct): an Admin's message no longer reads "Supervisor" on the guard's phone.
+      const name = (supName(req) + ' · ' + auth.ROLE_NAME[req.user.role]).slice(0, 100);
       const text = cleanText(req.body.text, 'Message', MAX_TEXT, true);
       const saved = await addMessage(catalystApp, { post_id: postId, kind: 'supervisor', author_name: name, text });
       const logs = (await activeLogs(zcql, [postId])).filter(l => l.status === 'on_duty' || l.status === 'on_break');
