@@ -300,7 +300,7 @@ export default function GuardMaster() {
             <div className="dash-scroll">
               <table className="dash-table adm-table">
                 <thead>
-                  <tr><th>S.No</th><th>ID</th><th>Card</th><th>Guard</th><th>Agency</th><th>Area</th><th>Branch</th><th>Phone</th><th>Created by</th><th>Status</th><th></th></tr>
+                  <tr><th>S.No</th><th>ID</th><th>Card</th><th>Guard name</th><th>Agency</th><th>Branch</th><th>Phone</th><th>Created by</th><th>Modified by</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody>
                   {shown.map((g, i) => {
@@ -313,13 +313,10 @@ export default function GuardMaster() {
                         <td>{g.card_number || '—'}</td>
                         <td className="left">{g.photo_key ? '📷 ' : ''}{g.guard_name}</td>
                         <td>{g.agency}</td>
-                        <td>{g.area || '—'}</td>
                         <td className="left">{b ? branchLabel(b) : '—'}<div className="master-sub">{b ? b.city + ', ' + b.state : ''}</div></td>
                         <td>{g.phone || '—'}</td>
-                        <td className="left">
-                          {g.created_by || '—'}<div className="master-sub">{when(g.CREATEDTIME)}</div>
-                          {g.MODIFIEDTIME && g.MODIFIEDTIME !== g.CREATEDTIME && <div className="master-sub">✏️ {g.modified_by || '—'} · {when(g.MODIFIEDTIME)}</div>}
-                        </td>
+                        <td className="left">{g.created_by || '—'}<div className="master-sub">{when(g.CREATEDTIME)}</div></td>
+                        <td className="left">{g.MODIFIEDTIME && g.MODIFIEDTIME !== g.CREATEDTIME ? <>{g.modified_by || '—'}<div className="master-sub">{when(g.MODIFIEDTIME)}</div></> : '—'}</td>
                         <td>
                           {/* Off = the guard left: their link and phone stop working (asked first). */}
                           <Toggle on={!left} label={g.guard_name} disabled={saving}
