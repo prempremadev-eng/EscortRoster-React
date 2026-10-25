@@ -136,16 +136,29 @@ export default function SupervisorInbox({ initialPost }) {
   // Phone (Prem, 25 Oct: "like WhatsApp"): the list fills the screen, a post opens over it with ← back,
   // and the phone's own back button closes the chat instead of leaving the app.
   const phone = () => window.matchMedia('(max-width:700px)').matches;
-  const openPost = id => {
-    if (phone() && !openId) { try { window.history.pushState({ supChat: id }, ''); } catch { /* old browser */ } }
-    setOpenId(id);
-  };
+  // One browser history step while a chat is open on a phone, however it was opened (list, live board,
+  // notification): phone Back closes the screen on top (history / safety / work form / + menu) first,
+  // then the chat. The ← button closes the chat at once and takes that step away quietly.
+  const ignorePop = useRef(false);
+  const closeTop = useRef(() => false);
+  const addStep = () => { try { window.history.pushState({ supChat: true }, ''); } catch { /* old browser */ } };
+  const openPost = id => setOpenId(id);
+  useEffect(() => {
+    if (!openId) return;
+    // "#supervisor/<post>" (a notification) would open the same chat again on the next visit.
+    if (window.location.hash.startsWith('#supervisor/')) { try { window.history.replaceState(window.history.state, '', '#supervisor'); } catch { /* old browser */ } }
+    if (phone() && !(window.history.state && window.history.state.supChat)) addStep();
+  }, [openId]);
   const closePost = () => {
-    if (window.history.state && window.history.state.supChat) window.history.back();
-    else setOpenId(null);
+    setOpenId(null);
+    if (window.history.state && window.history.state.supChat) { ignorePop.current = true; window.history.back(); }
   };
   useEffect(() => {
-    const onBack = () => { if (!(window.history.state && window.history.state.supChat)) setOpenId(null); };
+    const onBack = () => {
+      if (ignorePop.current) { ignorePop.current = false; return; }
+      if (closeTop.current()) { if (phone()) addStep(); return; }
+      setOpenId(null);
+    };
     window.addEventListener('popstate', onBack);
     return () => window.removeEventListener('popstate', onBack);
   }, []);
@@ -315,6 +328,13 @@ export default function SupervisorInbox({ initialPost }) {
       setBusy(false);
     }
   }
+
+  closeTop.current = () => {
+    if (view) { setView(null); return true; }
+    if (addingWork) { setAddingWork(false); return true; }
+    if (sheet) { setSheet(false); return true; }
+    return false;
+  };
 
   const counts = {
     all: (list || []).length,
