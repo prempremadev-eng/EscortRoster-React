@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
+import { useAgencyPick } from '../agencyPick.js';
 
 // #roster: the agency's monthly shift chart (guard × day). Upload the Excel the agency sends,
 // or tap a box to change one day. A/B/C/G = shift, O = week off, L = leave, - = nothing.
@@ -64,11 +65,14 @@ export default function RosterPage({ initialMonth }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  const [agencies, setAgencies] = useState([]);
+  const { pickAgency, branchAgencies, ag, chooseAgency } = useAgencyPick(branch, agencies);
 
   useEffect(() => {
     api.getPosts().then(r => {
       const b = r.data.branches;
       setBranches(b);
+      setAgencies(r.data.agencies || []);
       const last = String(remember('sup_branch', ''));
       setBranch(b.some(x => String(x.ROWID) === last) ? last : (b[0] ? String(b[0].ROWID) : ''));
     }).catch(err => setError(err.message));
@@ -76,14 +80,14 @@ export default function RosterPage({ initialMonth }) {
 
   // About 2 reads per load; no timer.
   const load = useCallback(async () => {
-    if (!branch || !month) return;
+    if (!branch || !month || (pickAgency && !ag)) return;
     setError('');
     try {
-      setData((await api.roster(branch, month)).data);
+      setData((await api.roster(branch, month, ag)).data);
     } catch (err) {
       setError(err.message);
     }
-  }, [branch, month]);
+  }, [branch, month, ag, pickAgency]);
   useEffect(() => { if (branch) keep('sup_branch', branch); setUpload(null); load(); }, [branch, load]);
 
   const days = data ? data.days : 0;
@@ -123,7 +127,7 @@ export default function RosterPage({ initialMonth }) {
     setBusy(true);
     setError('');
     try {
-      const r = (await api.rosterUpload(branch, month, [...upload.matched.values()])).data;
+      const r = (await api.rosterUpload(branch, month, [...upload.matched.values()], ag)).data;
       setNote('✅ Saved: ' + r.added + ' added, ' + r.replaced + ' replaced.');
       setUpload(null);
       await load();
@@ -142,7 +146,7 @@ export default function RosterPage({ initialMonth }) {
     setBusy(true);
     setError('');
     try {
-      const r = (await api.rosterSet(branch, month, g.ROWID, day, next)).data;
+      const r = (await api.rosterSet(branch, month, g.ROWID, day, next, ag)).data;
       setData(d => ({ ...d, codes: { ...d.codes, [g.ROWID]: r.codes } }));
     } catch (err) {
       setError(err.message);
@@ -167,6 +171,14 @@ export default function RosterPage({ initialMonth }) {
             {branches.map(b => <option key={b.ROWID} value={b.ROWID}>{b.branch_name} · {b.city}</option>)}
           </select>
         </div>
+        {pickAgency && branchAgencies.length > 0 && (
+          <div>
+            <label htmlFor="r-agency">Agency:</label>
+            <select id="r-agency" value={ag} onChange={e => chooseAgency(e.target.value)}>
+              {branchAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+            </select>
+          </div>
+        )}
         <div>
           <label htmlFor="r-month">Month:</label>
           <input id="r-month" type="month" value={month} onChange={e => e.target.value && setMonth(e.target.value)} />

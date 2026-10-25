@@ -192,8 +192,8 @@ export const api = {
   branchSave: branch => apiCall('POST', '/branchSave', branch),
   agencySave: agency => apiCall('POST', '/agencySave', agency),
   stateSave: state => apiCall('POST', '/stateSave', state),
-  roster: (branch, month) => apiCall('GET', '/roster?branch=' + q(branch) + '&month=' + q(month)),
-  rosterUpload: (branch, month, entries) => apiCall('POST', '/rosterUpload', { branch, month, entries }),
-  rosterSet: (branch, month, guard_id, day, code) => apiCall('POST', '/rosterSet', { branch, month, guard_id, day, code }),
+  roster: (branch, month, agency) => apiCall('GET', '/roster?branch=' + q(branch) + '&month=' + q(month) + (agency ? '&agency=' + q(agency) : '')),
+  rosterUpload: (branch, month, entries, agency) => apiCall('POST', '/rosterUpload', { branch, month, entries, agency }),
+  rosterSet: (branch, month, guard_id, day, code, agency) => apiCall('POST', '/rosterSet', { branch, month, guard_id, day, code, agency }),
   citySave: city => apiCall('POST', '/citySave', city)
 };
