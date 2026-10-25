@@ -205,3 +205,36 @@ button.sb-kpi:hover{border-color:#94a3b8;}
 .sup-rail-lbl{height:48px;}
 .sh-g-pick{font-size:12px;max-width:140px;}
 .sc-upload{cursor:pointer;}
+
+/* Phone (Prem, 25 Oct: the manager uses an iPhone). The rail hides behind a ☰ bar at the top and slides
+   in over the page with the labels beside the icons; the Live board puts NEEDS ATTENTION first. */
+.sup-mbar,.sup-rail-dim{display:none;}
+@media (max-width:700px){
+  .sup{flex-direction:column;height:100dvh;}
+  .sup > main,.sup-page{min-height:0;flex:1 1 auto;}
+  .sup-mbar{display:flex;align-items:center;gap:10px;flex-shrink:0;height:52px;padding:0 12px;background:var(--pd-ink);color:#fff;}
+  .sup-mbar-btn{width:40px;height:40px;border:none;border-radius:10px;background:#2A3245;color:#fff;font-size:22px;line-height:1;cursor:pointer;}
+  .sup-mbar-title{font-family:Archivo,sans-serif;font-weight:700;font-size:17px;}
+  .sup-rail{position:fixed;top:0;bottom:0;left:0;z-index:60;width:230px;align-items:stretch;padding:12px 10px;transform:translateX(-100%);transition:transform .2s ease;}
+  .sup-rail-open{transform:none;box-shadow:4px 0 16px rgba(0,0,0,.25);}
+  .sup-rail-dim{display:block;position:fixed;inset:0;z-index:59;background:rgba(15,23,42,.45);}
+  .sup-rail-head{width:auto;text-align:left;padding-left:10px;font-size:10px;}
+  .sup-rail-lbl{flex-direction:row;justify-content:flex-start;gap:12px;width:auto;height:44px;padding:0 12px;}
+  .sup-rail-lbl span{font-size:15px;}
+  .sup-rail-me{align-self:flex-start;margin-left:6px;}
+
+  /* Live board */
+  .sb-head{padding:12px;gap:8px;}
+  .sb-head .pd-title{font-size:20px;}
+  .sb-head .pd-grow{display:none;}
+  .sb-branch{min-width:0;flex:1 1 140px;}
+  .sb-head .pd-quick{width:100%;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;}
+  .sb-head .pd-quick .pd-chip{flex-shrink:0;}
+  .sb-body{padding:12px;gap:12px;}
+  .sb-side{order:-1;}
+  .sb-kpis{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
+  .sb-kpi{padding:8px 10px;font-size:12px;line-height:1.2;}
+  .sb-kpi b{font-size:22px;}
+  .sb-grid{grid-template-columns:1fr;gap:8px;}
+  .sb-card{padding:8px 12px;}
+}
