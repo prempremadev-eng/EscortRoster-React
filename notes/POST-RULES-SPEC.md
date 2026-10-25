@@ -53,6 +53,10 @@ Rules that always hold:
 | **R + shifts** (e.g. RG) | The same, only for those shifts (Documents G, Shift Incharge G) |
 | **W** | Weekdays only (no row on Sat / Sun) |
 
+### Set in the app (25 Oct)
+
+Post setup → ➕ Add post / ✏️ edit, in this order: 1 Branch · 2 Agency · 3 Post name · 4 Type · 5 Section + row · 6 Shifts · options (🚗 vehicle entry, ⭐ extra duty, ⚡ Auto fill) · **8 Auto fill details** (shown when Auto fill is on): **Regular guards** and **Relief guards** (ordered lists of that branch + agency's guards, ↑ to move up), **Priority 1–9**, **F**, **D**, **W**, **R** (+ shifts). The weekend list and lady shifts are kept as they are (not in the form yet). The list has Agency and post-name filters.
+
 ## 4. Post types (how the list is made each month)
 
 | Type | Used for | List | D |

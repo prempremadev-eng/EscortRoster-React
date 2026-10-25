@@ -1184,7 +1184,7 @@ app.get('/getPosts', async (req, res) => {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const [posts, branches, agencies] = await Promise.all([
-      selectAll(zcql, 'Posts', 'SELECT ROWID, branch_id, agency_id, post_name, post_type, vehicle_entry, extra_duty, auto_fill, section, sort_order, shift_codes, is_active FROM Posts ORDER BY post_name ASC'),
+      selectAll(zcql, 'Posts', 'SELECT ROWID, branch_id, agency_id, post_name, post_type, vehicle_entry, extra_duty, auto_fill, section, sort_order, shift_codes, regular_guards, relief_guards, is_active FROM Posts ORDER BY post_name ASC'),
       activeBranches(req, zcql),
       admin.agencyList(zcql)
     ]);
@@ -1234,6 +1234,28 @@ async function checkPost(req, zcql, row, selfId) {
 
 // Posts: Branch Admin, and a supervisor for their own agency's posts (Prem, 25 Oct: the ISS shift incharge
 // sets up ISS posts). A supervisor's post always gets their agency.
+// Auto fill details from the Post setup form (Prem, 25 Oct: no more setting them in the database by hand).
+// body.rules = { regular: [guard ids, first = first choice], relief: [ids], priority: '1'–'9' or '',
+//   never_empty: F, daily: D, weekdays: W, regular_only: '' | shifts ('ABCG' = every shift) }.
+// Posts.relief_guards keeps "relief ; weekend ; lady shifts ; flags": the weekend list and lady shifts
+// (not in the form) stay as they were. Only guards of the post's branch and agency are kept.
+async function applyRules(zcql, row, rules, oldRelief) {
+  if (!rules || typeof rules !== 'object') return row;
+  const ids = list => (Array.isArray(list) ? list : []).map(x => String(requireRowId(x)));
+  const wanted = [...new Set(ids(rules.regular).concat(ids(rules.relief)))];
+  const ok = new Set(wanted.length ? (await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE branch_id = ${row.branch_id} AND agency_id = ${row.agency_id} AND ROWID IN (${wanted.join(', ')})`)).map(r => String(r.Guards.ROWID)) : []);
+  const keep = list => [...new Set(ids(list))].filter(id => ok.has(id));
+  const parts = String(oldRelief || '').split(';');
+  while (parts.length < 4) parts.push('');
+  const only = String(rules.regular_only || '').toUpperCase().replace(/[^ABCG]/g, '');
+  const flags = (/^[1-9]$/.test(String(rules.priority || '')) ? String(rules.priority) : '') + (rules.never_empty ? 'F' : '') + (rules.daily ? 'D' : '')
+    + (rules.weekdays ? 'W' : '') + (rules.regular_only ? 'R' + (only === 'ABCG' ? '' : only) : '');
+  parts[0] = keep(rules.relief).join(',');
+  parts[3] = flags;
+  row.regular_guards = keep(rules.regular).join(',') || null;
+  row.relief_guards = parts.join(';').replace(/^;+$/, '') || null;
+  return row;
+}
 const ownAgency = (req, row) => { if (req.user.role === 'supervisor') row.agency_id = requireRowId(req.user.agency_id); return row; };
 app.post('/addPost', async (req, res) => {
   try {
@@ -1241,6 +1263,7 @@ app.post('/addPost', async (req, res) => {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const row = ownAgency(req, postFromBody(req.body || {}));
     await checkPost(req, catalystApp.zcql(), row, null);
+    await applyRules(catalystApp.zcql(), row, req.body.rules, '');
     const result = await catalystApp.datastore().table('Posts').insertRow(row);
     res.status(200).json({ status: 'success', data: result });
   } catch (err) {
@@ -1257,10 +1280,11 @@ app.put('/updatePost', async (req, res) => {
     const rowid = requireRowId(b.ROWID);
     const row = ownAgency(req, postFromBody(b));
     const zcql = catalystApp.zcql();
-    const old = await zcql.executeZCQLQuery(`SELECT ROWID, branch_id, agency_id FROM Posts WHERE ROWID = ${rowid}`);
+    const old = await zcql.executeZCQLQuery(`SELECT ROWID, branch_id, agency_id, relief_guards FROM Posts WHERE ROWID = ${rowid}`);
     if (!old.length) throw new Error('Post not found');
     auth.requireRow(req, old[0].Posts, 'post');
     await checkPost(req, zcql, row, rowid);
+    await applyRules(zcql, row, b.rules, old[0].Posts.relief_guards);
     const result = await catalystApp.datastore().table('Posts').updateRow({
       ROWID: rowid, ...row, is_active: b.is_active === false ? 'false' : 'true'
     });

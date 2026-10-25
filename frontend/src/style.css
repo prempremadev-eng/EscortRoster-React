@@ -1107,3 +1107,17 @@ td.in-late{color:#b91c1c;}
 .gm-incharge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:#fef3c7;color:#92400e;font-size:11px;font-weight:700;white-space:nowrap;}
 .gm-incharge-filter span:last-child{display:flex;align-items:center;gap:6px;font-size:14px;color:#1e293b;min-height:32px;}
 .full-agency{padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;background:#fff;}
+/* Post setup: Auto fill details (25 Oct) */
+.pp-rules{margin-top:12px;padding:12px;border:1px dashed #cbd5e1;border-radius:8px;background:#f8fafc;}
+.pp-pick{margin:8px 0 14px;}
+.pp-pick-title{font-weight:700;font-size:14px;}
+.pp-pick-title span{color:#64748b;font-weight:400;}
+.pp-chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0;}
+.pp-chip{display:inline-flex;align-items:center;gap:4px;padding:3px 4px 3px 10px;border-radius:999px;background:#e0e7ff;color:#1e3a8a;font-size:13px;}
+.pp-chip button{border:none;background:transparent;cursor:pointer;color:#1e3a8a;font-size:12px;padding:0 4px;}
+.pp-pick input[type=search]{width:100%;max-width:360px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:14px;}
+.pp-hits{display:flex;flex-direction:column;align-items:flex-start;gap:2px;margin-top:4px;}
+.pp-hits button{border:none;background:#fff;color:#1e40af;cursor:pointer;padding:3px 6px;font-size:13px;}
+.pp-flags{display:flex;flex-direction:column;gap:6px;}
+.pp-flags select{margin-left:6px;}
+.pp-rshifts{display:flex;gap:10px;align-items:center;margin-left:24px;font-size:13px;}
