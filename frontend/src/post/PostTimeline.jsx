@@ -7,7 +7,7 @@ import VehicleEntry from './VehicleEntry.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
 import BreakSheet from './BreakSheet.jsx';
 import PostHistory from './PostHistory.jsx';
-import VoiceNote, { RecordingRow, SLIDE_CANCEL } from './VoiceNote.jsx';
+import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from './VoiceNote.jsx';
 import { MAX_VIDEO_MB, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, clock, compressImage, recorderType, videoSeconds } from './media.js';
 
 const QUICK_REPLIES = ['OK', 'Noted', 'Done'];
@@ -189,7 +189,8 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   };
   const [alertText, setAlertText] = useState('');
   const [camera, setCamera] = useState(false);
-  const [voice, setVoice] = useState(null); // seconds while recording
+  // Mic like WhatsApp: hold (slide to cancel) or touch once (🗑 / Pause / ➤). VoiceNote.jsx
+  const rec = useVoiceRecorder((blob, secs) => upload(blob, 'voice', 'mic', secs), setError);
   // Breaks: my break, cover requests to me, posts I cover. `viewPost` = the other post on screen
   // while I cover it (null = my own post).
   const [bs, setBs] = useState(null);
@@ -202,10 +203,6 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   const photoInput = useRef(null);
   const galleryInput = useRef(null);
   const holdTimer = useRef(null);
-  const voiceRec = useRef(null);
-  const holdingMic = useRef(false);
-  const startX = useRef(0);
-  const [slide, setSlide] = useState(0);
 
   const load = useCallback(async () => {
     setError('');
@@ -351,60 +348,6 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
     }
   }
 
-  // Mic button: hold to record, let go to send (WhatsApp style).
-  async function voiceDown(e) {
-    e.preventDefault();
-    holdingMic.current = true;
-    startX.current = e.clientX;
-    setSlide(0);
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* keep going without it */ }
-    const type = recorderType('voice');
-    if (type === null || !navigator.mediaDevices) return setError('This phone cannot record voice here.');
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      const chunks = [];
-      const rec = new MediaRecorder(stream, type ? { mimeType: type } : {});
-      const began = Date.now();
-      rec.ondataavailable = ev => { if (ev.data.size) chunks.push(ev.data); };
-      rec.onstop = () => {
-        stream.getTracks().forEach(t => t.stop());
-        clearInterval(rec.timer);
-        setVoice(null);
-        const secs = (Date.now() - began) / 1000;
-        if (rec.cancelled) return;
-        if (secs < 1) return say('Hold the mic to record');
-        upload(new Blob(chunks, { type: (rec.mimeType || type || 'audio/webm').split(';')[0] }), 'voice', 'mic', Math.round(secs));
-      };
-      rec.timer = setInterval(() => {
-        const secs = (Date.now() - began) / 1000;
-        setVoice(secs);
-        if (secs >= MAX_VOICE_SECONDS) rec.stop();
-      }, 250);
-      voiceRec.current = rec;
-      setVoice(0);
-      rec.start();
-      // Let go while the phone was still asking for the microphone: nothing to send.
-      if (!holdingMic.current) voiceUp(true);
-    } catch {
-      setError('Microphone is blocked. Allow the microphone for this site.');
-    }
-  }
-  // Slide left while holding = cancel (WhatsApp).
-  function voiceMove(e) {
-    if (!holdingMic.current) return;
-    const dx = Math.max(0, startX.current - e.clientX);
-    setSlide(dx);
-    if (dx > SLIDE_CANCEL) voiceUp(true);
-  }
-  function voiceUp(cancel) {
-    holdingMic.current = false;
-    setSlide(0);
-    const rec = voiceRec.current;
-    voiceRec.current = null;
-    if (!rec || rec.state !== 'recording') return;
-    rec.cancelled = cancel === true;
-    rec.stop();
-  }
 
   function finishWork(w) {
     run(() => api.finishWork(token, w.ROWID, viewPost));
@@ -642,17 +585,18 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
       )}
 
       {!(onBreak && !here) && <form className="pd-composer" onSubmit={send}>
-        {voice !== null && <RecordingRow secs={voice} slide={slide} />}
-        <button type="button" className="pd-plus" onClick={() => setSheet('menu')} aria-label="Add work update or alert" hidden={voice !== null}>{Icon.plus}</button>
+        {rec.locked && <LockedRecorder r={rec} />}
+        {rec.recording && !rec.locked && <RecordingRow secs={rec.secs} slide={rec.slide} />}
+        <button type="button" className="pd-plus" onClick={() => setSheet('menu')} aria-label="Add work update or alert" hidden={rec.recording}>{Icon.plus}</button>
         <label htmlFor="pd-msg" className="pd-hidden">Write a note</label>
-        <div className="pd-input" hidden={voice !== null}>
+        <div className="pd-input" hidden={rec.recording}>
           <input id="pd-msg" value={text} onChange={e => setText(e.target.value)} placeholder={replyTo ? 'Write a reply' : 'Write a note'} maxLength={255} autoComplete="off" />
           <button type="button" className="pd-in-btn" onClick={() => galleryInput.current.click()} disabled={busy} aria-label="Attach photo or video from gallery">{Icon.clip}</button>
           <button type="button" className="pd-in-btn" onPointerDown={cameraDown} onPointerUp={cameraUp} onPointerLeave={() => { clearTimeout(holdTimer.current); holdTimer.current = null; }} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Take photo, hold for video">{Icon.camera}</button>
         </div>
         {text.trim()
           ? <button className="pd-send" type="submit" disabled={busy} aria-label="Send">{Icon.send}</button>
-          : <button type="button" className={'pd-mic' + (voice !== null ? ' pd-mic-on' : '')} onPointerDown={voiceDown} onPointerMove={voiceMove} onPointerUp={() => voiceUp(false)} onPointerCancel={() => voiceUp(true)} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Hold to record a voice note, slide left to cancel">{Icon.mic}</button>}
+          : !rec.locked && <button type="button" className={'pd-mic' + (rec.recording ? ' pd-mic-on' : '')} {...rec.micProps} disabled={busy} aria-label="Touch or hold to record a voice note">{Icon.mic}</button>}
         <input ref={photoInput} type="file" accept="image/*" capture="environment" className="pd-file" onChange={onPhotoTaken} />
         <input ref={galleryInput} type="file" accept="image/*,video/*" className="pd-file" onChange={onGalleryPick} />
       </form>}

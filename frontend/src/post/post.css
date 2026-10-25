@@ -495,3 +495,10 @@
 .pd-rec-time{font-weight:600;font-variant-numeric:tabular-nums;min-width:40px;}
 .pd-rec-cancel{margin-left:auto;color:var(--pd-muted);font-size:15px;white-space:nowrap;}
 .pd-composer [hidden]{display:none !important;}
+/* Locked voice recording (touch the mic once): 🗑 · time · Pause · ➤ */
+.pd-lock{flex-grow:1;min-width:0;display:flex;align-items:center;gap:10px;}
+.pd-lock-del{width:48px;height:48px;flex-shrink:0;border:none;border-radius:50%;background:var(--pd-red-bg);color:var(--pd-red);display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.pd-lock-mid{flex-grow:1;min-width:0;height:48px;display:flex;align-items:center;gap:10px;padding:0 6px 0 14px;border-radius:24px;background:var(--pd-bg);}
+.pd-lock-pause{margin-left:auto;border:none;background:var(--pd-surface);border-radius:20px;padding:8px 14px;font-family:inherit;font-size:14px;font-weight:600;color:var(--pd-ink);cursor:pointer;}
+.pd-lock-send{background:var(--pd-green);}
+.pd-voice-dot-off{animation:none;opacity:.4;}
