@@ -76,7 +76,7 @@ The doing is done by Supervisor + Branch Admin; the levels above watch and track
 | Thing | Now |
 |---|---|
 | Supervisor logins | Personal logins deleted (Prem); **one login per agency per branch**: "IPF / ISS / BSS Shift Incharge". Shared office computer → one Chrome profile per agency |
-| Who is a shift incharge | **Admin → Agencies → Shift incharges** (`Agencies.incharge_ids`); IPF = 4 guards. Used by Auto fill, Schedule, Live board. (Before: supervisor login names matched to guard names) |
+| Who is a shift incharge | **Guards page → add / ✏️ edit → ⭐ This guard is a shift incharge** (or Admin → Agencies → Shift incharges); saved in `Agencies.incharge_ids`; ⭐ badge + filter on the Guards page; IPF = 4 guards. Used by Auto fill, Schedule, Live board. (Before: supervisor login names matched to guard names) |
 | Escort sheet | All shift incharges see it; only the escort agency's changes it |
 | Users page | Tree (All India → state → city → branch); **role first** in the form, then only the boxes that role needs; **email can be changed** (invite to the new one); **🗑 delete a login** (past work stays) |
 | State Admin | Built (UserRoles.state) |
