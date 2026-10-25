@@ -205,10 +205,10 @@ export default function PostsPage() {
               <label>3 · Post name<input id="p-name" value={form.post_name} onChange={e => setForm(f => ({ ...f, post_name: e.target.value }))} placeholder="Gate 3" required /></label>
               {/* Type, section and row are not asked any more (Prem, 25 Oct: an admin does not know them). New posts
                   are POSTs; a post saved before keeps its section and row (the daily sheet order). */}
-              <div className="p-shifts">4 · Shifts (G for a day: on the Schedule)
-                {/* G is not fixed on a post (Prem, 25 Oct: nobody knows if it is needed); the Schedule adds G for a day.
-                    A post saved before with G keeps its G box. */}
-                <div>{['A', 'B', 'C'].concat(String(form.shift_codes || '').includes('G') ? ['G'] : []).map(c => (
+              <div className="p-shifts">4 · Shifts (G only if needed every day; G for one day → Schedule "G today")
+                {/* G box unticked by default (Prem, 25 Oct): tick it only when the post needs G every day (Kidos School);
+                    G on some days only → the Schedule's "G today". */}
+                <div>{['A', 'B', 'C', 'G'].map(c => (
                   <label key={c} className="master-check">
                     <input type="checkbox" checked={String(form.shift_codes || '').includes(c)} onChange={e => setForm(f => ({ ...f, shift_codes: ['A', 'B', 'C', 'G'].filter(x => x === c ? e.target.checked : String(f.shift_codes || '').includes(x)).join('') }))} /> {c}
                   </label>
