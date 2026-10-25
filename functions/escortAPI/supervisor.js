@@ -595,7 +595,7 @@ module.exports = function supervisorRoutes(app, h) {
 
   // Posts of a branch in my area (an agency supervisor: only their agency's posts).
   async function branchPosts(req, zcql, branch) {
-    const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, post_name, extra_duty, section, sort_order, shift_codes, regular_guards, relief_guards, auto_fill FROM Posts WHERE branch_id = ${branch} AND post_type = 'POST' AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY post_name ASC`)).map(r => r.Posts);
+    const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, agency_id, post_name, extra_duty, section, sort_order, shift_codes, regular_guards, relief_guards, auto_fill FROM Posts WHERE branch_id = ${branch} AND post_type = 'POST' AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY post_name ASC`)).map(r => r.Posts);
     // The order of the daily roster sheet: section, then the post's place in it.
     const sec = p => { const i = SECTION_ORDER.indexOf(p.section); return i < 0 ? 99 : i; };
     return rows.sort((a, b) => sec(a) - sec(b) || (Number(a.sort_order) || 999) - (Number(b.sort_order) || 999) || a.post_name.localeCompare(b.post_name));
@@ -796,11 +796,15 @@ module.exports = function supervisorRoutes(app, h) {
       const date = requireDate(req.body.date);
       const [posts, guards, roster, sups] = await Promise.all([
         branchPosts(req, zcql, branch),
-        pages(zcql, `SELECT ROWID, guard_name, area FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
+        pages(zcql, `SELECT ROWID, guard_name, area, agency_id FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
         pages(zcql, `SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${date.slice(0, 7)}' ORDER BY ROWID ASC`, 'MonthRoster'),
         inchargeIds(zcql, branch)
       ]);
       const supSet = new Set(sups);
+      // A post gets only guards of its own agency (Prem, 25 Oct: no agency mixes with another). Rule 1 checks
+      // it directly; every later rule checks restDay, so the check lives there too ("not for this post").
+      const agencyOfGuard = new Map(guards.map(g => [String(g.ROWID), String(g.agency_id || '')]));
+      const otherAgency = (p, id) => !!p.agency_id && !!agencyOfGuard.get(String(id)) && String(p.agency_id) !== agencyOfGuard.get(String(id));
       if (!roster.length) throw new Error('No month roster for ' + date.slice(0, 7) + '. Upload it in Month roster first.');
       const rows = await dayRows(zcql, branch, date, posts);
       // Posts in their Posts-page order (sort_order), so the more important post of a group is filled
@@ -837,14 +841,14 @@ module.exports = function supervisorRoutes(app, h) {
         .sort((x, y) => (y.post_name.toLowerCase() === 'shift incharge') - (x.post_name.toLowerCase() === 'shift incharge'));
       if (incharges.length) {
         const r1 = { no: 1, rule: 'Shift Incharge', filled: [], empty: [] };
-        const supOn = (shift, only) => guards.find(g => supSet.has(String(g.ROWID)) && codeOf[String(g.ROWID)] === shift && !busyGuard.has(String(g.ROWID)) && (!only || only.includes(String(g.ROWID))));
+        const supOn = (shift, only, p) => guards.find(g => supSet.has(String(g.ROWID)) && !otherAgency(p, g.ROWID) && codeOf[String(g.ROWID)] === shift && !busyGuard.has(String(g.ROWID)) && (!only || only.includes(String(g.ROWID))));
         for (const pass of ['own', 'any']) {
           for (const p of incharges) {
             const own = String(p.regular_guards || '').split(',').map(x => x.trim()).filter(Boolean);
             if (pass === 'own' && !own.length) continue;
             for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
               if (taken.has(p.ROWID + '|' + shift)) continue;
-              const sup = supOn(shift, pass === 'own' ? own : null);
+              const sup = supOn(shift, pass === 'own' ? own : null, p);
               if (sup) { put(p, shift, sup.ROWID); r1.filled.push((incharges.length > 1 ? p.post_name + ' ' : '') + shift + ' ' + sup.guard_name); } else if (pass === 'any') r1.empty.push((incharges.length > 1 ? p.post_name + ' ' : '') + shift);
             }
           }
@@ -857,7 +861,7 @@ module.exports = function supervisorRoutes(app, h) {
       const dailyPosts = autoPosts.filter(p => String(String(p.relief_guards || '').split(';')[3] || '').includes('D'));
       const yesterday = new Date(Date.parse(date + 'T00:00:00Z') - 86400000).toISOString().slice(0, 10);
       const wasThere = new Set(dailyPosts.length ? (await pages(zcql, `SELECT post_id, guard_id FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${yesterday}' AND post_id IN (${dailyPosts.map(p => p.ROWID).join(', ')}) ORDER BY ROWID ASC`, 'Schedule')).map(h => h.post_id + '|' + h.guard_id) : []);
-      const restDay = (p, id) => wasThere.has(p.ROWID + '|' + id);
+      const restDay = (p, id) => wasThere.has(p.ROWID + '|' + id) || otherAgency(p, id);
 
       // Rule 2 · Regular guards
       const r2 = { no: 2, rule: 'Regular guards', filled: [], empty: [] };
@@ -935,13 +939,13 @@ module.exports = function supervisorRoutes(app, h) {
         const back = n => new Date(Date.parse(date + 'T00:00:00Z') - n * 86400000).toISOString().slice(0, 10);
         const hist = await pages(zcql, `SELECT sched_date, post_id, shift_code, guard_id FROM Schedule WHERE branch_id = ${branch} AND sched_date >= '${back(14)}' AND sched_date < '${date}' AND post_id IN (${rotPosts.map(p => p.ROWID).join(', ')}) ORDER BY ROWID ASC`, 'Schedule');
         const listOf = p => [...String(p.regular_guards || '').split(',').map(x => x.trim()), ...reliefOf(p)].filter(x => nameOf.has(x) && isLady(x));
-        const free = (id, shift) => codeOf[id] === shift && !busyGuard.has(id) && canPost(id);
+        const free = (id, shift, p) => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !(p && otherAgency(p, id));
         for (const p of rotPosts) {
           for (const shift of rotShifts(p)) {
             if (taken.has(p.ROWID + '|' + shift)) continue;
             const y = hist.find(h => String(h.post_id) === String(p.ROWID) && h.shift_code === shift && h.sched_date === back(1));
             const g = y && String(y.guard_id);
-            if (g && listOf(p).includes(g) && free(g, shift)) { put(p, shift, g); r5.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g) + ' (same as yesterday)'); }
+            if (g && listOf(p).includes(g) && free(g, shift, p)) { put(p, shift, g); r5.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g) + ' (same as yesterday)'); }
           }
         }
         for (const p of rotPosts) {
@@ -951,7 +955,7 @@ module.exports = function supervisorRoutes(app, h) {
           const list = reliefOf(p).filter(isLady);
           for (const shift of rotShifts(p)) {
             if (taken.has(p.ROWID + '|' + shift)) continue;
-            const g = list.filter(id => free(id, shift)).sort((a, b) => days(a) - days(b) || last(a).localeCompare(last(b)))[0];
+            const g = list.filter(id => free(id, shift, p)).sort((a, b) => days(a) - days(b) || last(a).localeCompare(last(b)))[0];
             if (g) { put(p, shift, g); r5.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else r5.empty.push(p.post_name + ' ' + shift);
           }
         }
