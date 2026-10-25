@@ -1,5 +1,5 @@
 import { Icon, initials } from '../post/icons.jsx';
-import { useUser, atLeast, seesEscort, signOut } from '../auth/user.js';
+import { useUser, atLeast, signOut } from '../auth/user.js';
 
 // Dark icon rail on the left of every supervisor screen, in the order of the supervisor's work:
 // 1 Month roster (once a month) → 2 Schedule (every day) → 3 Live board → 4 Posts (messages).
@@ -18,7 +18,7 @@ export default function Rail({ active }) {
       {item('board', '#board', 'Live', Icon.grid, 3)}
       {item('posts', '#supervisor', 'Posts', Icon.chat, 4)}
       <div className="sup-rail-gap"></div>
-      {seesEscort(user) && item('escort', '#', 'Escort', Icon.car)}
+      {item('escort', '#', 'Escort', Icon.car)}
       {item('vehicles', '#vehicles', 'Vehicles', Icon.gate)}
       {item('report', '#report', 'Report', Icon.clip)}
       {item('history', '#history', 'History', Icon.check)}

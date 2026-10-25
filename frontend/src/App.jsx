@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
-import { useUser, seesEscort } from './auth/user.js';
+import { useUser, canEditEscort } from './auth/user.js';
 import {
   PICKUP_ROWS, ROTATION, blankPickup, computeDisplayRows, escortFromDb, groupStops,
   isMonday, isSaturday, isSunday, dutyDayStr, readEscortFile, routeFromDb
@@ -40,9 +40,8 @@ function setAt(arr, idx, patch) {
 let extraUid = 0;
 
 export default function App() {
-  // The escort sheet is the home page (#); a supervisor without escorts goes to their Schedule instead.
-  const me = useUser();
-  useEffect(() => { if (!seesEscort(me)) window.location.hash = '#schedule'; }, [me]);
+  // Shift incharges of other agencies look at the sheet but cannot change it (the server refuses too).
+  const editable = canEditEscort(useUser());
   const today = dutyDayStr();
   const [startDate, setStartDate, startDateRef] = useStore(today);
   const [dutyDate, setDutyDate, dutyDateRef] = useStore(today);
@@ -640,7 +639,8 @@ export default function App() {
       />
       <input type="file" id="fileInput" ref={fileInputRef} accept=".xlsx,.xls,.csv" onChange={onFileChosen} />
 
-      <div className="tablewrap">
+      {!editable && <div className="esc-view-note no-print">👀 View only: the escort agency's shift incharge fills this sheet.</div>}
+      <div className={'tablewrap' + (editable ? '' : ' esc-view-only')}>
         {view === 'loading' && <div className="loading-message">Loading...</div>}
         {view === 'error' && <div className="loading-message">Could not load data. Check your connection and press Generate.</div>}
         {view === 'leave' && <LeaveMessage />}
@@ -670,10 +670,10 @@ export default function App() {
         )}
       </div>
 
-      <div className="addrow-bar no-print">
+      {editable && <div className="addrow-bar no-print">
         {!rosterDay && <button className="btn secondary" onClick={addEscort}>+ Add Escort</button>}
         <button className="btn secondary" onClick={addExtra}>+ Add Extra (Today Only)</button>
-      </div>
+      </div>}
 
       <datalist id="locationSuggestions">
         {locations.map(loc => <option key={loc} value={loc} />)}

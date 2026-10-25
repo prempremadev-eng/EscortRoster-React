@@ -24,6 +24,10 @@ const ROLE_NAME = { supervisor: 'Supervisor', branch_admin: 'Branch Admin', city
 const VIEW_ONLY = new Set(['city_admin', 'state_admin']);
 const SETUP_ROUTES = new Set(['/userAdd', '/userUpdate', '/userActive', '/userMail', '/branchSave', '/citySave', '/stateSave', '/agencySave', '/addAccessLog']);
 const READ_POSTS = new Set(['/supInbox', '/supSubscribe']);
+// Escort sheet changes: a supervisor only when their agency has the Escort team (others only look).
+const ESCORT_WRITES = new Set(['/addDutyRecord', '/updateDutyRecord', '/deleteDutyRecord', '/addExtraDutyRecord', '/updateExtraDutyRecord',
+  '/addSundayPickupRecord', '/updateSundayPickupRecord', '/addTripStop', '/updateTripStop', '/deleteTripStop', '/updateTripCab',
+  '/addEscort', '/updateEscort', '/deleteEscort', '/escortPoint', '/saveStartDate', '/markUploadDone', '/syncEscortsFromExcel']);
 
 // Routes a guard's phone calls with its secret link. Everything else needs a login.
 const GUARD_ROUTES = new Set([
@@ -122,6 +126,10 @@ module.exports = function auth(catalyst, selectAll) {
       if (req.method !== 'GET' && !READ_POSTS.has(req.path)
         && (VIEW_ONLY.has(role.role) || (role.role === 'admin' && !SETUP_ROUTES.has(req.path)))) {
         return res.status(403).json({ status: 'failure', error: 'View only: ' + ROLE_NAME[role.role] + ' can see this, but the Branch Admin or Supervisor makes the change.' });
+      }
+      if (role.role === 'supervisor' && ESCORT_WRITES.has(req.path)) {
+        const team = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE agency_id = ${Number(role.agency_id) || 0} AND area = 'Escort' LIMIT 1`);
+        if (!team.length) return res.status(403).json({ status: 'failure', error: 'View only: the escort sheet is changed by the shift incharge of the escort agency.' });
       }
       next();
     } catch (err) {

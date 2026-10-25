@@ -1099,3 +1099,6 @@ td.in-late{color:#b91c1c;}
 .adm-tree-0 td{font-size:15px;}
 .adm-tree-arrow{display:inline-block;width:14px;color:#64748b;}
 .adm-tree-count{color:#64748b;font-weight:400;font-size:13px;}
+/* Escort sheet for shift incharges of other agencies: look only (25 Oct). */
+.esc-view-note{margin:8px 16px;padding:8px 12px;border-radius:8px;background:#eef2ff;color:#3730a3;font-size:14px;}
+.esc-view-only input, .esc-view-only button, .esc-view-only select, .esc-view-only textarea, .esc-view-only .route-cell{pointer-events:none;}

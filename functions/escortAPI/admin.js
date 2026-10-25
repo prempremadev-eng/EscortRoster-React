@@ -23,14 +23,14 @@ module.exports = function adminRoutes(app, h) {
     try {
       if (!req.user) return ok(res, { email: req.login.email, name: req.login.name, role: null });
       const u = req.user;
-      // Escort duty belongs to the agency that has the Escort team (IPF at Estancia): a supervisor of any
-      // other agency does not see the escort pages (Prem, 25 Oct). Branch Admin and above see them.
+      // Escort duty belongs to the agency that has the Escort team (IPF at Estancia): every shift incharge
+      // of the branch may look at the escort sheet, only that agency's may change it (Prem, 25 Oct).
       let escorts = true;
       if (u.role === 'supervisor') {
         const rows = await admin(req).zcql().executeZCQLQuery(`SELECT ROWID FROM Guards WHERE agency_id = ${requireRowId(u.agency_id)} AND area = 'Escort' LIMIT 1`);
         escorts = rows.length > 0;
       }
-      ok(res, { email: u.email, name: u.name, role: u.role, roleName: ROLE_NAME[u.role], city: u.city, branch_id: u.branch_id, agency_id: u.agency_id, escorts });
+      ok(res, { email: u.email, name: u.name, role: u.role, roleName: ROLE_NAME[u.role], city: u.city, branch_id: u.branch_id, agency_id: u.agency_id, escortEdit: escorts });
     } catch (err) {
       fail(res, err);
     }

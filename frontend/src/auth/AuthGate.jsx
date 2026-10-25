@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
-import { UserContext, atLeast, signOut, seesEscort } from './user.js';
+import { UserContext, atLeast, signOut } from './user.js';
 
 // Catalyst Web SDK, loaded only for the signed-in pages (guards' phones never need it).
 // Order matters: init.js uses what catalystWebSDK.js sets up.
@@ -37,7 +37,6 @@ async function isSignedIn() {
 function links(user) {
   const l = [['#roster', '1 Month roster'], ['#schedule', '2 Schedule'], ['#board', '3 Live board'], ['#supervisor', '4 Posts'],
     ['#', 'Escort sheet'], ['#master', 'Guards'], ['#posts', 'Post setup'], ['#report', 'Shift report'], ['#vehicles', 'Vehicles'], ['#history', 'Duty history'], ['#links', 'Guard links']];
-  if (!seesEscort(user)) l.splice(l.findIndex(x => x[0] === '#'), 1);
   if (atLeast(user, 'admin')) l.push(['#simulator', 'Card simulator']);
   if (atLeast(user, 'branch_admin')) l.push(['#admin', 'Admin']);
   return l;
