@@ -166,7 +166,16 @@ export function useVoiceRecorder(onDone, onError) {
     holding.current = false;
     setSlide(0);
     // A quick touch: keep recording without the finger (WhatsApp's "just touch the mic").
-    if (Date.now() - pressAt.current < TAP_MS) { lockedRef.current = true; setLocked(true); return; }
+    if (Date.now() - pressAt.current < TAP_MS) {
+      lockedRef.current = true;
+      setLocked(true);
+      // The phone sends a click after the finger lifts; the mic is gone by then and the click would land
+      // on whatever button took its place (it opened the camera, Prem 25 Oct). Swallow that one click.
+      const eat = ev => { ev.stopPropagation(); ev.preventDefault(); };
+      document.addEventListener('click', eat, true);
+      setTimeout(() => document.removeEventListener('click', eat, true), 400);
+      return;
+    }
     finish(false);
   }
   function pause() {
@@ -186,7 +195,7 @@ export function useVoiceRecorder(onDone, onError) {
   useEffect(() => () => finish(true), []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return {
-    secs, slide, locked, paused, recording: secs !== null,
+    secs, slide, locked, paused, recording: secs !== null || locked,
     micProps: { onPointerDown: down, onPointerMove: move, onPointerUp: up, onPointerCancel: cancelPointer, onContextMenu: e => e.preventDefault() },
     pause, send: () => finish(false), discard: () => finish(true)
   };
