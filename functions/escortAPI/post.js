@@ -348,6 +348,10 @@ module.exports = function postRoutes(app, h) {
 
   // ---------- small helpers for the timeline ----------
 
+  // A message from the office (25 Oct): typed (kind supervisor), or a photo / video / voice / work with no
+  // guard and the sender's "Name · Role" in author_name. Used by the timeline and the guard's "seen".
+  const office = m => m.kind === 'supervisor' || (!m.guard_id && !!m.author_name);
+
   const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
   const PHONE_RE = /^[0-9+ -]{6,20}$/;
   const hhmm = stamp => String(stamp || '').slice(11, 16);
@@ -444,8 +448,6 @@ module.exports = function postRoutes(app, h) {
     ]);
     const byId = {};
     rows.forEach(m => { byId[String(m.ROWID)] = m; });
-    // Office photo / video / voice (25 Oct): no guard, the sender's "Name · Role" in author_name.
-    const office = m => m.kind === 'supervisor' || (!m.guard_id && !!m.author_name);
     const authorOf = m => (office(m) ? m.author_name || 'Supervisor' : (names[String(m.guard_id)] || {}).guard_name || '');
     const now = nowStamp();
 
