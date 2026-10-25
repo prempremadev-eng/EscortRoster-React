@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { useAgencyPick } from '../agencyPick.js';
 import { Icon } from '../post/icons.jsx';
 import Rail from './Rail.jsx';
 import '../post/post.css';
@@ -57,21 +58,24 @@ export default function SupervisorBoard() {
   useEffect(() => {
     api.getPosts().then(r => {
       setBranches(r.data.branches);
+      setAgencies(r.data.agencies || []);
       setBranch(pickBranch(r.data.branches));
     }).catch(err => setError(err.message));
   }, []);
 
   // No timer (every load costs Data Store reads): refresh button and coming back to the tab.
+  const [agencies, setAgencies] = useState([]);
+  const { pickAgency, branchAgencies, ag, chooseAgency } = useAgencyPick(branch, agencies);
   const load = useCallback(async () => {
     if (!branch) return;
     setError('');
     try {
-      const d = (await api.supBoard(branch, shift)).data;
+      const d = (await api.supBoard(branch, shift, ag)).data;
       setData(d);
     } catch (err) {
       setError(err.message);
     }
-  }, [branch, shift]);
+  }, [branch, shift, ag]);
 
   useEffect(() => { if (branch) keep('sup_branch', branch); load(); }, [branch, load]);
   useEffect(() => {
@@ -129,6 +133,11 @@ export default function SupervisorBoard() {
           <select className="pd-search sb-branch" value={branch} onChange={e => { setBranch(e.target.value); setShift(''); }} aria-label="Branch">
             {branches.map(x => <option key={x.ROWID} value={x.ROWID}>{x.branch_name}{x.area ? ' (' + x.area + ')' : ''} · {x.city}</option>)}
           </select>
+          {pickAgency && branchAgencies.length > 0 && (
+            <select className="pd-search sb-branch" value={ag} onChange={e => chooseAgency(e.target.value)} aria-label="Agency">
+              {branchAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+            </select>
+          )}
           <div className="pd-quick">
             <button className={'pd-chip' + (!shift ? ' pd-chip-primary' : '')} onClick={() => setShift('')} title="Follow the running shift">Auto{!shift && data ? ' · ' + data.shift.code : ''}</button>
             {shifts.map(s => <button key={s.code} className={'pd-chip' + (shift === s.code ? ' pd-chip-primary' : '')} onClick={() => setShift(s.code)}>Shift {s.code}</button>)}

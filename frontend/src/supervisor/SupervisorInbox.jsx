@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
+import { useAgencyPick } from '../agencyPick.js';
 import { Icon, initials } from '../post/icons.jsx';
 import { clock } from '../post/media.js';
 import '../post/post.css';
@@ -127,18 +128,21 @@ export default function SupervisorInbox({ initialPost }) {
     api.getPosts().then(r => {
       const b = r.data.branches;
       setBranches(b);
+      setAgencies(r.data.agencies || []);
       setBranch(pickBranch(b));
     }).catch(err => setError(err.message));
   }, []);
 
+  const [agencies, setAgencies] = useState([]);
+  const { pickAgency, branchAgencies, ag, chooseAgency } = useAgencyPick(branch, agencies);
   const loadList = useCallback(async () => {
     if (!branch) return;
     try {
-      setList((await api.supInbox(branch, seen.current)).data);
+      setList((await api.supInbox(branch, seen.current, ag)).data);
     } catch (err) {
       setError(err.message);
     }
-  }, [branch]);
+  }, [branch, ag]);
 
   const loadPost = useCallback(async id => {
     if (!id) return;
@@ -256,6 +260,11 @@ export default function SupervisorInbox({ initialPost }) {
           <select className="pd-search" value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">
             {branches.map(b => <option key={b.ROWID} value={b.ROWID}>{b.branch_name}{b.area ? ' (' + b.area + ')' : ''} · {b.city}</option>)}
           </select>
+          {pickAgency && branchAgencies.length > 0 && (
+            <select className="pd-search" value={ag} onChange={e => chooseAgency(e.target.value)} aria-label="Agency">
+              {branchAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+            </select>
+          )}
           <input className="pd-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search post or guard" aria-label="Search post or guard" />
           <div className="pd-quick pd-wrap">
             {[['all', 'All'], ['alerts', 'Alerts'], ['break', 'On break'], ['unread', 'Unread']].map(([k, label]) => (

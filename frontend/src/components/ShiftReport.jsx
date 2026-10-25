@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { useAgencyPick } from '../agencyPick.js';
 import { shortDate, plusDay } from '../utils.js';
 import useFullView from './useFullView.js';
 
@@ -31,22 +32,25 @@ export default function ShiftReport() {
     api.getPosts().then(r => {
       const b = r.data.branches;
       setBranches(b);
+      setAgencies(r.data.agencies || []);
       const last = String(remember('sup_branch', ''));
       setBranch(b.some(x => String(x.ROWID) === last) ? last : (b[0] ? String(b[0].ROWID) : ''));
     }).catch(err => setError(err.message));
   }, []);
 
   // One load per date (no timer): every load costs Data Store reads.
+  const [agencies, setAgencies] = useState([]);
+  const { pickAgency, branchAgencies, ag, chooseAgency } = useAgencyPick(branch, agencies);
   const load = useCallback(async () => {
     if (!branch || !date) return;
     setError('');
     setData(null);
     try {
-      setData((await api.shiftReport(branch, date)).data);
+      setData((await api.shiftReport(branch, date, ag)).data);
     } catch (err) {
       setError(err.message);
     }
-  }, [branch, date]);
+  }, [branch, date, ag]);
   useEffect(() => { load(); }, [load]);
 
   const many = branch === 'ALL';
@@ -85,6 +89,11 @@ export default function ShiftReport() {
             {branches.map(x => <option key={x.ROWID} value={x.ROWID}>{x.branch_name} · {x.city}</option>)}
           </select>
         )}
+        {pickAgency && branchAgencies.length > 0 && (
+            <select value={ag} onChange={e => chooseAgency(e.target.value)} aria-label="Agency">
+              {branchAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+            </select>
+          )}
         <div className="spacer"></div>
         <button className="btn secondary" onClick={() => window.print()}>🖨️ Print / PDF</button>
         <button className="btn" onClick={load}>🔄 Refresh</button>

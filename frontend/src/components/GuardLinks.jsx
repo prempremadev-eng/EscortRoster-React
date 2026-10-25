@@ -16,6 +16,11 @@ export default function GuardLinks() {
   const [note, setNote] = useState('');
   // ROWID of the guard whose "New link" was tapped once; the second tap makes the new link.
   const [confirmReset, setConfirmReset] = useState(null);
+  // One agency at a time (Prem, 25 Oct); a supervisor only gets their own guards anyway.
+  const [agency, setAgency] = useState(() => { try { return localStorage.getItem('gl-agency') || ''; } catch { return ''; } });
+  const agencyNames = [...new Set(guards.map(g => g.agency).filter(Boolean))].sort();
+  const pick = agencyNames.includes(agency) ? agency : (agencyNames[0] || '');
+  const list = agencyNames.length > 1 ? guards.filter(g => g.agency === pick) : guards;
 
   // No auto-refresh: every load costs Data Store reads. Use 🔄 instead.
   const load = useCallback(async () => {
@@ -90,6 +95,11 @@ export default function GuardLinks() {
       <div className="toolbar no-print">
         <a className="btn secondary" href="#master">🛡️ Guard Master</a>
         <a className="btn secondary" href="#simulator">🪪 Card Simulator</a>
+        {agencyNames.length > 1 && (
+          <select value={pick} onChange={e => { setAgency(e.target.value); try { localStorage.setItem('gl-agency', e.target.value); } catch { /* private window */ } }} aria-label="Agency">
+            {agencyNames.map(a => <option key={a}>{a}</option>)}
+          </select>
+        )}
         <div className="spacer"></div>
         <button className="btn" onClick={load}>🔄 Refresh</button>
       </div>
@@ -124,7 +134,7 @@ export default function GuardLinks() {
                 <tr><th>ID</th><th>Guard</th><th>Agency</th><th>Phone set up</th><th>Link</th></tr>
               </thead>
               <tbody>
-                {guards.map(g => (
+                {list.map(g => (
                   <tr key={g.ROWID}>
                     <td>{g.id_number}</td>
                     <td className="left">{g.guard_name}</td>
