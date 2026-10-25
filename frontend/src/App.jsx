@@ -12,7 +12,7 @@ import PickupTable from './components/PickupTable.jsx';
 import TimePicker from './components/TimePicker.jsx';
 import TripPopup from './components/TripPopup.jsx';
 import UploadPopup, { UploadSetupPopup } from './components/UploadPopup.jsx';
-import { LeaveMessage, MondayReminder, UploadPrompt } from './components/Messages.jsx';
+import { LeaveMessage, UploadPrompt } from './components/Messages.jsx';
 
 // Every refresh costs Data Store reads (free tier is limited), so poll gently
 // and not at all while the tab is hidden.
@@ -625,7 +625,7 @@ export default function App() {
         <h1>Escort Duty Sheet</h1>
       </div>
 
-      {isMonday(dutyDate) && <MondayReminder />}
+      {/* No "upload the weekly Excel" reminder on Mondays any more: escorts come from the Month Roster (Prem, 25 Oct). */}
 
       <Toolbar
         rosterDay={rosterDay}
