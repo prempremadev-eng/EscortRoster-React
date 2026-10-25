@@ -88,6 +88,11 @@ The doing is done by Supervisor + Branch Admin; the levels above watch and track
 - Roster rows of a guard missing from the Guards master (or of another agency) are skipped on upload.
 - **One escort page for all of Estancia**: every shift incharge sees it, the escort agency (IPF) changes it.
 
+## Agency privacy (25 Oct)
+
+- A supervisor (agency login) sees only their agency's guards, posts, roster rows, schedule, live board, reports, history and vehicles (incl. "seen before" suggestions).
+- The **escort sheet** is the only shared page, and only inside the same branch (a login whose branch has no Escort team gets "No escort duty in your branch"); only the escort agency changes it.
+
 ## Next to discuss
 
 - Branch Admin: daily work, what they see, what they approve.

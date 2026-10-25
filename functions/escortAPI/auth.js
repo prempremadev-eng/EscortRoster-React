@@ -24,6 +24,10 @@ const ROLE_NAME = { supervisor: 'Supervisor', branch_admin: 'Branch Admin', city
 const VIEW_ONLY = new Set(['city_admin', 'state_admin']);
 const SETUP_ROUTES = new Set(['/userAdd', '/userUpdate', '/userActive', '/userMail', '/userDelete', '/branchSave', '/citySave', '/stateSave', '/agencySave', '/addAccessLog']);
 const READ_POSTS = new Set(['/supInbox', '/supSubscribe']);
+// Escort sheet reads: only for logins whose branch has the Escort team (Prem, 25 Oct: other agencies of the
+// same branch may look; nobody from another branch).
+const ESCORT_READS = new Set(['/getEscorts', '/getDutyRecords', '/getDashboard', '/getDayData', '/getTripStops', '/getExtraDutyRecords',
+  '/getSundayPickupRecords', '/getStartDate', '/getLastUploadDate', '/getFreeEscorts']);
 // Escort sheet changes: a supervisor only when their agency has the Escort team (others only look).
 const ESCORT_WRITES = new Set(['/addDutyRecord', '/updateDutyRecord', '/deleteDutyRecord', '/addExtraDutyRecord', '/updateExtraDutyRecord',
   '/addSundayPickupRecord', '/updateSundayPickupRecord', '/addTripStop', '/updateTripStop', '/deleteTripStop', '/updateTripCab',
@@ -126,6 +130,11 @@ module.exports = function auth(catalyst, selectAll) {
       if (req.method !== 'GET' && !READ_POSTS.has(req.path)
         && (VIEW_ONLY.has(role.role) || (role.role === 'admin' && !SETUP_ROUTES.has(req.path)))) {
         return res.status(403).json({ status: 'failure', error: 'View only: ' + ROLE_NAME[role.role] + ' can see this, but the Branch Admin or Supervisor makes the change.' });
+      }
+      if (!req.scope.all && ESCORT_READS.has(req.path)) {
+        const ids = [...req.scope.branches].map(Number).filter(Boolean);
+        const team = ids.length ? await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE branch_id IN (${ids.join(', ')}) AND area = 'Escort' LIMIT 1`) : [];
+        if (!team.length) return res.status(403).json({ status: 'failure', error: 'No escort duty in your branch.' });
       }
       if (role.role === 'supervisor' && ESCORT_WRITES.has(req.path)) {
         const team = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE agency_id = ${Number(role.agency_id) || 0} AND area = 'Escort' LIMIT 1`);
