@@ -66,6 +66,9 @@ export default function PostsPage() {
   const [note, setNote] = useState('');
   // List filters (Prem, 25 Oct) and the guards for the Auto fill lists (read when a form opens).
   const [agencyFilter, setAgencyFilter] = useState('');
+  // Where filters (Prem, 25 Oct: see the total posts by state → city → branch → agency).
+  const [stateFilter, setStateFilter] = useState('');
+  const [cityFilter, setCityFilter] = useState('');
   const [find, setFind] = useState('');
   const [guards, setGuards] = useState(null);
   const loadGuards = () => { if (!guards) api.getGuards().then(r => setGuards(r.data)).catch(() => setGuards([])); };
@@ -76,7 +79,7 @@ export default function PostsPage() {
     try {
       const d = (await api.getPosts()).data;
       setData(d);
-      setBranch(b => b || (d.branches[0] ? String(d.branches[0].ROWID) : ''));
+      setBranch(b => b || 'ALL');
       setStatus('ok');
     } catch (err) {
       console.error('Posts load failed:', err);
@@ -89,7 +92,11 @@ export default function PostsPage() {
   // Same order as the daily roster sheet: section, then place in it.
   const SECS = ['PKL / Main', 'Hospital Block', 'MLCP'];
   const secRank = p => { const i = SECS.indexOf(p.section); return i < 0 ? 99 : i; };
-  const posts = data ? data.posts.filter(p => String(p.branch_id) === branch && (!agencyFilter || String(p.agency_id) === agencyFilter)
+  const branchOf = id => (data ? data.branches.find(b => String(b.ROWID) === String(id)) : null) || {};
+  const states = data ? [...new Set(data.branches.map(b => b.state).filter(Boolean))].sort() : [];
+  const cities = data ? [...new Set(data.branches.filter(b => !stateFilter || b.state === stateFilter).map(b => b.city).filter(Boolean))].sort() : [];
+  const branchesShown = data ? data.branches.filter(b => (!stateFilter || b.state === stateFilter) && (!cityFilter || b.city === cityFilter)) : [];
+  const posts = data ? data.posts.filter(p => (branch === 'ALL' ? branchesShown.some(b => String(b.ROWID) === String(p.branch_id)) : String(p.branch_id) === branch) && (!agencyFilter || String(p.agency_id) === agencyFilter)
     && (!find.trim() || p.post_name.toLowerCase().includes(find.trim().toLowerCase())))
     .sort((a, b) => secRank(a) - secRank(b) || (Number(a.sort_order) || 999) - (Number(b.sort_order) || 999) || a.post_name.localeCompare(b.post_name)) : [];
 
@@ -154,28 +161,38 @@ export default function PostsPage() {
       <div className="toolbar no-print">
         <a className="btn secondary" href="#master">🛡️ Guard Master</a>
         <a className="btn secondary" href="#history">📖 Duty History</a>
+        {data && states.length > 1 && (
+          <select value={stateFilter} onChange={e => { setStateFilter(e.target.value); setCityFilter(''); setBranch('ALL'); }} aria-label="State">
+            <option value="">All states</option>
+            {states.map(x => <option key={x}>{x}</option>)}
+          </select>
+        )}
+        {data && cities.length > 1 && (
+          <select value={cityFilter} onChange={e => { setCityFilter(e.target.value); setBranch('ALL'); }} aria-label="City">
+            <option value="">All cities</option>
+            {cities.map(x => <option key={x}>{x}</option>)}
+          </select>
+        )}
         {data && (
-          <div>
-            <label htmlFor="p-branch">Branch:</label>
-            <select id="p-branch" value={branch} onChange={e => { setBranch(e.target.value); setForm(null); }}>
-              {data.branches.map(b => <option key={b.ROWID} value={b.ROWID}>{branchLabel(b)}</option>)}
-            </select>
-          </div>
+          <select id="p-branch" value={branch} onChange={e => { setBranch(e.target.value); setForm(null); }} aria-label="Branch">
+            <option value="ALL">All branches ({branchesShown.length})</option>
+            {branchesShown.map(b => <option key={b.ROWID} value={b.ROWID}>{branchLabel(b)}</option>)}
+          </select>
         )}
         {data && !isSup && (
           <select value={agencyFilter} onChange={e => setAgencyFilter(e.target.value)} aria-label="Agency">
             <option value="">All agencies</option>
-            {data.agencies.filter(a => worksIn(a, branch)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+            {data.agencies.filter(a => branch === 'ALL' || worksIn(a, branch)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
           </select>
         )}
         <input type="search" value={find} onChange={e => setFind(e.target.value)} placeholder="🔍 Post name" aria-label="Find a post" />
         <div className="spacer"></div>
-        {canEdit && <button className="btn secondary" onClick={() => { setError(''); setNote(''); loadGuards(); setForm({ ...BLANK_POST, branch_id: branch, agency_id: isSup ? String(me.agency_id) : '', rules: rulesOf(null) }); }}>➕ Add post</button>}
+        {canEdit && <button className="btn secondary" onClick={() => { setError(''); setNote(''); loadGuards(); setForm({ ...BLANK_POST, branch_id: branch === 'ALL' ? (branchesShown[0] ? String(branchesShown[0].ROWID) : '') : branch, agency_id: isSup ? String(me.agency_id) : '', rules: rulesOf(null) }); }}>➕ Add post</button>}
         <button className="btn" onClick={load}>🔄 Refresh</button>
       </div>
 
       <div className="dash">
-        <div className="sim-note">Places in this branch where a guard stands. 🚐 ESCORT = the guard goes on the escort duty sheet.</div>
+        <div className="sim-note">Places where a guard stands. 🚐 ESCORT = the guard goes on the escort duty sheet.</div>
         {error && <div className="trip-error">{error}</div>}
         {note && <div className="sim-push">{note}</div>}
 
@@ -220,13 +237,10 @@ export default function PostsPage() {
                 🚗 Visitor / vehicle entry at this post
               </label>
               <label className="master-check">
-                <input type="checkbox" checked={isOn(form.extra_duty)} onChange={e => setForm(f => ({ ...f, extra_duty: e.target.checked }))} />
-                ⭐ Extra duty post (a guard may take it as a second shift the same day)
-              </label>
-              <label className="master-check">
                 <input type="checkbox" checked={isOn(form.auto_fill)} onChange={e => setForm(f => ({ ...f, auto_fill: e.target.checked }))} />
-                ⚡ Auto fill this post (Schedule → Auto fill)
+                ⚡ Auto fill this post
               </label>
+              <div className="master-sub pp-auto-help">⚡ <b>Auto fill</b> = on the Schedule page the ⚡ Auto fill button puts guards in this post by itself (regulars first, then relief, by the rules below). Off = the supervisor puts the names by hand.</div>
             </div>
 
             {isOn(form.auto_fill) && form.rules && (
@@ -273,31 +287,36 @@ export default function PostsPage() {
         {status === 'loading' && <div className="loading-message">Loading...</div>}
         {status === 'error' && <div className="loading-message">Could not load. Check your connection and press Refresh.</div>}
 
+        {status === 'ok' && <div className="dash-legend">Total posts: <b>{posts.filter(p => p.is_active === 'true').length}</b> on{posts.some(p => p.is_active !== 'true') ? ' · ' + posts.filter(p => p.is_active !== 'true').length + ' off' : ''}</div>}
         {status === 'ok' && (
           <div className="dash-scroll">
             <table className="dash-table adm-table">
               <thead>
-                <tr><th>Post</th><th>Section</th><th>Shifts</th><th>Type</th><th>Agency</th><th>Vehicle entry</th><th>Extra duty</th><th>⚡ Auto fill</th><th>Status</th><th></th></tr>
+                <tr><th>#</th><th>Post</th><th>Agency</th><th>Branch</th><th>City</th><th>State</th><th>Section</th><th>Shifts</th><th>Type</th><th>Vehicle entry</th><th>⚡ Auto fill</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
-                {posts.map(p => {
+                {posts.map((p, i) => {
                   const off = p.is_active !== 'true';
+                  const b = branchOf(p.branch_id);
                   return (
                     <tr key={p.ROWID} className={off ? 'master-left' : ''}>
+                      <td className="master-sub">{i + 1}</td>
                       <td className="left">{p.post_name}</td>
+                      <td>{agencyName(p.agency_id)}</td>
+                      <td className="left">{b.branch_name || '—'}</td>
+                      <td>{b.city || '—'}</td>
+                      <td>{b.state || '—'}</td>
                       <td>{p.section ? p.section + (p.sort_order ? ' · ' + p.sort_order : '') : '—'}</td>
                       <td>{p.shift_codes || 'All'}</td>
                       <td>{p.post_type === 'ESCORT' ? '🚐 ESCORT' : '📍 POST'}</td>
-                      <td>{agencyName(p.agency_id)}</td>
                       <td>{isOn(p.vehicle_entry) ? '🚗 Yes' : '—'}</td>
-                      <td>{isOn(p.extra_duty) ? '⭐ Yes' : '—'}</td>
                       <td><Toggle on={isOn(p.auto_fill)} label={'Auto fill ' + p.post_name} disabled={!canEdit || off} onChange={() => setAuto(p, !isOn(p.auto_fill))} /></td>
                       <td><Toggle on={!off} label={p.post_name} disabled={!canEdit} onChange={() => setActive(p, off)} /></td>
                       <td className="adm-actions">{canEdit && !off && <IconBtn icon="✏️" label={'Edit ' + p.post_name} onClick={() => { setError(''); setNote(''); loadGuards(); setForm({ ...p, rules: rulesOf(p) }); window.scrollTo({ top: 0 }); }} />}</td>
                     </tr>
                   );
                 })}
-                {posts.length === 0 && <tr><td colSpan="10">No posts in this branch yet. Press ➕ Add post.</td></tr>}
+                {posts.length === 0 && <tr><td colSpan="13">No posts in this branch yet. Press ➕ Add post.</td></tr>}
               </tbody>
             </table>
           </div>
