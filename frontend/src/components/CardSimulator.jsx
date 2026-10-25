@@ -24,6 +24,13 @@ export default function CardSimulator() {
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  // Filters like Guard Links (Prem, 25 Oct): one agency at a time, branch, name / ID, and IN or not.
+  const [agency, setAgency] = useState(() => { try { return localStorage.getItem('sim-agency') || ''; } catch { return ''; } });
+  const [branches, setBranches] = useState([]);
+  const [branch, setBranch] = useState('');
+  const [find, setFind] = useState('');
+  const [state, setState] = useState('');
+  useEffect(() => { api.getPosts().then(r => setBranches(r.data.branches || [])).catch(() => {}); }, []);
 
   // No auto-refresh: every load costs Data Store reads. Use 🔄 instead.
   const load = useCallback(async () => {
@@ -64,6 +71,16 @@ export default function CardSimulator() {
   myLogs.forEach(l => { last[String(l.guard_id)] = l; });
   const names = {};
   guards.forEach(g => { names[String(g.ROWID)] = g.guard_name; });
+  const agencyNames = [...new Set(guards.map(g => g.agency).filter(Boolean))].sort();
+  const pick = agencyNames.includes(agency) ? agency : (agencyNames[0] || '');
+  const needle = find.trim().toLowerCase();
+  const isInNow = g => (last[String(g.ROWID)] || {}).direction === 'IN';
+  const list = guards.filter(g => (agencyNames.length < 2 || g.agency === pick) && (!branch || String(g.branch_id) === branch)
+    && (!needle || (g.guard_name + ' ' + g.id_number).toLowerCase().includes(needle))
+    && (!state || (state === 'IN') === isInNow(g)));
+  // The swipe log follows the same filters.
+  const shown = new Set(list.map(g => String(g.ROWID)));
+  const listLogs = myLogs.filter(l => shown.has(String(l.guard_id)));
 
   return (
     <>
@@ -75,7 +92,25 @@ export default function CardSimulator() {
         <a className="btn secondary" href="#master">🛡️ Guard Master</a>
         <a className="btn secondary" href="#links">🔗 Guard Links</a>
         <div><label>Duty day:</label> {dutyDate}</div>
+        {branches.length > 1 && (
+          <select value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">
+            <option value="">All my branches ({branches.length})</option>
+            {branches.map(b => <option key={b.ROWID} value={b.ROWID}>{b.branch_name} · {b.city}</option>)}
+          </select>
+        )}
+        {agencyNames.length > 1 && (
+          <select value={pick} onChange={e => { setAgency(e.target.value); try { localStorage.setItem('sim-agency', e.target.value); } catch { /* private window */ } }} aria-label="Agency">
+            {agencyNames.map(a => <option key={a}>{a}</option>)}
+          </select>
+        )}
+        <select value={state} onChange={e => setState(e.target.value)} aria-label="Status">
+          <option value="">IN and not IN</option>
+          <option value="IN">✅ IN now</option>
+          <option value="OUT">⏳ Not IN</option>
+        </select>
+        <input type="search" value={find} onChange={e => setFind(e.target.value)} placeholder="🔍 Name or ID" aria-label="Find a guard" />
         <div className="spacer"></div>
+        <span className="pd-muted">{list.length} guards</span>
         <button className="btn" onClick={load}>🔄 Refresh</button>
       </div>
 
@@ -94,7 +129,7 @@ export default function CardSimulator() {
                   <tr><th>ID</th><th>Guard</th><th>Agency</th><th>This week</th><th>Status</th><th>Card</th></tr>
                 </thead>
                 <tbody>
-                  {guards.map(g => {
+                  {list.map(g => {
                     const id = String(g.ROWID);
                     const l = last[id];
                     const isIn = l && l.direction === 'IN';
@@ -112,19 +147,19 @@ export default function CardSimulator() {
                       </tr>
                     );
                   })}
-                  {guards.length === 0 && <tr><td colSpan="6">No guards in the master yet.</td></tr>}
+                  {list.length === 0 && <tr><td colSpan="6">{guards.length ? 'No guard matches the filter.' : 'No guards in the master yet.'}</td></tr>}
                 </tbody>
               </table>
             </div>
 
-            <h2 className="dash-h2">Swipe log ({myLogs.length})</h2>
+            <h2 className="dash-h2">Swipe log ({listLogs.length})</h2>
             <div className="dash-scroll">
               <table className="dash-table">
                 <thead>
                   <tr><th>Time</th><th>Guard</th><th>Direction</th><th>Source</th></tr>
                 </thead>
                 <tbody>
-                  {[...myLogs].reverse().map(l => (
+                  {[...listLogs].reverse().map(l => (
                     <tr key={l.ROWID}>
                       <td>{l.punch_time}</td>
                       <td className="left">{names[String(l.guard_id)] || '(inactive guard)'}</td>
@@ -132,7 +167,7 @@ export default function CardSimulator() {
                       <td>{l.source}</td>
                     </tr>
                   ))}
-                  {myLogs.length === 0 && <tr><td colSpan="4">No swipes yet for this duty day.</td></tr>}
+                  {listLogs.length === 0 && <tr><td colSpan="4">No swipes yet for this duty day.</td></tr>}
                 </tbody>
               </table>
             </div>
