@@ -82,6 +82,12 @@ The doing is done by Supervisor + Branch Admin; the levels above watch and track
 | State Admin | Built (UserRoles.state) |
 | Report chain names | Prem's idea (to confirm): Security Manager → Security Admin → State Admin → … → agency supervisor |
 
+## Daily flow per agency (decided 25 Oct)
+
+- **Each agency (IPF, ISS, BSS) uploads its own Month Roster** and **corrects and publishes its own schedule**. The app already keeps them apart: a shift incharge login touches only its agency's guards (roster) and posts (schedule, Clear, Publish).
+- Roster rows of a guard missing from the Guards master (or of another agency) are skipped on upload.
+- **One escort page for all of Estancia**: every shift incharge sees it, the escort agency (IPF) changes it.
+
 ## Next to discuss
 
 - Branch Admin: daily work, what they see, what they approve.
