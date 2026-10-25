@@ -36,6 +36,20 @@ async function uploadMedia(t, blob, { kind, source, duration, reply_to, post }) 
   return json;
 }
 
+// Office photo / video / voice to a post (signed-in; same rules as the guard's uploadMedia).
+async function supMedia(post, blob, { kind, source, duration }) {
+  const qs = 'post=' + q(post) + '&kind=' + q(kind) + '&source=' + q(source) + '&duration=' + q(duration || 0);
+  const res = await fetch(API_BASE + '/supMedia?' + qs, { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
+  let json;
+  try {
+    json = await res.json();
+  } catch {
+    throw new Error('Upload failed (' + res.status + ')');
+  }
+  if (!res.ok || json.status !== 'success') throw new Error(json.error || 'Upload failed (' + res.status + ')');
+  return json;
+}
+
 // Vehicle photo of one entry, or a photo to read the number plate from: the photo is the body.
 async function vehiclePhoto(path, blob) {
   const res = await fetch(API_BASE + path, { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
@@ -168,6 +182,7 @@ export const api = {
   scheduleClear: (branch, date, agency) => apiCall('POST', '/scheduleClear', { branch, date, agency }),
   escortPoint: (branch, date, guard_id, point) => apiCall('POST', '/escortPoint', { branch, date, guard_id, point }),
   supMessage: (post, text) => apiCall('POST', '/supMessage', { post, text }),
+  supMedia,
   coverCandidates: t => apiCall('GET', '/coverCandidates?t=' + q(t)),
   startBreak: (t, type, cover_guard_id) => apiCall('POST', '/startBreak', { t, type, cover_guard_id }),
   cancelBreak: t => apiCall('POST', '/cancelBreak', { t }),

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { useAgencyPick } from '../agencyPick.js';
 import { Icon, initials } from '../post/icons.jsx';
-import { clock } from '../post/media.js';
+import { clock, compressImage, videoSeconds, recorderType, MAX_VIDEO_SECONDS, MAX_VIDEO_MB, MAX_VOICE_SECONDS } from '../post/media.js';
 import '../post/post.css';
 import './supervisor.css';
 import Rail from './Rail.jsx';
@@ -87,10 +87,10 @@ function Message({ m }) {
       </div>
     );
   }
-  const mine = m.kind === 'supervisor' && m.mine;
+  const mine = (m.kind === 'supervisor' || m.office) && m.mine;
   return (
     <div className={'pd-bubble ' + (mine ? 'pd-bubble-me sup-bubble-sup' : 'pd-bubble-other')}>
-      <div className="pd-author">{m.kind === 'supervisor' ? supAuthor(m.author, me) : m.author}</div>
+      <div className="pd-author">{m.kind === 'supervisor' || m.office ? supAuthor(m.author, me) : m.author}</div>
       {m.reply && <div className="pd-quote"><div className="pd-quote-name">{m.reply.author}</div><div className="pd-quote-text">{m.reply.text}</div></div>}
       {m.media && m.media.url && m.kind === 'photo' && <a href={m.media.url} target="_blank" rel="noreferrer"><img src={m.media.url} alt="Photo from the post" className="pd-media-img" /></a>}
       {m.media && m.media.url && m.kind === 'video' && <video src={m.media.url} controls playsInline preload="metadata" className="pd-media-img" />}
@@ -242,6 +242,88 @@ export default function SupervisorInbox({ initialPost }) {
     }
   }
 
+  // Photo, video and voice from the office (Prem, 25 Oct: the same message box as the guard's page).
+  const photoInput = useRef(null);
+  const galleryInput = useRef(null);
+  const voiceRec = useRef(null);
+  const holdingMic = useRef(false);
+  const [voice, setVoice] = useState(null);
+  async function upload(blob, kind, source, duration) {
+    setBusy(true);
+    setError('');
+    try {
+      await api.supMedia(openId, blob, { kind, source, duration });
+      await loadPost(openId);
+      loadList();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function onPhotoTaken(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try { await upload(await compressImage(file), 'photo', 'camera', 0); } catch (err) { setError(err.message); }
+  }
+  async function onGalleryPick(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      if (file.type.startsWith('image/')) return upload(await compressImage(file), 'photo', 'gallery', 0);
+      if (!file.type.startsWith('video/')) return setError('Pick a photo or a video.');
+      const secs = await videoSeconds(file);
+      if (secs > MAX_VIDEO_SECONDS + 1) return setError('Video must be ' + MAX_VIDEO_SECONDS + ' seconds or less.');
+      if (file.size > MAX_VIDEO_MB * 1048576) return setError('Video is too big (max ' + MAX_VIDEO_MB + ' MB).');
+      upload(file, 'video', 'gallery', Math.round(secs));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+  // Mic: hold to record, let go to send (WhatsApp style, like the guard's page).
+  async function voiceDown(e) {
+    e.preventDefault();
+    holdingMic.current = true;
+    const type = recorderType('voice');
+    if (type === null || !navigator.mediaDevices) return setError('This browser cannot record voice here.');
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const chunks = [];
+      const rec = new MediaRecorder(stream, type ? { mimeType: type } : {});
+      const began = Date.now();
+      rec.ondataavailable = ev => { if (ev.data.size) chunks.push(ev.data); };
+      rec.onstop = () => {
+        stream.getTracks().forEach(t => t.stop());
+        clearInterval(rec.timer);
+        setVoice(null);
+        const secs = (Date.now() - began) / 1000;
+        if (rec.cancelled || secs < 1) return;
+        upload(new Blob(chunks, { type: (rec.mimeType || type || 'audio/webm').split(';')[0] }), 'voice', 'mic', Math.round(secs));
+      };
+      rec.timer = setInterval(() => {
+        const secs = (Date.now() - began) / 1000;
+        setVoice(secs);
+        if (secs >= MAX_VOICE_SECONDS) rec.stop();
+      }, 250);
+      voiceRec.current = rec;
+      setVoice(0);
+      rec.start();
+      if (!holdingMic.current) voiceUp(true);
+    } catch {
+      setError('Microphone is blocked. Allow the microphone for this site.');
+    }
+  }
+  function voiceUp(cancel) {
+    holdingMic.current = false;
+    const rec = voiceRec.current;
+    voiceRec.current = null;
+    if (!rec || rec.state !== 'recording') return;
+    rec.cancelled = cancel === true;
+    rec.stop();
+  }
+
   async function send(e) {
     e.preventDefault();
     if (!text.trim()) return;
@@ -357,12 +439,21 @@ export default function SupervisorInbox({ initialPost }) {
               <div ref={endRef}></div>
             </div>
             {error && <div className="pd-error-bar">{error}</div>}
+            {voice !== null && (
+              <div className="pd-voice-bar"><span className="pd-voice-dot"></span>Recording {clock(voice)} · let go to send</div>
+            )}
             <form className="pd-composer" onSubmit={send}>
               <label htmlFor="sup-msg" className="pd-hidden">Message to this post</label>
               <div className="pd-input">
                 <input id="sup-msg" value={text} onChange={e => setText(e.target.value)} placeholder={'Message to ' + (post ? post.post : 'this post')} maxLength={255} autoComplete="off" />
+                <button type="button" className="pd-in-btn" onClick={() => galleryInput.current.click()} disabled={busy} aria-label="Attach photo or video from gallery">{Icon.clip}</button>
+                <button type="button" className="pd-in-btn" onClick={() => photoInput.current.click()} disabled={busy} aria-label="Take a photo">{Icon.camera}</button>
               </div>
-              <button className="pd-send" type="submit" disabled={busy || !text.trim()} aria-label="Send">{Icon.send}</button>
+              {text.trim()
+                ? <button className="pd-send" type="submit" disabled={busy} aria-label="Send">{Icon.send}</button>
+                : <button type="button" className={'pd-mic' + (voice !== null ? ' pd-mic-on' : '')} onPointerDown={voiceDown} onPointerUp={() => voiceUp(false)} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Hold to record a voice note">{Icon.mic}</button>}
+              <input ref={photoInput} type="file" accept="image/*" capture="environment" className="pd-file" onChange={onPhotoTaken} />
+              <input ref={galleryInput} type="file" accept="image/*,video/*" className="pd-file" onChange={onGalleryPick} />
             </form>
           </>
         )}

@@ -432,7 +432,9 @@ module.exports = function postRoutes(app, h) {
     ]);
     const byId = {};
     rows.forEach(m => { byId[String(m.ROWID)] = m; });
-    const authorOf = m => (m.kind === 'supervisor' ? m.author_name || 'Supervisor' : (names[String(m.guard_id)] || {}).guard_name || '');
+    // Office photo / video / voice (25 Oct): no guard, the sender's "Name · Role" in author_name.
+    const office = m => m.kind === 'supervisor' || (!m.guard_id && !!m.author_name);
+    const authorOf = m => (office(m) ? m.author_name || 'Supervisor' : (names[String(m.guard_id)] || {}).guard_name || '');
     const now = nowStamp();
 
     const messages = rows.map(m => {
@@ -441,7 +443,7 @@ module.exports = function postRoutes(app, h) {
       const w = m.kind === 'work' ? works[String(m.ref_id)] : null;
       return {
         ROWID: m.ROWID, kind: m.kind, text: m.text, pinned: isTrue(m.pinned), forwarded: isTrue(m.forwarded),
-        mine: viewer.supervisor ? m.kind === 'supervisor' : String(m.guard_id) === String(viewer.guardId),
+        mine: viewer.supervisor ? office(m) : String(m.guard_id) === String(viewer.guardId), office: office(m),
         // Only the guard's own shift's notes can be pinned / unpinned.
         myShift: !viewer.supervisor && String(m.duty_log_id) === String(viewer.logId),
         author: authorOf(m), seenBy: m.seen_by || '', seen: hhmm(m.seen_at),
@@ -468,7 +470,7 @@ module.exports = function postRoutes(app, h) {
       const { messages, open, rows } = await timelineData(req, catalystApp, zcql, log.post_id, { guardId: me.ROWID, logId: log.ROWID });
 
       // F31: supervisor messages are now seen by this guard.
-      const unseen = rows.filter(m => m.kind === 'supervisor' && !m.seen_by);
+      const unseen = rows.filter(m => office(m) && !m.seen_by);
       if (unseen.length) {
         const now = nowStamp();
         for (const m of unseen) await catalystApp.datastore().table('PostMessages').updateRow({ ROWID: m.ROWID, seen_by: me.guard_name, seen_at: now });
@@ -741,7 +743,8 @@ module.exports = function postRoutes(app, h) {
   // Supervisor inbox (supervisor.js).
   const sup = require('./supervisor.js')(app, {
     catalyst, fail, requireRowId, requireDate, getShifts, shiftDate, weekStartOf, nowStamp, hhmm, minutesBetween, cleanText, isTrue, MAX_TEXT,
-    namesOf, addMessage, timelineData, workView, sendPushToGuard, sendPushToRows, getVapidKeys, auth
+    namesOf, addMessage, timelineData, workView, sendPushToGuard, sendPushToRows, getVapidKeys, auth,
+    express, crypto, MEDIA, MEDIA_BUCKET, MEDIA_SOURCES, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, mediaLabel
   });
 
   return { onPostIn, onPostOut };

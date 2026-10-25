@@ -1186,16 +1186,55 @@ module.exports = function supervisorRoutes(app, h) {
       const name = (supName(req) + ' · ' + auth.ROLE_NAME[req.user.role]).slice(0, 100);
       const text = cleanText(req.body.text, 'Message', MAX_TEXT, true);
       const saved = await addMessage(catalystApp, { post_id: postId, kind: 'supervisor', author_name: name, text });
-      const logs = (await activeLogs(zcql, [postId])).filter(l => l.status === 'on_duty' || l.status === 'on_break');
-      const guardRows = logs.length ? await zcql.executeZCQLQuery(`SELECT ROWID, guard_token FROM Guards WHERE ROWID IN (${idList(logs.map(l => l.guard_id))})`) : [];
-      for (const r of guardRows) {
-        try {
-          await sendPushToGuard(catalystApp, r.Guards.ROWID, { title: '💬 ' + supLabel(req), body: text, url: 'index.html#guard/' + r.Guards.guard_token, urgent: true, tag: 'sup-' + postId });
-        } catch (err) {
-          console.error('Supervisor message push failed:', err);
-        }
+      const sentTo = await tellGuards(req, catalystApp, zcql, postId, text);
+      res.status(200).json({ status: 'success', data: { ROWID: saved.ROWID, sentTo } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // The guards on duty at a post get the office message as a notification; returns how many.
+  async function tellGuards(req, catalystApp, zcql, postId, body) {
+    const logs = (await activeLogs(zcql, [postId])).filter(l => l.status === 'on_duty' || l.status === 'on_break');
+    const guardRows = logs.length ? await zcql.executeZCQLQuery(`SELECT ROWID, guard_token FROM Guards WHERE ROWID IN (${idList(logs.map(l => l.guard_id))})`) : [];
+    for (const r of guardRows) {
+      try {
+        await sendPushToGuard(catalystApp, r.Guards.ROWID, { title: '💬 ' + supLabel(req), body, url: 'index.html#guard/' + r.Guards.guard_token, urgent: true, tag: 'sup-' + postId });
+      } catch (err) {
+        console.error('Supervisor message push failed:', err);
       }
-      res.status(200).json({ status: 'success', data: { ROWID: saved.ROWID, sentTo: guardRows.length } });
+    }
+    return guardRows.length;
+  }
+
+  // Office photo / video / voice to a post (Prem, 25 Oct: the same message box as the guard's).
+  // Same file rules as the guard's /uploadMedia; the row has no guard, author_name says who sent it.
+  app.post('/supMedia', h.express.raw({ type: () => true, limit: '26mb' }), async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const postId = requireRowId(req.query.post);
+      await myPost(req, zcql, postId);
+      const kind = String(req.query.kind || '');
+      const rule = h.MEDIA[kind];
+      if (!rule) throw new Error('Unknown media type.');
+      const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      const ext = rule.types[type];
+      if (!ext) throw new Error('This file type is not allowed (' + (type || 'unknown') + ').');
+      const body = req.body;
+      if (!Buffer.isBuffer(body) || !body.length) throw new Error('The file is empty.');
+      if (body.length > rule.max) throw new Error('File is too big (max ' + Math.round(rule.max / 1048576) + ' MB).');
+      const source = String(req.query.source || '');
+      if (!h.MEDIA_SOURCES.includes(source)) throw new Error('Unknown media source.');
+      const duration = Math.max(0, Math.round(Number(req.query.duration) || 0));
+      if (kind === 'video' && duration > h.MAX_VIDEO_SECONDS + 1) throw new Error('Video must be ' + h.MAX_VIDEO_SECONDS + ' seconds or less.');
+      if (kind === 'voice' && duration > h.MAX_VOICE_SECONDS + 1) throw new Error('Voice note is too long.');
+      const key = 'post/' + postId + '/' + nowStamp().slice(0, 10) + '/office-' + h.crypto.randomBytes(8).toString('hex') + '.' + ext;
+      await catalystApp.stratus().bucket(h.MEDIA_BUCKET).putObject(key, body, { contentType: type });
+      const name = (supName(req) + ' · ' + auth.ROLE_NAME[req.user.role]).slice(0, 100);
+      const saved = await addMessage(catalystApp, { post_id: postId, kind, text: '', media_key: key, media_source: source, duration, author_name: name });
+      const sentTo = await tellGuards(req, catalystApp, zcql, postId, h.mediaLabel(kind));
+      res.status(200).json({ status: 'success', data: { ROWID: saved.ROWID, sentTo } });
     } catch (err) {
       fail(res, err);
     }

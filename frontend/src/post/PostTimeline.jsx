@@ -58,11 +58,11 @@ function Bubble({ m, onMenu, onReply }) {
 
   return (
     <div
-      className={'pd-bubble ' + (m.mine ? 'pd-bubble-me' : 'pd-bubble-other') + (m.kind === 'supervisor' ? ' pd-bubble-sup' : '')}
+      className={'pd-bubble ' + (m.mine ? 'pd-bubble-me' : 'pd-bubble-other') + (m.kind === 'supervisor' || m.office ? ' pd-bubble-sup' : '')}
       onTouchStart={start} onTouchMove={move} onTouchEnd={end} onTouchCancel={end}
       onContextMenu={e => { e.preventDefault(); onMenu(m); }}
     >
-      {!m.mine && <div className={'pd-author' + (m.kind === 'supervisor' ? ' pd-author-sup' : '')}>{m.author}{m.kind === 'supervisor' && !m.author.includes(' · ') ? ' · Supervisor' : ''}</div>}
+      {!m.mine && <div className={'pd-author' + (m.kind === 'supervisor' || m.office ? ' pd-author-sup' : '')}>{m.author}{m.kind === 'supervisor' && !m.author.includes(' · ') ? ' · Supervisor' : ''}</div>}
       {m.reply && (
         <div className="pd-quote">
           <div className="pd-quote-name">{m.reply.author}</div>
