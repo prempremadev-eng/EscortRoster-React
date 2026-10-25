@@ -128,7 +128,10 @@ export default function SupervisorInbox({ initialPost }) {
   const [search, setSearch] = useState('');
   // A post picked on the live board opens here once.
   const [openId, setOpenId] = useState(() => {
-    const id = initialPost || remember('sup_open', null);
+    // A reload keeps the open chat (Prem, 26 Oct: refresh went back to the list); this tab only.
+    let reopen = null;
+    try { reopen = sessionStorage.getItem('sup_chat'); } catch { /* private mode */ }
+    const id = initialPost || remember('sup_open', null) || reopen;
     keep('sup_open', null);
     return id;
   });
@@ -144,6 +147,7 @@ export default function SupervisorInbox({ initialPost }) {
   const addStep = () => { try { window.history.pushState({ supChat: true }, ''); } catch { /* old browser */ } };
   const openPost = id => setOpenId(id);
   useEffect(() => {
+    try { if (openId) sessionStorage.setItem('sup_chat', openId); else sessionStorage.removeItem('sup_chat'); } catch { /* private mode */ }
     if (!openId) return;
     // "#supervisor/<post>" (a notification) would open the same chat again on the next visit.
     if (window.location.hash.startsWith('#supervisor/')) { try { window.history.replaceState(window.history.state, '', '#supervisor'); } catch { /* old browser */ } }
