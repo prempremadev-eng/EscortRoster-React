@@ -141,6 +141,11 @@ export default function VehiclesPage() {
           <div className="full-date">{shortDate(date)}</div>
           <h1 className="full-title">🚗 Vehicles</h1>
           <div className="full-btns">
+            {pickAgency && branchAgencies.length > 0 && (
+              <select className="full-agency" value={ag} onChange={e => chooseAgency(e.target.value)} aria-label="Agency">
+                {branchAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+              </select>
+            )}
             <button className="btn secondary" onClick={() => setDate(d => plusDay(d, -1))} aria-label="Previous day">‹</button>
             <button className="btn secondary" onClick={() => setDate(d => plusDay(d, 1))} aria-label="Next day">›</button>
             <button className="btn secondary" onClick={toggleFull} title="Show the buttons and filters">▾</button>

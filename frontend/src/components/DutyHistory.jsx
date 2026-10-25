@@ -68,6 +68,12 @@ export default function DutyHistory() {
           <div className="full-date">{shortDate(date)}</div>
           <h1 className="full-title">📖 Duty History</h1>
           <div className="full-btns">
+            {agencies.length > 1 && (
+              <select className="full-agency" value={agency} onChange={e => { setAgency(e.target.value); setTeam(''); }} aria-label="Agency">
+                <option value="">All agencies</option>
+                {agencies.map(a => <option key={a}>{a}</option>)}
+              </select>
+            )}
             <button className="btn secondary" onClick={() => setDate(d => plusDay(d, -1))} aria-label="Previous day">‹</button>
             <button className="btn secondary" onClick={() => setDate(d => plusDay(d, 1))} aria-label="Next day">›</button>
             <button className="btn secondary" onClick={toggleFull} title="Show the buttons and filters">▾</button>
