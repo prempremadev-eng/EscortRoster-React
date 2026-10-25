@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
+import { useUser, seesEscort } from './auth/user.js';
 import {
   PICKUP_ROWS, ROTATION, blankPickup, computeDisplayRows, escortFromDb, groupStops,
   isMonday, isSaturday, isSunday, dutyDayStr, readEscortFile, routeFromDb
@@ -39,6 +40,9 @@ function setAt(arr, idx, patch) {
 let extraUid = 0;
 
 export default function App() {
+  // The escort sheet is the home page (#); a supervisor without escorts goes to their Schedule instead.
+  const me = useUser();
+  useEffect(() => { if (!seesEscort(me)) window.location.hash = '#schedule'; }, [me]);
   const today = dutyDayStr();
   const [startDate, setStartDate, startDateRef] = useStore(today);
   const [dutyDate, setDutyDate, dutyDateRef] = useStore(today);
