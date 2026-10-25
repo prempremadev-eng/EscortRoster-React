@@ -257,3 +257,9 @@ button.sb-kpi:hover{border-color:#94a3b8;}
   .sup .pd-work,.sup .pd-alert{width:92%;}
   .sup .pd-composer{padding:8px 10px 12px;}
 }
+@media (max-width:700px){
+  /* The ☰ bar already says "Posts": no second title, refresh stays on the right. */
+  .sup-inbox .sup-list-head{padding-top:12px;}
+  .sup-inbox .sup-list-head .pd-title{display:none;}
+  .sup-inbox .sup-list-head .pd-row-between{justify-content:flex-end;gap:8px;}
+}
