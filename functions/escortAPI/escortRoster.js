@@ -49,7 +49,35 @@ async function escortDay(catalystApp, date) {
   const escorts = thisMonth.map(r => String(r.guard_id)).filter((id, i, a) => byId.has(id) && a.indexOf(id) === i);
   if (!escorts.length) return null;
 
-  const batch = escorts.filter(id => code(id, sat) === 'O' && code(id, sun) === 'O');
+  // E1: 6 to 5 = coming Saturday AND Sunday off. E1b (Prem, 25 Oct): when that Saturday or Sunday falls
+  // in a month whose roster is not uploaded yet (last week of a month), the 6 to 5 list is the escorts with
+  // the fewest 6-to-5 days so far this month, as many as last week's list, plus anyone tied at the end.
+  const offBoth = mon => escorts.filter(id => code(id, addDays(mon, 5)) === 'O' && code(id, addDays(mon, 6)) === 'O');
+  const hasRoster = d => Object.keys(codesOf[d.slice(0, 7)] || {}).length > 0;
+  let batch = offBoth(monday);
+  if (!hasRoster(sat) || !hasRoster(sun)) batch = fewestNights(monday);
+
+  function fewestNights(mon) {
+    const first = date.slice(0, 8) + '01';
+    const nights = {};
+    escorts.forEach(id => { nights[id] = 0; });
+    let lastSize = 0;
+    for (let w = addDays(first, 1 - weekday(first)); w < mon; w = addDays(w, 7)) {
+      const b = offBoth(w);
+      let d0 = w;
+      if (w < first) { d0 = first; for (let d = first; d <= addDays(w, 4); d = addDays(d, 1)) if (isDutyDay(d) && b.every(id => code(id, d) === 'C')) { d0 = d; break; } }
+      for (let d = d0; d <= addDays(w, 4); d = addDays(d, 1)) if (isDutyDay(d)) b.forEach(id => { if (code(id, d) === 'C') nights[id]++; });
+      lastSize = b.length;
+    }
+    const days = [0, 1, 2, 3, 4].map(i => addDays(mon, i));
+    const onC = escorts.filter(id => days.some(d => code(id, d) === 'C'));
+    const sorted = onC.slice().sort((a, b) => nights[a] - nights[b] || escorts.indexOf(a) - escorts.indexOf(b));
+    const size = Math.min(sorted.length, lastSize || Math.round(onC.length / 4));
+    if (!size) return [];
+    const cut = nights[sorted[size - 1]];
+    // Back in roster order (E2); ties at the end come too, so nobody equal is left out.
+    return escorts.filter(id => sorted.indexOf(id) >= 0 && (sorted.indexOf(id) < size || nights[id] === cut));
+  }
   // Day 0: Monday; a week that starts a new month begins on the first day the whole batch is on C.
   let day0 = monday;
   if (monday.slice(0, 7) !== date.slice(0, 7)) {

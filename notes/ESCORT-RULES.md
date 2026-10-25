@@ -8,6 +8,7 @@ Names stay out of git. Checked against the real sheets of 01-10 and 02-10 and th
 |---|---|
 | **E0 · Source** | No weekly Excel any more. Escorts come from the **Month Roster** (escort section). Name, phone, ID and agency are already in **Guards** (Guard Master). Excel ID `1234` = app ID `P01234` (example) |
 | **E1 · 6-to-5 batch** | Escorts whose **coming Sat + Sun are both OFF** in the Month Roster |
+| **E1b · Month end (25 Oct)** | When the coming Saturday or Sunday is in a month whose roster is **not uploaded yet**, the 6-to-5 list is the escorts (on C that week) with the **fewest 6-to-5 days so far this month**, as many as **last week's 6-to-5 count**, plus anyone **tied** at the end (nobody equal is left out). Then roster order and rotation as usual. E1 stays as it is for all other weeks. Escorts with no duty in the roster ("-") are not picked. Checked: 21 Oct unchanged (11); 26–30 Oct = the 12 escorts with only 1–2 six-to-five days in October |
 | **E2 · Order** | **Month Roster escort order** (the order in the uploaded roster), not A–Z |
 | **E3 · 9-to-6 batch** | The other escorts on **C** that day, in roster order. Supervisor may add extra people at the end |
 | **E4 · Two separate lists** | 6-to-5 and 9-to-6 each have their own S.No and their own rotation |
