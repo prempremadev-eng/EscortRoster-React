@@ -71,6 +71,17 @@ The doing is done by Supervisor + Branch Admin; the levels above watch and track
 4. Shift report Send (+45 min auto) · 5. Report chain with app totals and notifications ·
 6. Forward a guard message to the Branch Admin · 7. Check the setup rights above.
 
+## 25 Oct changes
+
+| Thing | Now |
+|---|---|
+| Supervisor logins | Personal logins deleted (Prem); **one login per agency per branch**: "IPF / ISS / BSS Shift Incharge". Shared office computer → one Chrome profile per agency |
+| Who is a shift incharge | **Admin → Agencies → Shift incharges** (`Agencies.incharge_ids`); IPF = 4 guards. Used by Auto fill, Schedule, Live board. (Before: supervisor login names matched to guard names) |
+| Escort sheet | All shift incharges see it; only the escort agency's changes it |
+| Users page | Tree (All India → state → city → branch); **role first** in the form, then only the boxes that role needs; **email can be changed** (invite to the new one); **🗑 delete a login** (past work stays) |
+| State Admin | Built (UserRoles.state) |
+| Report chain names | Prem's idea (to confirm): Security Manager → Security Admin → State Admin → … → agency supervisor |
+
 ## Next to discuss
 
 - Branch Admin: daily work, what they see, what they approve.

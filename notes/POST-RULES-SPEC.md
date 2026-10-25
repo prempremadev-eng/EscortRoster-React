@@ -48,7 +48,7 @@ Rules that always hold:
 |---|---|
 | **digit 1–9** | **Fill priority**: filled before posts without a digit (1 before 2) |
 | **D** | **Daily rotation**: never yesterday's guard at this post |
-| **F** | **Never empty**: if nobody from its list is free, take any free PKL / MLCP man **right away** (escort last, never Ninnakarai / ladies / supervisors) |
+| **F** | **Never empty**: if nobody from its list is free, take a free PKL / MLCP man **after every post has its own regulars** (escort last, never Ninnakarai / ladies / shift incharges). MLCP Main Gate-1 = `1F` |
 | **R** | Row only on the shifts its regular works that day (one fixed person, e.g. CCTV) |
 | **R + shifts** (e.g. RG) | The same, only for those shifts (Documents G, Shift Incharge G) |
 | **W** | Weekdays only (no row on Sat / Sun) |
@@ -72,8 +72,8 @@ For one day of one branch. Only **empty** slots are filled, as **drafts**; one g
 | Step | Rule |
 |---|---|
 | 0 | Posts with Auto fill on, sorted by **fill priority digit**, then sheet order, then name |
-| 1 | **Shift Incharge**: the supervisor whose roster has that shift. Two incharge posts (e.g. MLCP Shift Incharge on G): each first takes its own regular, then the main one takes any supervisor left. Nobody → empty |
-| 2 | **Regulars** in list order (not yesterday's guard on a D post). An **F** post with nobody from its list → any free man now |
+| 1 | **Shift Incharge**: a guard ticked as **shift incharge of the agency** (Admin → Agencies, `Agencies.incharge_ids`) whose roster has that shift. Two incharge posts (e.g. MLCP Shift Incharge on G): each first takes its own regular, then the main one takes any incharge left. Nobody → empty |
+| 2 | **Regulars**, two passes: (a) every post's own regulars in list order (not yesterday's guard on a D post); (b) then an **F** post still empty → a free PKL / MLCP man (priority digit order, so `1F` first) |
 | 5 | **Lady pool weekly rotation** (weekdays: after step 2): same lady as yesterday for her shift week; a new week → the lady who was there least in 14 days. Lady shifts limit where a pool lady may go |
 | 3 | **Team relief**: the relief list, post's own team only (on Sat / Sun: before step 5, and the weekend list if any) |
 | 4 | **Outside team**: the rest of the relief list (outsiders ordered by days at the team's posts) |
@@ -114,7 +114,7 @@ Live board: Auto moves to a shift when its window opens; "Due" until the shift s
 
 ## 9. Escorts
 
-See `ESCORT-RULES.md` (E0–E18): 6 to 5 = escorts with the coming Sat + Sun off, 9 to 6 = the other C escorts, Month Roster order, 4 down per duty day, fresh start each Monday, S.No 1–12 then 13+, only C escorts do escort duty.
+See `ESCORT-RULES.md` (E0–E19 + E1b): 6 to 5 = escorts with the coming Sat + Sun off (month-end week with no next roster: fewest 6-to-5 days this month, ties included), 9 to 6 = the other C escorts, Month Roster order, 4 down per duty day, fresh start each Monday, S.No 1…n (n = that week's 6-to-5 count) then n+1…, only C escorts do escort duty. Every shift incharge of the branch sees the escort sheet; only the escort agency's (IPF) changes it.
 
 ## 10. How the next app should rebuild the lists every month
 

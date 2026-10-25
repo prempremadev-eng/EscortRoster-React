@@ -25,8 +25,8 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 |---|---|---|
 | 0 | Switch | `Posts.auto_fill` = on irukkura posts la mattum run aagum |
 | 0 | Escort | Escort guards **Sunday mattum**. Mon–Fri avanga night cab, so skip |
-| 1 | Shift Incharge | Month roster la andha shift code irukkura supervisor. Yaarum illa na **empty** |
-| 2 | Regular guards | `Posts.regular_guards` la irukkuravanga, avanga roster shift la |
+| 1 | Shift Incharge | **25 Oct:** agency la **tick panna shift incharges** (Admin → Agencies → Shift incharges = `Agencies.incharge_ids`; IPF = 4 per), month roster la andha shift irukkuravar. Yaarum illa na **empty**. (Munnaadi supervisor **login peyar** match; agency logins vandhadhum adhu udaindhudhu) |
+| 2 | Regular guards | **25 Oct, 2 pass:** (a) **ellaa posts kum avanga regulars** mudhalla (`Posts.regular_guards`, roster shift padi); (b) apram **F** post innum kaali naa free PKL / MLCP aal (escort kadaisi). **MLCP Main Gate-1 = `1F`**: mudhalla, eppovum kaali illa |
 | 3 | Team relief | Innum empty slot ah `Posts.relief_guards` (order) la irundhu, **post oda team** la irukkuravanga mattum |
 | 4 | Outside team | Apparum empty na, relief list la meedhi irukkuravanga |
 | 5 | Weekly rotation | Lady pool posts (team Lady Guards, regulars < shifts), **Rule 2 ku apram, Rule 3 ku munnaadi**: (a) nethu indha post + shift la irundhavanga, innaikkum adhe shift na **adhe post**; (b) pudhu shift week na, kadaisi 14 naal la indha post la **kammiya** irundhavanga first |
@@ -36,6 +36,7 @@ Ithu oru **rule book**. Rules rendu idathula irundhu varudhu:
 | 9 | Lady shifts | `relief ; weekend ; lady shifts` (e.g. `B`). Andha shifts la mattum Rule 5 lady pool rotation; mathha shifts la pool lady podaadhu. **Kitchen-2 = B** (weekday), **Apricot Patrolling = A, C** (B = men) |
 | 10 | Daily rotation | A post flagged **D** (4th `;` part of `Posts.relief_guards`) never gets the guard who was there **yesterday** (Rules 2, 3, 4, 8). For hot / hard posts (Lancor Vendor Entrance: sun) |
 | – | Safety | Empty slot mattum fill pannum, **draft** ah. Oru guard oru naal la oru slot thaan |
+| – | Rules maarinaa | Auto fill **already potta rows ah maaththaadhu**. Rule maatram apram andha naal **🧹 Clear day → ⚡ Auto fill** pannanum (25 Oct: incharges pazhaya run la vera posts la irundhaanga) |
 
 ## 🗂️ Post types (how each post is decided, 20 Oct)
 
