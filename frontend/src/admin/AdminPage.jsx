@@ -119,7 +119,7 @@ export default function AdminPage() {
         <div className="spacer"></div>
         {tab === 'states' && <button className="btn secondary" onClick={() => open('state', { state_name: '', country: 'India' })}>➕ Add state</button>}
         {tab === 'cities' && <button className="btn secondary" onClick={() => open('city', { city_name: '', state_id: '' })} disabled={!data || !data.states.length}>➕ Add city</button>}
-        {tab === 'users' && <button className="btn secondary" onClick={() => open('user', { ...BLANK_USER, role: data && data.roles.length ? data.roles[data.roles.length - 1].code : '' })} disabled={!data}>➕ Add user</button>}
+        {tab === 'users' && <button className="btn secondary" onClick={() => open('user', { ...BLANK_USER })} disabled={!data}>➕ Add user</button>}
         {tab === 'branches' && <button className="btn secondary" disabled={!data || !data.cities.length} onClick={() => {
           const own = me.role === 'city_admin' && data.cities[0];
           open('branch', { ...BLANK_BRANCH, state_id: own ? String(own.state_id) : '', city_id: own ? String(own.ROWID) : '' });
@@ -137,22 +137,11 @@ export default function AdminPage() {
           <form className="master-form" onSubmit={saveUser}>
             <div className="master-form-title">{form.ROWID ? '✏️ Edit ' + form.name : '➕ New user'}</div>
             <div className="master-grid">
-              {/* Order asked for: Branch → Agency → Role → Name → Email. Branch and agency matter for a
-                  Supervisor (both) and a Branch Admin (branch); the higher roles ignore them. */}
-              <label>Branch{needsBranch(form.role) ? '' : ' (not needed for ' + ROLE_NAME[form.role] + ')'}
-                <select value={form.branch_id} onChange={e => setForm(f => ({ ...f, branch_id: e.target.value, agency_id: '' }))} required={needsBranch(form.role)} disabled={!needsBranch(form.role)}>
-                  <option value="">Pick the branch</option>
-                  {activeBranches.map(b => <option key={b.ROWID} value={b.ROWID}>{branchName(b.ROWID)}</option>)}
-                </select>
-              </label>
-              <label>Agency{form.role === 'supervisor' ? '' : ' (only for Supervisor)'}
-                <select value={form.agency_id} onChange={e => set('agency_id', e.target.value)} required={form.role === 'supervisor'} disabled={form.role !== 'supervisor' || !form.branch_id}>
-                  <option value="">{form.branch_id ? 'Pick the agency' : 'Pick the branch first'}</option>
-                  {data.agencies.filter(a => isOn(a.is_active) && worksIn(a, form.branch_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
-                </select>
-              </label>
+              {/* Role first, then only the boxes that role needs (Prem, 25 Oct): State Admin → state,
+                  City Admin → city, Branch Admin → branch, Supervisor → branch + agency; then name and email. */}
               <label>Role
-                <select value={form.role} onChange={e => set('role', e.target.value)} required>
+                <select value={form.role} onChange={e => { const role = e.target.value; setForm(f => ({ ...f, role, state: '', city: '', branch_id: role === 'branch_admin' || role === 'supervisor' ? f.branch_id : '', agency_id: '' })); }} required>
+                  <option value="">Pick the role</option>
                   {data.roles.map(r => <option key={r.code} value={r.code}>{r.name}</option>)}
                 </select>
               </label>
@@ -169,6 +158,22 @@ export default function AdminPage() {
                   <select value={form.city} onChange={e => set('city', e.target.value)} required>
                     <option value="">Pick the city</option>
                     {cities.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </label>
+              )}
+              {needsBranch(form.role) && (
+                <label>Branch
+                  <select value={form.branch_id} onChange={e => setForm(f => ({ ...f, branch_id: e.target.value, agency_id: '' }))} required>
+                    <option value="">Pick the branch</option>
+                    {activeBranches.map(b => <option key={b.ROWID} value={b.ROWID}>{branchName(b.ROWID)}</option>)}
+                  </select>
+                </label>
+              )}
+              {form.role === 'supervisor' && (
+                <label>Agency
+                  <select value={form.agency_id} onChange={e => set('agency_id', e.target.value)} required disabled={!form.branch_id}>
+                    <option value="">{form.branch_id ? 'Pick the agency' : 'Pick the branch first'}</option>
+                    {data.agencies.filter(a => isOn(a.is_active) && worksIn(a, form.branch_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
                   </select>
                 </label>
               )}
