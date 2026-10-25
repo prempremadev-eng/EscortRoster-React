@@ -866,7 +866,6 @@ module.exports = function supervisorRoutes(app, h) {
       // Two passes (Prem, 25 Oct): first every post gets its own regulars; only then an "F" post still empty
       // takes someone else, so it can no longer take MLCP Main Gate-1's own people before that post is filled.
       const regularsOf = p => String(p.regular_guards || '').split(',').map(x => x.trim()).filter(x => nameOf.has(x));
-      const someonesRegular = new Set(autoPosts.filter(p => !isIncharge(p)).flatMap(regularsOf));
       for (const pass of ['own', 'fill']) {
         for (const p of autoPosts) {
           const regular = regularsOf(p);
@@ -875,10 +874,11 @@ module.exports = function supervisorRoutes(app, h) {
             if (taken.has(p.ROWID + '|' + shift)) continue;
             let g = pass === 'own' ? regular.find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !restDay(p, id)) : null;
             // "F" (never empty, Prem 21 Oct: Lancor Car Parking, MLCP Basement-1): none of its list free →
-            // a free PKL / MLCP man on that shift who is nobody's regular (escorts on Sunday last).
+            // a free PKL / MLCP man on that shift (every post's own regulars are placed by then; escorts last).
+            // MLCP Main Gate-1 is "1F" (Prem, 25 Oct: the main post, filled first and never left empty).
             if (!g && pass === 'fill' && mustFill(p)) {
               const free = guards.map(x => String(x.ROWID)).filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !restDay(p, id)
-                && !supSet.has(id) && !someonesRegular.has(id) && ['pkl', 'mlcp', 'escort'].includes(teamAt.get(id)));
+                && !supSet.has(id) && ['pkl', 'mlcp', 'escort'].includes(teamAt.get(id)));
               g = free.find(id => teamAt.get(id) !== 'escort') || free[0];
             }
             if (g) { put(p, shift, g); r2.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else if (pass === 'fill') r2.empty.push(p.post_name + ' ' + shift);
