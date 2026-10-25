@@ -104,7 +104,7 @@ export default function SupervisorBoard() {
   }
 
   function openPost(id) {
-    if (!id) { window.location.hash = '#'; return; } // an escort line opens the escort duty sheet
+    if (!id) { window.location.hash = '#escort'; return; } // an escort line opens the escort duty sheet
     keep('sup_open', id);
     window.location.hash = '#supervisor';
   }

@@ -20,6 +20,7 @@ import Rail from './supervisor/Rail.jsx';
 import './post/post.css';
 import './supervisor/supervisor.css';
 import AuthGate from './auth/AuthGate.jsx';
+import SplashHost from './components/Splash.jsx';
 import './style.css';
 
 const GUARD_TOKEN_KEY = 'guard_token';
@@ -96,11 +97,11 @@ function Root() {
   if (hash.startsWith('#setup/')) return <GuardSetup token={hash.slice('#setup/'.length)} />;
   if (hash.startsWith('#guard/')) {
     const [token, query] = hash.slice('#guard/'.length).split('?');
-    return <GuardPage token={token} testDate={new URLSearchParams(query || '').get('date')} />;
+    return <><GuardPage token={token} testDate={new URLSearchParams(query || '').get('date')} /><SplashHost /></>;
   }
   // Everything else: signed in, with a role (auth/AuthGate.jsx). One side menu on every page (Rail),
   // no top bar any more (Prem, 25 Oct).
-  return <AuthGate bar={false}>{page(hash)}</AuthGate>;
+  return <><AuthGate bar={false}>{page(hash)}</AuthGate><SplashHost /></>;
 }
 
 // An older full-width page (Month roster) shown with the supervisor rail, so the supervisor
@@ -126,7 +127,9 @@ function page(hash) {
   if (hash === '#supervisor' || hash.startsWith('#supervisor/')) return <SupervisorInbox key={hash} initialPost={hash.split('/')[1] || null} />;
   if (hash === '#board') return <SupervisorBoard />;
   if (hash === '#schedule') return <SupervisorSchedule />;
-  return <SupFrame active="escort"><App /></SupFrame>;
+  if (hash === '#escort') return <SupFrame active="escort"><App /></SupFrame>;
+  // The app opens on Posts, not the escort sheet (Prem, 26 Oct: Posts suits a phone).
+  return <SupervisorInbox key="home" initialPost={null} />;
 }
 
 createRoot(document.getElementById('root')).render(<Root />);

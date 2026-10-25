@@ -1,3 +1,4 @@
+import { showSplash } from './Splash.jsx';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { shortDate } from '../utils.js';
@@ -23,7 +24,10 @@ export default function GuardPage({ token, testDate }) {
   const load = useCallback(async () => {
     setStatus('loading');
     try {
-      setData((await api.guardDay(token, testDate)).data);
+      const d = (await api.guardDay(token, testDate)).data;
+      setData(d);
+      // Welcome splash once per app open (Prem, 26 Oct): the guard's own name.
+      showSplash({ icon: '👋', kicker: 'Welcome', title: d.name, sub: d.postName ? '📍 ' + d.postName : '' });
       setVersion(v => v + 1);
       setStarted(false);
       setStatus('ok');

@@ -117,7 +117,7 @@ export default function Dashboard() {
       </div>
 
       <div className="toolbar no-print">
-        <a className="btn secondary" href="#">← Duty Sheet</a>
+        <a className="btn secondary" href="#escort">← Duty Sheet</a>
         <div className="dash-ranges">
           {RANGES.map(r => (
             <button key={r.key} className={'btn' + (kind === r.key ? '' : ' secondary')} onClick={() => setKind(r.key)}>{r.label}</button>

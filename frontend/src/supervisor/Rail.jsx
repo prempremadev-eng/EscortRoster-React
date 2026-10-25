@@ -19,7 +19,7 @@ export default function Rail({ active }) {
       ['schedule', '#schedule', 'Schedule', Icon.calendar, 2],
       ['board', '#board', 'Live', Icon.grid, 3],
       ['posts', '#supervisor', 'Posts', Icon.chat, 4],
-      ['escort', '#', 'Escort', Icon.car, 5],
+      ['escort', '#escort', 'Escort', Icon.car, 5],
       ['vehicles', '#vehicles', 'Vehicles', Icon.gate, 6]
     ]],
     ['Reports', [

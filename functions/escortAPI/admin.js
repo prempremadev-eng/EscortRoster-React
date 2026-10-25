@@ -30,7 +30,14 @@ module.exports = function adminRoutes(app, h) {
         const rows = await admin(req).zcql().executeZCQLQuery(`SELECT ROWID FROM Guards WHERE agency_id = ${requireRowId(u.agency_id)} AND area = 'Escort' LIMIT 1`);
         escorts = rows.length > 0;
       }
-      ok(res, { email: u.email, name: u.name, role: u.role, roleName: ROLE_NAME[u.role], city: u.city, branch_id: u.branch_id, agency_id: u.agency_id, escortEdit: escorts });
+      // Names for the welcome splash (26 Oct): "📍 Estancia · ISI" for a shift incharge.
+      const z = admin(req).zcql();
+      const [br, ag] = await Promise.all([
+        /^[0-9]+$/.test(String(u.branch_id || '')) ? z.executeZCQLQuery(`SELECT branch_name FROM Branches WHERE ROWID = ${u.branch_id}`) : [],
+        /^[0-9]+$/.test(String(u.agency_id || '')) ? z.executeZCQLQuery(`SELECT agency_name FROM Agencies WHERE ROWID = ${u.agency_id}`) : []
+      ]);
+      ok(res, { email: u.email, name: u.name, role: u.role, roleName: ROLE_NAME[u.role], city: u.city, branch_id: u.branch_id, agency_id: u.agency_id, escortEdit: escorts,
+        branchName: br.length ? br[0].Branches.branch_name : '', agencyName: ag.length ? ag[0].Agencies.agency_name : '' });
     } catch (err) {
       fail(res, err);
     }

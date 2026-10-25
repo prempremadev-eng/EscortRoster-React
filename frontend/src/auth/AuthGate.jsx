@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { UserContext, atLeast, signOut } from './user.js';
+import { showSplash } from '../components/Splash.jsx';
 
 // Catalyst Web SDK, loaded only for the signed-in pages (guards' phones never need it).
 // Order matters: init.js uses what catalystWebSDK.js sets up.
@@ -36,7 +37,7 @@ async function isSignedIn() {
 // steps come first, numbered like the rail (notes/SUPERVISOR-FLOW.md), then the other pages.
 function links(user) {
   const l = [['#roster', '1 Month roster'], ['#schedule', '2 Schedule'], ['#board', '3 Live board'], ['#supervisor', '4 Posts'],
-    ['#', 'Escort sheet'], ['#master', 'Guards'], ['#posts', 'Post setup'], ['#report', 'Shift report'], ['#vehicles', 'Vehicles'], ['#history', 'Duty history'], ['#links', 'Guard links']];
+    ['#escort', 'Escort sheet'], ['#master', 'Guards'], ['#posts', 'Post setup'], ['#report', 'Shift report'], ['#vehicles', 'Vehicles'], ['#history', 'Duty history'], ['#links', 'Guard links']];
   if (atLeast(user, 'admin')) l.push(['#simulator', 'Card simulator']);
   if (atLeast(user, 'branch_admin')) l.push(['#admin', 'Admin']);
   return l;
@@ -57,6 +58,9 @@ export default function AuthGate({ children, bar = true }) {
       const me = (await api.me()).data;
       setUser(me);
       setStep(me.role ? 'ready' : 'norole');
+      // Welcome splash once per app open (Prem, 26 Oct): incharge → branch · agency, office → logo.
+      if (me.role === 'supervisor') showSplash({ icon: '📍', kicker: 'Shift Incharge', title: [me.branchName, me.agencyName].filter(Boolean).join(' · ') || me.name, sub: me.name });
+      else if (me.role) showSplash({ icon: '🛡️', kicker: 'Escort Duty', title: me.name, sub: me.roleName + (me.branchName ? ' · ' + me.branchName : '') });
     } catch (err) {
       setError(err.message);
       setStep('error');
@@ -117,7 +121,7 @@ export default function AuthGate({ children, bar = true }) {
         <div className="userbar no-print">
           <nav className="userbar-links">
             {links(user).map(([href, label]) => (
-              <a key={href} href={href} className={window.location.hash === href || (!window.location.hash && href === '#') ? 'on' : ''}>{label}</a>
+              <a key={href} href={href} className={window.location.hash === href ? 'on' : ''}>{label}</a>
             ))}
           </nav>
           <span className="userbar-me" title={user.email}>{user.name} · {user.roleName}</span>

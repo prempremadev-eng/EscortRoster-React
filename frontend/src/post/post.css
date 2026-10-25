@@ -530,3 +530,17 @@
   .pd-htable th:first-child{z-index:2;}
   .pd-hdate{white-space:normal;font-weight:600;color:var(--pd-ink);}
 }
+
+/* Welcome splash when the app opens (Splash.jsx): icon pops, lines rise in one after another, all fades. */
+.splash{position:fixed;inset:0;z-index:200;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;padding:24px;text-align:center;
+  background:radial-gradient(circle at 50% 40%,#24304A 0%,#1A1F2B 70%);color:#fff;font-family:'Source Sans 3',system-ui,sans-serif;animation:splash-in .3s ease both;}
+.splash-out{animation:splash-fade .4s ease forwards;}
+.splash-icon{font-size:64px;line-height:1;animation:splash-pop .6s cubic-bezier(.2,1.4,.4,1) both;}
+.splash-kicker{font-size:14px;letter-spacing:.12em;text-transform:uppercase;color:#9FB3D9;animation:splash-rise .5s .25s ease both;}
+.splash-title{font-family:Archivo,sans-serif;font-weight:700;font-size:28px;line-height:1.2;animation:splash-rise .5s .4s ease both;}
+.splash-sub{font-size:17px;color:#C9D2E3;animation:splash-rise .5s .55s ease both;}
+@keyframes splash-in{from{opacity:0}to{opacity:1}}
+@keyframes splash-fade{to{opacity:0;visibility:hidden}}
+@keyframes splash-pop{from{opacity:0;transform:scale(.4)}to{opacity:1;transform:scale(1)}}
+@keyframes splash-rise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){.splash,.splash *{animation-duration:.01s !important;animation-delay:0s !important;}}
