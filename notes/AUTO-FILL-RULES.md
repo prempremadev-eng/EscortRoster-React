@@ -307,3 +307,9 @@ History: same shift la irundhaalum **~30% thaan nethu post la ve** irukkaanga. S
 | 4d | Weekend la ladies kammi: permanent posts first, then rotation = Rule 7 | ✅ Built, test Sat 24 |
 | 5 | Meedhi 43 posts (generic history rule, row 14) | ✅ On 19 Oct, test Mon 19 / Sat 24 / Sun 25 |
 | 6 | Rotation posts ku weekly same post (Rule 5 maadhiri) | 🔜 Test result paathu |
+
+## 25 Oct: own people at posts with a regular list
+
+- Rule 2 runs in two passes: first every post gets its own regulars; then an "F" (never empty) post still empty takes a free PKL / MLCP man **who is nobody's regular** (escorts on Sunday last). Before, F posts took MLCP Main Gate-1's regulars first.
+- Rule 8 (anyone free) no longer fills a post that has its own regular list (MLCP Main Gate-1, Car Parking-1 …): a stranger there is no use (Prem). Left empty, the slot shows as vacant for the supervisor.
+- Shift Incharge posts take the guards ticked as shift incharges of the agency (Admin → Agencies), not supervisor login names.

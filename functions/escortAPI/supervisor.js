@@ -863,20 +863,26 @@ module.exports = function supervisorRoutes(app, h) {
       const r2 = { no: 2, rule: 'Regular guards', filled: [], empty: [] };
       const nameOf = new Map(guards.map(g => [String(g.ROWID), g.guard_name]));
       const teamAt = new Map(guards.map(g => [String(g.ROWID), String(g.area || '').toLowerCase()]));
-      for (const p of autoPosts) {
-        const regular = String(p.regular_guards || '').split(',').map(x => x.trim()).filter(x => nameOf.has(x));
-        if (!regular.length) continue;
-        for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
-          if (taken.has(p.ROWID + '|' + shift)) continue;
-          let g = regular.find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !restDay(p, id));
-          // "F" (never empty, Prem 21 Oct: Lancor Car Parking, MLCP Basement-1): none of its list free →
-          // any free PKL / MLCP man on that shift now, before the later posts take them (escorts on Sunday).
-          if (!g && mustFill(p)) {
-            const free = guards.map(x => String(x.ROWID)).filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !restDay(p, id)
-              && !supSet.has(id) && ['pkl', 'mlcp', 'escort'].includes(teamAt.get(id)));
-            g = free.find(id => teamAt.get(id) !== 'escort') || free[0];
+      // Two passes (Prem, 25 Oct): first every post gets its own regulars; only then an "F" post still empty
+      // takes someone else, so it can no longer take MLCP Main Gate-1's own people before that post is filled.
+      const regularsOf = p => String(p.regular_guards || '').split(',').map(x => x.trim()).filter(x => nameOf.has(x));
+      const someonesRegular = new Set(autoPosts.filter(p => !isIncharge(p)).flatMap(regularsOf));
+      for (const pass of ['own', 'fill']) {
+        for (const p of autoPosts) {
+          const regular = regularsOf(p);
+          if (!regular.length) continue;
+          for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
+            if (taken.has(p.ROWID + '|' + shift)) continue;
+            let g = pass === 'own' ? regular.find(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !restDay(p, id)) : null;
+            // "F" (never empty, Prem 21 Oct: Lancor Car Parking, MLCP Basement-1): none of its list free →
+            // a free PKL / MLCP man on that shift who is nobody's regular (escorts on Sunday last).
+            if (!g && pass === 'fill' && mustFill(p)) {
+              const free = guards.map(x => String(x.ROWID)).filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !restDay(p, id)
+                && !supSet.has(id) && !someonesRegular.has(id) && ['pkl', 'mlcp', 'escort'].includes(teamAt.get(id)));
+              g = free.find(id => teamAt.get(id) !== 'escort') || free[0];
+            }
+            if (g) { put(p, shift, g); r2.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else if (pass === 'fill') r2.empty.push(p.post_name + ' ' + shift);
           }
-          if (g) { put(p, shift, g); r2.filled.push(p.post_name + ' ' + shift + ' ' + nameOf.get(g)); } else r2.empty.push(p.post_name + ' ' + shift);
         }
       }
       rules.push(r2);
@@ -971,7 +977,9 @@ module.exports = function supervisorRoutes(app, h) {
       const menPost = x => !regularOnly(x) && !isIncharge(x) && String(x.section || '').toLowerCase() !== 'hospital block'
         && !['ninnakarai', 'lady guards', 'medical mine'].includes(teamOf(x).toLowerCase());
       const r8 = { no: 8, rule: 'Anyone free', filled: [], empty: [] };
-      for (const p of autoPosts.filter(x => reliefOf(x).length >= 5 || dailyPosts.includes(x) || sundayPost(x) || menPost(x))) {
+      // A post with its own regular list (MLCP Main Gate-1, Car Parking-1 …) never gets a stranger here (Prem,
+      // 25 Oct: someone who never works there is no use); left empty, it shows as vacant for the supervisor.
+      for (const p of autoPosts.filter(x => (reliefOf(x).length >= 5 || dailyPosts.includes(x) || sundayPost(x) || menPost(x)) && !regularsOf(x).length)) {
         const team = teamOf(p);
         const daily = reliefOf(p).length < 5;
         const isEscort = id => areaOf.get(id).toLowerCase() === 'escort';
