@@ -109,3 +109,6 @@
 | 08:50 | ▶️ Start ("good morning") |
 | 14:06 | 🍛 Lunch |
 | 14:45 | ▶️ Back from lunch |
+| 00:40 (2026-10-26) | ⏹️ Done ("ok good night" → day-end files) |
+
+**Total:** 08:50 → 00:40 (about 15 h 50 min, minus lunch)
