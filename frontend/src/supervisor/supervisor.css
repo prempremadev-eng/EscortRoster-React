@@ -428,3 +428,56 @@ button.sb-kpi:hover{border-color:#94a3b8;}
   .ah-shift-nums{grid-area:nums;justify-content:space-around;}
 }
 @media (prefers-reduced-motion:reduce){.ah-shiftrow,.ah-daytotal,.ah-bar-fill,.ah-day .ah-cta{animation:none;}}
+
+/* Admin home, enterprise look (26 Oct): neutral navy / slate, white panels with thin borders, numbers in
+   columns, colour only for meaning. Replaces the day band and shift rows above. */
+.ah{background:#F5F6F8;color:#0F172A;}
+.ah-kicker{color:#475569;}
+.ah-kpis{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));background:#fff;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;animation:ah-in .35s ease both;}
+.ah-kpi{display:flex;flex-direction:column;gap:6px;padding:16px 20px;border-left:1px solid #E2E8F0;}
+.ah-kpi:first-child{border-left:none;}
+.ah-kpi-label{font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#64748B;}
+.ah-kpi-value{font-family:Archivo,sans-serif;font-size:30px;font-weight:700;line-height:1;color:#0F172A;font-variant-numeric:tabular-nums;}
+.ah-kpi-value small{font-size:14px;font-weight:600;color:#64748B;margin-left:8px;}
+.ah-k-green .ah-kpi-value{color:#15803D;}
+.ah-k-red .ah-kpi-value{color:#B91C1C;}
+.ah-table{background:#fff;border:1px solid #E2E8F0;border-radius:12px;overflow:hidden;}
+.ah-tr{display:grid;grid-template-columns:120px 150px 100px 100px 110px minmax(160px,1fr) 28px;align-items:center;gap:0 12px;width:100%;padding:14px 20px;border:none;border-top:1px solid #EEF2F6;background:#fff;font-family:inherit;font-size:15px;color:#0F172A;text-align:left;cursor:pointer;animation:ah-in .35s ease both;}
+.ah-tr:hover{background:#F8FAFC;}
+.ah-th{cursor:default;border-top:none;background:#F8FAFC;font-size:12px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:#64748B;padding:10px 20px;animation:none;}
+.ah-th:hover{background:#F8FAFC;}
+.ah-num{text-align:right;font-variant-numeric:tabular-nums;font-weight:600;}
+.ah-th .ah-num{font-weight:600;}
+.ah-green-n{color:#15803D;} .ah-red-n{color:#B91C1C;} .ah-muted{color:#94A3B8;font-weight:500;font-size:13px;}
+.ah-td-shift{display:flex;align-items:center;gap:10px;}
+.ah-letter{width:32px;height:32px;border-radius:8px;background:#1E293B;color:#fff;display:flex;align-items:center;justify-content:center;font-family:Archivo,sans-serif;font-size:15px;}
+.ah-now{font-style:normal;font-size:12px;font-weight:600;color:#15803D;}
+.ah-tr-now{box-shadow:inset 3px 0 0 #1E4FB8;}
+.ah-td-time{color:#475569;font-variant-numeric:tabular-nums;}
+.ah-att{display:flex;align-items:center;gap:10px;}
+.ah-att .ah-bar{flex:1;height:8px;border-radius:4px;background:#E2E8F0;max-width:220px;}
+.ah-att .ah-bar-fill{background:#15803D;border-radius:4px;}
+.ah-att b{font-variant-numeric:tabular-nums;font-size:14px;min-width:40px;text-align:right;}
+.ah-go{color:#94A3B8;font-size:22px;text-align:right;}
+.ah-actions{display:flex;justify-content:flex-end;}
+.ah-btn{border:1px solid #CBD5E1;background:#fff;color:#0F172A;border-radius:10px;padding:10px 16px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;}
+.ah-btn:hover{background:#F1F5F9;}
+.ah-stat{background:#fff;border:1px solid #E2E8F0;}
+@media (max-width:900px){
+  .ah-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}
+  .ah-kpi:nth-child(4){border-left:none;}
+  .ah-kpi:nth-child(n+4){border-top:1px solid #E2E8F0;}
+  .ah-th{display:none;}
+  .ah-tr{grid-template-columns:auto 1fr auto;grid-template-areas:"shift time go" "nums nums nums" "att att att";gap:8px 12px;padding:14px 16px;}
+  .ah-td-shift{grid-area:shift;} .ah-td-time{grid-area:time;} .ah-go{grid-area:go;}
+  .ah-tr > .ah-num{display:none;}
+  .ah-att{grid-area:att;}
+  .ah-att .ah-bar{max-width:none;}
+  .ah-tr::after{grid-area:nums;}
+}
+@media (max-width:900px){
+  .ah-tr .ah-mnums{display:flex;}
+}
+.ah-mnums{display:none;grid-area:nums;justify-content:space-between;font-size:13px;color:#64748B;}
+.ah-mnums b{font-family:Archivo,sans-serif;font-size:20px;color:#0F172A;margin-right:4px;font-variant-numeric:tabular-nums;}
+.ah-mnums .ah-green-n b{color:#15803D;}

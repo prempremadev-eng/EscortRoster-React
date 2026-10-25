@@ -40,19 +40,18 @@ function Ring({ present, allotted, size = 180, stroke = 16, label = true }) {
 }
 
 const STATS = [
-  ['allotted', 'Allotted', 'ah-blue', '👥'],
-  ['present', 'Present', 'ah-green', '✅'],
-  ['absent', 'Absent', 'ah-red', '❌'],
-  ['leave', 'Leave', 'ah-amber', '🌴'],
-  ['off', 'Week off', 'ah-grey', '🛌']
+  ['allotted', 'Allotted', 'ah-blue'],
+  ['present', 'Present', 'ah-green'],
+  ['absent', 'Absent', 'ah-red'],
+  ['leave', 'Leave', 'ah-amber'],
+  ['off', 'Week off', 'ah-grey']
 ];
 
 function Stats({ t, begun }) {
   return (
     <div className="ah-stats">
-      {STATS.map(([k, label, cls, icon]) => (
+      {STATS.map(([k, label, cls]) => (
         <div key={k} className={'ah-stat ' + cls}>
-          <span className="ah-stat-icon">{icon}</span>
           <b>{k === 'absent' && !begun ? '–' : t[k]}</b>
           <span>{k === 'absent' && !begun ? 'Absent · not yet' : label}</span>
         </div>
@@ -76,7 +75,6 @@ function Tile({ g, on, begun, onPick }) {
   );
 }
 
-const SHIFT_ICON = { A: '☀️', G: '🕘', B: '🌇', C: '🌙' };
 const STATE = { absent: ['Absent', 'ah-n-red'], due: ['Not IN yet', 'ah-n-grey'], present: ['IN', 'ah-n-green'], leave: ['Leave', 'ah-n-amber'], off: ['Week off', 'ah-n-grey'] };
 
 export default function AdminHome({ hash }) {
@@ -134,51 +132,50 @@ export default function AdminHome({ hash }) {
       {error && <div className="ah-error">{error}</div>}
       {!data && !error && <div className="ah-loading">Loading…</div>}
 
-      {data && view === 'total' && (
-        <section className="ah-day">
-          {/* The whole day first, then Shift A, G, B, C one line each, coming in one by one (Prem, 26 Oct). */}
-          {(() => {
-            const all = data.byShift.reduce((t, x) => ({ allotted: t.allotted + x.allotted, present: t.present + x.present, absent: t.absent + x.absent }), { allotted: 0, present: 0, absent: 0 });
-            return (
-              <div className="ah-daytotal">
-                <div className="ah-daytotal-main">
-                  <span className="ah-daytotal-label">Whole day</span>
-                  <b>{all.present}<small> / {all.allotted}</small></b>
-                  <span className="ah-daytotal-sub">guards came · {pct(all.present, all.allotted)}%</span>
+      {data && view === 'total' && (() => {
+        // Enterprise look (Prem, 26 Oct): a white KPI strip for the whole day, then one table line per
+        // shift, no emoji; green / red only for present / absent.
+        const all = data.byShift.reduce((t, x) => ({ allotted: t.allotted + x.allotted, present: t.present + x.present, absent: t.absent + x.absent }), { allotted: 0, present: 0, absent: 0 });
+        const now = date === today() ? runningShift() : '';
+        const kpis = [
+          ['Allotted', all.allotted, ''], ['Present', all.present, 'ah-k-green', pct(all.present, all.allotted) + '%'],
+          ['Absent', all.absent, 'ah-k-red'], ['Leave', data.day.leave, ''], ['Week off', data.day.off, '']
+        ];
+        return (
+          <section className="ah-day">
+            <div className="ah-kpis">
+              {kpis.map(([label, n, cls, extra]) => (
+                <div key={label} className={'ah-kpi ' + cls}>
+                  <span className="ah-kpi-label">{label}</span>
+                  <span className="ah-kpi-value">{n}{extra && <small>{extra}</small>}</span>
                 </div>
-                <div className="ah-daytotal-chips">
-                  <span className="ah-chip ah-n-red">❌ {all.absent} absent</span>
-                  <span className="ah-chip ah-n-amber">🌴 {data.day.leave} leave</span>
-                  <span className="ah-chip ah-n-grey">🛌 {data.day.off} week off</span>
-                </div>
+              ))}
+            </div>
+            <div className="ah-table" role="table">
+              <div className="ah-tr ah-th" role="row">
+                <span>Shift</span><span>Time</span><span className="ah-num">Allotted</span><span className="ah-num">Present</span><span className="ah-num">Absent</span><span>Attendance</span><span></span>
               </div>
-            );
-          })()}
-          {data.byShift.map((x, i) => (
-            <button key={x.code} className={'ah-shiftrow ah-sh-' + x.code + (x.code === runningShift() && date === today() ? ' ah-shiftrow-now' : '')} style={{ animationDelay: (0.12 + i * 0.15) + 's' }}
-              onClick={() => { setShift(x.code); go('#home/list'); }}>
-              <span className="ah-shift-badge">{SHIFT_ICON[x.code] || '🕘'}<b>{x.code}</b></span>
-              <span className="ah-shift-name">
-                <b>Shift {x.code}</b>
-                <span>{x.start} – {x.end}{x.code === runningShift() && date === today() ? ' · now' : ''}</span>
-              </span>
-              <span className="ah-shift-bar">
-                <span className="ah-bar"><span className="ah-bar-fill" style={{ width: pct(x.present, x.allotted) + '%' }}></span></span>
-                <span className="ah-bar-text">{x.allotted ? pct(x.present, x.allotted) + '% present' : 'No guards'}</span>
-              </span>
-              <span className="ah-shift-nums">
-                <span><b>{x.allotted}</b>Allotted</span>
-                <span className="ah-green-t"><b>{x.present}</b>Present</span>
-                <span className="ah-red-t"><b>{x.begun ? x.absent : '–'}</b>{x.begun ? 'Absent' : 'Not started'}</span>
-              </span>
-              <span className="ah-shift-go">›</span>
-            </button>
-          ))}
-          <button className="ah-cta" onClick={() => go('#home/list')}>
-            <span>🏢 Branches &amp; agencies</span><b>{groups.length}</b><span className="ah-cta-arrow">→</span>
-          </button>
-        </section>
-      )}
+              {data.byShift.map((x, i) => (
+                <button key={x.code} role="row" className={'ah-tr' + (x.code === now ? ' ah-tr-now' : '')} style={{ animationDelay: (0.05 + i * 0.08) + 's' }}
+                  onClick={() => { setShift(x.code); go('#home/list'); }}>
+                  <span className="ah-td-shift"><b className="ah-letter">{x.code}</b>{x.code === now && <em className="ah-now">● Now</em>}</span>
+                  <span className="ah-td-time">{x.start} – {x.end}</span>
+                  {/* Phone: the three numbers in one line (the columns are hidden there). */}
+                  <span className="ah-mnums"><span><b>{x.allotted}</b>allotted</span><span className="ah-green-n"><b>{x.present}</b>present</span><span><b>{x.begun ? x.absent : '–'}</b>{x.begun ? 'absent' : 'not started'}</span></span>
+                  <span className="ah-num">{x.allotted}</span>
+                  <span className="ah-num ah-green-n">{x.present}</span>
+                  <span className={'ah-num' + (x.begun ? ' ah-red-n' : ' ah-muted')}>{x.begun ? x.absent : 'Not started'}</span>
+                  <span className="ah-att"><span className="ah-bar"><span className="ah-bar-fill" style={{ width: pct(x.present, x.allotted) + '%' }}></span></span><b>{x.allotted ? pct(x.present, x.allotted) + '%' : '–'}</b></span>
+                  <span className="ah-go">›</span>
+                </button>
+              ))}
+            </div>
+            <div className="ah-actions">
+              <button className="ah-btn" onClick={() => go('#home/list')}>View branches &amp; agencies ({groups.length}) →</button>
+            </div>
+          </section>
+        );
+      })()}
 
       {data && view !== 'total' && (
         <section className={'ah-split' + (view === 'group' ? ' ah-split-on' : '')}>
