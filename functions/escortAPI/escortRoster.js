@@ -53,7 +53,8 @@ async function escortDay(catalystApp, date) {
   // in a month whose roster is not uploaded yet (last week of a month), the 6 to 5 list is the escorts with
   // the fewest 6-to-5 days so far this month, as many as last week's list, plus anyone tied at the end.
   const offBoth = mon => escorts.filter(id => code(id, addDays(mon, 5)) === 'O' && code(id, addDays(mon, 6)) === 'O');
-  const hasRoster = d => Object.keys(codesOf[d.slice(0, 7)] || {}).length > 0;
+  // The escorts' own roster for that month (another agency's roster for that month does not count).
+  const hasRoster = d => escorts.some(id => (codesOf[d.slice(0, 7)] || {})[id]);
   let batch = offBoth(monday);
   if (!hasRoster(sat) || !hasRoster(sun)) batch = fewestNights(monday);
 
