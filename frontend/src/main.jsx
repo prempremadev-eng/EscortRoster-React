@@ -98,10 +98,9 @@ function Root() {
     const [token, query] = hash.slice('#guard/'.length).split('?');
     return <GuardPage token={token} testDate={new URLSearchParams(query || '').get('date')} />;
   }
-  // Everything else: signed in, with a role (auth/AuthGate.jsx). The supervisor screens have
-  // their own side rail, so no top bar there.
-  const supScreen = hash === '#supervisor' || hash.startsWith('#supervisor/') || hash === '#board' || hash === '#schedule' || hash === '#roster' || hash.startsWith('#roster/') || hash === '#history' || hash === '#chart' || hash === '#report' || hash === '#vehicles';
-  return <AuthGate bar={!supScreen}>{page(hash)}</AuthGate>;
+  // Everything else: signed in, with a role (auth/AuthGate.jsx). One side menu on every page (Rail),
+  // no top bar any more (Prem, 25 Oct).
+  return <AuthGate bar={false}>{page(hash)}</AuthGate>;
 }
 
 // An older full-width page (Month roster) shown with the supervisor rail, so the supervisor
@@ -111,22 +110,22 @@ function SupFrame({ active, children }) {
 }
 
 function page(hash) {
-  if (hash === '#dashboard') return <Dashboard />;
-  if (hash === '#master') return <GuardMaster />;
-  if (hash === '#posts') return <PostsPage />;
+  if (hash === '#dashboard') return <SupFrame active="escort"><Dashboard /></SupFrame>;
+  if (hash === '#master') return <SupFrame active="guards"><GuardMaster /></SupFrame>;
+  if (hash === '#posts') return <SupFrame active="postsetup"><PostsPage /></SupFrame>;
   // The weekly Duty Chart page is gone (Prem, 22 Oct); an old #chart link opens Duty History.
   if (hash === '#vehicles') return <SupFrame active="vehicles"><VehiclesPage /></SupFrame>;
   if (hash === '#report') return <SupFrame active="report"><ShiftReport /></SupFrame>;
   if (hash === '#history' || hash === '#chart') return <SupFrame active="history"><DutyHistory /></SupFrame>;
-  if (hash === '#simulator') return <CardSimulator />;
-  if (hash === '#links') return <GuardLinks />;
-  if (hash === '#admin') return <AdminPage />;
+  if (hash === '#simulator') return <SupFrame active="simulator"><CardSimulator /></SupFrame>;
+  if (hash === '#links') return <SupFrame active="links"><GuardLinks /></SupFrame>;
+  if (hash === '#admin') return <SupFrame active="admin"><AdminPage /></SupFrame>;
   if (hash === '#roster' || hash.startsWith('#roster/')) return <SupFrame active="roster"><RosterPage key={hash} initialMonth={hash.split('/')[1] || null} /></SupFrame>;
   // #supervisor/<post> comes from a supervisor notification: opens that post.
   if (hash === '#supervisor' || hash.startsWith('#supervisor/')) return <SupervisorInbox key={hash} initialPost={hash.split('/')[1] || null} />;
   if (hash === '#board') return <SupervisorBoard />;
   if (hash === '#schedule') return <SupervisorSchedule />;
-  return <App />;
+  return <SupFrame active="escort"><App /></SupFrame>;
 }
 
 createRoot(document.getElementById('root')).render(<Root />);

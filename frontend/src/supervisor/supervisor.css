@@ -198,3 +198,8 @@
 button.sb-kpi{text-align:left;cursor:pointer;font-family:inherit;}
 button.sb-kpi:hover{border-color:#94a3b8;}
 .sb-kpi-on{outline:3px solid #1e3a8a;outline-offset:-1px;}
+/* One menu for every page (25 Oct): group headings, and it scrolls on a short screen. */
+.sup-rail{overflow-y:auto;gap:4px;padding:10px 0;}
+.sup-rail-head{width:58px;margin:6px 0 0;padding-top:6px;border-top:1px solid #33405A;color:#8A93A6;font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;text-align:center;}
+.sup-rail-head:first-child{border-top:none;margin-top:0;padding-top:0;}
+.sup-rail-lbl{height:48px;}
