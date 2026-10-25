@@ -20,7 +20,14 @@ export default function GuardLinks() {
   const [agency, setAgency] = useState(() => { try { return localStorage.getItem('gl-agency') || ''; } catch { return ''; } });
   const agencyNames = [...new Set(guards.map(g => g.agency).filter(Boolean))].sort();
   const pick = agencyNames.includes(agency) ? agency : (agencyNames[0] || '');
-  const list = agencyNames.length > 1 ? guards.filter(g => g.agency === pick) : guards;
+  // Branch and search too (Prem, 25 Oct), like the other pages.
+  const [branches, setBranches] = useState([]);
+  const [branch, setBranch] = useState('');
+  const [find, setFind] = useState('');
+  useEffect(() => { api.getPosts().then(r => setBranches(r.data.branches || [])).catch(() => {}); }, []);
+  const needle = find.trim().toLowerCase();
+  const list = guards.filter(g => (agencyNames.length < 2 || g.agency === pick) && (!branch || String(g.branch_id) === branch)
+    && (!needle || (g.guard_name + ' ' + g.id_number).toLowerCase().includes(needle)));
 
   // No auto-refresh: every load costs Data Store reads. Use 🔄 instead.
   const load = useCallback(async () => {
@@ -95,12 +102,20 @@ export default function GuardLinks() {
       <div className="toolbar no-print">
         <a className="btn secondary" href="#master">🛡️ Guard Master</a>
         <a className="btn secondary" href="#simulator">🪪 Card Simulator</a>
+        {branches.length > 1 && (
+          <select value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">
+            <option value="">All my branches ({branches.length})</option>
+            {branches.map(b => <option key={b.ROWID} value={b.ROWID}>{b.branch_name} · {b.city}</option>)}
+          </select>
+        )}
         {agencyNames.length > 1 && (
           <select value={pick} onChange={e => { setAgency(e.target.value); try { localStorage.setItem('gl-agency', e.target.value); } catch { /* private window */ } }} aria-label="Agency">
             {agencyNames.map(a => <option key={a}>{a}</option>)}
           </select>
         )}
+        <input type="search" value={find} onChange={e => setFind(e.target.value)} placeholder="🔍 Name or ID" aria-label="Find a guard" />
         <div className="spacer"></div>
+        <span className="pd-muted">{list.length} guards</span>
         <button className="btn" onClick={load}>🔄 Refresh</button>
       </div>
 
