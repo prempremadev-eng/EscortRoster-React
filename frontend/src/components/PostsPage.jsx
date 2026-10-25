@@ -181,7 +181,7 @@ export default function PostsPage() {
       </div>
 
       <div className="dash">
-        <div className="sim-note">Places where a guard stands. 🚐 ESCORT = the guard goes on the escort duty sheet.</div>
+        <div className="sim-note">Places where a guard stands.</div>
         {error && <div className="trip-error">{error}</div>}
         {note && <div className="sim-push">{note}</div>}
 
@@ -203,18 +203,9 @@ export default function PostsPage() {
                 </select>
               </label>
               <label>3 · Post name<input id="p-name" value={form.post_name} onChange={e => setForm(f => ({ ...f, post_name: e.target.value }))} placeholder="Gate 3" required /></label>
-              <label>4 · Type
-                <select id="p-type" value={form.post_type} onChange={e => setForm(f => ({ ...f, post_type: e.target.value }))}>
-                  <option value="POST">📍 POST (stands at a place)</option>
-                  <option value="ESCORT">🚐 ESCORT (cab trips, escort duty sheet)</option>
-                </select>
-              </label>
-              <label>5 · Section (on the daily sheet)
-                <input value={form.section || ''} onChange={e => setForm(f => ({ ...f, section: e.target.value }))} list="p-sections" placeholder="PKL / Main" maxLength={30} />
-              </label>
-              <datalist id="p-sections">{[...new Set(data.posts.map(p => p.section).filter(Boolean))].map(s => <option key={s} value={s} />)}</datalist>
-              <label>Row in the section<input type="number" min="1" value={form.sort_order ?? ''} onChange={e => setForm(f => ({ ...f, sort_order: e.target.value }))} /></label>
-              <div className="p-shifts">6 · Shifts
+              {/* Type, section and row are not asked any more (Prem, 25 Oct: an admin does not know them). New posts
+                  are POSTs; a post saved before keeps its section and row (the daily sheet order). */}
+              <div className="p-shifts">4 · Shifts (which shifts need a guard here)
                 <div>{['A', 'B', 'C', 'G'].map(c => (
                   <label key={c} className="master-check">
                     <input type="checkbox" checked={String(form.shift_codes || '').includes(c)} onChange={e => setForm(f => ({ ...f, shift_codes: ['A', 'B', 'C', 'G'].filter(x => x === c ? e.target.checked : String(f.shift_codes || '').includes(x)).join('') }))} /> {c}
@@ -279,7 +270,7 @@ export default function PostsPage() {
           <div className="dash-scroll">
             <table className="dash-table adm-table">
               <thead>
-                <tr><th>#</th><th>Post</th><th>Agency</th><th>Branch</th><th>City</th><th>State</th><th>Section</th><th>Shifts</th><th>Type</th><th>Vehicle entry</th><th>Status</th><th></th></tr>
+                <tr><th>#</th><th>Post</th><th>Agency</th><th>Branch</th><th>City</th><th>State</th><th>Shifts</th><th>Vehicle entry</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
                 {posts.map((p, i) => {
@@ -293,16 +284,14 @@ export default function PostsPage() {
                       <td className="left">{b.branch_name || '—'}</td>
                       <td>{b.city || '—'}</td>
                       <td>{b.state || '—'}</td>
-                      <td>{p.section ? p.section + (p.sort_order ? ' · ' + p.sort_order : '') : '—'}</td>
                       <td>{p.shift_codes || 'All'}</td>
-                      <td>{p.post_type === 'ESCORT' ? '🚐 ESCORT' : '📍 POST'}</td>
                       <td>{isOn(p.vehicle_entry) ? '🚗 Yes' : '—'}</td>
                       <td><Toggle on={!off} label={p.post_name} disabled={!canEdit} onChange={() => setActive(p, off)} /></td>
                       <td className="adm-actions">{canEdit && !off && <IconBtn icon="✏️" label={'Edit ' + p.post_name} onClick={() => { setError(''); setNote(''); loadGuards(); setForm({ ...p, rules: rulesOf(p) }); window.scrollTo({ top: 0 }); }} />}</td>
                     </tr>
                   );
                 })}
-                {posts.length === 0 && <tr><td colSpan="12">No posts in this branch yet. Press ➕ Add post.</td></tr>}
+                {posts.length === 0 && <tr><td colSpan="10">No posts in this branch yet. Press ➕ Add post.</td></tr>}
               </tbody>
             </table>
           </div>
