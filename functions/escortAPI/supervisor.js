@@ -977,9 +977,8 @@ module.exports = function supervisorRoutes(app, h) {
       const menPost = x => !regularOnly(x) && !isIncharge(x) && String(x.section || '').toLowerCase() !== 'hospital block'
         && !['ninnakarai', 'lady guards', 'medical mine'].includes(teamOf(x).toLowerCase());
       const r8 = { no: 8, rule: 'Anyone free', filled: [], empty: [] };
-      // A post with its own regular list (MLCP Main Gate-1, Car Parking-1 …) never gets a stranger here (Prem,
-      // 25 Oct: someone who never works there is no use); left empty, it shows as vacant for the supervisor.
-      for (const p of autoPosts.filter(x => (reliefOf(x).length >= 5 || dailyPosts.includes(x) || sundayPost(x) || menPost(x)) && !regularsOf(x).length)) {
+      // (MLCP Main Gate-1 and the other "F" posts are filled in Rule 2 already; the rest keep this rule, Prem 25 Oct.)
+      for (const p of autoPosts.filter(x => reliefOf(x).length >= 5 || dailyPosts.includes(x) || sundayPost(x) || menPost(x))) {
         const team = teamOf(p);
         const daily = reliefOf(p).length < 5;
         const isEscort = id => areaOf.get(id).toLowerCase() === 'escort';

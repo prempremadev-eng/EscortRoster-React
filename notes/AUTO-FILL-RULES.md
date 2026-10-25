@@ -312,5 +312,5 @@ History: same shift la irundhaalum **~30% thaan nethu post la ve** irukkaanga. S
 
 - Rule 2 runs in two passes: first every post gets its own regulars; then an "F" (never empty) post still empty takes a free PKL / MLCP man (escorts last). Before, F posts took MLCP Main Gate-1's regulars first.
 - **MLCP Main Gate-1 = `1F`** (priority 1, never empty): the main post is filled first and never left empty.
-- Rule 8 (anyone free) no longer fills a post that has its own regular list (MLCP Main Gate-1, Car Parking-1 …): a stranger there is no use (Prem). Left empty, the slot shows as vacant for the supervisor.
+- Rule 8 (anyone free) stays as before for the other posts (Prem: Main Gate-1 is right now; fill the rest with the old rules). A day-long trial without it left 40 slots empty on Sunday.
 - Shift Incharge posts take the guards ticked as shift incharges of the agency (Admin → Agencies), not supervisor login names.

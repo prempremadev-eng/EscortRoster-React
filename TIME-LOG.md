@@ -108,3 +108,4 @@
 |---|---|
 | 08:50 | ▶️ Start ("good morning") |
 | 14:06 | 🍛 Lunch |
+| 14:45 | ▶️ Back from lunch |
