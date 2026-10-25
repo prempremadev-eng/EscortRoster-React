@@ -359,7 +359,7 @@ export default function SupervisorSchedule() {
                       {data.off.length === 0 && <tr><td colSpan={3} className="sh-empty">{data.hasRoster ? 'Nobody is off' : 'No month roster'}</td></tr>}
                     </tbody>
                   </table>
-                  <table className="sh-t">
+                  {data.escort.show && <table className="sh-t">
                     <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code2" /><col className="w-point" /></colgroup>
                     <thead>
                       <tr className="sh-head sh-head-esc"><th colSpan={4}>ESCORT · {sheetDate}</th></tr>
@@ -385,7 +385,7 @@ export default function SupervisorSchedule() {
                       ))}
                       {!data.escort.batch.length && !data.escort.night.length && <tr><td colSpan={4} className="sh-empty">No escort on the roster (6 to 5 is Mon–Fri)</td></tr>}
                     </tbody>
-                  </table>
+                  </table>}
                   <datalist id="sc-points">
                     {['ERT Booth 1', 'ERT Booth 2', 'ERT Booth 3', 'ERT Booth 4', 'Tower Main Gate', 'Smoking Zone', 'Lancor 2', 'North Plaza', 'MLCP Main Gate', 'MD House', 'PKL', 'Potheri']
                       .concat(data.escort.batch.map(e => e.point)).filter((v, i, a) => v && a.indexOf(v) === i).map(v => <option key={v} value={v} />)}

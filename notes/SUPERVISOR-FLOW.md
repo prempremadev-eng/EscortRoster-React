@@ -96,6 +96,11 @@ How to build (notes for later):
 
 - When the app comes back to the screen it checks (at most once a minute) whether a new build was deployed and reloads itself. No Data Store read.
 
+## 🚗 Escort table only for the escort agency (25 Oct)
+
+The Schedule page shows the ESCORT table and the "→ Escort" button only when the agency being looked at has
+Escort-team guards (IPF at Estancia). BSS / ISI do not see it, and the page skips the escort reads for them.
+
 ## 📤 Schedule by Excel (25 Oct, for agencies without Auto fill rules)
 
 - Schedule page → **📥 Template**: an Excel of the day (Date, Post, Shift, Guard ID, name) with the names already put, and a **Guards** sheet (ID, name, roster shift that day, team).

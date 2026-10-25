@@ -638,8 +638,10 @@ module.exports = function supervisorRoutes(app, h) {
       // AND Sunday off (18:00–20:30 at a support point, then escort cab till 05:00). The other
       // escorts on Shift C go 21:00–06:00. A support point is saved per guard per day.
       const dow = new Date(date + 'T00:00:00Z').getUTCDay();
+      // Only an agency with an Escort team gets the escort table (Prem, 25 Oct: BSS / ISI at Estancia do not).
+      const hasEscorts = guards.some(g => String(g.area || '').toLowerCase() === 'escort');
       let batch = [];
-      if (dow >= 1 && dow <= 5) {
+      if (hasEscorts && dow >= 1 && dow <= 5) {
         const sat = plusDays(date, 6 - dow), sun = plusDays(sat, 1);
         const codesFor = {};
         const months = [...new Set([sat.slice(0, 7), sun.slice(0, 7)])];
@@ -651,7 +653,7 @@ module.exports = function supervisorRoutes(app, h) {
         // Only those on C today (an escort on A / B / G works a post that day).
         batch = guards.filter(g => String(g.area || '').toLowerCase() === 'escort' && rosterOf[String(g.ROWID)] === 'C' && codeOn(String(g.ROWID), sat) === 'O' && codeOn(String(g.ROWID), sun) === 'O').map(g => String(g.ROWID));
       }
-      const points = (await zcql.executeZCQLQuery(`SELECT guard_id, support_point FROM EscortDay WHERE branch_id = ${branch} AND sched_date = '${date}' LIMIT 0, 300`)).map(x => x.EscortDay);
+      const points = hasEscorts ? (await zcql.executeZCQLQuery(`SELECT guard_id, support_point FROM EscortDay WHERE branch_id = ${branch} AND sched_date = '${date}' LIMIT 0, 300`)).map(x => x.EscortDay) : [];
       const pointOf = {};
       points.forEach(p => { pointOf[String(p.guard_id)] = p.support_point || ''; });
       const inSlot = new Set(rows.map(r => String(r.guard_id)));
@@ -661,7 +663,7 @@ module.exports = function supervisorRoutes(app, h) {
       // Sunday: no escort list on the sheet (Prem, 21 Oct); escorts take posts that day.
       if (dow === 0) { batch = []; night = []; }
       const seatOf = {}, extraOf = {};
-      const rosterDay = await escortDay(catalystApp, date);
+      const rosterDay = hasEscorts ? await escortDay(catalystApp, date) : null;
       if (rosterDay) {
         const today = rosterDay.rows.filter(r => r.onDuty && !inSlot.has(r.guardId));
         batch = today.filter(r => r.batch === '6 to 5').map(r => r.guardId);
@@ -680,7 +682,7 @@ module.exports = function supervisorRoutes(app, h) {
           slots: rows.map(r => ({ ROWID: String(r.ROWID), post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id), published: isOn(r.published) })),
           guards: guards.map(g => ({ ROWID: String(g.ROWID), name: g.guard_name, id: g.id_number, area: g.area || '', roster: rosterOf[String(g.ROWID)] || '' })),
           hasRoster: roster.length > 0,
-          escort: { batch: batch.map((id, i) => ({ guard: id, point: pointOf[id] || '', seat: seatOf[id] || i + 1 })), night: night.map((id, i) => ({ guard: id, seat: seatOf[id] || i + 1, extra: !!extraOf[id] })), canAdd: !!rosterDay },
+          escort: { batch: batch.map((id, i) => ({ guard: id, point: pointOf[id] || '', seat: seatOf[id] || i + 1 })), night: night.map((id, i) => ({ guard: id, seat: seatOf[id] || i + 1, extra: !!extraOf[id] })), canAdd: !!rosterDay, show: hasEscorts },
           off
         }
       });
