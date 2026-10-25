@@ -556,3 +556,6 @@
 .splash-logo path:nth-of-type(n+6){animation:splash-rise .4s .75s ease forwards;}
 .splash-logo ~ .splash-title{animation-delay:.9s;}
 .splash-logo ~ .splash-sub{animation-delay:1.05s;}
+
+/* App logo on the shift incharge splash: pops in with a soft glow. */
+.splash-app{width:112px;height:112px;border-radius:26px;box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 6px rgba(255,255,255,.06);margin-bottom:8px;animation:splash-pop .6s cubic-bezier(.2,1.4,.4,1) both;}

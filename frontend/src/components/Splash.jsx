@@ -35,7 +35,10 @@ export default function SplashHost() {
     <div className={'splash' + (leaving ? ' splash-out' : '')} onClick={() => setLeaving(true)} role="status">
       {s.logo
         ? <div className="splash-logo" aria-label="Zoho">{logo && <span dangerouslySetInnerHTML={{ __html: logo }} />}</div>
-        : <div className="splash-icon">{s.icon || '🛡️'}</div>}
+        : s.appLogo
+          // Our own app's logo (the home-screen icon) for shift incharges (Prem, 26 Oct).
+          ? <img className="splash-app" src="icon-512.png" alt="Escort Duty" />
+          : <div className="splash-icon">{s.icon || '🛡️'}</div>}
       {s.kicker && <div className="splash-kicker">{s.kicker}</div>}
       <div className="splash-title">{s.title}</div>
       {s.sub && <div className="splash-sub">{s.sub}</div>}
