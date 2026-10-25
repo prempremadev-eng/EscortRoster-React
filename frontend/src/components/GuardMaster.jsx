@@ -104,7 +104,7 @@ export default function GuardMaster() {
     setNote('');
     setConfirmLeft(false);
     const next = g
-      ? { ...BLANK_GUARD, ...g, card_number: g.card_number || '', area: g.area || '', agency_id: g.agency_id || '', escort_id: g.escort_id || '', phone: g.phone || '' }
+      ? { ...BLANK_GUARD, ...g, card_number: g.card_number || '', area: g.area || '', agency_id: g.agency_id || '', escort_id: g.escort_id || '', phone: g.phone || '', incharge: incharges.has(String(g.ROWID)) }
       : { ...BLANK_GUARD, branch_id: filters.branch || (branches.length === 1 ? String(branches[0].ROWID) : '') };
     setForm(next);
     setFreeEscorts(null);
@@ -139,11 +139,18 @@ export default function GuardMaster() {
       const fields = ['id_number', 'card_number', 'guard_name', 'agency_id', 'branch_id', 'area', 'phone', 'escort_id'];
       const payload = {};
       fields.forEach(k => { payload[k] = form[k]; });
+      payload.incharge = !!form.incharge;
       let saved = form.ROWID
         ? (await api.updateGuard({ ROWID: form.ROWID, ...payload })).data
         : (await api.addGuard(payload)).data;
       if (photoFile) saved = { ...saved, photo_key: (await api.guardPhoto(saved.ROWID, photoFile)).data.photo_key };
       putRow(saved);
+      // The ⭐ tick lives in the agency's incharge list; keep the copy on screen in step (no reload).
+      setData(d => ({ ...d, agencies: d.agencies.map(a => {
+        const ids = String(a.incharge_ids || '').split(',').map(x => x.trim()).filter(x => x && x !== String(saved.ROWID));
+        if (form.incharge && String(a.ROWID) === String(saved.agency_id)) ids.push(String(saved.ROWID));
+        return { ...a, incharge_ids: ids.join(',') };
+      }) }));
       setPhotoFile(null);
       setNote('✅ ' + saved.guard_name + ' (' + saved.id_number + ') ' + (form.ROWID ? 'saved.' : 'added.'));
       setForm(null);
@@ -212,6 +219,10 @@ export default function GuardMaster() {
                   <option value="">{form.branch_id ? 'Pick the agency' : 'Pick the branch first'}</option>
                   {data.agencies.filter(a => ((a.is_active === true || a.is_active === 'true') && worksIn(a, form.branch_id)) || String(a.ROWID) === String(form.agency_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
                 </select>
+              </label>
+              <label className="gm-incharge-filter">
+                <span>Shift incharge (supervisor)</span>
+                <span><input type="checkbox" checked={!!form.incharge} onChange={e => setFormField('incharge', e.target.checked)} /> ⭐ This guard is a shift incharge</span>
               </label>
               <label>Area (PKL, MLCP, Escort…)<input id="g-area" value={form.area} onChange={e => setFormField('area', e.target.value)} list="g-areas" maxLength={30} /></label>
               <datalist id="g-areas">{uniq(allGuards.map(g => g.area).filter(Boolean)).sort().map(a => <option key={a} value={a} />)}</datalist>

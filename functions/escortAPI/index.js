@@ -1478,12 +1478,27 @@ async function checkGuard(req, zcql, row, selfId) {
   if (row.escort_id && other(escortTaken)) throw new Error('This escort is already linked to another guard');
 }
 
+// "⭐ Shift Incharge" tick in the guard form (Prem, 25 Oct): keeps Agencies.incharge_ids in step, so
+// whoever adds a guard can mark the incharge without the Admin page. Only the guard's own agency lists them.
+async function setIncharge(catalystApp, zcql, guardId, agencyId, on) {
+  if (on === undefined) return;
+  const agencies = (await zcql.executeZCQLQuery('SELECT ROWID, incharge_ids FROM Agencies')).map(r => r.Agencies);
+  const table = catalystApp.datastore().table('Agencies');
+  for (const a of agencies) {
+    const ids = String(a.incharge_ids || '').split(',').map(x => x.trim()).filter(Boolean);
+    const want = on === true && String(a.ROWID) === String(agencyId);
+    const has = ids.includes(String(guardId));
+    if (want && !has) await table.updateRow({ ROWID: a.ROWID, incharge_ids: ids.concat(String(guardId)).join(',') });
+    if (!want && has) await table.updateRow({ ROWID: a.ROWID, incharge_ids: ids.filter(x => x !== String(guardId)).join(',') });
+  }
+}
 app.post('/addGuard', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const row = guardFromBody(req.body || {});
     await checkGuard(req, catalystApp.zcql(), row, null);
     const result = await catalystApp.datastore().table('Guards').insertRow({ ...row, created_by: req.user.name, modified_by: req.user.name });
+    await setIncharge(catalystApp, catalystApp.zcql(), result.ROWID, row.agency_id, req.body.incharge);
     res.status(200).json({ status: 'success', data: publicGuard(result) });
   } catch (err) {
     fail(res, err);
@@ -1498,6 +1513,7 @@ app.put('/updateGuard', async (req, res) => {
     const row = guardFromBody(req.body);
     await checkGuard(req, zcql, row, current.ROWID);
     const result = await catalystApp.datastore().table('Guards').updateRow({ ROWID: current.ROWID, ...row, modified_by: req.user.name });
+    await setIncharge(catalystApp, zcql, current.ROWID, row.agency_id || current.agency_id, req.body.incharge);
     res.status(200).json({ status: 'success', data: publicGuard(result) });
   } catch (err) {
     fail(res, err);
