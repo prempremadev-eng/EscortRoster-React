@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
+import { useAppQr } from './AppQr.jsx';
 import { api } from '../api.js';
 
 // The link the guard opens once on their phone to switch on notifications.
@@ -11,6 +12,7 @@ export default function GuardLinks() {
   const [status, setStatus] = useState('loading');
   const [shown, setShown] = useState(null);
   const [qr, setQr] = useState('');
+  const appQr = useAppQr();
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -102,6 +104,7 @@ export default function GuardLinks() {
       <div className="toolbar no-print">
         <a className="btn secondary" href="#master">🛡️ Guard Master</a>
         <a className="btn secondary" href="#simulator">🪪 Card Simulator</a>
+        {appQr.button}
         {branches.length > 1 && (
           <select value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">
             <option value="">All my branches ({branches.length})</option>
@@ -119,6 +122,7 @@ export default function GuardLinks() {
         <button className="btn" onClick={load}>🔄 Refresh</button>
       </div>
 
+      {appQr.box}
       <div className="dash">
         <div className="sim-note">One-time setup: the guard scans the QR (or opens the link) on their phone and taps Allow.</div>
         {error && <div className="trip-error">{error}</div>}
