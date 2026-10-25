@@ -256,8 +256,8 @@ export default function SupervisorSchedule() {
               {branchAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
             </select>
           )}
-          <button className="pd-chip pd-chip-primary" onClick={autoFill} disabled={busy}
-            title="Fill empty slots by the fill rules (now: Rule 1 Shift Incharge from the month roster)">⚡ Auto fill</button>
+          {data && data.autoFill && <button className="pd-chip pd-chip-primary" onClick={autoFill} disabled={busy}
+            title="Fill empty slots by the fill rules (now: Rule 1 Shift Incharge from the month roster)">⚡ Auto fill</button>}
           <button className="pd-chip" onClick={() => window.confirm('Empty the whole sheet of ' + niceDate(date) + '? All ' + filled + ' name(s) go, published ones too.') && run(() => api.scheduleClear(branch, date, ag), r => { setPick(null); setNote('🧹 Cleared · ' + r.data.cleared + ' slot(s) emptied.'); })} disabled={busy || !filled}
             title="Empty this day to fill it again by hand, or to try one fill rule at a time">🧹 Clear day</button>
           <button className="pd-chip" onClick={() => run(() => api.scheduleCopy(branch, date, ag), r => setNote(r.data.copied ? 'Copied ' + r.data.copied + ' slot(s) from the ' + r.data.from + '.' : 'Nothing to copy (no schedule yesterday, and the weekly chart has no free slots).'))} disabled={busy}>Copy from yesterday</button>
@@ -273,7 +273,7 @@ export default function SupervisorSchedule() {
           <div className="sc-flow no-print">
             <a className={'sc-step ' + (data.hasRoster ? 'sc-step-done' : 'sc-step-todo')} href={'#roster/' + date.slice(0, 7)}><b>1</b>{data.hasRoster ? 'Month roster ready' : 'Upload the month roster'}</a>
             <span className="sc-arrow">→</span>
-            <button className={'sc-step ' + (filled ? 'sc-step-done' : 'sc-step-todo')} onClick={autoFill} disabled={busy || !data.hasRoster}><b>2</b>{filled ? 'Filled ' + filled + ' of ' + total : '⚡ Auto fill'}</button>
+            <button className={'sc-step ' + (filled ? 'sc-step-done' : 'sc-step-todo')} onClick={data.autoFill ? autoFill : undefined} disabled={busy || !data.hasRoster || (!data.autoFill && !filled)}><b>2</b>{filled ? 'Filled ' + filled + ' of ' + total : data.autoFill ? '⚡ Auto fill' : 'Put the names (tap a slot)'}</button>
             <span className="sc-arrow">→</span>
             <button className={'sc-step ' + (filled && total - filled === 0 ? 'sc-step-done' : filled ? 'sc-step-todo' : '')} onClick={toSummary}><b>3</b>{filled ? 'Check: ' + (total - filled) + ' empty · ' + idle.length + ' free guards' : 'Check the summary'}</button>
             <span className="sc-arrow">→</span>

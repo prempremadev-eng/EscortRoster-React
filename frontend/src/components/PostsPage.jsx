@@ -127,17 +127,6 @@ export default function PostsPage() {
     }
   }
 
-  async function setAuto(p, on) {
-    setError('');
-    setNote('');
-    try {
-      putRow((await api.updatePost({ ...p, vehicle_entry: isOn(p.vehicle_entry), extra_duty: isOn(p.extra_duty), auto_fill: on, is_active: p.is_active !== 'false' })).data);
-      setNote('⚡ ' + p.post_name + (on ? ': Auto fill on.' : ': Auto fill off.'));
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
   async function setActive(p, active) {
     setError('');
     setNote('');
@@ -236,14 +225,12 @@ export default function PostsPage() {
                 <input type="checkbox" checked={isOn(form.vehicle_entry)} onChange={e => setForm(f => ({ ...f, vehicle_entry: e.target.checked }))} />
                 🚗 Visitor / vehicle entry at this post
               </label>
-              <label className="master-check">
-                <input type="checkbox" checked={isOn(form.auto_fill)} onChange={e => setForm(f => ({ ...f, auto_fill: e.target.checked }))} />
-                ⚡ Auto fill this post
-              </label>
-              <div className="master-sub pp-auto-help">⚡ <b>Auto fill</b> = on the Schedule page the ⚡ Auto fill button puts guards in this post by itself (regulars first, then relief, by the rules below). Off = the supervisor puts the names by hand.</div>
+
             </div>
 
-            {isOn(form.auto_fill) && form.rules && (
+            {/* Auto fill is taken out of Post setup (Prem, 25 Oct): its rules were made for IPF · Estancia only;
+                each agency and branch has its own. The posts set up before keep working; this block stays for later. */}
+            {false && isOn(form.auto_fill) && form.rules && (
               <div className="pp-rules">
                 <div className="master-form-title">8 · ⚡ Auto fill details</div>
                 {!form.agency_id ? <div className="master-sub">Pick the agency first: the lists take that agency's guards.</div> : <>
@@ -292,7 +279,7 @@ export default function PostsPage() {
           <div className="dash-scroll">
             <table className="dash-table adm-table">
               <thead>
-                <tr><th>#</th><th>Post</th><th>Agency</th><th>Branch</th><th>City</th><th>State</th><th>Section</th><th>Shifts</th><th>Type</th><th>Vehicle entry</th><th>⚡ Auto fill</th><th>Status</th><th></th></tr>
+                <tr><th>#</th><th>Post</th><th>Agency</th><th>Branch</th><th>City</th><th>State</th><th>Section</th><th>Shifts</th><th>Type</th><th>Vehicle entry</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
                 {posts.map((p, i) => {
@@ -310,13 +297,12 @@ export default function PostsPage() {
                       <td>{p.shift_codes || 'All'}</td>
                       <td>{p.post_type === 'ESCORT' ? '🚐 ESCORT' : '📍 POST'}</td>
                       <td>{isOn(p.vehicle_entry) ? '🚗 Yes' : '—'}</td>
-                      <td><Toggle on={isOn(p.auto_fill)} label={'Auto fill ' + p.post_name} disabled={!canEdit || off} onChange={() => setAuto(p, !isOn(p.auto_fill))} /></td>
                       <td><Toggle on={!off} label={p.post_name} disabled={!canEdit} onChange={() => setActive(p, off)} /></td>
                       <td className="adm-actions">{canEdit && !off && <IconBtn icon="✏️" label={'Edit ' + p.post_name} onClick={() => { setError(''); setNote(''); loadGuards(); setForm({ ...p, rules: rulesOf(p) }); window.scrollTo({ top: 0 }); }} />}</td>
                     </tr>
                   );
                 })}
-                {posts.length === 0 && <tr><td colSpan="13">No posts in this branch yet. Press ➕ Add post.</td></tr>}
+                {posts.length === 0 && <tr><td colSpan="12">No posts in this branch yet. Press ➕ Add post.</td></tr>}
               </tbody>
             </table>
           </div>

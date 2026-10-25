@@ -53,6 +53,10 @@ Rules that always hold:
 | **R + shifts** (e.g. RG) | The same, only for those shifts (Documents G, Shift Incharge G) |
 | **W** | Weekdays only (no row on Sat / Sun) |
 
+### Auto fill only for IPF · Estancia (25 Oct)
+
+Each agency and branch has its own rules, so Auto fill is **taken out of Post setup** (no tick, no details, no column). The IPF · Estancia posts set up before keep it; the Schedule shows **⚡ Auto fill** only when the day's posts use it (other agencies fill by hand: "Put the names"). The form code for the lists and flags stays in PostsPage.jsx for later.
+
 ### Set in the app (25 Oct)
 
 Post setup → ➕ Add post / ✏️ edit, in this order: 1 Branch · 2 Agency · 3 Post name · 4 Type · 5 Section + row · 6 Shifts · options (🚗 vehicle entry, ⭐ extra duty, ⚡ Auto fill) · **8 Auto fill details** (shown when Auto fill is on): **Regular guards** and **Relief guards** (ordered lists of that branch + agency's guards, ↑ to move up), **Priority 1–9**, **F**, **D**, **W**, **R** (+ shifts). The weekend list and lady shifts are kept as they are (not in the form yet). The list has Agency and post-name filters.

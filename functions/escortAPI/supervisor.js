@@ -669,6 +669,8 @@ module.exports = function supervisorRoutes(app, h) {
         status: 'success',
         data: {
           date, posts: dayPosts.map(p => ({ ROWID: String(p.ROWID), name: p.post_name, extraDuty: isOn(p.extra_duty), section: p.section || 'Other posts', shifts: dayShifts(p) })),
+          // Auto fill rules exist only where posts were set up for it (IPF · Estancia, 25 Oct); elsewhere no button.
+          autoFill: dayPosts.some(p => isOn(p.auto_fill)),
           shifts: shifts.slice().sort((a, b) => SHIFT_ORDER.indexOf(a.code) - SHIFT_ORDER.indexOf(b.code)),
           slots: rows.map(r => ({ ROWID: String(r.ROWID), post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id), published: isOn(r.published) })),
           guards: guards.map(g => ({ ROWID: String(g.ROWID), name: g.guard_name, id: g.id_number, area: g.area || '', roster: rosterOf[String(g.ROWID)] || '' })),
