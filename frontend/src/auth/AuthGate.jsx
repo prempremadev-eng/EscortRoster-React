@@ -60,7 +60,7 @@ export default function AuthGate({ children, bar = true }) {
       setStep(me.role ? 'ready' : 'norole');
       // Welcome splash once per app open (Prem, 26 Oct): incharge → branch · agency, office → logo.
       if (me.role === 'supervisor') showSplash({ icon: '📍', kicker: 'Shift Incharge', title: [me.branchName, me.agencyName].filter(Boolean).join(' · ') || me.name, sub: me.name });
-      else if (me.role) showSplash({ icon: '🛡️', kicker: 'Escort Duty', title: me.name, sub: me.roleName + (me.branchName ? ' · ' + me.branchName : '') });
+      else if (me.role) showSplash({ logo: true, title: me.name, sub: me.roleName + (me.branchName ? ' · ' + me.branchName : '') });
     } catch (err) {
       setError(err.message);
       setStep('error');

@@ -12,6 +12,13 @@ export function showSplash(detail) {
 export default function SplashHost() {
   const [s, setS] = useState(null);
   const [leaving, setLeaving] = useState(false);
+  // Office logins see the Zoho logo (Prem, 26 Oct; official file from zoho.com/branding in public/).
+  // Put inline so each coloured part can pop in on its own.
+  const [logo, setLogo] = useState('');
+  useEffect(() => {
+    if (!s || !s.logo || logo) return;
+    fetch('zoho-logo.svg').then(r => (r.ok ? r.text() : '')).then(t => setLogo(t.startsWith('<svg') ? t : '')).catch(() => {});
+  }, [s, logo]);
   useEffect(() => {
     const on = e => { setLeaving(false); setS(e.detail); };
     window.addEventListener('app-splash', on);
@@ -19,14 +26,16 @@ export default function SplashHost() {
   }, []);
   useEffect(() => {
     if (!s) return undefined;
-    const a = setTimeout(() => setLeaving(true), 1600);
-    const b = setTimeout(() => setS(null), 2000);
+    const a = setTimeout(() => setLeaving(true), s.logo ? 2200 : 1600);
+    const b = setTimeout(() => setS(null), s.logo ? 2600 : 2000);
     return () => { clearTimeout(a); clearTimeout(b); };
   }, [s]);
   if (!s) return null;
   return (
     <div className={'splash' + (leaving ? ' splash-out' : '')} onClick={() => setLeaving(true)} role="status">
-      <div className="splash-icon">{s.icon || '🛡️'}</div>
+      {s.logo
+        ? <div className="splash-logo" aria-label="Zoho">{logo && <span dangerouslySetInnerHTML={{ __html: logo }} />}</div>
+        : <div className="splash-icon">{s.icon || '🛡️'}</div>}
       {s.kicker && <div className="splash-kicker">{s.kicker}</div>}
       <div className="splash-title">{s.title}</div>
       {s.sub && <div className="splash-sub">{s.sub}</div>}
