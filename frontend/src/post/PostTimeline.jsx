@@ -7,6 +7,7 @@ import VehicleEntry from './VehicleEntry.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
 import BreakSheet from './BreakSheet.jsx';
 import PostHistory from './PostHistory.jsx';
+import VoiceNote, { RecordingRow, SLIDE_CANCEL } from './VoiceNote.jsx';
 import { MAX_VIDEO_MB, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, clock, compressImage, recorderType, videoSeconds } from './media.js';
 
 const QUICK_REPLIES = ['OK', 'Noted', 'Done'];
@@ -88,11 +89,11 @@ function Media({ m }) {
     <div className="pd-media">
       {m.kind === 'photo' && <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="Photo from the post" className="pd-media-img" /></a>}
       {m.kind === 'video' && <video src={url} controls playsInline preload="metadata" className="pd-media-img" />}
-      {m.kind === 'voice' && <audio src={url} controls preload="metadata" className="pd-media-audio" />}
+      {m.kind === 'voice' && <VoiceNote url={url} duration={duration} />}
       <div className="pd-media-tags">
         {source === 'camera' && <span className="pd-tag pd-tag-green">Taken at post</span>}
         {source === 'gallery' && <span className="pd-tag pd-tag-amber">From gallery</span>}
-        {duration > 0 && <span className="pd-tag">{clock(duration)}</span>}
+        {duration > 0 && m.kind !== 'voice' && <span className="pd-tag">{clock(duration)}</span>}
       </div>
     </div>
   );
@@ -203,6 +204,8 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   const holdTimer = useRef(null);
   const voiceRec = useRef(null);
   const holdingMic = useRef(false);
+  const startX = useRef(0);
+  const [slide, setSlide] = useState(0);
 
   const load = useCallback(async () => {
     setError('');
@@ -352,6 +355,9 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   async function voiceDown(e) {
     e.preventDefault();
     holdingMic.current = true;
+    startX.current = e.clientX;
+    setSlide(0);
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* keep going without it */ }
     const type = recorderType('voice');
     if (type === null || !navigator.mediaDevices) return setError('This phone cannot record voice here.');
     try {
@@ -383,8 +389,16 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
       setError('Microphone is blocked. Allow the microphone for this site.');
     }
   }
+  // Slide left while holding = cancel (WhatsApp).
+  function voiceMove(e) {
+    if (!holdingMic.current) return;
+    const dx = Math.max(0, startX.current - e.clientX);
+    setSlide(dx);
+    if (dx > SLIDE_CANCEL) voiceUp(true);
+  }
   function voiceUp(cancel) {
     holdingMic.current = false;
+    setSlide(0);
     const rec = voiceRec.current;
     voiceRec.current = null;
     if (!rec || rec.state !== 'recording') return;
@@ -619,12 +633,6 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
         </div>
       )}
 
-      {voice !== null && (
-        <div className="pd-voice-bar">
-          <span className="pd-voice-dot"></span>Recording {clock(voice)} · let go to send
-          <button className="pd-link" onPointerDown={e => { e.stopPropagation(); voiceUp(true); }}>Cancel</button>
-        </div>
-      )}
 
       {onBreak && !here && (
         <div className="pd-back">
@@ -634,16 +642,17 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
       )}
 
       {!(onBreak && !here) && <form className="pd-composer" onSubmit={send}>
-        <button type="button" className="pd-plus" onClick={() => setSheet('menu')} aria-label="Add work update or alert">{Icon.plus}</button>
+        {voice !== null && <RecordingRow secs={voice} slide={slide} />}
+        <button type="button" className="pd-plus" onClick={() => setSheet('menu')} aria-label="Add work update or alert" hidden={voice !== null}>{Icon.plus}</button>
         <label htmlFor="pd-msg" className="pd-hidden">Write a note</label>
-        <div className="pd-input">
+        <div className="pd-input" hidden={voice !== null}>
           <input id="pd-msg" value={text} onChange={e => setText(e.target.value)} placeholder={replyTo ? 'Write a reply' : 'Write a note'} maxLength={255} autoComplete="off" />
           <button type="button" className="pd-in-btn" onClick={() => galleryInput.current.click()} disabled={busy} aria-label="Attach photo or video from gallery">{Icon.clip}</button>
           <button type="button" className="pd-in-btn" onPointerDown={cameraDown} onPointerUp={cameraUp} onPointerLeave={() => { clearTimeout(holdTimer.current); holdTimer.current = null; }} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Take photo, hold for video">{Icon.camera}</button>
         </div>
         {text.trim()
           ? <button className="pd-send" type="submit" disabled={busy} aria-label="Send">{Icon.send}</button>
-          : <button type="button" className={'pd-mic' + (voice !== null ? ' pd-mic-on' : '')} onPointerDown={voiceDown} onPointerUp={() => voiceUp(false)} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Hold to record a voice note">{Icon.mic}</button>}
+          : <button type="button" className={'pd-mic' + (voice !== null ? ' pd-mic-on' : '')} onPointerDown={voiceDown} onPointerMove={voiceMove} onPointerUp={() => voiceUp(false)} onPointerCancel={() => voiceUp(true)} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Hold to record a voice note, slide left to cancel">{Icon.mic}</button>}
         <input ref={photoInput} type="file" accept="image/*" capture="environment" className="pd-file" onChange={onPhotoTaken} />
         <input ref={galleryInput} type="file" accept="image/*,video/*" className="pd-file" onChange={onGalleryPick} />
       </form>}

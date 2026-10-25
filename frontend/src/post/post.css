@@ -480,3 +480,18 @@
 .pd-chat-body .pd-bubble-me{border-bottom-right-radius:4px;}
 .pd-chat-body .pd-bubble-other{border-bottom-left-radius:4px;}
 .pd-composer{border-top:none;box-shadow:0 -2px 8px rgba(26,31,43,.05);}
+
+/* Voice notes like WhatsApp (Prem, 25 Oct): play button, bars that fill while playing, time. */
+.pd-vn{display:flex;align-items:center;gap:10px;width:240px;max-width:100%;padding:2px 0;}
+.pd-vn-audio{display:none;}
+.pd-vn-play{width:40px;height:40px;flex-shrink:0;border:none;border-radius:50%;background:var(--pd-green);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;}
+.pd-vn-main{flex-grow:1;min-width:0;display:flex;flex-direction:column;gap:3px;}
+.pd-vn-bars{height:26px;display:flex;align-items:center;gap:2px;}
+.pd-vn-bar{flex:1 1 0;min-width:2px;border-radius:2px;background:#B9C2B9;cursor:pointer;}
+.pd-vn-bar-on{background:var(--pd-green);}
+.pd-vn-time{font-size:12px;color:var(--pd-muted);}
+/* While the mic is held: this row replaces + and the message box. */
+.pd-rec{flex-grow:1;min-width:0;height:48px;display:flex;align-items:center;gap:10px;padding:0 6px;overflow:hidden;}
+.pd-rec-time{font-weight:600;font-variant-numeric:tabular-nums;min-width:40px;}
+.pd-rec-cancel{margin-left:auto;color:var(--pd-muted);font-size:15px;white-space:nowrap;}
+.pd-composer [hidden]{display:none !important;}

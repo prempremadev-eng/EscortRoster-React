@@ -7,6 +7,7 @@ import '../post/post.css';
 import './supervisor.css';
 import Rail from './Rail.jsx';
 import AddWork from '../post/AddWork.jsx';
+import VoiceNote, { RecordingRow, SLIDE_CANCEL } from '../post/VoiceNote.jsx';
 import { useUser } from '../auth/user.js';
 
 // "Name · Role" since 25 Oct; older messages have only the name and were all from supervisors.
@@ -95,12 +96,12 @@ function Message({ m }) {
       {m.reply && <div className="pd-quote"><div className="pd-quote-name">{m.reply.author}</div><div className="pd-quote-text">{m.reply.text}</div></div>}
       {m.media && m.media.url && m.kind === 'photo' && <a href={m.media.url} target="_blank" rel="noreferrer"><img src={m.media.url} alt="Photo from the post" className="pd-media-img" /></a>}
       {m.media && m.media.url && m.kind === 'video' && <video src={m.media.url} controls playsInline preload="metadata" className="pd-media-img" />}
-      {m.media && m.media.url && m.kind === 'voice' && <audio src={m.media.url} controls preload="metadata" className="pd-media-audio" />}
+      {m.media && m.media.url && m.kind === 'voice' && <VoiceNote url={m.media.url} duration={m.media.duration} />}
       {m.media && (
         <div className="pd-media-tags">
           {m.media.source === 'camera' && <span className="pd-tag pd-tag-green">Taken at post</span>}
           {m.media.source === 'gallery' && <span className="pd-tag pd-tag-amber">From gallery</span>}
-          {m.media.duration > 0 && <span className="pd-tag">{clock(m.media.duration)}</span>}
+          {m.media.duration > 0 && m.kind !== 'voice' && <span className="pd-tag">{clock(m.media.duration)}</span>}
         </div>
       )}
       {m.text && <div>{m.text}</div>}
@@ -249,6 +250,8 @@ export default function SupervisorInbox({ initialPost }) {
   const voiceRec = useRef(null);
   const holdingMic = useRef(false);
   const [voice, setVoice] = useState(null);
+  const startX = useRef(0);
+  const [slide, setSlide] = useState(0);
   // + menu (Prem, 25 Oct): work update and vehicle entry from the office too.
   const [sheet, setSheet] = useState(false);
   const [addingWork, setAddingWork] = useState(false);
@@ -296,6 +299,9 @@ export default function SupervisorInbox({ initialPost }) {
   async function voiceDown(e) {
     e.preventDefault();
     holdingMic.current = true;
+    startX.current = e.clientX;
+    setSlide(0);
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* keep going without it */ }
     const type = recorderType('voice');
     if (type === null || !navigator.mediaDevices) return setError('This browser cannot record voice here.');
     try {
@@ -325,8 +331,15 @@ export default function SupervisorInbox({ initialPost }) {
       setError('Microphone is blocked. Allow the microphone for this site.');
     }
   }
+  function voiceMove(e) {
+    if (!holdingMic.current) return;
+    const dx = Math.max(0, startX.current - e.clientX);
+    setSlide(dx);
+    if (dx > SLIDE_CANCEL) voiceUp(true);
+  }
   function voiceUp(cancel) {
     holdingMic.current = false;
+    setSlide(0);
     const rec = voiceRec.current;
     voiceRec.current = null;
     if (!rec || rec.state !== 'recording') return;
@@ -449,20 +462,18 @@ export default function SupervisorInbox({ initialPost }) {
               <div ref={endRef}></div>
             </div>
             {error && <div className="pd-error-bar">{error}</div>}
-            {voice !== null && (
-              <div className="pd-voice-bar"><span className="pd-voice-dot"></span>Recording {clock(voice)} · let go to send</div>
-            )}
             <form className="pd-composer" onSubmit={send}>
-              <button type="button" className="pd-plus" onClick={() => setSheet(true)} aria-label="Add work update or vehicle entry">{Icon.plus}</button>
+              {voice !== null && <RecordingRow secs={voice} slide={slide} />}
+              <button type="button" className="pd-plus" onClick={() => setSheet(true)} aria-label="Add work update or vehicle entry" hidden={voice !== null}>{Icon.plus}</button>
               <label htmlFor="sup-msg" className="pd-hidden">Message to this post</label>
-              <div className="pd-input">
+              <div className="pd-input" hidden={voice !== null}>
                 <input id="sup-msg" value={text} onChange={e => setText(e.target.value)} placeholder={'Message to ' + (post ? post.post : 'this post')} maxLength={255} autoComplete="off" />
                 <button type="button" className="pd-in-btn" onClick={() => galleryInput.current.click()} disabled={busy} aria-label="Attach photo or video from gallery">{Icon.clip}</button>
                 <button type="button" className="pd-in-btn" onClick={() => photoInput.current.click()} disabled={busy} aria-label="Take a photo">{Icon.camera}</button>
               </div>
               {text.trim()
                 ? <button className="pd-send" type="submit" disabled={busy} aria-label="Send">{Icon.send}</button>
-                : <button type="button" className={'pd-mic' + (voice !== null ? ' pd-mic-on' : '')} onPointerDown={voiceDown} onPointerUp={() => voiceUp(false)} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Hold to record a voice note">{Icon.mic}</button>}
+                : <button type="button" className={'pd-mic' + (voice !== null ? ' pd-mic-on' : '')} onPointerDown={voiceDown} onPointerMove={voiceMove} onPointerUp={() => voiceUp(false)} onPointerCancel={() => voiceUp(true)} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Hold to record a voice note, slide left to cancel">{Icon.mic}</button>}
               <input ref={photoInput} type="file" accept="image/*" capture="environment" className="pd-file" onChange={onPhotoTaken} />
               <input ref={galleryInput} type="file" accept="image/*,video/*" className="pd-file" onChange={onGalleryPick} />
             </form>

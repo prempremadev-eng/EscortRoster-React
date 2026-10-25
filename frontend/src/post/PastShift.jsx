@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { Icon, initials } from './icons.jsx';
 import { clock } from './media.js';
+import VoiceNote from './VoiceNote.jsx';
 
 const toMin = stamp => Date.parse(stamp.replace(' ', 'T') + ':00Z') / 60000;
 const hhmm = stamp => stamp.slice(11, 16);
@@ -99,8 +100,8 @@ export default function PastShift({ token, post, logId, onClose }) {
               {m.work && <div><b>{m.work.contractor} · {m.work.persons} persons</b><div className="pd-small pd-muted">{m.work.description}{m.work.finished ? ' · finished ' + m.work.finished : ''}</div></div>}
               {m.media && m.media.url && m.kind === 'photo' && <img src={m.media.url} alt="Photo from the post" className="pd-media-img" />}
               {m.media && m.media.url && m.kind === 'video' && <video src={m.media.url} controls playsInline preload="metadata" className="pd-media-img" />}
-              {m.media && m.media.url && m.kind === 'voice' && <audio src={m.media.url} controls preload="metadata" className="pd-media-audio" />}
-              {m.media && m.media.duration > 0 && <span className="pd-tag">{clock(m.media.duration)}</span>}
+              {m.media && m.media.url && m.kind === 'voice' && <VoiceNote url={m.media.url} duration={m.media.duration} />}
+              {m.media && m.media.duration > 0 && m.kind !== 'voice' && <span className="pd-tag">{clock(m.media.duration)}</span>}
               {!m.work && !m.media && <div>{m.text}</div>}
               {m.pinned && <div className="pd-small pd-muted">{Icon.pin} Pinned for next guard</div>}
             </div>
