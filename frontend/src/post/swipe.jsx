@@ -54,7 +54,7 @@ export function jumpTo(id) {
   el.classList.remove('pd-flash');
   void el.offsetWidth; // restart the animation on a second tap
   el.classList.add('pd-flash');
-  setTimeout(() => el.classList.remove('pd-flash'), 1600);
+  setTimeout(() => el.classList.remove('pd-flash'), 3100); // 3 s glow (Prem: a bit longer)
 }
 
 function toast(text) {

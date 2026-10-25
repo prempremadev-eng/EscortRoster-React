@@ -570,6 +570,6 @@
 
 /* Tap a reply's quote → the answered message flashes (swipe.jsx jumpTo). */
 .pd-quote-tap{cursor:pointer;}
-.pd-flash > *{animation:pd-flash 1.5s ease;}
-@keyframes pd-flash{0%,35%{box-shadow:0 0 0 4px rgba(249,178,29,.65);background-color:#FFF4D6;}100%{box-shadow:none;}}
+.pd-flash > *{animation:pd-flash 3s ease;}
+@keyframes pd-flash{0%,60%{box-shadow:0 0 0 4px rgba(249,178,29,.65);background-color:#FFF4D6;}100%{box-shadow:none;}}
 .pd-toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:300;background:#1A1F2B;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.25);max-width:90vw;text-align:center;}
