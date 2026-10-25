@@ -161,8 +161,11 @@ module.exports = function vehicleRoutes(app, h) {
 
   // The branch's last 300 entries, one per vehicle (newest details): the phone matches the typed digits
   // and a tap fills the form (Prem, 23 Oct). One read when the page opens.
-  async function knownOf(zcql, branchId) {
-    const rows = (await zcql.executeZCQLQuery(`SELECT vehicle_no, entry_type, details, duty_date FROM VehicleEntries WHERE branch_id = ${requireRowId(branchId)} ORDER BY CREATEDTIME DESC LIMIT 0, 300`)).map(r => r.VehicleEntries);
+  // Only the vehicle posts of the same agency (Prem, 25 Oct: no agency sees another's details).
+  async function knownOf(zcql, branchId, agencyId) {
+    const posts = (await zcql.executeZCQLQuery(`SELECT ROWID FROM Posts WHERE branch_id = ${requireRowId(branchId)} AND agency_id = ${requireRowId(agencyId)}`)).map(r => requireRowId(r.Posts.ROWID));
+    if (!posts.length) return [];
+    const rows = (await zcql.executeZCQLQuery(`SELECT vehicle_no, entry_type, details, duty_date FROM VehicleEntries WHERE post_id IN (${posts.join(', ')}) ORDER BY CREATEDTIME DESC LIMIT 0, 300`)).map(r => r.VehicleEntries);
     const seen = new Set();
     const list = [];
     rows.forEach(r => {
@@ -180,7 +183,7 @@ module.exports = function vehicleRoutes(app, h) {
       const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
       const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
       const post = await postOf(zcql, log.post_id);
-      res.status(200).json({ status: 'success', data: await knownOf(zcql, post.branch_id) });
+      res.status(200).json({ status: 'success', data: await knownOf(zcql, post.branch_id, post.agency_id) });
     } catch (err) {
       fail(res, err);
     }
@@ -190,7 +193,7 @@ module.exports = function vehicleRoutes(app, h) {
     try {
       const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
       const post = auth.requireRow(req, await postOf(zcql, req.query.post), 'post');
-      res.status(200).json({ status: 'success', data: await knownOf(zcql, post.branch_id) });
+      res.status(200).json({ status: 'success', data: await knownOf(zcql, post.branch_id, post.agency_id) });
     } catch (err) {
       fail(res, err);
     }

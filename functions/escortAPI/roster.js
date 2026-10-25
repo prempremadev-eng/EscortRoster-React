@@ -31,8 +31,9 @@ module.exports = function rosterRoutes(app, h) {
   async function branchGuards(req, zcql, branch) {
     return selectAll(zcql, 'Guards', `SELECT ROWID, id_number, card_number, guard_name, area, agency, agency_id, branch_id FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`);
   }
-  async function monthRows(zcql, branch, month) {
-    return selectAll(zcql, 'MonthRoster', `SELECT ROWID, guard_id, codes, updated_by, MODIFIEDTIME FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${month}' ORDER BY ROWID ASC`);
+  // A supervisor reads only their agency's rows (Prem, 25 Oct: no agency sees another's details).
+  async function monthRows(req, zcql, branch, month) {
+    return selectAll(zcql, 'MonthRoster', `SELECT ROWID, guard_id, codes, updated_by, MODIFIEDTIME FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${month}' ORDER BY ROWID ASC`);
   }
 
   // One branch, one month: the guards and their day codes (about 2 reads).
@@ -41,7 +42,7 @@ module.exports = function rosterRoutes(app, h) {
       const zcql = admin(req).zcql();
       const branch = auth.requireBranch(req, requireRowId(req.query.branch));
       const month = requireMonth(req.query.month);
-      const [guards, rows] = await Promise.all([branchGuards(req, zcql, branch), monthRows(zcql, branch, month)]);
+      const [guards, rows] = await Promise.all([branchGuards(req, zcql, branch), monthRows(req, zcql, branch, month)]);
       const codes = {};
       let updated = null;
       rows.forEach(r => {
@@ -70,7 +71,7 @@ module.exports = function rosterRoutes(app, h) {
       if (!entries.length) throw new Error('Nothing to save.');
       if (entries.length > 1000) throw new Error('Too many rows in one upload.');
       const days = daysIn(month);
-      const [guards, rows] = await Promise.all([branchGuards(req, zcql, branch), monthRows(zcql, branch, month)]);
+      const [guards, rows] = await Promise.all([branchGuards(req, zcql, branch), monthRows(req, zcql, branch, month)]);
       const guardById = new Map(guards.map(g => [String(g.ROWID), g]));
       const rowByGuard = new Map(rows.map(r => [String(r.guard_id), r]));
       const inserts = [], updates = [], skipped = [];
