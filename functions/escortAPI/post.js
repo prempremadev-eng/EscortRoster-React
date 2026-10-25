@@ -461,7 +461,7 @@ module.exports = function postRoutes(app, h) {
         author: authorOf(m), seenBy: m.seen_by || '', seen: hhmm(m.seen_at),
         stamp: String(m.CREATEDTIME).slice(0, 19),
         date: String(m.CREATEDTIME).slice(0, 10), time: String(m.CREATEDTIME).slice(11, 16),
-        reply: q ? { author: authorOf(q), text: q.text || mediaLabel(q.kind) } : null,
+        reply: q ? { author: authorOf(q), text: q.kind === 'work' ? 'Work update · ' + q.text : q.text || mediaLabel(q.kind) } : null,
         media: m.media_key ? { url: links[m.media_key] || '', source: m.media_source || '', duration: parseInt(m.duration, 10) || 0 } : null,
         work: w ? workView(w) : null,
         alert: a ? {

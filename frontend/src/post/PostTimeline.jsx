@@ -84,12 +84,15 @@ function Media({ m }) {
   );
 }
 
-function WorkCard({ m, onFinish, busy }) {
+function WorkCard({ m, onFinish, busy, onReply }) {
+  // Swipe right to reply to a work update too (Prem, 26 Oct).
+  const swipe = useSwipeReply(() => onReply(m));
   const w = m.work;
   if (!w) return null;
   const state = w.finished ? 'done' : w.expired ? 'expired' : 'open';
   return (
-    <div id={'work-' + w.ROWID} className={'pd-work pd-work-' + state}>
+    <div id={'work-' + w.ROWID} className={'pd-work pd-work-' + state} {...swipe.handlers} style={swipe.style}>
+      {swipe.icon}
       <div className="pd-row-between">
         <div className="pd-work-label">WORK UPDATE · {m.time}</div>
         <div className={'pd-pill pd-pill-sm ' + (state === 'done' ? 'pd-green' : state === 'expired' ? 'pd-red' : 'pd-amber')}>
@@ -535,7 +538,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
               {day && <div className="pd-day">{day}</div>}
               {m.kind === 'system' && <div className="pd-sys pd-sys-green">{Icon.check}{m.text}</div>}
               {m.kind === 'system_red' && <div className="pd-sys pd-sys-red">{m.text}</div>}
-              {m.kind === 'work' && <WorkCard m={m} onFinish={finishWork} busy={busy} />}
+              {m.kind === 'work' && <WorkCard m={m} onFinish={finishWork} busy={busy} onReply={x => setReplyTo(x)} />}
               {m.kind === 'alert' && <AlertCard m={m} duty={duty} onCancel={cancelAlert} />}
               {BUBBLE_KINDS.includes(m.kind) && <Bubble m={m} onMenu={x => setSheet(x)} onReply={x => setReplyTo(x)} />}
             </div>
@@ -553,7 +556,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
             <div className="pd-quote-name">Replying to {replyTo.mine ? 'yourself' : replyTo.author}</div>
             <button className="pd-x" onClick={() => setReplyTo(null)} aria-label="Cancel reply">×</button>
           </div>
-          <div className="pd-quote-text">{replyTo.text || (replyTo.kind === 'voice' ? 'Voice note' : replyTo.kind === 'video' ? 'Video' : 'Photo')}</div>
+          <div className="pd-quote-text">{replyTo.kind === 'work' ? 'Work update · ' + replyTo.text : replyTo.text || (replyTo.kind === 'voice' ? 'Voice note' : replyTo.kind === 'video' ? 'Video' : 'Photo')}</div>
           <div className="pd-quick">
             {QUICK_REPLIES.map(q => <button key={q} className="pd-chip" onClick={() => send(null, q)} disabled={busy}>{q}</button>)}
           </div>

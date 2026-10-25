@@ -70,7 +70,8 @@ function Message({ m, onReply }) {
   if (m.kind === 'work' && m.work) {
     const w = m.work;
     return (
-      <div className={'pd-work sup-left ' + (w.expired && !w.finished ? 'pd-work-expired' : '')}>
+      <div className={'pd-work sup-left ' + (w.expired && !w.finished ? 'pd-work-expired' : '')} {...swipe.handlers} style={swipe.style}>
+        {swipe.icon}
         <div className="pd-row-between">
           <div className="pd-work-label">WORK UPDATE · {m.author.toUpperCase()} · {m.time}</div>
           <div className={'pd-pill pd-pill-sm ' + (w.finished ? 'pd-green' : w.expired ? 'pd-red' : 'pd-amber')}>{w.finished ? 'Finished ' + w.finished : w.expired ? 'Permit expired' : 'In progress'}</div>
@@ -507,7 +508,7 @@ export default function SupervisorInbox({ initialPost }) {
                   <div className="pd-quote-name">Replying to {replyTo.mine ? 'yourself' : replyTo.author}</div>
                   <button className="pd-x" onClick={() => setReplyTo(null)} aria-label="Cancel reply">×</button>
                 </div>
-                <div className="pd-quote-text">{replyTo.text || (replyTo.kind === 'voice' ? 'Voice note' : replyTo.kind === 'video' ? 'Video' : 'Photo')}</div>
+                <div className="pd-quote-text">{replyTo.kind === 'work' ? 'Work update · ' + replyTo.text : replyTo.text || (replyTo.kind === 'voice' ? 'Voice note' : replyTo.kind === 'video' ? 'Video' : 'Photo')}</div>
               </div>
             )}
             <form className="pd-composer" onSubmit={send}>
