@@ -251,6 +251,7 @@ export default function SupervisorInbox({ initialPost }) {
   const rec = useVoiceRecorder((blob, secs) => upload(blob, 'voice', 'mic', secs), setError);
   // + menu (Prem, 25 Oct): work update and vehicle entry from the office too.
   const [sheet, setSheet] = useState(false);
+  const [showBreaks, setShowBreaks] = useState(false);
   const [addingWork, setAddingWork] = useState(false);
   useEffect(() => { setSheet(false); setAddingWork(false); }, [openId]);
   async function saveWork(form) {
@@ -392,6 +393,38 @@ export default function SupervisorInbox({ initialPost }) {
               {main && main.phone && <a className="pd-chip" href={'tel:' + main.phone}>{Icon.phone}<span className="sup-call-name"> Call {main.name.split(' ')[0]}</span></a>}
               <button className="pd-icon-btn" onClick={() => loadPost(openId)} aria-label="Refresh">{Icon.refresh}</button>
             </div>
+            {/* Breaks at this post, like the guard sees them on his page (Prem, 25 Oct). */}
+            {post && post.breaks && post.breaks.length > 0 && (
+              <div className="sup-breaks">
+                {post.breaks.filter(x => x.active).map(x => (
+                  <div key={x.ROWID} className={'pd-break-card ' + (x.status === 'alone' || x.status === 'declined' ? 'pd-break-red' : x.status === 'asked' ? 'pd-break-amber' : 'pd-break-green')}>
+                    <span className="pd-avatar pd-avatar-sm">{initials(x.guard)}</span>
+                    <div className="pd-grow">
+                      <b>{x.guard} · {x.typeLabel} break{x.start ? ' · since ' + x.start + ' · ' + x.minutes + ' min' : ''}</b>
+                      <div className="pd-small">
+                        {x.status === 'asked' ? 'Asked ' + x.cover + ' to cover · ' + x.asked + ' · still at the post'
+                          : x.status === 'declined' ? x.cover + " can't cover · still at the post"
+                            : x.status === 'alone' ? 'No one covering · post empty'
+                              : x.cover + (x.mode === 'go' ? ' came to the post' : ' watching from ' + (x.coverPost || 'his post'))}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+                {post.breaks.some(x => !x.active) && (
+                  <button className="pd-link pd-link-left" onClick={() => setShowBreaks(v => !v)}>
+                    {showBreaks ? '▾' : '▸'} Breaks today ({post.breaks.filter(x => !x.active).length})
+                  </button>
+                )}
+                {showBreaks && post.breaks.filter(x => !x.active).map(x => (
+                  <div key={x.ROWID} className="sup-break-row">
+                    <span>{x.start || x.asked}{x.end ? ' – ' + x.end : ''}</span>
+                    <b>{x.guard}</b>
+                    <span>{x.typeLabel} · {x.minutes} min</span>
+                    <span className="pd-muted">{x.cover ? 'cover ' + x.cover : 'no cover'}</span>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="sup-pane-body">
               {!post && <div className="pd-sys">Loading...</div>}
               {post && post.messages.length === 0 && <div className="pd-sys">No notes yet</div>}

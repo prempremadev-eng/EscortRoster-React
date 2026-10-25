@@ -280,3 +280,9 @@ button.sb-kpi:hover{border-color:#94a3b8;}
 /* Work update form from the office chat's +: over the whole screen, like the guard's page. */
 .sup-work{position:fixed;inset:0;z-index:70;background:var(--pd-bg);overflow-y:auto;}
 .pd-sheet a.pd-option{text-decoration:none;color:inherit;}
+
+/* Breaks at the post (office chat): live card, then today's list. */
+.sup-breaks{display:flex;flex-direction:column;gap:6px;padding:8px 16px;background:var(--pd-surface);border-bottom:1px solid var(--pd-border);}
+.sup-break-row{display:grid;grid-template-columns:auto 1fr auto;gap:2px 10px;font-size:13px;padding:6px 2px;border-top:1px solid #ECE8DF;}
+.sup-break-row .pd-muted{grid-column:2 / 4;}
+@media (max-width:700px){.sup-breaks{padding:8px 12px;}}

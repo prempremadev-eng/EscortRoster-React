@@ -128,6 +128,23 @@ module.exports = function supervisorRoutes(app, h) {
         }
       }
 
+      // Breaks of this post today, like the guard sees his own (Prem, 25 Oct): who, which break, since when,
+      // who covers. Active ones first, then the finished ones, newest first.
+      const dayOf = main ? main.duty_date : shiftDate();
+      const brRows = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_id, cover_guard_id, cover_post_id, cover_mode, type, status, asked_at, start_at, end_at FROM Breaks WHERE post_id = ${postId} AND asked_at >= '${dayOf} 00:00:00' ORDER BY asked_at DESC LIMIT 30`)).map(r => r.Breaks);
+      const brNames = await namesOf(zcql, brRows.flatMap(x => [x.guard_id, x.cover_guard_id]));
+      const brPosts = brRows.some(x => x.cover_post_id) ? (await zcql.executeZCQLQuery(`SELECT ROWID, post_name FROM Posts WHERE ROWID IN (${idList(brRows.map(x => x.cover_post_id).filter(Boolean))})`)).map(r => r.Posts) : [];
+      const BREAK_TYPE = { tea: 'Tea', lunch: 'Lunch', restroom: 'Restroom', other: 'Other' };
+      const nowB = nowStamp();
+      const breaks = brRows.filter(x => x.status !== 'cancelled').map(x => ({
+        ROWID: x.ROWID, guard: (brNames[String(x.guard_id)] || {}).guard_name || 'Guard', cover: (brNames[String(x.cover_guard_id)] || {}).guard_name || '',
+        coverPost: (brPosts.find(q => String(q.ROWID) === String(x.cover_post_id)) || {}).post_name || '',
+        mode: x.cover_mode || '', typeLabel: BREAK_TYPE[x.type] || 'Break', status: x.status,
+        active: ['asked', 'declined', 'accepted', 'alone'].includes(x.status),
+        asked: hhmm(x.asked_at), start: hhmm(x.start_at), end: hhmm(x.end_at),
+        minutes: x.start_at ? Math.max(0, Math.floor(minutesBetween(x.start_at, x.end_at || nowB))) : 0
+      })).sort((a, b) => b.active - a.active);
+
       const safety = main ? await zcql.executeZCQLQuery(`SELECT name, phone FROM SafetyEntries WHERE post_id = ${postId} AND duty_date = '${main.duty_date}' AND shift_code = '${main.shift_code}' ORDER BY CREATEDTIME DESC LIMIT 1`) : [];
       const { messages } = await timelineData(req, catalystApp, zcql, postId, { supervisor: name });
       res.status(200).json({
@@ -139,6 +156,7 @@ module.exports = function supervisorRoutes(app, h) {
             shift: l.shift_code, status: l.status, took: hhmm(l.taken_over_at), main: l === main
           })),
           safety: safety.length ? safety[0].SafetyEntries.name : '',
+          breaks,
           messages
         }
       });
