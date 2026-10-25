@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import QRCode from 'qrcode';
 import { api } from '../api.js';
 import { useUser, atLeast } from '../auth/user.js';
 import { agencyBranches, worksIn } from '../agency.js';
@@ -35,6 +36,18 @@ export default function AdminPage() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  // App QR (Prem, 25 Oct): a new user scans it to open the sign-in page on the phone. Only the app's
+  // address, no secret: they still sign in with their own email.
+  const appLink = window.location.origin + '/app/index.html';
+  const [appQr, setAppQr] = useState('');
+  const [copiedApp, setCopiedApp] = useState(false);
+  async function showAppQr() {
+    if (appQr) { setAppQr(''); return; }
+    setAppQr(await QRCode.toDataURL(appLink, { width: 240, margin: 1 }));
+  }
+  async function copyApp() {
+    try { await navigator.clipboard.writeText(appLink); setCopiedApp(true); setTimeout(() => setCopiedApp(false), 2000); } catch { /* no clipboard */ }
+  }
 
   // One call (about 3 reads). No auto refresh.
   const load = useCallback(async () => {
@@ -130,8 +143,25 @@ export default function AdminPage() {
           open('branch', { ...BLANK_BRANCH, state_id: own ? String(own.state_id) : '', city_id: own ? String(own.ROWID) : '' });
         }}>➕ Add branch</button>}
         {tab === 'agencies' && <button className="btn secondary" onClick={() => open('agency', { ...BLANK_AGENCY })}>➕ Add agency</button>}
+        <button className="btn secondary" onClick={showAppQr}>📱 App QR</button>
         <button className="btn" onClick={load}>🔄 Refresh</button>
       </div>
+      {appQr && (
+        <div className="dash no-print">
+          <div className="link-box">
+            <img src={appQr} alt="QR code of the app sign-in page" width="240" height="240" />
+            <div className="link-info">
+              <div className="link-name">Open the app on a phone</div>
+              <div className="link-url">{appLink}</div>
+              <div className="link-actions">
+                <button className="btn" onClick={copyApp}>{copiedApp ? '✅ Copied' : '📋 Copy link'}</button>
+                <button className="btn secondary" onClick={() => setAppQr('')}>Close</button>
+              </div>
+              <div className="sim-note">Scan → sign in with your own email → browser menu → Add to Home screen. No secret in it: safe to share.</div>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="dash">
         {error && <div className="trip-error">{error}</div>}
