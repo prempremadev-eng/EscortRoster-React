@@ -45,12 +45,18 @@ module.exports = function historyRoutes(app, h) {
       const [logs, shifts, msgs] = await Promise.all([
         all(zcql, 'DutyLog', `SELECT ROWID, guard_id, shift_code, duty_date, status, in_at, taken_over_at, handed_over_at FROM DutyLog WHERE post_id = ${postId} AND duty_date >= '${from}' AND duty_date <= '${to}' ORDER BY CREATEDTIME ASC`),
         getShifts(zcql),
-        all(zcql, 'PostMessages', `SELECT duty_log_id, kind FROM PostMessages WHERE post_id = ${postId} AND CREATEDTIME >= '${from} 00:00:00' ORDER BY CREATEDTIME ASC`)
+        all(zcql, 'PostMessages', `SELECT duty_log_id, kind, CREATEDTIME FROM PostMessages WHERE post_id = ${postId} AND CREATEDTIME >= '${from} 00:00:00' ORDER BY CREATEDTIME ASC`)
       ]);
       const names = await namesOf(zcql, logs.map(l => l.guard_id));
       const counts = {};
+      // Office messages and work updates have no shift of their own (26 Oct): they count in the shift that
+      // was at the post at that minute.
+      const stampOf = v => String(v || '').slice(0, 16);
+      const shiftAt = t => logs.find(l => { const a = stampOf(l.taken_over_at || l.in_at); return a && a <= t && (!l.handed_over_at || t <= stampOf(l.handed_over_at)); });
       msgs.forEach(m => {
-        const c = counts[String(m.duty_log_id)] = counts[String(m.duty_log_id)] || { notes: 0, photos: 0, works: 0, alerts: 0 };
+        const logId = m.duty_log_id || (shiftAt(stampOf(m.CREATEDTIME)) || {}).ROWID;
+        if (!logId) return;
+        const c = counts[String(logId)] = counts[String(logId)] || { notes: 0, photos: 0, works: 0, alerts: 0 };
         if (m.kind === 'text' || m.kind === 'voice') c.notes++;
         else if (m.kind === 'photo' || m.kind === 'video') c.photos++;
         else if (m.kind === 'work') c.works++;
@@ -82,10 +88,17 @@ module.exports = function historyRoutes(app, h) {
       const { from, to } = range(req);
       const works = await all(zcql, 'WorkUpdates', `SELECT * FROM WorkUpdates WHERE post_id = ${requireRowId(log.post_id)} AND started_at >= '${from} 00:00' AND started_at <= '${to} 23:59' ORDER BY CREATEDTIME DESC`);
       const names = await namesOf(zcql, works.flatMap(w => [w.guard_id, w.finished_by]));
+      // An office work update has no guard: its chat card says who added it ("Name · Role").
+      const officeIds = works.filter(w => !w.guard_id).map(w => requireRowId(w.ROWID));
+      const officeBy = {};
+      if (officeIds.length) {
+        (await zcql.executeZCQLQuery(`SELECT ref_id, author_name FROM PostMessages WHERE kind = 'work' AND ref_id IN (${officeIds.join(', ')})`))
+          .forEach(r => { officeBy[String(r.PostMessages.ref_id)] = r.PostMessages.author_name || ''; });
+      }
       const nameOf = id => (names[String(id)] || {}).guard_name || '';
       res.status(200).json({
         status: 'success',
-        data: works.map(w => ({ ...workView(w), date: String(w.started_at).slice(0, 10), addedBy: nameOf(w.guard_id), finishedBy: nameOf(w.finished_by) }))
+        data: works.map(w => ({ ...workView(w), date: String(w.started_at).slice(0, 10), addedBy: w.guard_id ? nameOf(w.guard_id) : officeBy[String(w.ROWID)] || 'Office', finishedBy: nameOf(w.finished_by) }))
       });
     } catch (err) {
       fail(res, err);
