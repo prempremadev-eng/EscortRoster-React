@@ -22,7 +22,7 @@ module.exports = function breakRoutes(app, h) {
   async function postNames(zcql, ids) {
     const list = [...new Set(ids.filter(Boolean).map(String))].map(requireRowId);
     if (!list.length) return {};
-    const rows = await zcql.executeZCQLQuery(`SELECT ROWID, post_name, branch_id FROM Posts WHERE ROWID IN (${list.join(', ')})`);
+    const rows = await zcql.executeZCQLQuery(`SELECT ROWID, post_name, branch_id, agency_id FROM Posts WHERE ROWID IN (${list.join(', ')})`);
     const map = {};
     rows.forEach(r => { map[String(r.Posts.ROWID)] = r.Posts; });
     return map;
@@ -98,7 +98,8 @@ module.exports = function breakRoutes(app, h) {
     };
   }
 
-  // Guards on duty now in the same branch, for "Who is covering?".
+  // Guards on duty now in the same branch AND the same agency, for "Who is covering?" (Prem, 26 Oct: never
+  // a guard of another agency, even in the same branch).
   app.get('/coverCandidates', async (req, res) => {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
@@ -107,8 +108,8 @@ module.exports = function breakRoutes(app, h) {
       const logs = (await zcql.executeZCQLQuery(`SELECT guard_id, post_id FROM DutyLog WHERE duty_date = '${shiftDate()}' AND status = 'on_duty'`))
         .map(r => r.DutyLog).filter(l => String(l.guard_id) !== String(me.ROWID));
       const posts = await postNames(zcql, logs.map(l => l.post_id).concat([own.post_id]));
-      const branch = (posts[String(own.post_id)] || {}).branch_id;
-      const here = logs.filter(l => (posts[String(l.post_id)] || {}).branch_id === branch);
+      const mine = posts[String(own.post_id)] || {};
+      const here = logs.filter(l => { const p = posts[String(l.post_id)] || {}; return p.branch_id === mine.branch_id && String(p.agency_id || '') === String(mine.agency_id || ''); });
       const names = await namesOf(zcql, here.map(l => l.guard_id));
       const list = here.map(l => ({
         guardId: String(l.guard_id), name: (names[String(l.guard_id)] || {}).guard_name || 'Guard',
@@ -149,13 +150,15 @@ module.exports = function breakRoutes(app, h) {
         return res.status(200).json({ status: 'success', data: { ROWID: brk.ROWID, status: 'alone' } });
       }
 
-      // The cover guard must be on duty today at a post of the same branch.
+      // The cover guard must be on duty today at a post of the same branch and the same agency.
       const coverId = requireRowId(req.body.cover_guard_id);
       if (String(coverId) === String(me.ROWID)) throw new Error('Pick another guard.');
       const coverLog = await myLog(zcql, coverId);
       if (!coverLog || coverLog.status !== 'on_duty') throw new Error('That guard is not on duty now.');
       const both = await postNames(zcql, [coverLog.post_id, own.post_id]);
-      if ((both[String(coverLog.post_id)] || {}).branch_id !== (both[String(own.post_id)] || {}).branch_id) throw new Error('That guard is in another branch.');
+      const theirs = both[String(coverLog.post_id)] || {}, ours = both[String(own.post_id)] || {};
+      if (theirs.branch_id !== ours.branch_id) throw new Error('That guard is in another branch.');
+      if (String(theirs.agency_id || '') !== String(ours.agency_id || '')) throw new Error('That guard is from another agency.');
 
       const row = { post_id: own.post_id, duty_log_id: own.ROWID, guard_id: me.ROWID, type, status: 'asked', cover_guard_id: coverId, cover_post_id: coverLog.post_id, cover_mode: null, asked_at: now };
       const brk = current ? await table.updateRow({ ROWID: current.ROWID, ...row }) : await table.insertRow(row);
