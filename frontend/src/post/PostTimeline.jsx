@@ -7,6 +7,7 @@ import VehicleEntry from './VehicleEntry.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
 import BreakSheet from './BreakSheet.jsx';
 import PostHistory, { forgetHistory } from './PostHistory.jsx';
+import MoreMenu from './MoreMenu.jsx';
 import { useSwipeReply, jumpTo } from './swipe.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from './VoiceNote.jsx';
 import { MAX_VIDEO_MB, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, clock, compressImage, recorderType, videoSeconds } from './media.js';
@@ -440,8 +441,8 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
               : <button className="pd-pill pd-green pd-pill-btn" onClick={() => setSheet(general ? 'general' : 'break')} disabled={!!myBreak}>On duty ▾</button>}
           {/* 📞 like WhatsApp's call icon (Prem, 26 Oct): Safety today with call buttons, instead of a bar. */}
           <button className="pd-icon-btn" onClick={() => setSheet('safety')} aria-label="Safety today: who to call">{Icon.phone}</button>
-          <button className="pd-icon-btn" onClick={() => setPage('history')} aria-label="Duty history for this post">{Icon.history}</button>
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
+          <MoreMenu items={[['🕘 Duty history', () => setPage('history')]]} />
         </div>
         {here && here.mode === 'go' && (
           <div className="pd-strip pd-strip-red pd-strip-col">

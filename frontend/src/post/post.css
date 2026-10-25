@@ -580,3 +580,9 @@
 .pd-group-fab{position:fixed;left:12px;bottom:84px;z-index:40;height:44px;padding:0 14px;border:none;border-radius:22px;background:var(--pd-ink,#1A1F2B);color:#fff;font-family:inherit;font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,.25);text-decoration:none;}
 /* The 👥 Group button floats on the guard chat and sheet, not over full-page forms. */
 body:has(.pd-form) .pd-group-fab,body:has(.pd-history) .pd-group-fab,body:has(.ve-form) .pd-group-fab,body:has(.pd-dim) .pd-group-fab,body:has(.pd-composer .pd-rec) .pd-group-fab,body:has(.pd-lock) .pd-group-fab{display:none;}
+
+/* ⋮ menu in a chat header (MoreMenu.jsx). */
+.pd-more{position:relative;flex-shrink:0;}
+.pd-more-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:190px;background:var(--pd-surface,#fff);border-radius:12px;box-shadow:0 8px 24px rgba(26,31,43,.18);padding:6px;display:flex;flex-direction:column;}
+.pd-more-menu button{border:none;background:transparent;text-align:left;padding:12px 14px;border-radius:8px;font-family:inherit;font-size:15px;color:var(--pd-ink,#1A1F2B);cursor:pointer;}
+.pd-more-menu button:hover,.pd-more-menu button:active{background:var(--pd-bg,#F4F2EC);}

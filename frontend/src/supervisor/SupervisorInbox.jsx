@@ -8,6 +8,7 @@ import './supervisor.css';
 import Rail from './Rail.jsx';
 import AddWork from '../post/AddWork.jsx';
 import GroupChat from '../post/GroupChat.jsx';
+import MoreMenu from '../post/MoreMenu.jsx';
 import SafetySheet from '../post/SafetySheet.jsx';
 import PostHistory, { forgetHistory } from '../post/PostHistory.jsx';
 import { useSwipeReply, jumpTo } from '../post/swipe.jsx';
@@ -468,8 +469,8 @@ export default function SupervisorInbox({ initialPost }) {
               {listItem && <span className={'pd-pill ' + STATUS[listItem.status].cls}>{STATUS[listItem.status].label}</span>}
               {/* 📞 like WhatsApp (Prem, 26 Oct): the guard on duty and Safety today, each with a call button. */}
               <button className="pd-icon-btn" onClick={() => setView('safety')} aria-label="Call the guard or the safety person">{Icon.phone}</button>
-              <button className="pd-icon-btn" onClick={() => setView('history')} aria-label="Duty history for this post">{Icon.history}</button>
               <button className="pd-icon-btn" onClick={() => loadPost(openId)} aria-label="Refresh">{Icon.refresh}</button>
+              <MoreMenu items={[['🕘 Duty history', () => setView('history')]]} />
             </div>
             <div className="sup-post-bar">
               {post && post.openWorks && post.openWorks.some(w => w.expired) ? (
