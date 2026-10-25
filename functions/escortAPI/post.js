@@ -743,6 +743,12 @@ module.exports = function postRoutes(app, h) {
     notifySupervisors: (...args) => sup.notify(...args)
   });
 
+  // Agency group chat (groups.js): "IPF Schedule" for guards and the office.
+  require('./groups.js')(app, {
+    catalyst, fail, requireRowId, guardByToken, sendPushToRows, nowStamp, cleanText, MAX_TEXT, auth,
+    express, crypto, MEDIA, MEDIA_BUCKET, MEDIA_SOURCES, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, mediaLabel, mediaLinks, namesOf
+  });
+
   // Post history (history.js): read only.
   require('./history.js')(app, {
     catalyst, fail, requireRowId, requireDate, getShifts, nowStamp, hhmm, minutesBetween, isTrue,

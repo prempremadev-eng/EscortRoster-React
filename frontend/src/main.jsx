@@ -21,6 +21,18 @@ import './post/post.css';
 import './supervisor/supervisor.css';
 import AuthGate from './auth/AuthGate.jsx';
 import SplashHost from './components/Splash.jsx';
+import GroupChat from './post/GroupChat.jsx';
+import { api } from './api.js';
+
+// The guard's team group ("IPF Schedule", 26 Oct): open with or without duty; ← goes to his duty page.
+function GuardGroup({ token }) {
+  const groupApi = React.useMemo(() => ({
+    load: () => api.groupChat(token),
+    send: (text, replyTo) => api.groupSend(token, text, replyTo),
+    media: (blob, opts) => api.groupMedia(token, blob, opts)
+  }), [token]);
+  return <GroupChat api={groupApi} onBack={() => { window.location.hash = '#guard/' + token; }} />;
+}
 import './style.css';
 
 const GUARD_TOKEN_KEY = 'guard_token';
@@ -29,7 +41,7 @@ const isHomeScreenApp = () => window.matchMedia('(display-mode: standalone)').ma
 // Safety net for the Home Screen app: if it ever opens without the secret link,
 // go back to the guard page this phone last used (supervisors use a normal tab, so not affected).
 function rememberGuard(hash) {
-  const m = hash.match(/^#(?:setup|guard)\/([0-9a-f]{32})/);
+  const m = hash.match(/^#(?:setup|guard|group)\/([0-9a-f]{32})/);
   try {
     if (m) {
       localStorage.setItem(GUARD_TOKEN_KEY, m[1]);
@@ -37,6 +49,10 @@ function rememberGuard(hash) {
       // after Back the guard needed a notification to get in). Once notifications are allowed, the
       // icon goes straight to the guard's own page.
       if (hash.startsWith('#setup/') && isHomeScreenApp() && 'Notification' in window && Notification.permission === 'granted') return '#guard/' + m[1];
+    } else if (hash === '#group') {
+      // A group notification on a guard's phone: his own group page (his link is kept on this phone).
+      const token = localStorage.getItem(GUARD_TOKEN_KEY);
+      if (token) return '#group/' + token;
     } else if ((!hash || hash === '#') && isHomeScreenApp()) {
       const token = localStorage.getItem(GUARD_TOKEN_KEY);
       if (token) return '#guard/' + token;
@@ -99,10 +115,11 @@ function Root() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
   // Guard's phone: the secret link is the key, no login.
+  if (hash.startsWith('#group/')) return <GuardGroup token={hash.slice('#group/'.length)} />;
   if (hash.startsWith('#setup/')) return <GuardSetup token={hash.slice('#setup/'.length)} />;
   if (hash.startsWith('#guard/')) {
     const [token, query] = hash.slice('#guard/'.length).split('?');
-    return <><GuardPage token={token} testDate={new URLSearchParams(query || '').get('date')} /><SplashHost /></>;
+    return <><GuardPage token={token} testDate={new URLSearchParams(query || '').get('date')} /><a className="pd-group-fab" href={'#group/' + token}>👥 Group</a><SplashHost /></>;
   }
   // Everything else: signed in, with a role (auth/AuthGate.jsx). One side menu on every page (Rail),
   // no top bar any more (Prem, 25 Oct).

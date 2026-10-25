@@ -43,7 +43,7 @@ const GUARD_ROUTES = new Set([
   '/guardDay', '/guardSaveRoute', '/guardSaveCab', '/guardAddStop', '/guardUpdateStop', '/guardDeleteStop',
   '/postDuty', '/takeOver', '/startGeneral', '/endGeneral', '/postTimeline', '/postMessage', '/uploadMedia',
   '/pinMessage', '/forwardMessage', '/addWork', '/finishWork', '/safety', '/addSafety', '/sendAlert', '/cancelAlert',
-  '/postHistory', '/postWorks', '/pastShift',
+  '/postHistory', '/postWorks', '/pastShift', '/groupChat', '/groupSend', '/groupMedia',
   '/coverCandidates', '/startBreak', '/cancelBreak', '/respondCover', '/pingBack', '/replyPing', '/backOnDuty',
   '/coverReturned', '/leaveCover', '/vehicles', '/vehicleIn', '/vehicleOut', '/vehiclePhoto', '/vehiclePhotoLink', '/vehiclePlate', '/vehicleVoice', '/vehicleKnown'
 ]);

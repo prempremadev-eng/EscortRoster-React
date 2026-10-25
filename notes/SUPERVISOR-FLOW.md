@@ -96,6 +96,15 @@ How to build (notes for later):
 
 - When the app comes back to the screen it checks (at most once a minute) whether a new build was deployed and reloads itself. No Data Store read.
 
+## 👥 Team group per agency (26 Oct)
+
+One group chat per **branch + agency**, named "<Agency> Schedule" (e.g. "IPF Schedule"): every active guard of
+that agency (IN, OUT or off) and the office. Everyone can send text, photo, video, voice and swipe-reply.
+Office message → notification to every guard phone of the team; guard message → the office browsers.
+Guard: floating **👥 Group** button on his page (also when OUT). Office: pinned on top of the Posts list.
+Table `GroupMessages` (branch_id, agency_id, guard_id, author_name, kind, text, media_key, media_source,
+duration, reply_to_id). Code: `functions/escortAPI/groups.js`, `frontend/src/post/GroupChat.jsx`.
+
 ## 🚗 Escort table only for the escort agency (25 Oct)
 
 The Schedule page shows the ESCORT table and the "→ Escort" button only when the agency being looked at has

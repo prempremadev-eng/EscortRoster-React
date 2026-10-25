@@ -50,6 +50,21 @@ async function supMedia(post, blob, { kind, source, duration, reply_to }) {
   return json;
 }
 
+// Agency group ("IPF Schedule"): a photo / video / voice to the group, by guard link (t) or office login.
+async function groupMediaTo(path, params, blob, { kind, source, duration, reply_to }) {
+  const qs = Object.entries({ ...params, kind, source, duration: duration || 0, reply_to: reply_to || '' })
+    .filter(([, v]) => v !== '' && v !== null && v !== undefined).map(([k, v]) => k + '=' + q(v)).join('&');
+  const res = await fetch(API_BASE + path + '?' + qs, { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
+  let json;
+  try {
+    json = await res.json();
+  } catch {
+    throw new Error('Upload failed (' + res.status + ')');
+  }
+  if (!res.ok || json.status !== 'success') throw new Error(json.error || 'Upload failed (' + res.status + ')');
+  return json;
+}
+
 // Vehicle photo of one entry, or a photo to read the number plate from: the photo is the body.
 async function vehiclePhoto(path, blob) {
   const res = await fetch(API_BASE + path, { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
@@ -183,6 +198,12 @@ export const api = {
   escortPoint: (branch, date, guard_id, point) => apiCall('POST', '/escortPoint', { branch, date, guard_id, point }),
   supMessage: (post, text, reply_to) => apiCall('POST', '/supMessage', { post, text, reply_to }),
   supMedia,
+  groupChat: t => apiCall('GET', '/groupChat?t=' + q(t)),
+  groupSend: (t, text, reply_to) => apiCall('POST', '/groupSend', { t, text, reply_to }),
+  groupMedia: (t, blob, opts) => groupMediaTo('/groupMedia', { t }, blob, opts),
+  supGroup: (branch, agency) => apiCall('GET', '/supGroup?branch=' + q(branch) + (agency ? '&agency=' + q(agency) : '')),
+  supGroupSend: (branch, agency, text, reply_to) => apiCall('POST', '/supGroupSend', { branch, agency, text, reply_to }),
+  supGroupMedia: (branch, agency, blob, opts) => groupMediaTo('/supGroupMedia', { branch, agency: agency || '' }, blob, opts),
   supWork: (post, form) => apiCall('POST', '/supWork', { post, ...form }),
   coverCandidates: t => apiCall('GET', '/coverCandidates?t=' + q(t)),
   startBreak: (t, type, cover_guard_id) => apiCall('POST', '/startBreak', { t, type, cover_guard_id }),

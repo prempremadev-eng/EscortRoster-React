@@ -573,3 +573,10 @@
 .pd-flash > *{animation:pd-flash 3s ease;}
 @keyframes pd-flash{0%,60%{box-shadow:0 0 0 4px rgba(249,178,29,.65);background-color:#FFF4D6;}100%{box-shadow:none;}}
 .pd-toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);z-index:300;background:#1A1F2B;color:#fff;padding:10px 16px;border-radius:20px;font-size:14px;box-shadow:0 4px 12px rgba(0,0,0,.25);max-width:90vw;text-align:center;}
+
+/* Agency group chat (GroupChat.jsx). fill = inside the office pane instead of a whole phone page. */
+.pd-group-avatar{font-size:20px;}
+.pd-group-fill{max-width:none;height:100%;min-height:0;}
+.pd-group-fab{position:fixed;left:12px;bottom:84px;z-index:40;height:44px;padding:0 14px;border:none;border-radius:22px;background:var(--pd-ink,#1A1F2B);color:#fff;font-family:inherit;font-size:14px;font-weight:600;display:flex;align-items:center;gap:6px;box-shadow:0 4px 12px rgba(0,0,0,.25);text-decoration:none;}
+/* The 👥 Group button floats on the guard chat and sheet, not over full-page forms. */
+body:has(.pd-form) .pd-group-fab,body:has(.pd-history) .pd-group-fab,body:has(.ve-form) .pd-group-fab,body:has(.pd-dim) .pd-group-fab,body:has(.pd-composer .pd-rec) .pd-group-fab,body:has(.pd-lock) .pd-group-fab{display:none;}

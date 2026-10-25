@@ -307,3 +307,8 @@ button.sb-kpi:hover{border-color:#94a3b8;}
 }
 .sup-post-bar:empty{display:none;}
 @media (max-width:420px){.sup-pane-head .pd-icon-btn{width:34px;height:34px;}}
+
+/* Team group row on top of the post list, and its chat inside the office pane. */
+.sup-item-group{background:#F3F6FC;}
+.sup-group-avatar{background:var(--pd-green-bg);font-size:18px;}
+.sup-pane .pd-group-fill{flex:1 1 auto;}

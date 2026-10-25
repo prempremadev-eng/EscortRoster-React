@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { useAgencyPick } from '../agencyPick.js';
 import { Icon, initials } from '../post/icons.jsx';
@@ -7,6 +7,7 @@ import '../post/post.css';
 import './supervisor.css';
 import Rail from './Rail.jsx';
 import AddWork from '../post/AddWork.jsx';
+import GroupChat from '../post/GroupChat.jsx';
 import SafetySheet from '../post/SafetySheet.jsx';
 import PostHistory, { forgetHistory } from '../post/PostHistory.jsx';
 import { useSwipeReply, jumpTo } from '../post/swipe.jsx';
@@ -198,7 +199,7 @@ export default function SupervisorInbox({ initialPost }) {
   }, [branch, ag]);
 
   const loadPost = useCallback(async id => {
-    if (!id) return;
+    if (!id || id === 'group') return; // the team group loads itself (GroupChat)
     try {
       const d = (await api.supPost(id)).data;
       setPost(d);
@@ -364,6 +365,15 @@ export default function SupervisorInbox({ initialPost }) {
     (filter === 'all' || (filter === 'alerts' && (p.status === 'alert' || p.status === 'empty')) || (filter === 'break' && p.status === 'break') || (filter === 'unread' && p.unread > 0))
     && (p.name + ' ' + p.guard).toLowerCase().includes(search.trim().toLowerCase()));
   const branchName = (branches.find(b => String(b.ROWID) === String(branch)) || {}).branch_name || '';
+  // Team group of the agency in view: a shift incharge's own; Branch Admin and above the picked one.
+  const user = useUser();
+  const groupAgencyName = pickAgency ? ((branchAgencies.find(a => String(a.ROWID) === String(ag)) || {}).agency_name || '') : ((user && user.agencyName) || '');
+  const groupAgency = pickAgency ? ag : '';
+  const groupApi = useMemo(() => ({
+    load: () => api.supGroup(branch, groupAgency),
+    send: (text, replyTo) => api.supGroupSend(branch, groupAgency, text, replyTo),
+    media: (blob, opts) => api.supGroupMedia(branch, groupAgency, blob, opts)
+  }), [branch, groupAgency]);
   const agName = pickAgency ? ((branchAgencies.find(a => String(a.ROWID) === String(ag)) || {}).agency_name || '') : '';
   const listItem = list && list.find(p => p.ROWID === openId);
   const main = post && (post.guards.find(g => g.main) || null);
@@ -407,6 +417,16 @@ export default function SupervisorInbox({ initialPost }) {
           </div>
         </div>
         <div className="sup-list-body">
+          {/* The agency's team group, pinned on top (Prem, 26 Oct: "IPF Schedule"). */}
+          {branch && groupAgencyName && (
+            <button className={'sup-item sup-item-group' + (openId === 'group' ? ' sup-item-on' : '')} onClick={() => openPost('group')}>
+              <span className="pd-avatar pd-avatar-sm sup-group-avatar">👥</span>
+              <span className="pd-grow sup-item-main">
+                <b>{groupAgencyName} Schedule</b>
+                <span className="pd-small pd-muted">Team group · all {groupAgencyName} guards and the office</span>
+              </span>
+            </button>
+          )}
           {!list && <div className="pd-muted sup-pad">Loading...</div>}
           {list && shown.length === 0 && <div className="pd-muted sup-pad">No posts here.</div>}
           {shown.map(p => (
@@ -430,7 +450,8 @@ export default function SupervisorInbox({ initialPost }) {
 
       <main className="sup-pane">
         {!openId && <div className="sup-empty">{branchName ? 'Pick a post of ' + branchName : 'Pick a branch'}</div>}
-        {openId && (
+        {openId === 'group' && <GroupChat api={groupApi} fill onBack={closePost} />}
+        {openId && openId !== 'group' && (
           <>
             <div className="sup-pane-head">
               <button className="sup-back" onClick={closePost} aria-label="Back to the posts">←</button>
