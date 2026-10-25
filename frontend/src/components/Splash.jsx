@@ -26,22 +26,24 @@ export default function SplashHost() {
   }, []);
   useEffect(() => {
     if (!s) return undefined;
-    const a = setTimeout(() => setLeaving(true), s.logo ? 2200 : 1600);
-    const b = setTimeout(() => setS(null), s.logo ? 2600 : 2000);
+    const stay = s.stay || (s.logo ? 2200 : 1600);
+    const a = setTimeout(() => setLeaving(true), stay);
+    const b = setTimeout(() => setS(null), stay + 400);
     return () => { clearTimeout(a); clearTimeout(b); };
   }, [s]);
   if (!s) return null;
   return (
-    <div className={'splash' + (leaving ? ' splash-out' : '')} onClick={() => setLeaving(true)} role="status">
+    <div className={'splash' + (s.place ? ' splash-place' : '') + (leaving ? ' splash-out' : '')} onClick={() => setLeaving(true)} role="status">
       {s.logo
         ? <div className="splash-logo" aria-label="Zoho">{logo && <span dangerouslySetInnerHTML={{ __html: logo }} />}</div>
         : s.appLogo
           // Our own app's logo (the home-screen icon) for shift incharges (Prem, 26 Oct).
           ? <img className="splash-app" src="icon-512.png" alt="Escort Duty" />
-          : <div className="splash-icon">{s.icon || '🛡️'}</div>}
+          : !s.place && <div className="splash-icon">{s.icon || '🛡️'}</div>}
       {s.kicker && <div className="splash-kicker">{s.kicker}</div>}
       <div className="splash-title">{s.title}</div>
       {s.sub && <div className="splash-sub">{s.sub}</div>}
+      {s.foot && <div className="splash-foot">{s.foot}</div>}
     </div>
   );
 }

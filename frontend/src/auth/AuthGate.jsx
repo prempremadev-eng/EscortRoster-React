@@ -58,8 +58,9 @@ export default function AuthGate({ children, bar = true }) {
       const me = (await api.me()).data;
       setUser(me);
       setStep(me.role ? 'ready' : 'norole');
-      // Welcome splash once per app open (Prem, 26 Oct): incharge → branch · agency, office → logo.
-      if (me.role === 'supervisor') showSplash({ appLogo: true, kicker: 'Shift Incharge', title: [me.branchName, me.agencyName].filter(Boolean).join(' · ') || me.name, sub: me.name });
+      // Welcome splash once per app open (Prem, 26 Oct): incharge → branch and agency, big, no logo, a
+      // little longer; office → Zoho logo.
+      if (me.role === 'supervisor') showSplash({ place: true, title: me.branchName || me.name, sub: me.agencyName, foot: me.name, stay: 3500 });
       else if (me.role) showSplash({ logo: true, title: me.name, sub: me.roleName + (me.branchName ? ' · ' + me.branchName : '') });
     } catch (err) {
       setError(err.message);

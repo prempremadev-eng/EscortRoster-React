@@ -559,3 +559,11 @@
 
 /* App logo on the shift incharge splash: pops in with a soft glow. */
 .splash-app{width:112px;height:112px;border-radius:26px;box-shadow:0 10px 30px rgba(0,0,0,.35),0 0 0 6px rgba(255,255,255,.06);margin-bottom:8px;animation:splash-pop .6s cubic-bezier(.2,1.4,.4,1) both;}
+
+/* Shift incharge splash (Prem, 26 Oct): no logo, the branch big and the agency under it, a bit longer.
+   A thin line grows between them. */
+.splash-place .splash-title{font-size:38px;letter-spacing:.01em;animation:splash-pop .7s .1s cubic-bezier(.2,1.3,.4,1) both;}
+.splash-place .splash-sub{position:relative;padding-top:16px;font-family:Archivo,sans-serif;font-weight:700;font-size:26px;color:#F9C846;animation-delay:.6s;}
+.splash-place .splash-sub::before{content:'';position:absolute;top:0;left:50%;width:64px;height:3px;margin-left:-32px;border-radius:2px;background:#F9C846;transform-origin:center;animation:splash-line .5s .45s ease both;}
+.splash-foot{margin-top:18px;font-size:15px;color:#9FB3D9;animation:splash-rise .5s 1s ease both;}
+@keyframes splash-line{from{transform:scaleX(0)}to{transform:scaleX(1)}}
