@@ -15,6 +15,8 @@ import SupervisorInbox from './supervisor/SupervisorInbox.jsx';
 import SupervisorBoard from './supervisor/SupervisorBoard.jsx';
 import SupervisorSchedule from './supervisor/SupervisorSchedule.jsx';
 import AdminPage from './admin/AdminPage.jsx';
+import AdminHome from './admin/AdminHome.jsx';
+import { useUser, atLeast } from './auth/user.js';
 import RosterPage from './components/RosterPage.jsx';
 import Rail from './supervisor/Rail.jsx';
 import './post/post.css';
@@ -150,7 +152,14 @@ function page(hash) {
   if (hash === '#board') return <SupervisorBoard />;
   if (hash === '#schedule') return <SupervisorSchedule />;
   if (hash === '#escort') return <SupFrame active="escort"><App /></SupFrame>;
-  // The app opens on Posts, not the escort sheet (Prem, 26 Oct: Posts suits a phone).
+  if (hash === '#home' || hash.startsWith('#home/')) return <SupFrame active="home"><AdminHome hash={hash} /></SupFrame>;
+  return <Landing />;
+}
+
+// The first page (Prem, 26 Oct): Branch Admin and above → the strength overview; a shift incharge → Posts.
+function Landing() {
+  const user = useUser();
+  if (atLeast(user, 'branch_admin')) return <SupFrame active="home"><AdminHome hash="#home" /></SupFrame>;
   return <SupervisorInbox key="home" initialPost={null} />;
 }
 

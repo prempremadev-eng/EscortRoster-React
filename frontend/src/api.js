@@ -198,6 +198,7 @@ export const api = {
   escortPoint: (branch, date, guard_id, point) => apiCall('POST', '/escortPoint', { branch, date, guard_id, point }),
   supMessage: (post, text, reply_to) => apiCall('POST', '/supMessage', { post, text, reply_to }),
   supMedia,
+  strength: (date, shift, branch, agency) => apiCall('GET', '/strength?date=' + q(date) + '&shift=' + q(shift) + (branch ? '&branch=' + q(branch) + '&agency=' + q(agency || '') : '')),
   groupChat: t => apiCall('GET', '/groupChat?t=' + q(t)),
   groupSend: (t, text, reply_to) => apiCall('POST', '/groupSend', { t, text, reply_to }),
   groupMedia: (t, blob, opts) => groupMediaTo('/groupMedia', { t }, blob, opts),

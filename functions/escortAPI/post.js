@@ -743,6 +743,9 @@ module.exports = function postRoutes(app, h) {
     notifySupervisors: (...args) => sup.notify(...args)
   });
 
+  // Strength for the admin home (strength.js): allotted / present / absent / leave per branch · agency.
+  require('./strength.js')(app, { catalyst, fail, requireDate, requireRowId, selectAll, getShifts, shiftDate, nowStamp, auth });
+
   // Agency group chat (groups.js): "IPF Schedule" for guards and the office.
   require('./groups.js')(app, {
     catalyst, fail, requireRowId, guardByToken, sendPushToRows, nowStamp, cleanText, MAX_TEXT, auth,
