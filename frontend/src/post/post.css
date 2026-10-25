@@ -502,3 +502,11 @@
 .pd-lock-pause{margin-left:auto;border:none;background:var(--pd-surface);border-radius:20px;padding:8px 14px;font-family:inherit;font-size:14px;font-weight:600;color:var(--pd-ink);cursor:pointer;}
 .pd-lock-send{background:var(--pd-green);}
 .pd-voice-dot-off{animation:none;opacity:.4;}
+/* Header with 📞 · history · refresh on a narrow phone: smaller buttons so the post name still fits. */
+@media (max-width:420px){
+  .pd-chat-head{gap:6px;}
+  .pd-chat-head .pd-icon-btn{width:34px;height:34px;}
+  .pd-chat-head .pd-icon-btn svg{width:18px;height:18px;}
+  .pd-chat-head .pd-pill{font-size:12px;padding:4px 8px;}
+  .pd-chat-head .pd-avatar{width:40px;height:40px;font-size:14px;}
+}

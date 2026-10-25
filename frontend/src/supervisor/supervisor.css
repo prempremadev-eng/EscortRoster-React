@@ -305,3 +305,5 @@ button.sb-kpi:hover{border-color:#94a3b8;}
   .sup-inbox .sup-list-head .pd-quick{flex-wrap:nowrap;overflow-x:auto;}
   .sup-inbox .sup-list-head .pd-quick .pd-chip{flex-shrink:0;}
 }
+.sup-post-bar:empty{display:none;}
+@media (max-width:420px){.sup-pane-head .pd-icon-btn{width:34px;height:34px;}}

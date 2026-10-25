@@ -449,6 +449,8 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
           {here ? <div className="pd-pill pd-amber">Covering</div>
             : onBreak ? <div className="pd-pill pd-amber">{myBreak.typeLabel} break</div>
               : <button className="pd-pill pd-green pd-pill-btn" onClick={() => setSheet(general ? 'general' : 'break')} disabled={!!myBreak}>On duty ▾</button>}
+          {/* 📞 like WhatsApp's call icon (Prem, 26 Oct): Safety today with call buttons, instead of a bar. */}
+          <button className="pd-icon-btn" onClick={() => setSheet('safety')} aria-label="Safety today: who to call">{Icon.phone}</button>
           <button className="pd-icon-btn" onClick={() => setPage('history')} aria-label="Duty history for this post">{Icon.history}</button>
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
         </div>
@@ -526,9 +528,6 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
           </div>
         )}
 
-        <button className="pd-safety-row" onClick={() => setSheet('safety')}>
-          <span className="pd-safety-icon">{Icon.shield}</span><span className="pd-grow">Safety today</span>{Icon.chevron}
-        </button>
         {expired.length > 0 ? (
           <button className="pd-strip pd-strip-red" onClick={() => showWork(expired[0])}>
             <span><b>Permit expired {expired[0].to}</b> · {expired[0].contractor} still working</span><b>View</b>

@@ -429,14 +429,12 @@ export default function SupervisorInbox({ initialPost }) {
                 </div>
               </div>
               {listItem && <span className={'pd-pill ' + STATUS[listItem.status].cls}>{STATUS[listItem.status].label}</span>}
-              {main && main.phone && <a className="pd-chip" href={'tel:' + main.phone}>{Icon.phone}<span className="sup-call-name"> Call {main.name.split(' ')[0]}</span></a>}
+              {/* 📞 like WhatsApp (Prem, 26 Oct): the guard on duty and Safety today, each with a call button. */}
+              <button className="pd-icon-btn" onClick={() => setView('safety')} aria-label="Call the guard or the safety person">{Icon.phone}</button>
               <button className="pd-icon-btn" onClick={() => setView('history')} aria-label="Duty history for this post">{Icon.history}</button>
               <button className="pd-icon-btn" onClick={() => loadPost(openId)} aria-label="Refresh">{Icon.refresh}</button>
             </div>
             <div className="sup-post-bar">
-              <button className="pd-safety-row" onClick={() => setView('safety')}>
-                <span className="pd-safety-icon">{Icon.shield}</span><span className="pd-grow">Safety today{post && post.safety ? ' · ' + post.safety : ''}</span>{Icon.chevron}
-              </button>
               {post && post.openWorks && post.openWorks.some(w => w.expired) ? (
                 <div className="pd-strip pd-strip-red"><span><b>Permit expired {post.openWorks.find(w => w.expired).to}</b> · {post.openWorks.find(w => w.expired).contractor} still working</span></div>
               ) : post && post.openWorks && post.openWorks.length > 0 && (
@@ -527,6 +525,14 @@ export default function SupervisorInbox({ initialPost }) {
               <div className="pd-dim" onClick={() => setView(null)}>
                 <div className="pd-sheet" onClick={e => e.stopPropagation()}>
                   <div className="pd-grab"></div>
+                  {post && post.guards.length > 0 && <div className="pd-sheet-title">On duty now</div>}
+                  {post && post.guards.map(g => (
+                    <div key={g.name + g.shift} className="pd-safety">
+                      <div className="pd-safety-shift"><b>{g.shift}</b><span>guard</span></div>
+                      <div className="pd-grow"><div className="pd-safety-name">{g.name}</div>{g.phone && <div className="pd-muted pd-small">{g.phone}</div>}</div>
+                      {g.phone && <a className="pd-call" href={'tel:' + g.phone} aria-label={'Call ' + g.name}>{Icon.phone}</a>}
+                    </div>
+                  ))}
                   <SafetySheet token="" post={openId} readOnly onClose={() => setView(null)} />
                 </div>
               </div>
