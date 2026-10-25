@@ -11,7 +11,10 @@ const isOn = v => v === true || v === 'true';
 // A post is switched off, never deleted, because old duty charts point to it.
 export default function PostsPage() {
   // Supervisors only look; a branch admin or higher adds and changes posts.
-  const canEdit = atLeast(useUser(), 'branch_admin');
+  // A supervisor sets up their own agency's posts (Prem, 25 Oct); City / State / Admin only look.
+  const me = useUser();
+  const isSup = !!me && me.role === 'supervisor';
+  const canEdit = isSup || (atLeast(me, 'branch_admin') && !['city_admin', 'state_admin', 'admin'].includes(me.role));
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('loading');
   const [branch, setBranch] = useState('');
@@ -112,7 +115,7 @@ export default function PostsPage() {
           </div>
         )}
         <div className="spacer"></div>
-        {canEdit && <button className="btn secondary" onClick={() => { setError(''); setNote(''); setForm({ ...BLANK_POST }); }}>➕ Add post</button>}
+        {canEdit && <button className="btn secondary" onClick={() => { setError(''); setNote(''); setForm({ ...BLANK_POST, agency_id: isSup ? String(me.agency_id) : '' }); }}>➕ Add post</button>}
         <button className="btn" onClick={load}>🔄 Refresh</button>
       </div>
 
@@ -135,7 +138,7 @@ export default function PostsPage() {
               <label>Agency (one agency per post)
                 <select id="p-agency" value={form.agency_id || ''} onChange={e => setForm(f => ({ ...f, agency_id: e.target.value }))} required>
                   <option value="">Pick the agency</option>
-                  {data.agencies.filter(a => (isOn(a.is_active) && worksIn(a, branch)) || String(a.ROWID) === String(form.agency_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+                  {data.agencies.filter(a => (isOn(a.is_active) && worksIn(a, branch) && (!isSup || String(a.ROWID) === String(me.agency_id))) || String(a.ROWID) === String(form.agency_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
                 </select>
               </label>
               <label>Section (on the daily sheet)

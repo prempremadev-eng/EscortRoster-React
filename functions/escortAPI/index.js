@@ -1232,11 +1232,14 @@ async function checkPost(req, zcql, row, selfId) {
   }
 }
 
+// Posts: Branch Admin, and a supervisor for their own agency's posts (Prem, 25 Oct: the ISS shift incharge
+// sets up ISS posts). A supervisor's post always gets their agency.
+const ownAgency = (req, row) => { if (req.user.role === 'supervisor') row.agency_id = requireRowId(req.user.agency_id); return row; };
 app.post('/addPost', async (req, res) => {
   try {
-    auth.need(req, 'branch_admin');
+    auth.need(req, 'supervisor');
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
-    const row = postFromBody(req.body || {});
+    const row = ownAgency(req, postFromBody(req.body || {}));
     await checkPost(req, catalystApp.zcql(), row, null);
     const result = await catalystApp.datastore().table('Posts').insertRow(row);
     res.status(200).json({ status: 'success', data: result });
@@ -1249,14 +1252,14 @@ app.post('/addPost', async (req, res) => {
 app.put('/updatePost', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
-    auth.need(req, 'branch_admin');
+    auth.need(req, 'supervisor');
     const b = req.body || {};
     const rowid = requireRowId(b.ROWID);
-    const row = postFromBody(b);
+    const row = ownAgency(req, postFromBody(b));
     const zcql = catalystApp.zcql();
-    const old = await zcql.executeZCQLQuery(`SELECT ROWID, branch_id FROM Posts WHERE ROWID = ${rowid}`);
+    const old = await zcql.executeZCQLQuery(`SELECT ROWID, branch_id, agency_id FROM Posts WHERE ROWID = ${rowid}`);
     if (!old.length) throw new Error('Post not found');
-    auth.requireBranch(req, old[0].Posts.branch_id);
+    auth.requireRow(req, old[0].Posts, 'post');
     await checkPost(req, zcql, row, rowid);
     const result = await catalystApp.datastore().table('Posts').updateRow({
       ROWID: rowid, ...row, is_active: b.is_active === false ? 'false' : 'true'
