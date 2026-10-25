@@ -6,7 +6,7 @@ import SafetySheet from './SafetySheet.jsx';
 import VehicleEntry from './VehicleEntry.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
 import BreakSheet from './BreakSheet.jsx';
-import PostHistory from './PostHistory.jsx';
+import PostHistory, { forgetHistory } from './PostHistory.jsx';
 import { useSwipeReply } from './swipe.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from './VoiceNote.jsx';
 import { MAX_VIDEO_MB, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, clock, compressImage, recorderType, videoSeconds } from './media.js';
@@ -160,6 +160,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   });
   useEffect(() => {
     try { if (page === 'history' || page === 'vehicle') sessionStorage.setItem(pageKey, page); else sessionStorage.removeItem(pageKey); } catch { /* private mode */ }
+    if (page !== 'history') forgetHistory();
   }, [page, pageKey]);
   // Phone Back on an open page (vehicle entry, history, work) comes back to this chat page instead of
   // leaving the app (Prem, 23 Oct): opening a page adds one browser history step; Back removes it.

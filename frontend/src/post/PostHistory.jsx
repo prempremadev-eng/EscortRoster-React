@@ -39,16 +39,29 @@ const RANGES = {
 };
 
 // Screens 6 / 7 / 8: the post's history (List, Table, Works). A row opens that shift (screen 9).
+// Leaving Duty history (any way, also phone Back): forget where it was, so it opens fresh next time.
+export function forgetHistory() {
+  try { Object.keys(sessionStorage).filter(k => k.startsWith('pd_hist_')).forEach(k => sessionStorage.removeItem(k)); } catch { /* private mode */ }
+}
+
 export default function PostHistory({ token, post, postName, onClose }) {
-  const [tab, setTab] = useState('list');
-  const [rangeKey, setRangeKey] = useState('last2');
-  const [picked, setPicked] = useState('');
-  const [shift, setShift] = useState('all');
+  // A reload stays where it was (Prem, 26 Oct): tab, dates, shift filter and the open past shift,
+  // kept for this tab only.
+  const memKey = 'pd_hist_' + (post || 'own');
+  const mem = (() => { try { return JSON.parse(sessionStorage.getItem(memKey)) || {}; } catch { return {}; } })();
+  const [tab, setTab] = useState(mem.tab || 'list');
+  const [rangeKey, setRangeKey] = useState(mem.rangeKey && (mem.rangeKey === 'pick' || RANGES[mem.rangeKey]) ? mem.rangeKey : 'last2');
+  const [picked, setPicked] = useState(mem.picked || '');
+  const [shift, setShift] = useState(mem.shift || 'all');
   const [data, setData] = useState(null);
   const [works, setWorks] = useState(null);
   const [search, setSearch] = useState('');
   const [error, setError] = useState('');
-  const [open, setOpen] = useState(null);
+  const [open, setOpen] = useState(mem.open || null);
+  useEffect(() => {
+    try { sessionStorage.setItem(memKey, JSON.stringify({ tab, rangeKey, picked, shift, open })); } catch { /* private mode */ }
+  }, [memKey, tab, rangeKey, picked, shift, open]);
+  const close = () => { try { sessionStorage.removeItem(memKey); } catch { /* private mode */ } onClose(); };
 
   const today = daysAgo(0);
   const from = rangeKey === 'pick' ? picked || today : RANGES[rangeKey].from();
@@ -101,7 +114,7 @@ export default function PostHistory({ token, post, postName, onClose }) {
   return (
     <div className="pd pd-page pd-history">
       <div className="pd-form-head">
-        <button className="pd-icon-btn" onClick={onClose} aria-label="Back">{Icon.back}</button>
+        <button className="pd-icon-btn" onClick={close} aria-label="Back">{Icon.back}</button>
         <div>
           <div className="pd-title pd-title-sm">Duty history</div>
           <div className="pd-muted pd-small">{postName}</div>

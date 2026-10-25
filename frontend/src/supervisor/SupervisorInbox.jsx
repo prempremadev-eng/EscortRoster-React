@@ -8,7 +8,7 @@ import './supervisor.css';
 import Rail from './Rail.jsx';
 import AddWork from '../post/AddWork.jsx';
 import SafetySheet from '../post/SafetySheet.jsx';
-import PostHistory from '../post/PostHistory.jsx';
+import PostHistory, { forgetHistory } from '../post/PostHistory.jsx';
 import { useSwipeReply } from '../post/swipe.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from '../post/VoiceNote.jsx';
 import { useUser } from '../auth/user.js';
@@ -281,8 +281,11 @@ export default function SupervisorInbox({ initialPost }) {
   const [showPick, setShowPick] = useState(false);
   const [showFind, setShowFind] = useState(false);
   // What the guard sees at the post, the office sees too (Prem, 25 Oct): Safety today, works going on, history.
-  const [view, setView] = useState(null); // 'safety' | 'history'
-  useEffect(() => { setView(null); }, [openId]);
+  const [view, setView] = useState(() => { try { return sessionStorage.getItem('sup_view') === 'history' ? 'history' : null; } catch { return null; } }); // 'safety' | 'history'
+  const firstOpen = useRef(true);
+  useEffect(() => { if (firstOpen.current) { firstOpen.current = false; return; } setView(null); }, [openId]);
+  // A reload on Duty history stays there (Prem, 26 Oct).
+  useEffect(() => { try { if (view === 'history') sessionStorage.setItem('sup_view', 'history'); else sessionStorage.removeItem('sup_view'); } catch { /* private mode */ } if (view !== 'history') forgetHistory(); }, [view]);
   const [addingWork, setAddingWork] = useState(false);
   useEffect(() => { setSheet(false); setAddingWork(false); }, [openId]);
   async function saveWork(form) {
