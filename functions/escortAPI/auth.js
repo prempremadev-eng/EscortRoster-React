@@ -33,6 +33,10 @@ const ESCORT_WRITES = new Set(['/addDutyRecord', '/updateDutyRecord', '/deleteDu
   '/addSundayPickupRecord', '/updateSundayPickupRecord', '/addTripStop', '/updateTripStop', '/deleteTripStop', '/updateTripCab',
   '/addEscort', '/updateEscort', '/deleteEscort', '/escortPoint', '/saveStartDate', '/markUploadDone', '/syncEscortsFromExcel']);
 
+// Guard screens the office opens too, read only (Prem, 25 Oct: what the guard sees at the post, the admin
+// sees): without a guard link they need a login and the post must be in the area.
+const OFFICE_VIEWS = new Set(['/safety', '/postHistory', '/postWorks', '/pastShift']);
+
 // Routes a guard's phone calls with its secret link. Everything else needs a login.
 const GUARD_ROUTES = new Set([
   '/guardInfo', '/saveSubscription', '/testPush',
@@ -109,7 +113,8 @@ module.exports = function auth(catalyst, selectAll) {
 
   // Express middleware: guard routes pass; the rest get req.user (+ req.scope) or a 401 / 403.
   async function middleware(req, res, next) {
-    if (GUARD_ROUTES.has(req.path)) return next();
+    // The post screens the office may also open (no guard link → the office login decides).
+    if (GUARD_ROUTES.has(req.path) && !(OFFICE_VIEWS.has(req.path) && !req.query.t)) return next();
     try {
       const user = await signedIn(req);
       if (!user) return res.status(401).json({ status: 'failure', error: 'Please sign in.', login: true });

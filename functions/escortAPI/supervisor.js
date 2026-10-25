@@ -146,7 +146,7 @@ module.exports = function supervisorRoutes(app, h) {
       })).sort((a, b) => b.active - a.active);
 
       const safety = main ? await zcql.executeZCQLQuery(`SELECT name, phone FROM SafetyEntries WHERE post_id = ${postId} AND duty_date = '${main.duty_date}' AND shift_code = '${main.shift_code}' ORDER BY CREATEDTIME DESC LIMIT 1`) : [];
-      const { messages } = await timelineData(req, catalystApp, zcql, postId, { supervisor: name });
+      const { messages, open } = await timelineData(req, catalystApp, zcql, postId, { supervisor: name });
       res.status(200).json({
         status: 'success',
         data: {
@@ -156,7 +156,7 @@ module.exports = function supervisorRoutes(app, h) {
             shift: l.shift_code, status: l.status, took: hhmm(l.taken_over_at), main: l === main
           })),
           safety: safety.length ? safety[0].SafetyEntries.name : '',
-          breaks,
+          breaks, openWorks: open.map(workView),
           messages
         }
       });

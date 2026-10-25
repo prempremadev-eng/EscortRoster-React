@@ -7,6 +7,8 @@ import '../post/post.css';
 import './supervisor.css';
 import Rail from './Rail.jsx';
 import AddWork from '../post/AddWork.jsx';
+import SafetySheet from '../post/SafetySheet.jsx';
+import PostHistory from '../post/PostHistory.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from '../post/VoiceNote.jsx';
 import { useUser } from '../auth/user.js';
 
@@ -252,6 +254,9 @@ export default function SupervisorInbox({ initialPost }) {
   // + menu (Prem, 25 Oct): work update and vehicle entry from the office too.
   const [sheet, setSheet] = useState(false);
   const [showBreaks, setShowBreaks] = useState(false);
+  // What the guard sees at the post, the office sees too (Prem, 25 Oct): Safety today, works going on, history.
+  const [view, setView] = useState(null); // 'safety' | 'history'
+  useEffect(() => { setView(null); }, [openId]);
   const [addingWork, setAddingWork] = useState(false);
   useEffect(() => { setSheet(false); setAddingWork(false); }, [openId]);
   async function saveWork(form) {
@@ -391,7 +396,18 @@ export default function SupervisorInbox({ initialPost }) {
               </div>
               {listItem && <span className={'pd-pill ' + STATUS[listItem.status].cls}>{STATUS[listItem.status].label}</span>}
               {main && main.phone && <a className="pd-chip" href={'tel:' + main.phone}>{Icon.phone}<span className="sup-call-name"> Call {main.name.split(' ')[0]}</span></a>}
+              <button className="pd-icon-btn" onClick={() => setView('history')} aria-label="Duty history for this post">{Icon.history}</button>
               <button className="pd-icon-btn" onClick={() => loadPost(openId)} aria-label="Refresh">{Icon.refresh}</button>
+            </div>
+            <div className="sup-post-bar">
+              <button className="pd-safety-row" onClick={() => setView('safety')}>
+                <span className="pd-safety-icon">{Icon.shield}</span><span className="pd-grow">Safety today{post && post.safety ? ' · ' + post.safety : ''}</span>{Icon.chevron}
+              </button>
+              {post && post.openWorks && post.openWorks.some(w => w.expired) ? (
+                <div className="pd-strip pd-strip-red"><span><b>Permit expired {post.openWorks.find(w => w.expired).to}</b> · {post.openWorks.find(w => w.expired).contractor} still working</span></div>
+              ) : post && post.openWorks && post.openWorks.length > 0 && (
+                <div className="pd-strip pd-strip-amber"><span><b>{post.openWorks.length} work still going on</b> · {post.openWorks.map(w => w.contractor).join(', ')}</span></div>
+              )}
             </div>
             {/* Breaks at this post, like the guard sees them on his page (Prem, 25 Oct). */}
             {post && post.breaks && post.breaks.length > 0 && (
@@ -471,6 +487,19 @@ export default function SupervisorInbox({ initialPost }) {
                     </a>
                   )}
                 </div>
+              </div>
+            )}
+            {view === 'safety' && (
+              <div className="pd-dim" onClick={() => setView(null)}>
+                <div className="pd-sheet" onClick={e => e.stopPropagation()}>
+                  <div className="pd-grab"></div>
+                  <SafetySheet token="" post={openId} readOnly onClose={() => setView(null)} />
+                </div>
+              </div>
+            )}
+            {view === 'history' && (
+              <div className="sup-work">
+                <PostHistory token="" post={openId} postName={post ? post.post : ''} onClose={() => setView(null)} />
               </div>
             )}
             {addingWork && (

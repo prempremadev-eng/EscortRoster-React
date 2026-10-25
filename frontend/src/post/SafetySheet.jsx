@@ -6,7 +6,8 @@ const fmtDate = d => new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { we
 
 // Screen 5j: "Safety today", the safety person of each shift at this post.
 // Adding again makes a new entry (old ones are kept); the latest one is shown.
-export default function SafetySheet({ token, post, onClose }) {
+// readOnly: the office looks (no guard link to add with).
+export default function SafetySheet({ token, post, onClose, readOnly }) {
   const [data, setData] = useState(null);
   const [adding, setAdding] = useState(null);
   const [form, setForm] = useState({ name: '', phone: '' });
@@ -67,7 +68,7 @@ export default function SafetySheet({ token, post, onClose }) {
                 {sh.entry && sh.entry.phone && <div className="pd-muted pd-small">{sh.entry.phone}</div>}
               </div>
               {sh.entry && sh.entry.phone && <a className="pd-call" href={'tel:' + sh.entry.phone} aria-label={'Call ' + sh.entry.name}>{Icon.phone}</a>}
-              <button className="pd-chip" onClick={() => { setAdding(sh.code); setForm({ name: '', phone: '' }); }}>{sh.entry ? 'Change' : 'Add'}</button>
+              {!readOnly && <button className="pd-chip" onClick={() => { setAdding(sh.code); setForm({ name: '', phone: '' }); }}>{sh.entry ? 'Change' : 'Add'}</button>}
             </>
           )}
         </div>

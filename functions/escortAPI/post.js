@@ -334,6 +334,18 @@ module.exports = function postRoutes(app, h) {
     return { me, log: { ...own, post_id: String(postId) }, own, covering: rows[0].Breaks };
   }
 
+  // The post a read-only screen looks at: the guard's (by his link), or, for an office login without a
+  // link, any post of its area with that post's running duty (or today with no shift).
+  async function viewLog(req, zcql) {
+    if (req.query.t || !req.user) return onDutyLog(zcql, req.query.t, req.query.post, true);
+    const postId = requireRowId(req.query.post);
+    const rows = await zcql.executeZCQLQuery(`SELECT ROWID, branch_id, agency_id FROM Posts WHERE ROWID = ${postId}`);
+    if (!rows.length) throw new Error('Post not found.');
+    auth.requireRow(req, rows[0].Posts, 'post');
+    const run = await zcql.executeZCQLQuery(`SELECT * FROM DutyLog WHERE post_id = ${postId} AND (status = 'on_duty' OR status = 'on_break' OR status = 'waiting') ORDER BY CREATEDTIME DESC LIMIT 1`);
+    return { log: run.length ? run[0].DutyLog : { ROWID: null, post_id: String(postId), duty_date: shiftDate(), shift_code: '' } };
+  }
+
   // ---------- small helpers for the timeline ----------
 
   const TIME_RE = /^([01]\d|2[0-3]):[0-5]\d$/;
@@ -642,7 +654,7 @@ module.exports = function postRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
-      const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
+      const { log } = await viewLog(req, zcql);
       const [shifts, rows] = await Promise.all([
         getShifts(zcql),
         zcql.executeZCQLQuery(`SELECT shift_code, name, phone, CREATEDTIME FROM SafetyEntries WHERE post_id = ${requireRowId(log.post_id)} AND duty_date = '${log.duty_date}' ORDER BY CREATEDTIME ASC`)
@@ -732,7 +744,7 @@ module.exports = function postRoutes(app, h) {
   // Post history (history.js): read only.
   require('./history.js')(app, {
     catalyst, fail, requireRowId, requireDate, getShifts, nowStamp, hhmm, minutesBetween, isTrue,
-    namesOf, onDutyLog, workView, mediaLinks, mediaLabel
+    namesOf, onDutyLog, viewLog, workView, mediaLinks, mediaLabel
   });
 
   // Vehicle entry (vehicles.js): posts with vehicle entry on.

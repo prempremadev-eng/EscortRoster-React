@@ -11,7 +11,7 @@ const PAGE = 300;
 
 module.exports = function historyRoutes(app, h) {
   const { catalyst, fail, requireRowId, requireDate, getShifts, nowStamp, hhmm, minutesBetween, isTrue,
-    namesOf, onDutyLog, workView, mediaLinks, mediaLabel } = h;
+    namesOf, onDutyLog, viewLog, workView, mediaLinks, mediaLabel } = h;
 
   // All rows of a query, 300 at a time (ZCQL's page size).
   async function all(zcql, table, query) {
@@ -39,7 +39,7 @@ module.exports = function historyRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
-      const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
+      const { log } = await viewLog(req, zcql);
       const { from, to } = range(req);
       const postId = requireRowId(log.post_id);
       const [logs, shifts, msgs] = await Promise.all([
@@ -78,7 +78,7 @@ module.exports = function historyRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
-      const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
+      const { log } = await viewLog(req, zcql);
       const { from, to } = range(req);
       const works = await all(zcql, 'WorkUpdates', `SELECT * FROM WorkUpdates WHERE post_id = ${requireRowId(log.post_id)} AND started_at >= '${from} 00:00' AND started_at <= '${to} 23:59' ORDER BY CREATEDTIME DESC`);
       const names = await namesOf(zcql, works.flatMap(w => [w.guard_id, w.finished_by]));
@@ -97,7 +97,7 @@ module.exports = function historyRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
-      const { log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
+      const { log } = await viewLog(req, zcql);
       const rows = await zcql.executeZCQLQuery(`SELECT * FROM DutyLog WHERE ROWID = ${requireRowId(req.query.log)}`);
       const shiftLog = rows.length ? rows[0].DutyLog : null;
       if (!shiftLog || String(shiftLog.post_id) !== String(log.post_id)) throw new Error('That shift is not at this post.');
