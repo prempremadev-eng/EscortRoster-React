@@ -118,6 +118,22 @@ export default function SupervisorInbox({ initialPost }) {
     return id;
   });
   const [post, setPost] = useState(null);
+  // Phone (Prem, 25 Oct: "like WhatsApp"): the list fills the screen, a post opens over it with ← back,
+  // and the phone's own back button closes the chat instead of leaving the app.
+  const phone = () => window.matchMedia('(max-width:700px)').matches;
+  const openPost = id => {
+    if (phone() && !openId) { try { window.history.pushState({ supChat: id }, ''); } catch { /* old browser */ } }
+    setOpenId(id);
+  };
+  const closePost = () => {
+    if (window.history.state && window.history.state.supChat) window.history.back();
+    else setOpenId(null);
+  };
+  useEffect(() => {
+    const onBack = () => { if (!(window.history.state && window.history.state.supChat)) setOpenId(null); };
+    window.addEventListener('popstate', onBack);
+    return () => window.removeEventListener('popstate', onBack);
+  }, []);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -247,7 +263,7 @@ export default function SupervisorInbox({ initialPost }) {
   let lastDate = '';
 
   return (
-    <div className="pd sup">
+    <div className={'pd sup sup-inbox' + (openId ? ' sup-inbox-chat' : '')}>
       <Rail active="posts" />
 
       <aside className="sup-list">
@@ -276,7 +292,7 @@ export default function SupervisorInbox({ initialPost }) {
           {!list && <div className="pd-muted sup-pad">Loading...</div>}
           {list && shown.length === 0 && <div className="pd-muted sup-pad">No posts here.</div>}
           {shown.map(p => (
-            <button key={p.ROWID} className={'sup-item' + (p.ROWID === openId ? ' sup-item-on' : '') + (p.status === 'alert' || p.status === 'empty' ? ' sup-item-red' : '')} onClick={() => setOpenId(p.ROWID)}>
+            <button key={p.ROWID} className={'sup-item' + (p.ROWID === openId ? ' sup-item-on' : '') + (p.status === 'alert' || p.status === 'empty' ? ' sup-item-red' : '')} onClick={() => openPost(p.ROWID)}>
               <span className="pd-avatar pd-avatar-sm">{initials(p.name)}</span>
               <span className="pd-grow sup-item-main">
                 <span className="pd-row-between"><b>{p.name}</b><span className="pd-small pd-muted">{p.last ? p.last.time : ''}</span></span>
@@ -299,6 +315,7 @@ export default function SupervisorInbox({ initialPost }) {
         {openId && (
           <>
             <div className="sup-pane-head">
+              <button className="sup-back" onClick={closePost} aria-label="Back to the posts">←</button>
               <span className="pd-avatar">{main ? initials(main.name) : '–'}</span>
               <div className="pd-grow">
                 <div className="pd-title pd-title-sm">{post ? post.post : listItem ? listItem.name : ''}</div>
@@ -310,7 +327,7 @@ export default function SupervisorInbox({ initialPost }) {
                 </div>
               </div>
               {listItem && <span className={'pd-pill ' + STATUS[listItem.status].cls}>{STATUS[listItem.status].label}</span>}
-              {main && main.phone && <a className="pd-chip" href={'tel:' + main.phone}>{Icon.phone} Call {main.name.split(' ')[0]}</a>}
+              {main && main.phone && <a className="pd-chip" href={'tel:' + main.phone}>{Icon.phone}<span className="sup-call-name"> Call {main.name.split(' ')[0]}</span></a>}
               <button className="pd-icon-btn" onClick={() => loadPost(openId)} aria-label="Refresh">{Icon.refresh}</button>
             </div>
             <div className="sup-pane-body">

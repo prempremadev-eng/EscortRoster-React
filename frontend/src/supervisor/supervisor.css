@@ -238,3 +238,22 @@ button.sb-kpi:hover{border-color:#94a3b8;}
   .sb-grid{grid-template-columns:1fr;gap:8px;}
   .sb-card{padding:8px 12px;}
 }
+
+/* Posts on a phone, like WhatsApp (Prem, 25 Oct): list only, or chat only with ← back. */
+.sup-back{display:none;}
+@media (max-width:700px){
+  .sup-inbox .sup-list{width:100%;flex:1 1 auto;border-right:none;}
+  .sup-inbox .sup-pane{display:none;}
+  .sup-inbox .sup-item-last{max-width:none;}
+  .sup-inbox-chat .sup-list,.sup-inbox-chat .sup-mbar{display:none;}
+  .sup-inbox-chat .sup-pane{display:flex;flex:1 1 auto;}
+  .sup-back{display:flex;align-items:center;justify-content:center;width:36px;height:40px;flex-shrink:0;margin-left:-6px;border:none;background:transparent;font-size:24px;color:var(--pd-ink);cursor:pointer;}
+  .sup-pane-head{padding:10px 12px;gap:8px;}
+  .sup-pane-head .pd-avatar{width:38px;height:38px;font-size:14px;}
+  .sup-pane-head .pd-small{display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .sup-pane-head > .pd-pill,.sup-call-name{display:none;}
+  .sup-pane-body{padding:12px;}
+  .sup .pd-bubble{max-width:85%;}
+  .sup .pd-work,.sup .pd-alert{width:92%;}
+  .sup .pd-composer{padding:8px 10px 12px;}
+}
