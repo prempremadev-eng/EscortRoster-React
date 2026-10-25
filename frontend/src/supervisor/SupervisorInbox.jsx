@@ -267,6 +267,8 @@ export default function SupervisorInbox({ initialPost }) {
   // + menu (Prem, 25 Oct): work update and vehicle entry from the office too.
   const [sheet, setSheet] = useState(false);
   const [showBreaks, setShowBreaks] = useState(false);
+  const [showPick, setShowPick] = useState(false);
+  const [showFind, setShowFind] = useState(false);
   // What the guard sees at the post, the office sees too (Prem, 25 Oct): Safety today, works going on, history.
   const [view, setView] = useState(null); // 'safety' | 'history'
   useEffect(() => { setView(null); }, [openId]);
@@ -346,6 +348,7 @@ export default function SupervisorInbox({ initialPost }) {
     (filter === 'all' || (filter === 'alerts' && (p.status === 'alert' || p.status === 'empty')) || (filter === 'break' && p.status === 'break') || (filter === 'unread' && p.unread > 0))
     && (p.name + ' ' + p.guard).toLowerCase().includes(search.trim().toLowerCase()));
   const branchName = (branches.find(b => String(b.ROWID) === String(branch)) || {}).branch_name || '';
+  const agName = pickAgency ? ((branchAgencies.find(a => String(a.ROWID) === String(ag)) || {}).agency_name || '') : '';
   const listItem = list && list.find(p => p.ROWID === openId);
   const main = post && (post.guards.find(g => g.main) || null);
   let lastDate = '';
@@ -355,21 +358,32 @@ export default function SupervisorInbox({ initialPost }) {
       <Rail active="posts" />
 
       <aside className="sup-list">
-        <div className="sup-list-head">
-          <div className="pd-row-between">
-            <div className="pd-title">Posts</div>
-            {!pushOn && branch && <button className="pd-chip pd-chip-primary" onClick={turnOnPush}>{Icon.bell} Turn on notifications</button>}
+        <div className={'sup-list-head' + (showPick ? ' sup-pick-open' : '') + (showFind || search ? ' sup-find-open' : '')}>
+          {/* Phone (Prem, 26 Oct: branch, agency and search took half the screen): one short line,
+              📍 opens the branch / agency pickers, 🔍 the search box. The computer keeps them all open. */}
+          <div className="sup-compact">
+            <button className="sup-place" onClick={() => setShowPick(v => !v)} aria-expanded={showPick}>
+              <span className="sup-place-text">📍 {branchName || 'Branch'}{agName ? ' · ' + agName : ''}</span><span>▾</span>
+            </button>
+            <button className="pd-icon-btn" onClick={() => setShowFind(v => !v)} aria-label="Search post or guard">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+            </button>
             <button className="pd-icon-btn" onClick={loadList} aria-label="Refresh">{Icon.refresh}</button>
           </div>
-          <select className="pd-search" value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">
+          <div className="pd-row-between sup-head-row">
+            <div className="pd-title">Posts</div>
+            {!pushOn && branch && <button className="pd-chip pd-chip-primary" onClick={turnOnPush}>{Icon.bell} Turn on notifications</button>}
+            <button className="pd-icon-btn sup-head-refresh" onClick={loadList} aria-label="Refresh">{Icon.refresh}</button>
+          </div>
+          <select className="pd-search sup-pick" value={branch} onChange={e => { setBranch(e.target.value); setShowPick(false); }} aria-label="Branch">
             {branches.map(b => <option key={b.ROWID} value={b.ROWID}>{b.branch_name}{b.area ? ' (' + b.area + ')' : ''} · {b.city}</option>)}
           </select>
           {pickAgency && branchAgencies.length > 0 && (
-            <select className="pd-search" value={ag} onChange={e => chooseAgency(e.target.value)} aria-label="Agency">
+            <select className="pd-search sup-pick" value={ag} onChange={e => { chooseAgency(e.target.value); setShowPick(false); }} aria-label="Agency">
               {branchAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
             </select>
           )}
-          <input className="pd-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search post or guard" aria-label="Search post or guard" />
+          <input className="pd-search sup-find" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search post or guard" aria-label="Search post or guard" />
           <div className="pd-quick pd-wrap">
             {[['all', 'All'], ['alerts', 'Alerts'], ['break', 'On break'], ['unread', 'Unread']].map(([k, label]) => (
               <button key={k} className={'pd-chip pd-chip-sm' + (filter === k ? ' pd-chip-primary' : '')} onClick={() => setFilter(k)}>{label} {counts[k]}</button>

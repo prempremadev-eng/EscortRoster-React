@@ -290,3 +290,18 @@ button.sb-kpi:hover{border-color:#94a3b8;}
 /* Safety today + works going on under the office chat header, like the guard's page. */
 .sup-post-bar{display:flex;flex-direction:column;gap:8px;padding:8px 16px 10px;background:var(--pd-surface);}
 @media (max-width:700px){.sup-post-bar{padding:8px 12px 10px;}}
+
+/* Posts list head on a phone: one line (📍 branch · agency ▾, 🔍, ↻); pickers and search open on tap. */
+.sup-compact{display:none;}
+@media (max-width:700px){
+  .sup-inbox .sup-list-head{gap:8px;padding:10px 12px 8px;}
+  .sup-compact{display:flex;align-items:center;gap:6px;}
+  .sup-place{flex-grow:1;min-width:0;height:40px;display:flex;align-items:center;gap:6px;border:none;border-radius:20px;background:var(--pd-bg);padding:0 14px;font-family:inherit;font-size:15px;font-weight:600;color:var(--pd-ink);cursor:pointer;}
+  .sup-place-text{flex-grow:1;min-width:0;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .sup-inbox .sup-head-refresh{display:none;}
+  .sup-inbox .sup-head-row:not(:has(.pd-chip)){display:none;}
+  .sup-inbox .sup-pick,.sup-inbox .sup-find{display:none;}
+  .sup-inbox .sup-pick-open .sup-pick,.sup-inbox .sup-find-open .sup-find{display:block;}
+  .sup-inbox .sup-list-head .pd-quick{flex-wrap:nowrap;overflow-x:auto;}
+  .sup-inbox .sup-list-head .pd-quick .pd-chip{flex-shrink:0;}
+}
