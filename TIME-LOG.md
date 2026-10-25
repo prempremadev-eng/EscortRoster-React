@@ -107,3 +107,4 @@
 | Time | Event |
 |---|---|
 | 08:50 | ▶️ Start ("good morning") |
+| 14:06 | 🍛 Lunch |
