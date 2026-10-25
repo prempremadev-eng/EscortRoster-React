@@ -4,7 +4,8 @@ import { Icon } from './icons.jsx';
 
 // Screen 5: a contractor's work at the post. Time and guard are saved by the server.
 // Photos (permit, work area) come with the photo step.
-export default function AddWork({ token, post, postName, onClose }) {
+// onSave: the office side saves with its own login (SupervisorInbox) instead of the guard's link.
+export default function AddWork({ token, post, postName, onClose, onSave }) {
   // Permit starts now and runs 2 hours by default (a fixed 09:00–17:00 was already over in the evening).
   const [form, setForm] = useState(() => {
     const now = new Date();
@@ -20,7 +21,8 @@ export default function AddWork({ token, post, postName, onClose }) {
     setBusy(true);
     setError('');
     try {
-      await api.addWork(token, form, post);
+      if (onSave) await onSave(form);
+      else await api.addWork(token, form, post);
       onClose(true);
     } catch (err) {
       setError(err.message);

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { useAgencyPick } from '../agencyPick.js';
 import { shortDate, plusDay } from '../utils.js';
@@ -14,7 +14,7 @@ function remember(k, fallback) {
   try { const v = localStorage.getItem(k); return v === null ? fallback : JSON.parse(v); } catch { return fallback; }
 }
 
-export default function VehiclesPage() {
+export default function VehiclesPage({ addFor = '' }) {
   const [branches, setBranches] = useState([]);
   const [branch, setBranch] = useState('');
   const [date, setDate] = useState(today);
@@ -131,6 +131,20 @@ export default function VehiclesPage() {
     setFormError('');
     setAdding(true);
   }
+
+  // Opened from the office chat's + (#vehicles/add/<post>): that post's IN form, once.
+  const addedFor = useRef('');
+  useEffect(() => {
+    if (!addFor || addedFor.current === addFor || !data || !data.posts.some(p => String(p.id) === String(addFor))) return;
+    addedFor.current = addFor;
+    setPost(String(addFor));
+    setAddPost(String(addFor));
+    setForm(BLANK);
+    setPhoto(null);
+    setFormError('');
+    setAdding(true);
+    try { window.history.replaceState(null, '', '#vehicles'); } catch { /* old browser */ }
+  }, [addFor, data]);
 
   const dayText = d => d.split('-').reverse().join('-');
 

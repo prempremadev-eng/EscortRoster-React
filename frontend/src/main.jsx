@@ -114,7 +114,8 @@ function page(hash) {
   if (hash === '#master') return <SupFrame active="guards"><GuardMaster /></SupFrame>;
   if (hash === '#posts') return <SupFrame active="postsetup"><PostsPage /></SupFrame>;
   // The weekly Duty Chart page is gone (Prem, 22 Oct); an old #chart link opens Duty History.
-  if (hash === '#vehicles') return <SupFrame active="vehicles"><VehiclesPage /></SupFrame>;
+  // #vehicles/add/<post>: the + of the office chat opens the IN form of that post.
+  if (hash === '#vehicles' || hash.startsWith('#vehicles/add/')) return <SupFrame active="vehicles"><VehiclesPage addFor={hash.split('/')[2] || ''} /></SupFrame>;
   if (hash === '#report') return <SupFrame active="report"><ShiftReport /></SupFrame>;
   if (hash === '#history' || hash === '#chart') return <SupFrame active="history"><DutyHistory /></SupFrame>;
   if (hash === '#simulator') return <SupFrame active="simulator"><CardSimulator /></SupFrame>;

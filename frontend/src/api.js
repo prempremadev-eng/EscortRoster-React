@@ -183,6 +183,7 @@ export const api = {
   escortPoint: (branch, date, guard_id, point) => apiCall('POST', '/escortPoint', { branch, date, guard_id, point }),
   supMessage: (post, text) => apiCall('POST', '/supMessage', { post, text }),
   supMedia,
+  supWork: (post, form) => apiCall('POST', '/supWork', { post, ...form }),
   coverCandidates: t => apiCall('GET', '/coverCandidates?t=' + q(t)),
   startBreak: (t, type, cover_guard_id) => apiCall('POST', '/startBreak', { t, type, cover_guard_id }),
   cancelBreak: t => apiCall('POST', '/cancelBreak', { t }),

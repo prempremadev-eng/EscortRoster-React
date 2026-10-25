@@ -39,7 +39,7 @@ module.exports = function supervisorRoutes(app, h) {
 
   // One post of my area, or an error.
   async function myPost(req, zcql, postId) {
-    const rows = await zcql.executeZCQLQuery(`SELECT ROWID, post_name, branch_id, agency_id FROM Posts WHERE ROWID = ${requireRowId(postId)}`);
+    const rows = await zcql.executeZCQLQuery(`SELECT ROWID, post_name, branch_id, agency_id, vehicle_entry FROM Posts WHERE ROWID = ${requireRowId(postId)}`);
     if (!rows.length) throw new Error('Post not found.');
     return auth.requireRow(req, rows[0].Posts, 'post');
   }
@@ -133,7 +133,7 @@ module.exports = function supervisorRoutes(app, h) {
       res.status(200).json({
         status: 'success',
         data: {
-          post: post.post_name,
+          post: post.post_name, vehicleEntry: post.vehicle_entry === true || post.vehicle_entry === 'true',
           guards: logs.map(l => ({
             name: (guards[String(l.guard_id)] || {}).guard_name || 'Guard', phone: (guards[String(l.guard_id)] || {}).phone || '',
             shift: l.shift_code, status: l.status, took: hhmm(l.taken_over_at), main: l === main
@@ -1206,6 +1206,36 @@ module.exports = function supervisorRoutes(app, h) {
     }
     return guardRows.length;
   }
+
+  // Work update from the office (Prem, 25 Oct: the + of the guard's page on the office side too).
+  // Same checks as the guard's /addWork; no guard or duty log, author_name says who added it.
+  app.post('/supWork', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const b = req.body;
+      const postId = requireRowId(b.post);
+      await myPost(req, zcql, postId);
+      const contractor = cleanText(b.contractor, 'Contractor', 100, true);
+      const description = cleanText(b.description, 'What work', MAX_TEXT, false);
+      const from = String(b.permit_from || '');
+      const to = String(b.permit_to || '');
+      if (!h.TIME_RE.test(from) || !h.TIME_RE.test(to)) throw new Error('Pick the permit time From and To.');
+      const persons = parseInt(b.persons, 10);
+      if (!(persons >= 1 && persons <= 500)) throw new Error('Number of persons must be 1 or more.');
+      if (h.permitEnd(from, to) <= nowStamp()) throw new Error('This permit time is already over (ends ' + to + '). Check From and To.');
+      const work = await catalystApp.datastore().table('WorkUpdates').insertRow({
+        post_id: postId, contractor, persons, description,
+        permit_from: from, permit_to: to, permit_end: h.permitEnd(from, to), started_at: nowStamp(), expired_noted: false
+      });
+      const name = (supName(req) + ' · ' + auth.ROLE_NAME[req.user.role]).slice(0, 100);
+      await addMessage(catalystApp, { post_id: postId, kind: 'work', ref_id: work.ROWID, text: contractor, author_name: name });
+      const sentTo = await tellGuards(req, catalystApp, zcql, postId, 'Work update: ' + contractor + ' · ' + persons + ' persons · permit ' + from + '–' + to);
+      res.status(200).json({ status: 'success', data: { ...workView(work), sentTo } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
 
   // Office photo / video / voice to a post (Prem, 25 Oct: the same message box as the guard's).
   // Same file rules as the guard's /uploadMedia; the row has no guard, author_name says who sent it.

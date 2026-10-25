@@ -277,3 +277,6 @@ button.sb-kpi:hover{border-color:#94a3b8;}
 .sup-pane-body .pd-bubble-other{border-bottom-left-radius:4px;}
 .sup-pane .pd-composer{border-top:none;box-shadow:0 -2px 8px rgba(26,31,43,.05);}
 .sup-list-head .pd-icon-btn{border:none;border-radius:50%;background:var(--pd-bg);}
+/* Work update form from the office chat's +: over the whole screen, like the guard's page. */
+.sup-work{position:fixed;inset:0;z-index:70;background:var(--pd-bg);overflow-y:auto;}
+.pd-sheet a.pd-option{text-decoration:none;color:inherit;}

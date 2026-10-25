@@ -6,6 +6,7 @@ import { clock, compressImage, videoSeconds, recorderType, MAX_VIDEO_SECONDS, MA
 import '../post/post.css';
 import './supervisor.css';
 import Rail from './Rail.jsx';
+import AddWork from '../post/AddWork.jsx';
 import { useUser } from '../auth/user.js';
 
 // "Name · Role" since 25 Oct; older messages have only the name and were all from supervisors.
@@ -248,6 +249,15 @@ export default function SupervisorInbox({ initialPost }) {
   const voiceRec = useRef(null);
   const holdingMic = useRef(false);
   const [voice, setVoice] = useState(null);
+  // + menu (Prem, 25 Oct): work update and vehicle entry from the office too.
+  const [sheet, setSheet] = useState(false);
+  const [addingWork, setAddingWork] = useState(false);
+  useEffect(() => { setSheet(false); setAddingWork(false); }, [openId]);
+  async function saveWork(form) {
+    await api.supWork(openId, form);
+    await loadPost(openId);
+    loadList();
+  }
   async function upload(blob, kind, source, duration) {
     setBusy(true);
     setError('');
@@ -443,6 +453,7 @@ export default function SupervisorInbox({ initialPost }) {
               <div className="pd-voice-bar"><span className="pd-voice-dot"></span>Recording {clock(voice)} · let go to send</div>
             )}
             <form className="pd-composer" onSubmit={send}>
+              <button type="button" className="pd-plus" onClick={() => setSheet(true)} aria-label="Add work update or vehicle entry">{Icon.plus}</button>
               <label htmlFor="sup-msg" className="pd-hidden">Message to this post</label>
               <div className="pd-input">
                 <input id="sup-msg" value={text} onChange={e => setText(e.target.value)} placeholder={'Message to ' + (post ? post.post : 'this post')} maxLength={255} autoComplete="off" />
@@ -455,6 +466,27 @@ export default function SupervisorInbox({ initialPost }) {
               <input ref={photoInput} type="file" accept="image/*" capture="environment" className="pd-file" onChange={onPhotoTaken} />
               <input ref={galleryInput} type="file" accept="image/*,video/*" className="pd-file" onChange={onGalleryPick} />
             </form>
+            {sheet && (
+              <div className="pd-dim" onClick={() => setSheet(false)}>
+                <div className="pd-sheet" onClick={e => e.stopPropagation()}>
+                  <div className="pd-grab"></div>
+                  <div className="pd-sheet-title">Add to {post ? post.post : 'this post'}</div>
+                  <button className="pd-option pd-option-primary" onClick={() => { setSheet(false); setAddingWork(true); }}>
+                    {Icon.wrench}<span><b>Work update</b><span>Contractor, persons, permit time</span></span>
+                  </button>
+                  {post && post.vehicleEntry && (
+                    <a className="pd-option" href={'#vehicles/add/' + openId}>
+                      {Icon.car}<span><b>Vehicle entry</b><span>Employee, visitor, vendor IN / OUT</span></span>
+                    </a>
+                  )}
+                </div>
+              </div>
+            )}
+            {addingWork && (
+              <div className="sup-work">
+                <AddWork postName={post ? post.post : ''} onSave={saveWork} onClose={() => setAddingWork(false)} />
+              </div>
+            )}
           </>
         )}
         {!openId && error && <div className="pd-error-bar">{error}</div>}
