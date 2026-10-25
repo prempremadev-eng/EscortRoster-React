@@ -143,6 +143,46 @@ export default function SupervisorSchedule() {
   // "→ Escort": a free guard goes to the end of tonight's 9 to 6 for this day (any team). Saved as his
   // support point, so his card IN gives him a seat and his own row on the escort page.
   const EXTRA = 'Extra 9 to 6';
+  // 📥 / 📤 Excel day sheet (Prem, 25 Oct: agencies without Auto fill rules write the day in Excel).
+  // Template = every post and shift of this day (names already put are filled in) + a Guards sheet
+  // with each guard's roster shift. Upload = the rows with a Guard ID become drafts; then Publish.
+  async function downloadTemplate() {
+    const XLSX = await import('xlsx');
+    const shiftList = ['A', 'B', 'C', 'G'];
+    const rows = [['Date', 'Post', 'Shift', 'Guard ID', 'Guard name (for you)']];
+    data.posts.forEach(p => shiftList.filter(c => (p.shifts || 'ABCG').includes(c)).forEach(c => {
+      const s = slotOf(p.ROWID, c);
+      const g = s && data.guards.find(x => x.ROWID === s.guard);
+      rows.push([date, p.name, c, g ? g.id : '', g ? g.name : '']);
+    }));
+    const people = [['Guard ID', 'Name', 'Roster ' + date, 'Team']].concat(data.guards.slice().sort((a, b) => 'ABCGOL'.indexOf(a.roster) - 'ABCGOL'.indexOf(b.roster) || a.name.localeCompare(b.name)).map(g => [g.id, g.name, g.roster || '-', g.area]));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), 'Schedule');
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(people), 'Guards');
+    XLSX.writeFile(wb, 'schedule-' + date + '.xlsx');
+  }
+  async function uploadSheet(e) {
+    const file = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try {
+      const XLSX = await import('xlsx');
+      const wb = XLSX.read(await file.arrayBuffer());
+      const all = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+      const head = (all[0] || []).map(h => String(h).toLowerCase());
+      const col = (...names) => head.findIndex(h => names.some(n => h.startsWith(n)));
+      const cDate = col('date'), cPost = col('post'), cShift = col('shift'), cGuard = col('guard id', 'id', 'guard');
+      if (cPost < 0 || cShift < 0 || cGuard < 0) throw new Error('The first row must have the headings Post, Shift and Guard ID (download the template).');
+      // A date cell may come as an Excel day number or as text.
+      const asDate = v => typeof v === 'number' ? new Date(Math.round((v - 25569) * 86400000)).toISOString().slice(0, 10) : String(v || '').trim();
+      const rows = all.slice(1).map(r => ({ date: cDate >= 0 ? asDate(r[cDate]) : date, post: r[cPost], shift: r[cShift], guard: r[cGuard] }));
+      run(() => api.scheduleUpload(branch, date, rows, ag), r => setNote('📤 Uploaded: ' + r.data.saved + ' slot(s) saved as drafts' + (r.data.days.length > 1 ? ' for ' + r.data.days.join(', ') : '') + '.'
+        + (r.data.skipped.length ? ' Not saved (' + r.data.skipped.length + '): ' + r.data.skipped.slice(0, 8).join(' · ') + (r.data.skipped.length > 8 ? ' …' : '') : '') + ' Check, then Publish.'));
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   const toEscort = (guard, on) => run(() => api.escortPoint(branch, date, guard, on ? EXTRA : ''),
     () => setNote(nameOf(guard) + (on ? ' → Escort 9 to 6 today. His card IN gives his seat.' : ' removed from Escort today.')));
   function savePoint(guard, value) {
@@ -259,6 +299,8 @@ export default function SupervisorSchedule() {
           )}
           {data && data.autoFill && <button className="pd-chip pd-chip-primary" onClick={autoFill} disabled={busy}
             title="Fill empty slots by the fill rules (now: Rule 1 Shift Incharge from the month roster)">⚡ Auto fill</button>}
+          <button className="pd-chip" onClick={downloadTemplate} disabled={!data} title="Excel of this day: every post and shift, plus the guards and their roster shift">📥 Template</button>
+          <label className="pd-chip sc-upload" title="Upload the filled Excel: the rows with a Guard ID become drafts">📤 Upload<input type="file" accept=".xlsx,.xls,.csv" hidden onChange={uploadSheet} /></label>
           <button className="pd-chip" onClick={() => window.confirm('Empty the whole sheet of ' + niceDate(date) + '? All ' + filled + ' name(s) go, published ones too.') && run(() => api.scheduleClear(branch, date, ag), r => { setPick(null); setNote('🧹 Cleared · ' + r.data.cleared + ' slot(s) emptied.'); })} disabled={busy || !filled}
             title="Empty this day to fill it again by hand, or to try one fill rule at a time">🧹 Clear day</button>
           <button className="pd-chip" onClick={() => run(() => api.scheduleCopy(branch, date, ag), r => setNote(r.data.copied ? 'Copied ' + r.data.copied + ' slot(s) from the ' + r.data.from + '.' : 'Nothing to copy (no schedule yesterday, and the weekly chart has no free slots).'))} disabled={busy}>Copy from yesterday</button>

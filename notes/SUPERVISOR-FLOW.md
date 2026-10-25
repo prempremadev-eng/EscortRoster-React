@@ -95,3 +95,10 @@ How to build (notes for later):
 ## App update on phones (23 Oct)
 
 - When the app comes back to the screen it checks (at most once a minute) whether a new build was deployed and reloads itself. No Data Store read.
+
+## 📤 Schedule by Excel (25 Oct, for agencies without Auto fill rules)
+
+- Schedule page → **📥 Template**: an Excel of the day (Date, Post, Shift, Guard ID, name) with the names already put, and a **Guards** sheet (ID, name, roster shift that day, team).
+- Fill the Guard ID column → **📤 Upload** → the rows become drafts (same rules as a hand pick: one guard one slot a day, a second shift only at an extra duty post; post shifts checked, G allowed on any post) → check → **Publish**.
+- Several days in one file: put each row's date. Rows that cannot be saved are listed (post / guard not found, twice on a shift …).
+- Test plan (ISI, 26 Oct): 15 dummy guards + dummy roster + 6 ISI posts → template → fill → upload → publish → guard link → card IN.

@@ -164,6 +164,7 @@ export const api = {
   scheduleCopy: (branch, date, agency) => apiCall('POST', '/scheduleCopy', { branch, date, agency }),
   schedulePublish: (branch, date, agency) => apiCall('POST', '/schedulePublish', { branch, date, agency }),
   scheduleAuto: (branch, date, agency) => apiCall('POST', '/scheduleAuto', { branch, date, agency }),
+  scheduleUpload: (branch, date, rows, agency) => apiCall('POST', '/scheduleUpload', { branch, date, rows, agency }),
   scheduleClear: (branch, date, agency) => apiCall('POST', '/scheduleClear', { branch, date, agency }),
   escortPoint: (branch, date, guard_id, point) => apiCall('POST', '/escortPoint', { branch, date, guard_id, point }),
   supMessage: (post, text) => apiCall('POST', '/supMessage', { post, text }),

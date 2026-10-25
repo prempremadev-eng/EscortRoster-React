@@ -690,6 +690,75 @@ module.exports = function supervisorRoutes(app, h) {
   });
 
   // Put a guard in a slot (or empty it with guard = null). The guard leaves any other slot that day.
+  // 📤 Schedule upload (Prem, 25 Oct): an agency without Auto fill rules (ISI) writes the day in Excel
+  // (Date, Post, Shift, Guard ID) and uploads it. Rows become drafts like hand picks; Publish as usual.
+  // A guard is matched by ID, card no. or name; one guard one slot a day (a second shift only at an extra
+  // duty post); the guard's roster shift is not forced here (the sheet is the supervisor's decision).
+  app.post('/scheduleUpload', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const branch = auth.requireBranch(req, requireRowId(req.body.branch));
+      const given = Array.isArray(req.body.rows) ? req.body.rows.slice(0, 2000) : [];
+      if (!given.length) throw new Error('No rows in the file.');
+      const dateOf = v => { const d = String(v || req.body.date || '').trim(); return /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : null; };
+      const shiftCodes = (await getShifts(zcql)).map(x => x.code);
+      const [posts, guards] = await Promise.all([
+        branchPosts(req, zcql, branch),
+        zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number, card_number FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} LIMIT 0, 300`).then(r => r.map(x => x.Guards))
+      ]);
+      const key = v => String(v || '').toLowerCase().replace(/[\s-]+/g, '');
+      const postBy = new Map(posts.map(p => [key(p.post_name), p]));
+      const guardBy = new Map();
+      guards.forEach(g => [g.id_number, g.card_number, g.guard_name].filter(Boolean).forEach(k => { if (!guardBy.has(key(k))) guardBy.set(key(k), g); }));
+      const skipped = [];
+      const byDate = new Map();
+      given.forEach((r, i) => {
+        const line = i + 2; // row 1 = headings
+        const date = dateOf(r.date);
+        const post = postBy.get(key(r.post));
+        const shift = String(r.shift || '').trim().toUpperCase();
+        const guard = guardBy.get(key(r.guard));
+        if (!String(r.guard || '').trim()) return; // empty slot in the template
+        if (!date) return skipped.push('Row ' + line + ': date');
+        if (!post) return skipped.push('Row ' + line + ': post "' + r.post + '" not found');
+        if (!shiftCodes.includes(shift)) return skipped.push('Row ' + line + ': shift "' + r.shift + '"');
+        if (postShifts(post) && !postShifts(post).includes(shift) && shift !== 'G') return skipped.push('Row ' + line + ': ' + post.post_name + ' has no Shift ' + shift);
+        if (!guard) return skipped.push('Row ' + line + ': guard "' + r.guard + '" not found');
+        if (!byDate.has(date)) byDate.set(date, []);
+        byDate.get(date).push({ line, post, shift, guard });
+      });
+      const table = catalystApp.datastore().table('Schedule');
+      const isExtra = p => isOn(p.extra_duty);
+      let saved = 0;
+      for (const [date, list] of byDate) {
+        const rows = await dayRows(zcql, branch, date, posts);
+        const used = new Map(); // guard → { post, shift } from this file
+        const inserts = [], updates = [], deletes = new Set();
+        for (const x of list) {
+          const g = String(x.guard.ROWID);
+          const prev = used.get(g);
+          if (prev && prev.shift === x.shift) { skipped.push('Row ' + x.line + ': ' + x.guard.guard_name + ' is twice on Shift ' + x.shift); continue; }
+          if (prev && !isExtra(prev.post) && !isExtra(x.post)) { skipped.push('Row ' + x.line + ': ' + x.guard.guard_name + ' already on Shift ' + prev.shift); continue; }
+          used.set(g, { post: x.post, shift: x.shift });
+          // The guard's other slot that day (from before the upload) goes, unless one of them is extra duty.
+          rows.filter(r => String(r.guard_id) === g && !(String(r.post_id) === String(x.post.ROWID) && r.shift_code === x.shift))
+            .forEach(r => { const p = posts.find(q => String(q.ROWID) === String(r.post_id)); if (r.shift_code === x.shift || !(p && isExtra(p)) && !isExtra(x.post)) deletes.add(String(r.ROWID)); });
+          const cell = rows.find(r => String(r.post_id) === String(x.post.ROWID) && r.shift_code === x.shift);
+          if (cell) { updates.push({ ROWID: cell.ROWID, guard_id: g, published: false }); deletes.delete(String(cell.ROWID)); }
+          else inserts.push({ branch_id: branch, sched_date: date, post_id: x.post.ROWID, shift_code: x.shift, guard_id: g, published: false });
+          saved++;
+        }
+        for (const id of deletes) await table.deleteRow(id);
+        for (let i = 0; i < updates.length; i += 100) await table.updateRows(updates.slice(i, i + 100));
+        for (let i = 0; i < inserts.length; i += 100) await table.insertRows(inserts.slice(i, i + 100));
+      }
+      res.status(200).json({ status: 'success', data: { saved, days: [...byDate.keys()], skipped } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   app.post('/scheduleSet', async (req, res) => {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
