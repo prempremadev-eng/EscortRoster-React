@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { Icon, initials } from '../post/icons.jsx';
 import Rail from './Rail.jsx';
+import { useUser } from '../auth/user.js';
+import { worksIn } from '../agency.js';
 import '../post/post.css';
 import './supervisor.css';
 
@@ -42,6 +44,13 @@ export default function SupervisorSchedule() {
   const [branches, setBranches] = useState([]);
   // Starts empty: the remembered branch is used only if it is in this login's area.
   const [branch, setBranch] = useState('');
+  // Branch Admin and above pick one agency (IPF / ISI / BSS): its posts and guards only (Prem, 25 Oct).
+  // A supervisor always sees their own agency, so no picker for them.
+  const me = useUser();
+  const pickAgency = !!me && me.role !== 'supervisor';
+  const [agencies, setAgencies] = useState([]);
+  const [agency, setAgency] = useState(() => { try { return localStorage.getItem('sc-agency') || ''; } catch { return ''; } });
+  const chooseAgency = v => { setAgency(v); try { localStorage.setItem('sc-agency', v); } catch { /* private window */ } };
   const [date, setDate] = useState(() => ymd(new Date()));
   const [data, setData] = useState(null);
   const [pick, setPick] = useState(null); // { post, shift }
@@ -58,18 +67,21 @@ export default function SupervisorSchedule() {
     api.getPosts().then(r => {
       setBranches(r.data.branches);
       setBranch(pickBranch(r.data.branches));
+      setAgencies(r.data.agencies || []);
     }).catch(err => setError(err.message));
   }, []);
 
+  const branchAgencies = agencies.filter(a => (a.is_active === true || a.is_active === 'true') && worksIn(a, branch));
+  const ag = pickAgency ? (branchAgencies.some(a => String(a.ROWID) === agency) ? agency : (branchAgencies[0] ? String(branchAgencies[0].ROWID) : '')) : '';
   const load = useCallback(async () => {
-    if (!branch) return;
+    if (!branch || (pickAgency && !ag)) return;
     setError('');
     try {
-      setData((await api.schedule(branch, date)).data);
+      setData((await api.schedule(branch, date, ag)).data);
     } catch (err) {
       setError(err.message);
     }
-  }, [branch, date]);
+  }, [branch, date, ag, pickAgency]);
 
   useEffect(() => { if (branch) keep('sup_branch', branch); setPick(null); setNote(''); load(); }, [branch, date, load]);
 
@@ -97,13 +109,13 @@ export default function SupervisorSchedule() {
     const slot = pick && slotOf(pick.post, pick.shift);
     if (!slot) return;
     const p = pick;
-    run(() => api.scheduleSet(branch, date, p.post, p.shift, null), () => { setPick(null); setNote(guardName(slot.guard) + ' removed.'); });
+    run(() => api.scheduleSet(branch, date, p.post, p.shift, null, ag), () => { setPick(null); setNote(guardName(slot.guard) + ' removed.'); });
   }
 
   function assign(guard) {
     if (!pick) return setNote('Tap an empty slot first.');
     const p = pick;
-    run(() => api.scheduleSet(branch, date, p.post, p.shift, guard.ROWID), () => { setPick(null); setNote(guard.name + ' → ' + data.posts.find(x => x.ROWID === p.post).name + ' · Shift ' + p.shift); });
+    run(() => api.scheduleSet(branch, date, p.post, p.shift, guard.ROWID, ag), () => { setPick(null); setNote(guard.name + ' → ' + data.posts.find(x => x.ROWID === p.post).name + ' · Shift ' + p.shift); });
   }
 
   // A post works only its own shifts ("ABC", "G" …; empty = every shift).
@@ -136,8 +148,8 @@ export default function SupervisorSchedule() {
   function savePoint(guard, value) {
     run(() => api.escortPoint(branch, date, guard, value), () => setNote(nameOf(guard) + ': support point ' + (value ? 'saved.' : 'removed.')));
   }
-  const autoFill = () => run(() => api.scheduleAuto(branch, date), r => setNote('⚡ Auto fill: ' + r.data.filled + ' filled. ' + r.data.rules.map((x, i) => 'Rule ' + (x.no || i + 1) + ' · ' + x.rule + ': ' + (x.filled.length > 6 ? x.filled.length + ' filled' : x.filled.join(', ') || 'nothing new') + (x.empty.length ? ' · no one for ' + (x.empty.length > 6 ? x.empty.length + ' slot(s)' : x.empty.join(', ')) : '')).join(' | ') + '. Check, fix and then Publish.'));
-  const publish = () => run(() => api.schedulePublish(branch, date), r => setNote(r.data.published ? 'Published · ' + r.data.published + ' slot(s). Guards get it at card IN.' : 'Everything is already published.'));
+  const autoFill = () => run(() => api.scheduleAuto(branch, date, ag), r => setNote('⚡ Auto fill: ' + r.data.filled + ' filled. ' + r.data.rules.map((x, i) => 'Rule ' + (x.no || i + 1) + ' · ' + x.rule + ': ' + (x.filled.length > 6 ? x.filled.length + ' filled' : x.filled.join(', ') || 'nothing new') + (x.empty.length ? ' · no one for ' + (x.empty.length > 6 ? x.empty.length + ' slot(s)' : x.empty.join(', ')) : '')).join(' | ') + '. Check, fix and then Publish.'));
+  const publish = () => run(() => api.schedulePublish(branch, date, ag), r => setNote(r.data.published ? 'Published · ' + r.data.published + ' slot(s). Guards get it at card IN.' : 'Everything is already published.'));
   const toSummary = () => { const el = document.getElementById('sc-summary'); if (el) el.scrollIntoView({ behavior: 'smooth' }); };
   // Day summary: per shift how many slots, filled, unfilled (with the empty posts by name), then a total.
   const summary = data ? [...ABC, ...(shiftG ? [shiftG] : [])].map(s => {
@@ -239,11 +251,16 @@ export default function SupervisorSchedule() {
           <select className="pd-search sb-branch" value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">
             {branches.map(x => <option key={x.ROWID} value={x.ROWID}>{x.branch_name}{x.area ? ' (' + x.area + ')' : ''} · {x.city}</option>)}
           </select>
+          {pickAgency && branchAgencies.length > 0 && (
+            <select className="pd-search sb-branch" value={ag} onChange={e => chooseAgency(e.target.value)} aria-label="Agency">
+              {branchAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+            </select>
+          )}
           <button className="pd-chip pd-chip-primary" onClick={autoFill} disabled={busy}
             title="Fill empty slots by the fill rules (now: Rule 1 Shift Incharge from the month roster)">⚡ Auto fill</button>
-          <button className="pd-chip" onClick={() => window.confirm('Empty the whole sheet of ' + niceDate(date) + '? All ' + filled + ' name(s) go, published ones too.') && run(() => api.scheduleClear(branch, date), r => { setPick(null); setNote('🧹 Cleared · ' + r.data.cleared + ' slot(s) emptied.'); })} disabled={busy || !filled}
+          <button className="pd-chip" onClick={() => window.confirm('Empty the whole sheet of ' + niceDate(date) + '? All ' + filled + ' name(s) go, published ones too.') && run(() => api.scheduleClear(branch, date, ag), r => { setPick(null); setNote('🧹 Cleared · ' + r.data.cleared + ' slot(s) emptied.'); })} disabled={busy || !filled}
             title="Empty this day to fill it again by hand, or to try one fill rule at a time">🧹 Clear day</button>
-          <button className="pd-chip" onClick={() => run(() => api.scheduleCopy(branch, date), r => setNote(r.data.copied ? 'Copied ' + r.data.copied + ' slot(s) from the ' + r.data.from + '.' : 'Nothing to copy (no schedule yesterday, and the weekly chart has no free slots).'))} disabled={busy}>Copy from yesterday</button>
+          <button className="pd-chip" onClick={() => run(() => api.scheduleCopy(branch, date, ag), r => setNote(r.data.copied ? 'Copied ' + r.data.copied + ' slot(s) from the ' + r.data.from + '.' : 'Nothing to copy (no schedule yesterday, and the weekly chart has no free slots).'))} disabled={busy}>Copy from yesterday</button>
           <button className="pd-chip pd-chip-primary" onClick={publish} disabled={busy || !drafts}>Publish to guards</button>
           <a className="pd-chip" href={'#roster/' + date.slice(0, 7)} title="Month roster: who works which shift each day">📅 Month roster</a>
           <button className="pd-chip" onClick={() => window.print()} title="Print or save as PDF to share">🖨️ Print</button>

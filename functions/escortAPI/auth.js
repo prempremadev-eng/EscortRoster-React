@@ -127,6 +127,10 @@ module.exports = function auth(catalyst, selectAll) {
         rowid: String(role.ROWID)
       };
       req.scope = scopeOf(role, await branchList(zcql));
+      // Branch Admin and above may look at one agency at a time (Schedule page agency picker, Prem 25 Oct):
+      // the same agency filter a supervisor always has then applies to that request.
+      const pickAgency = req.query.agency || (req.body && req.body.agency);
+      if (role.role !== 'supervisor' && /^[0-9]+$/.test(String(pickAgency || ''))) req.scope.agency = String(pickAgency);
       if (req.method !== 'GET' && !READ_POSTS.has(req.path)
         && (VIEW_ONLY.has(role.role) || (role.role === 'admin' && !SETUP_ROUTES.has(req.path)))) {
         return res.status(403).json({ status: 'failure', error: 'View only: ' + ROLE_NAME[role.role] + ' can see this, but the Branch Admin or Supervisor makes the change.' });
