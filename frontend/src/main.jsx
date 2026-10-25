@@ -31,8 +31,13 @@ const isHomeScreenApp = () => window.matchMedia('(display-mode: standalone)').ma
 function rememberGuard(hash) {
   const m = hash.match(/^#(?:setup|guard)\/([0-9a-f]{32})/);
   try {
-    if (m) localStorage.setItem(GUARD_TOKEN_KEY, m[1]);
-    else if (!hash && isHomeScreenApp()) {
+    if (m) {
+      localStorage.setItem(GUARD_TOKEN_KEY, m[1]);
+      // The Home Screen app installed from the setup page opened that page again every time (Prem, 26 Oct:
+      // after Back the guard needed a notification to get in). Once notifications are allowed, the
+      // icon goes straight to the guard's own page.
+      if (hash.startsWith('#setup/') && isHomeScreenApp() && 'Notification' in window && Notification.permission === 'granted') return '#guard/' + m[1];
+    } else if ((!hash || hash === '#') && isHomeScreenApp()) {
       const token = localStorage.getItem(GUARD_TOKEN_KEY);
       if (token) return '#guard/' + token;
     }

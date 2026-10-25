@@ -26,7 +26,8 @@ export default function SplashHost() {
   }, []);
   useEffect(() => {
     if (!s) return undefined;
-    const stay = s.stay || (s.logo ? 2200 : 1600);
+    // 3.5 s for everyone (Prem, 26 Oct: the incharge's "Estancia · IPF" timing felt right).
+    const stay = s.stay || 3500;
     const a = setTimeout(() => setLeaving(true), stay);
     const b = setTimeout(() => setS(null), stay + 400);
     return () => { clearTimeout(a); clearTimeout(b); };

@@ -125,6 +125,8 @@ export default function GuardSetup({ token }) {
               <>
                 <div className="setup-ok">✅ Done! This phone will get your duty notifications.</div>
                 <button className="btn secondary setup-btn" onClick={test}>📨 Send test notification</button>
+                {/* Straight to the duty page; from now on the Home Screen icon opens it too (26 Oct). */}
+                <a className="btn setup-btn" href={'#guard/' + token}>➡️ Open my duty page</a>
               </>
             )}
 

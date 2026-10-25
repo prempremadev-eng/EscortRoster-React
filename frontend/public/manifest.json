@@ -1,14 +1,28 @@
 {
   "name": "Escort Duty",
   "short_name": "Escort Duty",
-  "description": "Duty seat and card IN notifications for escort guards",
+  "description": "Duty, post and card IN notifications for guards",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#f1f5f9",
+  "background_color": "#1A1F2B",
   "theme_color": "#1e3a8a",
   "icons": [
-    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
-  ]
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ],
+  "start_url": "./index.html"
 }
