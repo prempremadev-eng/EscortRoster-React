@@ -1122,3 +1122,4 @@ td.in-late{color:#b91c1c;}
 .pp-flags select{margin-left:6px;}
 .pp-rshifts{display:flex;gap:10px;align-items:center;margin-left:24px;font-size:13px;}
 .desktop-toggle{white-space:nowrap;}
+.gsheet-top{flex-basis:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;}

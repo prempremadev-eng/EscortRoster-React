@@ -76,13 +76,13 @@ export default function GuardPage({ token, testDate }) {
       {open && hasSheet && (
         <>
           <div className="toolbar no-print gsheet-bar">
-            <div className="gsheet-me">{headline}</div>
+            {/* Seat on the left, Desktop view straight across on the right (Prem, 26 Oct). */}
+            <div className="gsheet-top"><div className="gsheet-me">{headline}</div><DesktopViewToggle /></div>
             <div><span className="guard-name">{data.name}</span> · IN {data.inTime}{shiftLine ? ' · ' + shiftLine : ''}</div>
             <div>{shortDate(data.dutyDate)}</div>
             <div className="spacer"></div>
             <div>{inCount} of {sheet.length} IN</div>
             <button className="btn" onClick={load}>🔄 Refresh</button>
-            <DesktopViewToggle />
           </div>
           <div className="sim-note gsheet-note">Fill your ⭐ row like the duty sheet. Other rows are view only. This page closes at 08:00.</div>
           <GuardSheet
