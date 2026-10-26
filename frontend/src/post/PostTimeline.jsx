@@ -442,7 +442,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
           {/* 📞 like WhatsApp's call icon (Prem, 26 Oct): Safety today with call buttons, instead of a bar. */}
           <button className="pd-icon-btn" onClick={() => setSheet('safety')} aria-label="Safety today: who to call">{Icon.phone}</button>
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
-          <MoreMenu items={[['🕘 Duty history', () => setPage('history')]]} />
+          <MoreMenu items={[['👥 Team group', () => { window.location.hash = '#group/' + token; }], ['🕘 Duty history', () => setPage('history')]]} />
         </div>
         {here && here.mode === 'go' && (
           <div className="pd-strip pd-strip-red pd-strip-col">

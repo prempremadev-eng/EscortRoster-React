@@ -83,6 +83,7 @@ export default function GuardPage({ token, testDate }) {
             <div className="spacer"></div>
             <div>{inCount} of {sheet.length} IN</div>
             <button className="btn" onClick={load}>🔄 Refresh</button>
+            <a className="btn secondary" href={'#group/' + token}>👥 Group</a>
           </div>
           <div className="sim-note gsheet-note">Fill your ⭐ row like the duty sheet. Other rows are view only. This page closes at 08:00.</div>
           <GuardSheet

@@ -586,3 +586,6 @@ body:has(.pd-form) .pd-group-fab,body:has(.pd-history) .pd-group-fab,body:has(.v
 .pd-more-menu{position:absolute;right:0;top:calc(100% + 6px);z-index:60;min-width:190px;background:var(--pd-surface,#fff);border-radius:12px;box-shadow:0 8px 24px rgba(26,31,43,.18);padding:6px;display:flex;flex-direction:column;}
 .pd-more-menu button{border:none;background:transparent;text-align:left;padding:12px 14px;border-radius:8px;font-family:inherit;font-size:15px;color:var(--pd-ink,#1A1F2B);cursor:pointer;}
 .pd-more-menu button:hover,.pd-more-menu button:active{background:var(--pd-bg,#F4F2EC);}
+/* The floating 👥 Group button only where nothing sits under it (Prem, 26 Oct: on the escort sheet and the
+   post chat it covered rows and got touched by mistake); there it lives in the bar / the ⋮ menu. */
+body:has(.gsheet-bar) .pd-group-fab,body:has(.pd-chat) .pd-group-fab{display:none;}
