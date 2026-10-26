@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { worksIn } from '../agency.js';
 import { Toggle, IconBtn } from './RowControls.jsx';
+import { useUser } from '../auth/user.js';
 
 const NO_FILTERS = { state: '', city: '', branch: '', agency: '', area: '', q: '', incharge: false };
 const BLANK_GUARD = { id_number: '', card_number: '', guard_name: '', agency_id: '', branch_id: '', area: '', escort_id: '', phone: '' };
@@ -15,6 +16,9 @@ export const dutyLabel = d => (d ? (d.post_type === 'ESCORT' ? '🚐 ' : '📍 '
 // Guard details register: every guard of my area, filters, add / edit a guard, and switch off a
 // guard who left (never deleted). Card IN / OUT lives in the supervisor screens, not here.
 export default function GuardMaster() {
+  const me = useUser();
+  // A shift incharge's own agency: the form and the list do not offer other agencies (the server forces it too).
+  const ownAgency = me && me.role === 'supervisor' && me.agency_id ? String(me.agency_id) : '';
   const [data, setData] = useState(null);
   const [status, setStatus] = useState('loading');
   const [filters, setFilters] = useState(NO_FILTERS);
@@ -105,7 +109,7 @@ export default function GuardMaster() {
     setConfirmLeft(false);
     const next = g
       ? { ...BLANK_GUARD, ...g, card_number: g.card_number || '', area: g.area || '', agency_id: g.agency_id || '', escort_id: g.escort_id || '', phone: g.phone || '', incharge: incharges.has(String(g.ROWID)) }
-      : { ...BLANK_GUARD, branch_id: filters.branch || (branches.length === 1 ? String(branches[0].ROWID) : '') };
+      : { ...BLANK_GUARD, branch_id: filters.branch || (branches.length === 1 ? String(branches[0].ROWID) : ''), agency_id: ownAgency };
     setForm(next);
     setFreeEscorts(null);
     setPhotoFile(null);
@@ -208,23 +212,27 @@ export default function GuardMaster() {
               <label>ID number<input id="g-id" value={form.id_number} onChange={e => setFormField('id_number', e.target.value)} placeholder="SG-1009" required /></label>
               <label>Card number<input id="g-card" value={form.card_number} onChange={e => setFormField('card_number', e.target.value)} placeholder="Access card no." /></label>
               <label>Name<input id="g-name" value={form.guard_name} onChange={e => setFormField('guard_name', e.target.value)} required /></label>
-              <label>Branch
-                <select id="g-branch" value={form.branch_id} onChange={e => setForm(f => ({ ...f, branch_id: e.target.value, agency_id: '' }))} required>
+              {/* A shift incharge works for one agency (and usually one branch): no picking (Prem, 26 Oct). */}
+              {ownAgency && branches.length === 1 && <label>Branch · agency<span className="gm-fixed">{branchLabel(branches[0])} · {me.agencyName || 'your agency'}</span></label>}
+              {!(ownAgency && branches.length === 1) && <label>Branch
+                <select id="g-branch" value={form.branch_id} onChange={e => setForm(f => ({ ...f, branch_id: e.target.value, agency_id: ownAgency }))} required>
                   <option value="">Pick a branch</option>
                   {branches.map(b => <option key={b.ROWID} value={b.ROWID}>{branchLabel(b)} · {b.city}</option>)}
                 </select>
-              </label>
-              <label>Agency
+              </label>}
+              {!ownAgency && <label>Agency
                 <select id="g-agency" value={form.agency_id} onChange={e => setFormField('agency_id', e.target.value)} disabled={!form.branch_id} required>
                   <option value="">{form.branch_id ? 'Pick the agency' : 'Pick the branch first'}</option>
                   {data.agencies.filter(a => ((a.is_active === true || a.is_active === 'true') && worksIn(a, form.branch_id)) || String(a.ROWID) === String(form.agency_id)).map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
                 </select>
-              </label>
+              </label>}
               <label className="gm-incharge-filter">
                 <span>Shift incharge (supervisor)</span>
                 <span><input type="checkbox" checked={!!form.incharge} onChange={e => setFormField('incharge', e.target.checked)} /> ⭐ This guard is a shift incharge</span>
               </label>
-              <label>Area (PKL, MLCP, Escort…)<input id="g-area" value={form.area} onChange={e => setFormField('area', e.target.value)} list="g-areas" maxLength={30} /></label>
+              {/* Area = the guard's team inside the agency (IPF: PKL, MLCP, Escort, Lady Guards…). Auto fill and
+                  the escort sheet use it; "Escort" puts the guard on the escort sheet. Optional for other agencies. */}
+              <label>Team / area (optional: PKL, MLCP, Escort…)<input id="g-area" value={form.area} onChange={e => setFormField('area', e.target.value)} list="g-areas" maxLength={30} /></label>
               <datalist id="g-areas">{uniq(allGuards.map(g => g.area).filter(Boolean)).sort().map(a => <option key={a} value={a} />)}</datalist>
               <label>Phone (optional)<input id="g-phone" value={form.phone} onChange={e => setFormField('phone', e.target.value)} inputMode="tel" /></label>
               <label>Photo (optional)
@@ -239,7 +247,7 @@ export default function GuardMaster() {
                 </select>
               </label>}
             </div>
-            <div className="sim-note">Only the guard's own details here. Post and shift are set in 📅 Duty Chart.</div>
+            <div className="sim-note">Only the guard's own details here. Post and shift are set in 📅 Schedule.</div>
             {form.ROWID && <div className="master-sub">Added by {form.created_by || '—'} · {when(form.CREATEDTIME)} &nbsp;|&nbsp; Last change by {form.modified_by || '—'} · {when(form.MODIFIEDTIME)}</div>}
             <div className="link-actions">
               <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save guard'}</button>
@@ -284,12 +292,12 @@ export default function GuardMaster() {
                   {inCity.map(b => <option key={b.ROWID} value={b.ROWID}>{branchLabel(b)}</option>)}
                 </select>
               </label>
-              <label>Agency
+              {!ownAgency && <label>Agency
                 <select id="f-agency" value={filters.agency} onChange={e => setFilter('agency', e.target.value)}>
                   <option value="">All agencies</option>
                   {uniq(guards.map(g => g.agency)).sort().map(a => <option key={a}>{a}</option>)}
                 </select>
-              </label>
+              </label>}
               <label>Area
                 <select id="f-area" value={filters.area} onChange={e => setFilter('area', e.target.value)}>
                   <option value="">All areas</option>
