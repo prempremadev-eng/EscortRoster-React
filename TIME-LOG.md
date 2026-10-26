@@ -121,3 +121,6 @@ Note: after "good night" (00:40) work went on till about 03:05 (splash, Zoho log
 | Time | Event |
 |---|---|
 | 10:37 | ▶️ Start ("good morning") |
+| 22:28 | ⏹️ Done ("good night" → day-end files) |
+
+**Total:** 10:37 → 22:28 (about 11 h 50 min, with breaks)
