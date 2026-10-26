@@ -103,6 +103,17 @@ export default function AdminHome({ hash }) {
   }, [view, pickB, pickA, date, shift]);
 
   const go = h => { window.location.hash = h; };
+  // The guards behind a KPI number (present / absent / leave / week off), for the whole day.
+  const [people, setPeople] = useState(null);
+  async function openList(list, label) {
+    setPeople({ label, rows: null });
+    try {
+      setPeople({ label, rows: (await api.strengthList(date, list)).data.people });
+    } catch (err) {
+      setPeople(null);
+      setError(err.message);
+    }
+  }
   const groups = data ? data.groups : [];
   const shiftObj = data ? data.shift : null;
 
@@ -120,6 +131,35 @@ export default function AdminHome({ hash }) {
 
   return (
     <div className="ah">
+      {people && (
+        <div className="ah-dim" onClick={() => setPeople(null)}>
+          <div className="ah-sheet" onClick={e => e.stopPropagation()} role="dialog" aria-label={people.label}>
+            <div className="ah-sheet-head">
+              <div><div className="ah-kicker">{niceDate(date)}</div><h2>{people.label}{people.rows ? ' · ' + people.rows.length : ''}</h2></div>
+              <button className="ah-refresh" onClick={() => setPeople(null)} aria-label="Close">✕</button>
+            </div>
+            {!people.rows && <div className="ah-loading">Loading…</div>}
+            {people.rows && people.rows.length === 0 && <div className="ah-loading">Nobody.</div>}
+            {people.rows && (
+              <div className="ah-list">
+                {people.rows.map((p, i) => {
+                  const group = p.branch + ' · ' + p.agency;
+                  const head = i === 0 || group !== people.rows[i - 1].branch + ' · ' + people.rows[i - 1].agency;
+                  return (
+                    <div key={i}>
+                      {head && <div className="ah-list-group">{group}</div>}
+                      <div className="ah-person">
+                        <span className="ah-person-name"><b>{p.name}</b><span>{p.id}{p.shift ? ' · Shift ' + p.shift : ''}{p.post ? ' · ' + p.post : ''}</span></span>
+                        {p.state === 'present' && <em className="ah-n-green">IN {p.in}</em>}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
       <header className="ah-head">
         <div>
           <div className="ah-kicker">{view === 'total' ? 'Overall strength' : view === 'list' ? 'Branches & agencies' : 'Branch · agency'}</div>
@@ -138,18 +178,22 @@ export default function AdminHome({ hash }) {
         const all = data.byShift.reduce((t, x) => ({ allotted: t.allotted + x.allotted, present: t.present + x.present, absent: t.absent + x.absent }), { allotted: 0, present: 0, absent: 0 });
         const now = date === today() ? runningShift() : '';
         const kpis = [
-          ['Allotted', all.allotted, ''], ['Present', all.present, 'ah-k-green', pct(all.present, all.allotted) + '%'],
-          ['Absent', all.absent, 'ah-k-red'], ['Leave', data.day.leave, ''], ['Week off', data.day.off, '']
+          ['Allotted', all.allotted, '', '', ''], ['Present', all.present, 'ah-k-green', pct(all.present, all.allotted) + '%', 'present'],
+          ['Absent', all.absent, 'ah-k-red', '', 'absent'], ['Leave', data.day.leave, '', '', 'leave'], ['Week off', data.day.off, '', '', 'off']
         ];
         return (
           <section className="ah-day">
             <div className="ah-kpis">
-              {kpis.map(([label, n, cls, extra]) => (
-                <div key={label} className={'ah-kpi ' + cls}>
-                  <span className="ah-kpi-label">{label}</span>
-                  <span className="ah-kpi-value">{n}{extra && <small>{extra}</small>}</span>
-                </div>
-              ))}
+              {/* Tap a number → who they are (Prem, 26 Oct: "the 18 week off, which guards?"). */}
+              {kpis.map(([label, n, cls, extra, list]) => {
+                const Tag = list ? 'button' : 'div';
+                return (
+                  <Tag key={label} className={'ah-kpi ' + cls + (list ? ' ah-kpi-tap' : '')} onClick={list ? () => openList(list, label) : undefined}>
+                    <span className="ah-kpi-label">{label}{list && <span className="ah-kpi-more">View ›</span>}</span>
+                    <span className="ah-kpi-value">{n}{extra && <small>{extra}</small>}</span>
+                  </Tag>
+                );
+              })}
             </div>
             <div className="ah-table" role="table">
               <div className="ah-tr ah-th" role="row">

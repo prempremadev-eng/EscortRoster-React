@@ -481,3 +481,14 @@ button.sb-kpi:hover{border-color:#94a3b8;}
 .ah-mnums{display:none;grid-area:nums;justify-content:space-between;font-size:13px;color:#64748B;}
 .ah-mnums b{font-family:Archivo,sans-serif;font-size:20px;color:#0F172A;margin-right:4px;font-variant-numeric:tabular-nums;}
 .ah-mnums .ah-green-n b{color:#15803D;}
+/* KPI boxes open the list of those guards (whole day). */
+button.ah-kpi{border:none;border-left:1px solid #E2E8F0;background:#fff;font-family:inherit;text-align:left;cursor:pointer;}
+button.ah-kpi:hover{background:#F8FAFC;}
+.ah-kpi-label{display:flex;justify-content:space-between;align-items:center;gap:6px;}
+.ah-kpi-more{font-size:11px;letter-spacing:0;text-transform:none;color:#1E4FB8;font-weight:600;}
+.ah-dim{position:fixed;inset:0;z-index:80;background:rgba(15,23,42,.45);display:flex;justify-content:center;align-items:flex-start;padding:40px 16px;overflow-y:auto;}
+.ah-sheet{width:100%;max-width:560px;background:#fff;border-radius:14px;padding:18px 20px;box-shadow:0 20px 50px rgba(15,23,42,.3);}
+.ah-sheet-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;margin-bottom:8px;}
+.ah-sheet-head h2{margin:2px 0 0;font-family:Archivo,sans-serif;font-size:22px;}
+.ah-list-group{margin-top:14px;padding:6px 0;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748B;border-bottom:1px solid #E2E8F0;}
+@media (max-width:600px){.ah-dim{padding:0;align-items:flex-end;}.ah-sheet{border-radius:16px 16px 0 0;max-height:85vh;overflow-y:auto;}}

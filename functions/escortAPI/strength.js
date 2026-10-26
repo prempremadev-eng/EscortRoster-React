@@ -26,6 +26,10 @@ module.exports = function strengthRoutes(app, h) {
       const inBranches = area ? ` AND branch_id IN (${area.map(requireRowId).join(', ')})` : '';
       const pickBranch = req.query.branch ? String(requireRowId(req.query.branch)) : '';
       const pickAgency = req.query.agency ? String(requireRowId(req.query.agency)) : '';
+      // A KPI box tapped on the home page (Prem, 26 Oct: "the 18 week off, which guards?"): everyone in the
+      // area in that state for this date / shift.
+      const listState = ['present', 'absent', 'due', 'leave', 'off'].includes(String(req.query.list || '')) ? String(req.query.list) : '';
+      const listed = [];
 
       const [branches, agencies, guards, slots, roster, ins] = await Promise.all([
         selectAll(zcql, 'Branches', `SELECT ROWID, branch_name, city FROM Branches WHERE is_active = 'true'${area ? ` AND ROWID IN (${area.map(requireRowId).join(', ')})` : ''} ORDER BY branch_name ASC`),
@@ -104,6 +108,33 @@ module.exports = function strengthRoutes(app, h) {
         posts.forEach(p => { nameOf[String(p.ROWID)] = p.post_name; });
         picked.people = picked.people.map(p => ({ ...p, post: nameOf[p.postId] || '' }))
           .sort((a, b) => ['absent', 'due', 'present', 'leave', 'off'].indexOf(a.state) - ['absent', 'due', 'present', 'leave', 'off'].indexOf(b.state) || a.name.localeCompare(b.name));
+      }
+
+      if (listState) {
+        // Same counting as the KPI strip: the whole day, every shift (absent = a started shift, no IN).
+        const slotOf = {};
+        slots.forEach(x => { (slotOf[x.shift_code] = slotOf[x.shift_code] || {})[String(x.guard_id)] = String(x.post_id); });
+        inArea.forEach(g => {
+          const id = String(g.ROWID), code = codeOf[id] || '';
+          const mine = shifts.filter(sh => (slotOf[sh.code] || {})[id] || (!scheduled.has(String(g.branch_id)) && code === sh.code));
+          let st = '';
+          if (mine.length) st = firstIn[id] ? 'present' : mine.some(begunOf) ? 'absent' : 'due';
+          else if (code === 'L') st = 'leave';
+          else if (code === 'O') st = 'off';
+          if (st !== listState) return;
+          const sh = mine[0];
+          listed.push({ id: g.id_number || '', name: g.guard_name, state: st, in: firstIn[id] || '', shift: sh ? sh.code : '',
+            postId: sh ? (slotOf[sh.code] || {})[id] || '' : '', branchId: String(g.branch_id), agencyId: String(g.agency_id || '') });
+        });
+        const postIds = [...new Set(listed.map(p => p.postId).filter(Boolean))];
+        const posts = postIds.length ? (await zcql.executeZCQLQuery(`SELECT ROWID, post_name FROM Posts WHERE ROWID IN (${postIds.map(requireRowId).join(', ')})`)).map(r => r.Posts) : [];
+        const postName = {};
+        posts.forEach(p => { postName[String(p.ROWID)] = p.post_name; });
+        const people = listed.filter(p => branchById[p.branchId]).map(p => ({
+          id: p.id, name: p.name, state: p.state, in: p.in, shift: p.shift, post: postName[p.postId] || '',
+          branch: branchById[p.branchId].branch_name, agency: agencyById[p.agencyId] || ''
+        })).sort((a, b) => a.branch.localeCompare(b.branch) || a.agency.localeCompare(b.agency) || a.name.localeCompare(b.name));
+        return res.status(200).json({ status: 'success', data: { date, shift, list: listState, people } });
       }
 
       const totals = { allotted: 0, present: 0, absent: 0, leave: 0, off: 0 };
