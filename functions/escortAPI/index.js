@@ -1483,7 +1483,7 @@ async function checkGuard(req, zcql, row, selfId) {
     zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE id_number = '${row.id_number}'`),
     zcql.executeZCQLQuery(`SELECT ROWID FROM Branches WHERE ROWID = ${row.branch_id} AND is_active = 'true'`),
     row.card_number ? zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE card_number = '${row.card_number}'`) : Promise.resolve([]),
-    selectAll(zcql, 'Guards', 'SELECT ROWID, guard_name, id_number FROM Guards ORDER BY ROWID ASC')
+    selectAll(zcql, 'Guards', `SELECT ROWID, guard_name, id_number FROM Guards WHERE agency_id = ${requireRowId(row.agency_id)} ORDER BY ROWID ASC`)
   ];
   if (row.escort_id) {
     checks.push(zcql.executeZCQLQuery(`SELECT ROWID FROM Escorts WHERE ROWID = ${row.escort_id} AND is_active = 'true'`));
@@ -1492,8 +1492,9 @@ async function checkGuard(req, zcql, row, selfId) {
   const [sameId, branch, sameCard, allGuards, escort, escortTaken] = await Promise.all(checks);
   if (other(sameId)) throw new Error('ID number ' + row.id_number + ' is already used');
   if (other(sameCard)) throw new Error('Card number ' + row.card_number + ' is already used');
-  // One name = one guard in the whole app. Two people with the same name: add their number
-  // ("Name M 1234"). Case, spaces, dots and dashes are ignored when comparing.
+  // One name = one guard in the same agency (Prem, 26 Oct: an ISI and an IPF guard may share a name; the
+  // message no longer shows another agency's guard). Two people with the same name in one agency: add their
+  // number ("Name M 1234"). Case, spaces, dots and dashes are ignored. ID and card stay unique app-wide.
   const key = name => String(name || '').toLowerCase().replace(/[\s.-]+/g, '');
   const twin = allGuards.find(g => key(g.guard_name) === key(row.guard_name) && String(g.ROWID) !== String(selfId || ''));
   if (twin) throw new Error(twin.guard_name + ' (' + twin.id_number + ') already has this name. Add their number to the name, e.g. ' + row.guard_name + ' 1234.');
