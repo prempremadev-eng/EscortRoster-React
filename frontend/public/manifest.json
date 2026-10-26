@@ -1,7 +1,7 @@
 {
-  "name": "Escort Duty",
-  "short_name": "Escort Duty",
-  "description": "Duty, post and card IN notifications for guards",
+  "name": "GuardDesk",
+  "short_name": "GuardDesk",
+  "description": "Every post, every shift, one desk: guards, shift incharges and managers",
   "scope": "./",
   "display": "standalone",
   "background_color": "#1A1F2B",

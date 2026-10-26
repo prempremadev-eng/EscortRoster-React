@@ -97,7 +97,7 @@ export default function AuthGate({ children, bar = true }) {
     return (
       <div className="login-page">
         <div className="login-card">
-          <h1>🛡️ Guard Duty</h1>
+          <h1>🛡️ GuardDesk</h1>
           <p className="login-sub">Admins and supervisors sign in here. Guards use their own link.</p>
           <div id="login-box" className="login-box"></div>
         </div>
