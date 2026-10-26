@@ -44,7 +44,12 @@ module.exports = function strengthRoutes(app, h) {
       roster.forEach(r => { const c = String(r.codes || '')[day]; if (c) codeOf[String(r.guard_id)] = c; });
       const firstIn = {};
       ins.forEach(x => { const id = String(x.guard_id); if (!firstIn[id]) firstIn[id] = x.punch_time; });
-      const scheduled = new Set(slots.map(s => String(s.branch_id)));
+      // Which branch · agency published a schedule that day. Per agency, not per branch (Prem, 26 Oct: IPF's
+      // schedule at Estancia hid ISI, whose day was not published, so ISI's roster guards were not counted).
+      const agencyOfGuard = {};
+      guards.forEach(g => { agencyOfGuard[String(g.ROWID)] = String(g.agency_id || ''); });
+      const scheduled = new Set(slots.map(x => String(x.branch_id) + '-' + (agencyOfGuard[String(x.guard_id)] || '')));
+      const hasSchedule = g => scheduled.has(String(g.branch_id) + '-' + String(g.agency_id || ''));
       const onShift = {};
       slots.filter(s => s.shift_code === shift.code).forEach(s => { onShift[String(s.guard_id)] = String(s.post_id); });
 
@@ -61,7 +66,7 @@ module.exports = function strengthRoutes(app, h) {
         let allotted = 0, present = 0;
         inArea.forEach(g => {
           const id = String(g.ROWID);
-          if (on.has(id) || (!scheduled.has(String(g.branch_id)) && codeOf[id] === sh.code)) { allotted++; if (firstIn[id]) present++; }
+          if (on.has(id) || (!hasSchedule(g) && codeOf[id] === sh.code)) { allotted++; if (firstIn[id]) present++; }
         });
         const b = begunOf(sh);
         return { code: sh.code, start: sh.start, end: sh.end, begun: b, allotted, present, absent: b ? allotted - present : 0 };
@@ -78,7 +83,7 @@ module.exports = function strengthRoutes(app, h) {
         if (!g.branch_id) continue;
         const id = String(g.ROWID);
         const code = codeOf[id] || '';
-        const allotted = id in onShift || (!scheduled.has(String(g.branch_id)) && code === shift.code);
+        const allotted = id in onShift || (!hasSchedule(g) && code === shift.code);
         const gr = groupOf(g);
         let state = '';
         if (allotted) {
@@ -116,7 +121,7 @@ module.exports = function strengthRoutes(app, h) {
         slots.forEach(x => { (slotOf[x.shift_code] = slotOf[x.shift_code] || {})[String(x.guard_id)] = String(x.post_id); });
         inArea.forEach(g => {
           const id = String(g.ROWID), code = codeOf[id] || '';
-          const mine = shifts.filter(sh => (slotOf[sh.code] || {})[id] || (!scheduled.has(String(g.branch_id)) && code === sh.code));
+          const mine = shifts.filter(sh => (slotOf[sh.code] || {})[id] || (!hasSchedule(g) && code === sh.code));
           let st = '';
           if (mine.length) st = firstIn[id] ? 'present' : mine.some(begunOf) ? 'absent' : 'due';
           else if (code === 'L') st = 'leave';
