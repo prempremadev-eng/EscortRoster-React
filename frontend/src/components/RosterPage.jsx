@@ -21,7 +21,7 @@ function keep(k, v) {
 }
 
 // Reads the agency Excel: finds the row of day numbers (1, 2, 3 …), then every row under it with a
-// code in most day boxes. A person is matched by P code (ID), then VEN-IP (card), then name.
+// code in most day boxes. A person is matched by ID, then card (any format), then name.
 // The sheet that matches the most guards wins.
 function readRoster(XLSX, wb, guards, days) {
   const byId = new Map(guards.map(g => [String(g.id).toUpperCase(), g]));
@@ -41,8 +41,10 @@ function readRoster(XLSX, wb, guards, days) {
       const cells = r.slice(start, start + days).map(c => String(c).trim().toUpperCase());
       if (cells.filter(c => CODES.includes(c) && c !== '-').length < Math.min(20, days - 5)) continue;
       const before = r.slice(0, start).map(c => String(c).trim());
-      const pid = before.find(c => /^P\d{5}$/i.test(c));
-      const ven = before.find(c => /^VEN-IP-\d+$/i.test(c));
+      // Any agency's ID / card format (Prem, 26 Oct: ISI uses 024081, IPF P12345 and VEN-IP-…): a cell that
+      // is a known ID or card wins, then the longest name-like cell.
+      const pid = before.find(c => c && byId.has(c.toUpperCase()));
+      const ven = before.find(c => c && byCard.has(c.toUpperCase()));
       const person = before.filter(c => /[A-Za-z]{2}/.test(c) && c !== pid && c !== ven && !/^VEN/i.test(c)).sort((a, b) => b.length - a.length)[0] || '';
       const g = (pid && byId.get(pid.toUpperCase())) || (ven && byCard.get(ven.toUpperCase())) || byName.get(key(person));
       const codes = cells.map(c => (CODES.includes(c) ? c : '-')).join('');
