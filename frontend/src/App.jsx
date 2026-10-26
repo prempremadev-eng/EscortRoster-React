@@ -1,4 +1,3 @@
-import DesktopViewToggle from './components/DesktopView.jsx';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from './api.js';
 import { useUser, canEditEscort } from './auth/user.js';
@@ -624,7 +623,6 @@ export default function App() {
     <>
       <div className="titlebar">
         <h1>Escort Duty Sheet</h1>
-        <DesktopViewToggle />
       </div>
 
       {/* No "upload the weekly Excel" reminder on Mondays any more: escorts come from the Month Roster (Prem, 25 Oct). */}

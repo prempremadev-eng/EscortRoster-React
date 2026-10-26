@@ -1,3 +1,4 @@
+import DesktopViewToggle from './DesktopView.jsx';
 import { useRef } from 'react';
 import { ROTATION, shortDate, plusDay } from '../utils.js';
 
@@ -28,6 +29,7 @@ export default function Toolbar({ startDate, dutyDate, onStartDate, onDutyDate, 
       {!rosterDay && <button className="btn secondary" onClick={onUpload}>Upload Excel</button>}
       <button className="btn secondary" onClick={onPrint}>Print</button>
       <button className="btn" onClick={onGenerate}>Generate</button>
+      <DesktopViewToggle />
     </div>
   );
 }
