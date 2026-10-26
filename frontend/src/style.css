@@ -1121,3 +1121,4 @@ td.in-late{color:#b91c1c;}
 .pp-flags{display:flex;flex-direction:column;gap:6px;}
 .pp-flags select{margin-left:6px;}
 .pp-rshifts{display:flex;gap:10px;align-items:center;margin-left:24px;font-size:13px;}
+.titlebar .desktop-toggle{margin-top:8px;white-space:nowrap;}
