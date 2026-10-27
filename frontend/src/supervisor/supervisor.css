@@ -503,3 +503,6 @@ button.ah-kpi:hover{background:#F8FAFC;}
 .ah-actions-bottom{margin-top:10px;}
 .ah-btn-dark{background:#DC2626;color:#fff;border-color:#DC2626;}
 .ah-btn-dark:hover{background:#B91C1C;border-color:#B91C1C;}
+/* Back button pinned at the bottom of the screen, right corner (Prem, 27 Oct). */
+.ah-actions-bottom{position:fixed;right:24px;bottom:20px;margin:0;z-index:20;}
+.ah-actions-bottom .ah-btn{box-shadow:0 6px 16px rgba(220,38,38,.35);padding:12px 20px;font-size:15px;}
