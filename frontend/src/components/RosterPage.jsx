@@ -119,7 +119,9 @@ export default function RosterPage({ initialMonth }) {
         return;
       }
       const r = readRoster(XLSX, wb, data.guards, days);
-      if (!r || !r.matched.size) throw new Error('No guard of this branch was found in the file.');
+      // Say which file was picked (Prem, 27 Oct: the schedule file and the roster file both say "Oct").
+      if (!r) throw new Error('"' + file.name + '" is not a month roster: no row of days 1, 2, 3 … was found. Pick the roster file.');
+      if (!r.matched.size) throw new Error('No guard of this branch was found in "' + file.name + '" (' + r.unmatched.length + ' names / IDs did not match the Guards list).');
       setUpload({ file: file.name, ...r });
     } catch (err) {
       setError(err.message);
