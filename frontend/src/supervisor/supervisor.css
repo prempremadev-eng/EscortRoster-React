@@ -499,3 +499,7 @@ button.ah-kpi:hover{background:#F8FAFC;}
 .ah-actions-bottom{margin-top:18px;gap:10px;}
 .ah-btn-dark{background:#1E293B;color:#fff;border-color:#1E293B;}
 .ah-btn-dark:hover{background:#0F172A;}
+/* Back button: right under the shift cards, red (Prem, 27 Oct). */
+.ah-actions-bottom{margin-top:10px;}
+.ah-btn-dark{background:#DC2626;color:#fff;border-color:#DC2626;}
+.ah-btn-dark:hover{background:#B91C1C;border-color:#B91C1C;}
