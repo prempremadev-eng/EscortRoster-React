@@ -492,3 +492,7 @@ button.ah-kpi:hover{background:#F8FAFC;}
 .ah-sheet-head h2{margin:2px 0 0;font-family:Archivo,sans-serif;font-size:22px;}
 .ah-list-group{margin-top:14px;padding:6px 0;font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#64748B;border-bottom:1px solid #E2E8F0;}
 @media (max-width:600px){.ah-dim{padding:0;align-items:flex-end;}.ah-sheet{border-radius:16px 16px 0 0;max-height:85vh;overflow-y:auto;}}
+/* Shift table with IN / OUT / Leave / Off (27 Oct). */
+.ah-tr{grid-template-columns:110px 130px repeat(6,minmax(56px,80px)) minmax(140px,1fr) 24px;}
+.ah-kpis{grid-template-columns:repeat(6,minmax(0,1fr));}
+@media (max-width:900px){.ah-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}.ah-tr{grid-template-columns:auto 1fr auto;}.ah-mnums{flex-wrap:wrap;gap:4px 14px;}}

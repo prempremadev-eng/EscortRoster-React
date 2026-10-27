@@ -175,10 +175,10 @@ export default function AdminHome({ hash }) {
       {data && view === 'total' && (() => {
         // Enterprise look (Prem, 26 Oct): a white KPI strip for the whole day, then one table line per
         // shift, no emoji; green / red only for present / absent.
-        const all = data.byShift.reduce((t, x) => ({ allotted: t.allotted + x.allotted, present: t.present + x.present, absent: t.absent + x.absent }), { allotted: 0, present: 0, absent: 0 });
+        const all = data.byShift.reduce((t, x) => ({ allotted: t.allotted + x.allotted, present: t.present + x.present, out: t.out + (x.out || 0), absent: t.absent + x.absent }), { allotted: 0, present: 0, out: 0, absent: 0 });
         const now = date === today() ? runningShift() : '';
         const kpis = [
-          ['Allotted', all.allotted, '', '', ''], ['Present', all.present, 'ah-k-green', pct(all.present, all.allotted) + '%', 'present'],
+          ['Allotted', all.allotted, '', '', ''], ['IN', all.present, 'ah-k-green', pct(all.present, all.allotted) + '%', 'present'], ['OUT', all.out, '', '', ''],
           ['Absent', all.absent, 'ah-k-red', '', 'absent'], ['Leave', data.day.leave, '', '', 'leave'], ['Week off', data.day.off, '', '', 'off']
         ];
         return (
@@ -197,7 +197,7 @@ export default function AdminHome({ hash }) {
             </div>
             <div className="ah-table" role="table">
               <div className="ah-tr ah-th" role="row">
-                <span>Shift</span><span>Time</span><span className="ah-num">Allotted</span><span className="ah-num">Present</span><span className="ah-num">Absent</span><span>Attendance</span><span></span>
+                <span>Shift</span><span>Time</span><span className="ah-num">Allotted</span><span className="ah-num">IN</span><span className="ah-num">OUT</span><span className="ah-num">Absent</span><span className="ah-num">Leave</span><span className="ah-num">Off</span><span>Attendance</span><span></span>
               </div>
               {data.byShift.map((x, i) => (
                 <button key={x.code} role="row" className={'ah-tr' + (x.code === now ? ' ah-tr-now' : '')} style={{ animationDelay: (0.05 + i * 0.08) + 's' }}
@@ -205,18 +205,21 @@ export default function AdminHome({ hash }) {
                   <span className="ah-td-shift"><b className="ah-letter">{x.code}</b>{x.code === now && <em className="ah-now">● Now</em>}</span>
                   <span className="ah-td-time">{x.start} – {x.end}</span>
                   {/* Phone: the three numbers in one line (the columns are hidden there). */}
-                  <span className="ah-mnums"><span><b>{x.allotted}</b>allotted</span><span className="ah-green-n"><b>{x.present}</b>present</span><span><b>{x.begun ? x.absent : '–'}</b>{x.begun ? 'absent' : 'not started'}</span></span>
+                  <span className="ah-mnums"><span><b>{x.allotted}</b>allotted</span><span className="ah-green-n"><b>{x.present}</b>IN</span><span><b>{x.out || 0}</b>OUT</span><span><b>{x.begun ? x.absent : '–'}</b>{x.begun ? 'absent' : 'not started'}</span><span><b>{x.leave || 0}</b>leave</span><span><b>{x.off || 0}</b>off</span></span>
                   <span className="ah-num">{x.allotted}</span>
                   <span className="ah-num ah-green-n">{x.present}</span>
+                  <span className="ah-num">{x.out || 0}</span>
                   <span className={'ah-num' + (x.begun ? ' ah-red-n' : ' ah-muted')}>{x.begun ? x.absent : 'Not started'}</span>
+                  <span className="ah-num">{x.leave || 0}</span>
+                  <span className="ah-num">{x.off || 0}</span>
                   <span className="ah-att"><span className="ah-bar"><span className="ah-bar-fill" style={{ width: pct(x.present, x.allotted) + '%' }}></span></span><b>{x.allotted ? pct(x.present, x.allotted) + '%' : '–'}</b></span>
                   <span className="ah-go">›</span>
                 </button>
               ))}
             </div>
-            <div className="ah-actions">
+            {groups.length > 1 && <div className="ah-actions">
               <button className="ah-btn" onClick={() => go('#home/list')}>View branches &amp; agencies ({groups.length}) →</button>
-            </div>
+            </div>}
           </section>
         );
       })()}

@@ -16,7 +16,8 @@ module.exports = function strengthRoutes(app, h) {
 
   app.get('/strength', async (req, res) => {
     try {
-      auth.need(req, 'branch_admin');
+      // Shift incharges too (Prem, 27 Oct: step 4 of the supervisor's day, "Today"): their own agency only.
+      auth.need(req, 'supervisor');
       const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
       const date = requireDate(req.query.date || shiftDate());
       const shifts = await getShifts(zcql);
@@ -34,16 +35,27 @@ module.exports = function strengthRoutes(app, h) {
       const [branches, agencies, guards, slots, roster, ins] = await Promise.all([
         selectAll(zcql, 'Branches', `SELECT ROWID, branch_name, city FROM Branches WHERE is_active = 'true'${area ? ` AND ROWID IN (${area.map(requireRowId).join(', ')})` : ''} ORDER BY branch_name ASC`),
         selectAll(zcql, 'Agencies', 'SELECT ROWID, agency_name FROM Agencies ORDER BY agency_name ASC'),
-        selectAll(zcql, 'Guards', `SELECT ROWID, guard_name, id_number, branch_id, agency_id FROM Guards WHERE is_active = 'true'${inBranches} ORDER BY ROWID ASC`),
+        selectAll(zcql, 'Guards', `SELECT ROWID, guard_name, id_number, branch_id, agency_id FROM Guards WHERE is_active = 'true'${inBranches}${auth.agencyWhere(req)} ORDER BY ROWID ASC`),
         selectAll(zcql, 'Schedule', `SELECT guard_id, post_id, branch_id, shift_code FROM Schedule WHERE sched_date = '${date}' AND published = true${inBranches} ORDER BY ROWID ASC`),
         selectAll(zcql, 'MonthRoster', `SELECT guard_id, codes FROM MonthRoster WHERE roster_month = '${date.slice(0, 7)}'${inBranches} ORDER BY ROWID ASC`),
-        selectAll(zcql, 'AccessLog', `SELECT guard_id, punch_time FROM AccessLog WHERE duty_date = '${date}' AND direction = 'IN' ORDER BY CREATEDTIME ASC`)
+        selectAll(zcql, 'AccessLog', `SELECT guard_id, punch_time, direction FROM AccessLog WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`)
       ]);
       const day = Number(date.slice(8, 10)) - 1;
       const codeOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[day]; if (c) codeOf[String(r.guard_id)] = c; });
-      const firstIn = {};
-      ins.forEach(x => { const id = String(x.guard_id); if (!firstIn[id]) firstIn[id] = x.punch_time; });
+      const firstIn = {}, lastDir = {};
+      ins.forEach(x => {
+        const id = String(x.guard_id);
+        if (x.direction === 'IN' && !firstIn[id]) firstIn[id] = x.punch_time;
+        lastDir[id] = x.direction;
+      });
+      // A guard on leave / week off belongs to the shift they work most this month (for the shift lines).
+      const usualOf = {};
+      roster.forEach(r => {
+        const n = {};
+        String(r.codes || '').split('').forEach(c => { if ('ABCG'.includes(c) && c) n[c] = (n[c] || 0) + 1; });
+        usualOf[String(r.guard_id)] = Object.keys(n).sort((a, b) => n[b] - n[a])[0] || '';
+      });
       // Which branch · agency published a schedule that day. Per agency, not per branch (Prem, 26 Oct: IPF's
       // schedule at Estancia hid ISI, whose day was not published, so ISI's roster guards were not counted).
       const agencyOfGuard = {};
@@ -63,13 +75,18 @@ module.exports = function strengthRoutes(app, h) {
       const inArea = guards.filter(g => g.branch_id && branchOk.has(String(g.branch_id)));
       const byShift = shifts.map(sh => {
         const on = new Set(slots.filter(x => x.shift_code === sh.code).map(x => String(x.guard_id)));
-        let allotted = 0, present = 0;
+        let allotted = 0, present = 0, out = 0, leave = 0, off = 0;
         inArea.forEach(g => {
           const id = String(g.ROWID);
-          if (on.has(id) || (!hasSchedule(g) && codeOf[id] === sh.code)) { allotted++; if (firstIn[id]) present++; }
+          if (on.has(id) || (!hasSchedule(g) && codeOf[id] === sh.code)) {
+            allotted++;
+            if (firstIn[id]) { present++; if (lastDir[id] === 'OUT') out++; }
+          } else if (usualOf[id] === sh.code && codeOf[id] === 'L') leave++;
+          else if (usualOf[id] === sh.code && codeOf[id] === 'O') off++;
         });
         const b = begunOf(sh);
-        return { code: sh.code, start: sh.start, end: sh.end, begun: b, allotted, present, absent: b ? allotted - present : 0 };
+        // present = came in (card IN), out = has gone (last swipe OUT), still in = present - out.
+        return { code: sh.code, start: sh.start, end: sh.end, begun: b, allotted, present, out, absent: b ? allotted - present : 0, leave, off };
       }).sort((x, y) => 'AGBC'.indexOf(x.code) - 'AGBC'.indexOf(y.code));
       const day0 = { leave: inArea.filter(g => codeOf[String(g.ROWID)] === 'L').length, off: inArea.filter(g => codeOf[String(g.ROWID)] === 'O').length };
 

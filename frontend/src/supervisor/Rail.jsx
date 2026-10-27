@@ -15,13 +15,14 @@ export default function Rail({ active }) {
   const [open, setOpen] = useState(false);
   const groups = [
     ['Daily', [
-      atLeast(user, 'branch_admin') && ['home', '#home', 'Home', <svg key="h" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 11l9-7 9 7"></path><path d="M5 10v10h14V10"></path><path d="M10 20v-6h4v6"></path></svg>],
+      // The shift incharge's day in order (Prem, 27 Oct): roster → schedule → live → today's numbers → posts.
       ['roster', '#roster', 'Roster', Icon.history, 1],
       ['schedule', '#schedule', 'Schedule', Icon.calendar, 2],
       ['board', '#board', 'Live', Icon.grid, 3],
-      ['posts', '#supervisor', 'Posts', Icon.chat, 4],
-      ['escort', '#escort', 'Escort', Icon.car, 5],
-      ['vehicles', '#vehicles', 'Vehicles', Icon.gate, 6]
+      ['home', '#home', 'Today', <svg key="h" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20H2"></path></svg>, 4],
+      ['posts', '#supervisor', 'Posts', Icon.chat, 5],
+      ['escort', '#escort', 'Escort', Icon.car, 6],
+      ['vehicles', '#vehicles', 'Vehicles', Icon.gate, 7]
     ].filter(Boolean)],
     ['Reports', [
       ['report', '#report', 'Report', Icon.clip],
