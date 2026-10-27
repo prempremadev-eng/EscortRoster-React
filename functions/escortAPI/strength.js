@@ -106,7 +106,7 @@ module.exports = function strengthRoutes(app, h) {
         if (allotted) {
           gr.allotted++;
           if (firstIn[id]) { gr.present++; state = 'present'; } else if (begun) { gr.absent++; state = 'absent'; } else state = 'due';
-        } else if (code === 'L') { gr.leave++; state = 'leave'; } else if (code === 'O') { gr.off++; state = 'off'; }
+        } else if (code === 'L' && (usualOf[id] || shift.code) === shift.code) { gr.leave++; state = 'leave'; } else if (code === 'O' && (usualOf[id] || shift.code) === shift.code) { gr.off++; state = 'off'; }
         if (state && pickBranch === String(g.branch_id) && pickAgency === String(g.agency_id || '')) {
           gr.people.push({ id: g.id_number || '', name: g.guard_name, state, in: firstIn[id] || '', postId: onShift[id] || '' });
         }

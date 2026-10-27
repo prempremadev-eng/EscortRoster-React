@@ -60,6 +60,25 @@ function Stats({ t, begun }) {
   );
 }
 
+// One card per shift (Prem, 27 Oct: a shift incharge has one branch · agency, so the cards are the shifts);
+// tap → that shift's people on the left.
+function ShiftTile({ x, on, onPick }) {
+  return (
+    <button className={'ah-tile' + (on ? ' ah-tile-on' : '')} onClick={onPick}>
+      <span className="ah-tile-ring"><Ring present={x.present} allotted={x.allotted} size={76} stroke={8} label={false} /><b>{pct(x.present, x.allotted)}%</b></span>
+      <span className="ah-tile-name">Shift {x.code}</span>
+      <span className="ah-tile-agency">{x.start} – {x.end}</span>
+      <span className="ah-tile-nums">
+        <em className="ah-n-green">IN {x.present}/{x.allotted}</em>
+        {x.out > 0 && <em className="ah-n-grey">OUT {x.out}</em>}
+        {x.begun && x.absent > 0 && <em className="ah-n-red">✕ {x.absent}</em>}
+        {x.leave > 0 && <em className="ah-n-amber">L {x.leave}</em>}
+        {x.off > 0 && <em className="ah-n-grey">Off {x.off}</em>}
+      </span>
+    </button>
+  );
+}
+
 function Tile({ g, on, begun, onPick }) {
   return (
     <button className={'ah-tile' + (on ? ' ah-tile-on' : '')} onClick={onPick}>
@@ -201,7 +220,7 @@ export default function AdminHome({ hash }) {
               </div>
               {data.byShift.map((x, i) => (
                 <button key={x.code} role="row" className={'ah-tr' + (x.code === now ? ' ah-tr-now' : '')} style={{ animationDelay: (0.05 + i * 0.08) + 's' }}
-                  onClick={() => { setShift(x.code); go('#home/list'); }}>
+                  onClick={() => { setShift(x.code); go(groups.length === 1 ? '#home/g/' + groups[0].branchId + '-' + groups[0].agencyId : '#home/list'); }}>
                   <span className="ah-td-shift"><b className="ah-letter">{x.code}</b>{x.code === now && <em className="ah-now">● Now</em>}</span>
                   <span className="ah-td-time">{x.start} – {x.end}</span>
                   {/* Phone: the three numbers in one line (the columns are hidden there). */}
@@ -228,11 +247,12 @@ export default function AdminHome({ hash }) {
         <section className={'ah-split' + (view === 'group' ? ' ah-split-on' : '')}>
           {view === 'group' && (
             <aside className="ah-detail">
-              <button className="ah-back" onClick={() => go('#home/list')}>← All branches</button>
+              <button className="ah-back" onClick={() => go(groups.length === 1 ? '#home' : '#home/list')}>{groups.length === 1 ? '← Today' : '← All branches'}</button>
               {!detail && <div className="ah-loading">Loading…</div>}
               {detail && detail.missing && <div className="ah-loading">No guards for this branch · agency on this day.</div>}
               {detail && !detail.missing && (
                 <>
+                  {shiftObj && <div className="ah-kicker">Shift {shiftObj.code} · {shiftObj.start} – {shiftObj.end}</div>}
                   <h2>{detail.branch}</h2>
                   <div className="ah-detail-agency">{detail.agency}{detail.city ? ' · ' + detail.city : ''}</div>
                   <div className="ah-detail-ring"><Ring present={detail.present} allotted={detail.allotted} size={150} stroke={14} /></div>
@@ -253,7 +273,11 @@ export default function AdminHome({ hash }) {
           <div className="ah-grid-wrap">
             {view === 'list' && <button className="ah-back" onClick={() => go('#home')}>← Overall</button>}
             <div className="ah-grid">
-              {groups.map(g => (
+              {groups.length === 1 && data.byShift.map(x => (
+                <ShiftTile key={x.code} x={x} on={view === 'group' && shift === x.code}
+                  onPick={() => { setShift(x.code); go('#home/g/' + groups[0].branchId + '-' + groups[0].agencyId); }} />
+              ))}
+              {groups.length > 1 && groups.map(g => (
                 <Tile key={g.branchId + '-' + g.agencyId} g={g} begun={data.begun} on={g.branchId === pickB && g.agencyId === pickA}
                   onPick={() => go('#home/g/' + g.branchId + '-' + g.agencyId)} />
               ))}
