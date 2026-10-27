@@ -33,7 +33,14 @@ module.exports = function rosterRoutes(app, h) {
   }
   // A supervisor reads only their agency's rows (Prem, 25 Oct: no agency sees another's details).
   async function monthRows(req, zcql, branch, month) {
-    return selectAll(zcql, 'MonthRoster', `SELECT ROWID, guard_id, codes, updated_by, CREATEDTIME, MODIFIEDTIME FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${month}' ORDER BY ROWID ASC`);
+    return selectAll(zcql, 'MonthRoster', `SELECT ROWID, guard_id, codes, sort_no, updated_by, MODIFIEDTIME FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${month}' ORDER BY ROWID ASC`);
+  }
+
+  // A guard's first row of the month by hand (✎ / a box) goes after everybody listed.
+  async function nextSort(zcql, branch, month) {
+    const r = await zcql.executeZCQLQuery(`SELECT MAX(sort_no) FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${month}' AND sort_no < 9999`);
+    const m = r[0] && r[0].MonthRoster ? Number(Object.values(r[0].MonthRoster)[0]) : 0;
+    return (m || 0) + 1;
   }
 
   // One branch, one month: the guards and their day codes (about 2 reads).
@@ -46,18 +53,10 @@ module.exports = function rosterRoutes(app, h) {
       const codes = {};
       let updated = null;
       // Guards in the order of the uploaded roster file (Prem, 27 Oct: "the order of the original monthly
-      // roster"): an upload saves its rows fresh in file order, so the last upload is the newest block of rows
-      // (made within a few minutes) in ROWID order. Older rows (guards not in that file) follow, then guards
-      // without a row, by name.
-      // The upload = the latest minute in which 5+ rows were made; a guard filled by hand later (✎ Fill month)
-      // comes after it.
-      const perMinute = {};
-      rows.forEach(r => { const m = String(r.CREATEDTIME).slice(0, 16); perMinute[m] = (perMinute[m] || 0) + 1; });
-      const newest = Object.keys(perMinute).filter(m => perMinute[m] >= 5).sort().pop() || '';
-      const cut = newest ? new Date(new Date(newest.replace(' ', 'T') + ':00Z').getTime() - 10 * 60000).toISOString().slice(0, 19).replace('T', ' ') : '';
-      const block = r => (String(r.CREATEDTIME) >= cut ? 0 : 1);
-      const rank = new Map(rows.map((r, i) => [String(r.guard_id), block(r) * 1e5 + i]));
-      guards.sort((x, y) => (rank.has(String(x.ROWID)) ? rank.get(String(x.ROWID)) : 1e6) - (rank.has(String(y.ROWID)) ? rank.get(String(y.ROWID)) : 1e6));
+      // roster"): MonthRoster.sort_no is the file's row number; a guard filled by hand gets the next number.
+      // Rows without a number, then guards without a row, follow by name (ROWIDs are not in insert order).
+      const rank = new Map(rows.map(r => [String(r.guard_id), Number(r.sort_no) || 1e6]));
+      guards.sort((x, y) => (rank.get(String(x.ROWID)) || 2e6) - (rank.get(String(y.ROWID)) || 2e6));
       rows.forEach(r => {
         codes[String(r.guard_id)] = r.codes;
         if (!updated || String(r.MODIFIEDTIME) > updated.at) updated = { at: String(r.MODIFIEDTIME).slice(0, 16), by: r.updated_by || '' };
@@ -72,7 +71,7 @@ module.exports = function rosterRoutes(app, h) {
     }
   });
 
-  // Save many guards at once (the Excel upload), in the file's order. Only guards of this branch in my area;
+  // Save many guards at once (the Excel upload); sort_no keeps the file's order. Only guards of this branch in my area;
   // a guard already in the month is replaced, the rest are added. Guards not in the upload are kept.
   app.post('/rosterUpload', async (req, res) => {
     try {
@@ -87,7 +86,7 @@ module.exports = function rosterRoutes(app, h) {
       const [guards, rows] = await Promise.all([branchGuards(req, zcql, branch), monthRows(req, zcql, branch, month)]);
       const guardById = new Map(guards.map(g => [String(g.ROWID), g]));
       const rowByGuard = new Map(rows.map(r => [String(r.guard_id), r]));
-      const inserts = [], olds = [], skipped = [];
+      const inserts = [], updates = [], skipped = [];
       const seen = new Set();
       for (const e of entries) {
         const id = String(e.guard_id || '');
@@ -96,15 +95,16 @@ module.exports = function rosterRoutes(app, h) {
         seen.add(id);
         const codes = cleanCodes(e.codes, days);
         const old = rowByGuard.get(id);
-        // Every row is written fresh in the file's order (the page lists guards in ROWID order); a guard's old
-        // row goes only after the new rows are saved, so a failed upload loses nothing.
-        if (old) olds.push(old.ROWID);
-        inserts.push({ guard_id: id, roster_month: month, codes, branch_id: branch, agency_id: g.agency_id || null, updated_by: req.user.name });
+        const sort_no = seen.size; // the file's order (entries come in file order)
+        if (old) updates.push({ ROWID: old.ROWID, codes, sort_no, updated_by: req.user.name });
+        else inserts.push({ guard_id: id, roster_month: month, codes, sort_no, branch_id: branch, agency_id: g.agency_id || null, updated_by: req.user.name });
       }
+      // Guards of this month not in the file keep their codes and go after the file's guards.
+      rows.filter(r => !seen.has(String(r.guard_id)) && Number(r.sort_no) !== 9999).forEach(r => updates.push({ ROWID: r.ROWID, sort_no: 9999 }));
       const table = catalystApp.datastore().table('MonthRoster');
       for (let i = 0; i < inserts.length; i += 100) await table.insertRows(inserts.slice(i, i + 100));
-      for (let i = 0; i < olds.length; i += 200) await table.deleteRows(olds.slice(i, i + 200));
-      ok(res, { added: inserts.length - olds.length, replaced: olds.length, skipped: skipped.length });
+      for (let i = 0; i < updates.length; i += 100) await table.updateRows(updates.slice(i, i + 100));
+      ok(res, { added: inserts.length, replaced: seen.size - inserts.length, skipped: skipped.length });
     } catch (err) {
       fail(res, err);
     }
@@ -126,7 +126,7 @@ module.exports = function rosterRoutes(app, h) {
       const existing = await zcql.executeZCQLQuery(`SELECT ROWID FROM MonthRoster WHERE guard_id = ${guard.ROWID} AND roster_month = '${month}'`);
       const table = catalystApp.datastore().table('MonthRoster');
       if (existing.length) await table.updateRow({ ROWID: existing[0].MonthRoster.ROWID, codes, updated_by: req.user.name });
-      else await table.insertRow({ guard_id: guard.ROWID, roster_month: month, codes, branch_id: branch, agency_id: guard.agency_id || null, updated_by: req.user.name });
+      else await table.insertRow({ guard_id: guard.ROWID, roster_month: month, codes, sort_no: await nextSort(zcql, branch, month), branch_id: branch, agency_id: guard.agency_id || null, updated_by: req.user.name });
       ok(res, { codes });
     } catch (err) {
       fail(res, err);
@@ -153,7 +153,7 @@ module.exports = function rosterRoutes(app, h) {
       const before = existing.length ? cleanCodes(existing[0].MonthRoster.codes, days) : '-'.repeat(days);
       const codes = before.slice(0, day - 1) + code + before.slice(day);
       if (existing.length) await table.updateRow({ ROWID: existing[0].MonthRoster.ROWID, codes, updated_by: req.user.name });
-      else await table.insertRow({ guard_id: guard.ROWID, roster_month: month, codes, branch_id: branch, agency_id: guard.agency_id || null, updated_by: req.user.name });
+      else await table.insertRow({ guard_id: guard.ROWID, roster_month: month, codes, sort_no: await nextSort(zcql, branch, month), branch_id: branch, agency_id: guard.agency_id || null, updated_by: req.user.name });
       ok(res, { codes });
     } catch (err) {
       fail(res, err);
