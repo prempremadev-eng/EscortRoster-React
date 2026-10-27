@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Icon, initials } from '../post/icons.jsx';
 import { useUser, atLeast, signOut } from '../auth/user.js';
+import { setupSteps } from '../components/SetupSteps.jsx';
+
+const SETUP_ICON = { admin: Icon.wrench, postsetup: Icon.pin, guards: Icon.shield, links: Icon.send, simulator: Icon.bell };
 
 // The one menu of every signed-in page (Prem, 25 Oct: the top bar plus the rail, 13 buttons in no order,
 // confused even him). Three groups in the order of the work:
@@ -20,7 +23,7 @@ export default function Rail({ active }) {
       ['schedule', '#schedule', 'Schedule', Icon.calendar, 2],
       ['board', '#board', 'Live', Icon.grid, 3],
       ['home', '#home', 'Today', <svg key="h" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20H2"></path></svg>, 4],
-      ['posts', '#supervisor', 'Posts', Icon.chat, 5],
+      ['posts', '#supervisor', 'Chats', Icon.chat, 5],
       ['escort', '#escort', 'Escort', Icon.car, 6],
       ['vehicles', '#vehicles', 'Vehicles', Icon.gate, 7]
     ].filter(Boolean)],
@@ -28,13 +31,9 @@ export default function Rail({ active }) {
       ['report', '#report', 'Report', Icon.clip],
       ['history', '#history', 'History', Icon.check]
     ]],
-    ['Setup', [
-      ['guards', '#master', 'Guards', Icon.shield],
-      ['postsetup', '#posts', 'Post setup', Icon.pin],
-      ['links', '#links', 'Links', Icon.send],
-      atLeast(user, 'branch_admin') && ['admin', '#admin', 'Admin', Icon.wrench],
-      atLeast(user, 'admin') && ['simulator', '#simulator', 'Card test', Icon.bell]
-    ].filter(Boolean)]
+    // Setup in its order (S1 Admin → S2 Posts → S3 Guards → S4 Links → S5 Card test), same list as the
+    // step strip on those pages (SetupSteps.jsx).
+    ['Setup', setupSteps(user).map(s => [s.key, s.href, s.label, SETUP_ICON[s.key], s.step])]
   ];
   const here = groups.flatMap(g => g[1]).find(i => i[0] === active);
   const item = ([key, href, label, icon, step]) => (

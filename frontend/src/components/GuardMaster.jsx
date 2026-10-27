@@ -1,3 +1,4 @@
+import SetupSteps from './SetupSteps.jsx';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { api } from '../api.js';
 import { worksIn } from '../agency.js';
@@ -190,12 +191,9 @@ export default function GuardMaster() {
       <div className="titlebar">
         <h1>🛡️ Guard Master</h1>
       </div>
+      <SetupSteps active="guards" />
 
       <div className="toolbar no-print">
-        <a className="btn secondary" href="#posts">📍 Posts</a>
-        <a className="btn secondary" href="#history">📖 Duty History</a>
-        <a className="btn secondary" href="#simulator">🪪 Card Simulator</a>
-        <a className="btn secondary" href="#links">🔗 Guard Links</a>
         <div className="spacer"></div>
         <button className="btn secondary" onClick={() => openForm()}>➕ Add guard</button>
         <button className="btn" onClick={load}>🔄 Refresh</button>

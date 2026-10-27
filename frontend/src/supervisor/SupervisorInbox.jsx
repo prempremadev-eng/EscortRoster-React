@@ -398,7 +398,7 @@ export default function SupervisorInbox({ initialPost }) {
             <button className="pd-icon-btn" onClick={loadList} aria-label="Refresh">{Icon.refresh}</button>
           </div>
           <div className="pd-row-between sup-head-row">
-            <div className="pd-title">Posts</div>
+            <div className="pd-title">Chats</div>
             {!pushOn && branch && <button className="pd-chip pd-chip-primary" onClick={turnOnPush}>{Icon.bell} Turn on notifications</button>}
             <button className="pd-icon-btn sup-head-refresh" onClick={loadList} aria-label="Refresh">{Icon.refresh}</button>
           </div>

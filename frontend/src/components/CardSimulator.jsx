@@ -1,3 +1,4 @@
+import SetupSteps from './SetupSteps.jsx';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { dutyDayStr } from '../utils.js';
@@ -87,10 +88,9 @@ export default function CardSimulator() {
       <div className="titlebar">
         <h1>🪪 Card Simulator</h1>
       </div>
+      <SetupSteps active="simulator" />
 
       <div className="toolbar no-print">
-        <a className="btn secondary" href="#master">🛡️ Guard Master</a>
-        <a className="btn secondary" href="#links">🔗 Guard Links</a>
         <div><label>Duty day:</label> {dutyDate}</div>
         {branches.length > 1 && (
           <select value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">

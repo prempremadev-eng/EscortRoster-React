@@ -1,3 +1,4 @@
+import SetupSteps from './SetupSteps.jsx';
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { useUser, atLeast } from '../auth/user.js';
@@ -146,10 +147,9 @@ export default function PostsPage() {
       <div className="titlebar">
         <h1>📍 Posts</h1>
       </div>
+      <SetupSteps active="postsetup" />
 
       <div className="toolbar no-print">
-        <a className="btn secondary" href="#master">🛡️ Guard Master</a>
-        <a className="btn secondary" href="#history">📖 Duty History</a>
         {data && states.length > 1 && (
           <select value={stateFilter} onChange={e => { setStateFilter(e.target.value); setCityFilter(''); setBranch('ALL'); }} aria-label="State">
             <option value="">All states</option>

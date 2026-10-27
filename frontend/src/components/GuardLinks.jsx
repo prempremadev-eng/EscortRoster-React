@@ -1,3 +1,4 @@
+import SetupSteps from './SetupSteps.jsx';
 import { useCallback, useEffect, useState } from 'react';
 import QRCode from 'qrcode';
 import { useAppQr } from './AppQr.jsx';
@@ -100,10 +101,9 @@ export default function GuardLinks() {
       <div className="titlebar">
         <h1>🔗 Guard Links</h1>
       </div>
+      <SetupSteps active="links" />
 
       <div className="toolbar no-print">
-        <a className="btn secondary" href="#master">🛡️ Guard Master</a>
-        <a className="btn secondary" href="#simulator">🪪 Card Simulator</a>
         {appQr.button}
         {branches.length > 1 && (
           <select value={branch} onChange={e => setBranch(e.target.value)} aria-label="Branch">

@@ -1,3 +1,4 @@
+import SetupSteps from '../components/SetupSteps.jsx';
 import { useCallback, useEffect, useState } from 'react';
 import { useAppQr } from '../components/AppQr.jsx';
 import { api } from '../api.js';
@@ -117,6 +118,7 @@ export default function AdminPage() {
       <div className="titlebar">
         <h1>⚙️ Admin</h1>
       </div>
+      <SetupSteps active="admin" />
 
       <div className="toolbar no-print">
         {canAll && tabBtn('states', '1 🗺️ States')}
