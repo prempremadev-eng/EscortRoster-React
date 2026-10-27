@@ -185,6 +185,7 @@ export default function RosterPage({ initialMonth }) {
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [fill, setFill] = useState(null); // the guard whose month is being filled
+  const [just, setJust] = useState(''); // the box saved last
   const [agencies, setAgencies] = useState([]);
   const { pickAgency, branchAgencies, ag, chooseAgency } = useAgencyPick(branch, agencies);
 
@@ -270,6 +271,8 @@ export default function RosterPage({ initialMonth }) {
     try {
       const r = (await api.rosterSet(branch, month, g.ROWID, day, next, ag)).data;
       setData(d => ({ ...d, codes: { ...d.codes, [g.ROWID]: r.codes } }));
+      // A tap saves at once; a green ring on that box says so (Prem, 27 Oct: "is there a save button?").
+      setJust(g.ROWID + '-' + day);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -366,7 +369,7 @@ export default function RosterPage({ initialMonth }) {
             </div>
             <div className="rs-legend">
               {CODES.map(c => <span key={c}><span className={'rs-cell rs-' + (c === '-' ? 'none' : c)}>{c}</span> {LABEL[c]}</span>)}
-              <span className="master-sub">· {filled} of {data.guards.length} guards have a roster this month{data.updated ? ' · last saved by ' + data.updated.by + ' ' + data.updated.at : ''} · tap a box to change one day, ✎ to fill a whole month</span>
+              <span className="master-sub">· {filled} of {data.guards.length} guards have a roster this month{data.updated ? ' · last saved by ' + data.updated.by + ' ' + data.updated.at : ''} · tap a box to change one day (saved at once, green ring), ✎ to fill a whole month</span>
             </div>
 
             <div className="rs-scroll">
@@ -391,7 +394,7 @@ export default function RosterPage({ initialMonth }) {
                         </td>
                         {dayNums.map(d => {
                           const c = codes[d - 1];
-                          return <td key={d}><button className={'rs-cell rs-' + (c === '-' ? 'none' : c)} onClick={() => tap(g, d)} disabled={busy} title={g.name + ' · ' + d + ' · ' + LABEL[c]}>{c === '-' ? '' : c}</button></td>;
+                          return <td key={d}><button className={'rs-cell rs-' + (c === '-' ? 'none' : c) + (just === g.ROWID + '-' + d ? ' rs-just' : '')} onClick={() => tap(g, d)} disabled={busy} title={g.name + ' · ' + d + ' · ' + LABEL[c]}>{c === '-' ? '' : c}</button></td>;
                         })}
                         <td><b>{[...codes].filter(c => 'ABCG'.includes(c)).length}</b></td>
                         <td>{[...codes].filter(c => c === 'O' || c === 'L').length}</td>

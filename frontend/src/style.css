@@ -1138,3 +1138,5 @@ td.in-late{color:#b91c1c;}
 .rf-preview .rs-cell{width:30px;height:36px;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;line-height:1;gap:2px;}
 .rf-preview .rs-cell small{font-size:9px;font-weight:400;opacity:.6;}
 .rf-preview .rf-one{outline:2px solid #DC2626;outline-offset:1px;}
+.rs-just{outline:2px solid #16A34A;outline-offset:1px;animation:rs-just 1.2s ease;}
+@keyframes rs-just{0%{transform:scale(1.25);}100%{transform:none;}}
