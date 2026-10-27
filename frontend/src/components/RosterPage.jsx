@@ -108,12 +108,18 @@ function FillMonth({ guard, guards, month, days, codesOf, onSave, onClose, busy 
   const [copy, setCopy] = useState('');
   const others = guards.filter(g => g.ROWID !== guard.ROWID && /[ABCG]/.test(codesOf(g)));
 
-  const codes = Array.from({ length: days }, (_, i) => {
+  // One day different from the pattern (Prem, 27 Oct): tap that box in the preview; changing the pattern
+  // above clears these.
+  const [one, setOne] = useState({});
+  const base = Array.from({ length: days }, (_, i) => {
     const d = i + 1;
     if (now[i] === 'L') return 'L';
     if (off !== '' && String(dateOf(d).getUTCDay()) === off) return 'O';
     return shifts[weekOf(d)] || '-';
-  }).join('');
+  });
+  const codes = base.map((c, i) => one[i] || c).join('');
+  const tapDay = i => setOne(o => ({ ...o, [i]: CODES[(CODES.indexOf(codes[i]) + 1) % CODES.length] }));
+  useEffect(() => setOne({}), [off, shifts]);
   const short = d => d + ' ' + ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][dateOf(d).getUTCDay()];
   const setWeek = (i, v) => setShifts(s => s.map((x, j) => (j === i ? v : x)));
 
@@ -151,8 +157,13 @@ function FillMonth({ guard, guards, month, days, codesOf, onSave, onClose, busy 
           </label>
         ))}
       </div>
+      <div className="master-sub">Tap a day below to change only that day.</div>
       <div className="rf-preview">
-        {[...codes].map((c, i) => <span key={i} className={'rs-cell rs-' + (c === '-' ? 'none' : c)} title={short(i + 1)}>{c === '-' ? '' : c}</span>)}
+        {[...codes].map((c, i) => (
+          <button key={i} type="button" className={'rs-cell rs-' + (c === '-' ? 'none' : c) + (one[i] ? ' rf-one' : '')} onClick={() => tapDay(i)} title={short(i + 1) + ' · ' + LABEL[c] + ' · tap to change this day'}>
+            {c === '-' ? '' : c}<small>{i + 1}</small>
+          </button>
+        ))}
       </div>
       <div className="link-actions">
         <button className="btn" onClick={() => onSave(codes)} disabled={busy}>{busy ? 'Saving...' : 'Save month'}</button>

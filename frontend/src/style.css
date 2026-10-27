@@ -1135,4 +1135,6 @@ td.in-late{color:#b91c1c;}
 .rf-week span{display:flex;flex-direction:column;}
 .rf-week small{font-weight:400;color:#64748B;}
 .rf-preview{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:12px;}
-.rf-preview .rs-cell{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;}
+.rf-preview .rs-cell{width:30px;height:36px;display:inline-flex;flex-direction:column;align-items:center;justify-content:center;font-size:13px;line-height:1;gap:2px;}
+.rf-preview .rs-cell small{font-size:9px;font-weight:400;opacity:.6;}
+.rf-preview .rf-one{outline:2px solid #DC2626;outline-offset:1px;}
