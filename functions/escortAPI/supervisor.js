@@ -254,8 +254,8 @@ module.exports = function supervisorRoutes(app, h) {
           const gids = list.map(r => r.guardId);
           const eids = list.map(r => String(r.guard.escort_id)).filter(Boolean);
           const [punches, running] = await Promise.all([
-            gids.length ? zcql.executeZCQLQuery(`SELECT guard_id, direction, punch_time FROM AccessLog WHERE duty_date = '${day}' AND guard_id IN (${idList(gids)}) ORDER BY CREATEDTIME ASC LIMIT 0, 300`).then(r => r.map(x => x.AccessLog)) : [],
-            eids.length ? zcql.executeZCQLQuery(`SELECT escort_id, route_no, location, out_time FROM DutyRecords WHERE duty_date = '${day}' AND escort_id IN (${idList(eids)}) AND out_time != '' AND (in_time = '' OR in_time IS NULL) LIMIT 0, 300`).then(r => r.map(x => x.DutyRecords)) : []
+            gids.length ? pages(zcql, `SELECT guard_id, direction, punch_time FROM AccessLog WHERE duty_date = '${day}' AND guard_id IN (${idList(gids)}) ORDER BY CREATEDTIME ASC`, 'AccessLog') : [],
+            eids.length ? pages(zcql, `SELECT escort_id, route_no, location, out_time FROM DutyRecords WHERE duty_date = '${day}' AND escort_id IN (${idList(eids)}) AND out_time != '' AND (in_time = '' OR in_time IS NULL)`, 'DutyRecords') : []
           ]);
           const firstIn = {}, last = {};
           punches.forEach(x => { const g = String(x.guard_id); if (x.direction === 'IN' && !firstIn[g]) firstIn[g] = x.punch_time; last[g] = x; });
@@ -338,7 +338,7 @@ module.exports = function supervisorRoutes(app, h) {
       // someone at it now always stays. So "Total posts" = this shift's real slots (Prem, 22 Oct).
       const needRoster = posts.some(p => regularOnly(p));
       const [roster, supIds] = needRoster ? await Promise.all([
-        zcql.executeZCQLQuery(`SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${day.slice(0, 7)}' LIMIT 0, 300`).then(r => r.map(x => x.MonthRoster)),
+        pages(zcql, `SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${day.slice(0, 7)}'`, 'MonthRoster'),
         inchargeIds(zcql, branch)
       ]) : [[], []];
       const rosterOf = {};
@@ -464,8 +464,8 @@ module.exports = function supervisorRoutes(app, h) {
     const people = await historyOf(req, catalystApp, zcql, branch, date);
     const [posts, slots, roster] = await Promise.all([
       branchPosts(req, zcql, branch),
-      zcql.executeZCQLQuery(`SELECT post_id, shift_code FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${date}' AND published = true LIMIT 0, 300`).then(r => r.map(x => x.Schedule)),
-      zcql.executeZCQLQuery(`SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${date.slice(0, 7)}' LIMIT 0, 300`).then(r => r.map(x => x.MonthRoster))
+      pages(zcql, `SELECT post_id, shift_code FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${date}' AND published = true`, 'Schedule'),
+      pages(zcql, `SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${date.slice(0, 7)}'`, 'MonthRoster')
     ]);
     const rosterOf = {};
     roster.forEach(r => { const c = String(r.codes || '')[Number(date.slice(8, 10)) - 1]; if (c) rosterOf[String(r.guard_id)] = c; });
@@ -639,10 +639,10 @@ module.exports = function supervisorRoutes(app, h) {
       const date = requireDate(req.query.date);
       const [posts, shifts, guards, roster] = await Promise.all([
         branchPosts(req, zcql, branch), getShifts(zcql),
-        zcql.executeZCQLQuery(`SELECT ROWID, id_number, guard_name, area FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC LIMIT 0, 300`).then(r => r.map(x => x.Guards)),
+        pages(zcql, `SELECT ROWID, id_number, guard_name, area FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`, 'Guards'),
         // The month roster's letter for this date (A / B / C / G / O / L), so the page offers the
         // guards of the picked shift first and keeps those on week off or leave apart.
-        zcql.executeZCQLQuery(`SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${date.slice(0, 7)}' LIMIT 0, 300`).then(r => r.map(x => x.MonthRoster))
+        pages(zcql, `SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${date.slice(0, 7)}'`, 'MonthRoster')
       ]);
       const dayIndex = Number(date.slice(8, 10)) - 1;
       const rosterOf = {};
@@ -669,14 +669,14 @@ module.exports = function supervisorRoutes(app, h) {
         const codesFor = {};
         const months = [...new Set([sat.slice(0, 7), sun.slice(0, 7)])];
         for (const m of months) {
-          const list = m === date.slice(0, 7) ? roster : (await zcql.executeZCQLQuery(`SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${m}' LIMIT 0, 300`)).map(x => x.MonthRoster);
+          const list = m === date.slice(0, 7) ? roster : (await pages(zcql, `SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${m}'`, 'MonthRoster'));
           list.forEach(r => { (codesFor[m] = codesFor[m] || {})[String(r.guard_id)] = String(r.codes || ''); });
         }
         const codeOn = (id, d) => ((codesFor[d.slice(0, 7)] || {})[id] || '')[Number(d.slice(8, 10)) - 1];
         // Only those on C today (an escort on A / B / G works a post that day).
         batch = guards.filter(g => String(g.area || '').toLowerCase() === 'escort' && rosterOf[String(g.ROWID)] === 'C' && codeOn(String(g.ROWID), sat) === 'O' && codeOn(String(g.ROWID), sun) === 'O').map(g => String(g.ROWID));
       }
-      const points = hasEscorts ? (await zcql.executeZCQLQuery(`SELECT guard_id, support_point FROM EscortDay WHERE branch_id = ${branch} AND sched_date = '${date}' LIMIT 0, 300`)).map(x => x.EscortDay) : [];
+      const points = hasEscorts ? (await pages(zcql, `SELECT guard_id, support_point FROM EscortDay WHERE branch_id = ${branch} AND sched_date = '${date}'`, 'EscortDay')) : [];
       const pointOf = {};
       points.forEach(p => { pointOf[String(p.guard_id)] = p.support_point || ''; });
       const inSlot = new Set(rows.map(r => String(r.guard_id)));
@@ -730,7 +730,7 @@ module.exports = function supervisorRoutes(app, h) {
       const shiftCodes = (await getShifts(zcql)).map(x => x.code);
       const [posts, guards] = await Promise.all([
         branchPosts(req, zcql, branch),
-        zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number, card_number FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} LIMIT 0, 300`).then(r => r.map(x => x.Guards))
+        pages(zcql, `SELECT ROWID, guard_name, id_number, card_number FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)}`, 'Guards')
       ]);
       const key = v => String(v || '').toLowerCase().replace(/[\s-]+/g, '');
       const postBy = new Map(posts.map(p => [key(p.post_name), p]));
@@ -844,6 +844,13 @@ module.exports = function supervisorRoutes(app, h) {
       let source = (await dayRows(zcql, branch, yesterday, posts)).map(r => ({ post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id) }));
       const from = 'yesterday';
       const rows = await dayRows(zcql, branch, date, posts);
+      // The month roster decides (Prem, 28 Oct, ISI rotates weekly): a guard whose roster says another shift,
+      // week off or leave today is not copied; a guard without a roster letter today is copied as before.
+      const day = Number(date.slice(8, 10)) - 1;
+      const rosterOf = {};
+      (await pages(zcql, `SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${date.slice(0, 7)}' ORDER BY ROWID ASC`, 'MonthRoster'))
+        .forEach(r => { const c = String(r.codes || '')[day]; if (c && c !== '-') rosterOf[String(r.guard_id)] = c; });
+      source = source.filter(s => !rosterOf[s.guard] || rosterOf[s.guard] === s.shift);
       const usedCells = new Set(rows.map(r => r.post_id + '|' + r.shift_code));
       // Copying never makes extra duty: a guard already in the day is not copied again.
       const usedGuards = new Set(rows.map(r => String(r.guard_id)));
@@ -1113,7 +1120,7 @@ module.exports = function supervisorRoutes(app, h) {
     const ids = [...new Set(rows.map(r => String(r.guard_id)).filter(Boolean))].map(requireRowId);
     if (!ids.length) return 0;
     const [swipes, guards, posts, shifts] = await Promise.all([
-      zcql.executeZCQLQuery(`SELECT guard_id, direction, CREATEDTIME FROM AccessLog WHERE duty_date = '${date}' AND guard_id IN (${ids.join(', ')}) ORDER BY CREATEDTIME DESC LIMIT 0, 300`).then(r => r.map(x => x.AccessLog)),
+      pages(zcql, `SELECT guard_id, direction, CREATEDTIME FROM AccessLog WHERE duty_date = '${date}' AND guard_id IN (${ids.join(', ')}) ORDER BY CREATEDTIME DESC`, 'AccessLog'),
       zcql.executeZCQLQuery(`SELECT ROWID, guard_token FROM Guards WHERE ROWID IN (${ids.join(', ')})`).then(r => r.map(x => x.Guards)),
       zcql.executeZCQLQuery(`SELECT ROWID, post_name FROM Posts WHERE branch_id = ${requireRowId(branch)}`).then(r => r.map(x => x.Posts)),
       getShifts(zcql)
