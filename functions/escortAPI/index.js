@@ -1479,10 +1479,13 @@ async function checkGuard(req, zcql, row, selfId) {
   if (!admin.worksIn(agency[0].Agencies, row.branch_id)) throw new Error('This agency does not work in this branch. Tick the branch in Admin → Agencies.');
   row.agency = agency[0].Agencies.agency_name;
   const other = rows => rows.some(r => String(r.Guards.ROWID) !== String(selfId || ''));
+  // An all-digit ID / card is the same with or without leading zeros (024187 = 24187, Prem 28 Oct), as the
+  // roster upload reads it; so both spellings count as taken.
+  const spellings = v => (/^\d+$/.test(v) ? [...new Set([0, 1, 2, 3].map(n => '0'.repeat(n) + String(v).replace(/^0+/, '')))] : [v]).map(x => `'${x}'`).join(', ');
   const checks = [
-    zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE id_number = '${row.id_number}'`),
+    zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE id_number IN (${spellings(row.id_number)})`),
     zcql.executeZCQLQuery(`SELECT ROWID FROM Branches WHERE ROWID = ${row.branch_id} AND is_active = 'true'`),
-    row.card_number ? zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE card_number = '${row.card_number}'`) : Promise.resolve([]),
+    row.card_number ? zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE card_number IN (${spellings(row.card_number)})`) : Promise.resolve([]),
     selectAll(zcql, 'Guards', `SELECT ROWID, guard_name, id_number FROM Guards WHERE agency_id = ${requireRowId(row.agency_id)} ORDER BY ROWID ASC`)
   ];
   if (row.escort_id) {
