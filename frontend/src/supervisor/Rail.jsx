@@ -6,7 +6,7 @@ import { setupSteps } from '../components/SetupSteps.jsx';
 
 // The one menu of every signed-in page (Prem, 25 Oct: the top bar plus the rail, 13 buttons in no order,
 // confused even him). Three groups in the order of the work:
-//   Daily work: 1 Schedule → 2 Live → 3 Today → 4 Chats
+//   Daily work: Schedule → Today → Live → Chats
 //   More:       Escort & Vehicles, Reports, Setup (one screen, #more)
 // The round button at the bottom is the signed-in person: tap → sign out.
 // On a phone (Prem, 25 Oct: the manager looks on an iPhone) the rail hides behind a ☰ bar at the top,
@@ -36,8 +36,9 @@ export default function Rail({ active }) {
       // Schedule (its "Month roster" button and step 1), so Schedule is one button. The order shows the
       // flow; the menu shows no numbers (Prem, 27 Oct).
       ['schedule', '#schedule', 'Schedule', Icon.calendar, 1],
-      ['board', '#board', 'Live', Icon.grid, 2],
-      ['home', '#home', 'Today', <svg key="h" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20H2"></path></svg>, 3],
+      ['home', '#home', 'Today', <svg key="h" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20H2"></path></svg>, 2],
+      // Live under Today (Prem, 27 Oct): first the totals, then who is IN / OUT post by post.
+      ['board', '#board', 'Live', Icon.grid, 3],
       ['posts', '#supervisor', 'Chats', Icon.chat, 4]
     ].filter(Boolean)],
     // Escort & Vehicles, Reports and Setup sit behind one More button (Prem, 27 Oct: the menu looked
