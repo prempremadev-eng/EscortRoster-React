@@ -85,6 +85,83 @@ function readRoster(XLSX, wb, guards, days) {
   return best;
 }
 
+// ✎ Fill month (Prem, 27 Oct: in real use the supervisor adds a new guard in the app, not by Excel): one
+// guard's whole month from a week off day and one shift per week (Mon–Sun, the way agency rosters rotate),
+// or the weeks copied from another guard. Leave days (L) already set stay.
+function FillMonth({ guard, guards, month, days, codesOf, onSave, onClose, busy }) {
+  const dateOf = d => new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7) - 1, d));
+  const weeks = [];
+  for (let d = 1; d <= days; d++) if (d === 1 || dateOf(d).getUTCDay() === 1) weeks.push([d, d]); else weeks[weeks.length - 1][1] = d;
+  const weekOf = d => weeks.findIndex(([a, b]) => d >= a && d <= b);
+  // Start from what the guard has now: the shift they work most in each week, and their usual off day.
+  const usual = list => {
+    const n = {};
+    list.forEach(c => { if ('ABCG'.includes(c)) n[c] = (n[c] || 0) + 1; });
+    return Object.keys(n).sort((a, b) => n[b] - n[a])[0] || '';
+  };
+  const shiftsFrom = codes => weeks.map(([a, b]) => usual([...codes.slice(a - 1, b)]));
+  const now = codesOf(guard);
+  const offs = {};
+  [...now].forEach((c, i) => { if (c === 'O') { const w = dateOf(i + 1).getUTCDay(); offs[w] = (offs[w] || 0) + 1; } });
+  const [off, setOff] = useState(() => Object.keys(offs).sort((a, b) => offs[b] - offs[a])[0] ?? '0');
+  const [shifts, setShifts] = useState(() => shiftsFrom(now));
+  const [copy, setCopy] = useState('');
+  const others = guards.filter(g => g.ROWID !== guard.ROWID && /[ABCG]/.test(codesOf(g)));
+
+  const codes = Array.from({ length: days }, (_, i) => {
+    const d = i + 1;
+    if (now[i] === 'L') return 'L';
+    if (off !== '' && String(dateOf(d).getUTCDay()) === off) return 'O';
+    return shifts[weekOf(d)] || '-';
+  }).join('');
+  const short = d => d + ' ' + ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'][dateOf(d).getUTCDay()];
+  const setWeek = (i, v) => setShifts(s => s.map((x, j) => (j === i ? v : x)));
+
+  return (
+    <div className="master-form rf">
+      <div className="master-form-title">✎ Fill month · {guard.name} · {month}</div>
+      <div className="rf-row">
+        <label>Week off
+          <select value={off} onChange={e => setOff(e.target.value)}>
+            {['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'].map((n, i) => <option key={n} value={String(i)}>{n}</option>)}
+            <option value="">No week off</option>
+          </select>
+        </label>
+        <label>All weeks
+          <select value="" onChange={e => e.target.value && setShifts(weeks.map(() => e.target.value))}>
+            <option value="">—</option>
+            {['A', 'B', 'C', 'G'].map(c => <option key={c} value={c}>{c} · {LABEL[c]}</option>)}
+          </select>
+        </label>
+        <label>Copy weeks from
+          <select value={copy} onChange={e => { setCopy(e.target.value); const g = others.find(x => x.ROWID === e.target.value); if (g) setShifts(shiftsFrom(codesOf(g))); }}>
+            <option value="">—</option>
+            {others.map(g => <option key={g.ROWID} value={g.ROWID}>{g.name} ({g.id})</option>)}
+          </select>
+        </label>
+      </div>
+      <div className="rf-weeks">
+        {weeks.map(([a, b], i) => (
+          <label key={a} className="rf-week">
+            <span>Week {i + 1}<small>{short(a)}{b > a ? ' – ' + short(b) : ''}</small></span>
+            <select value={shifts[i]} onChange={e => setWeek(i, e.target.value)}>
+              <option value="">— not set</option>
+              {['A', 'B', 'C', 'G'].map(c => <option key={c} value={c}>{c} · {LABEL[c]}</option>)}
+            </select>
+          </label>
+        ))}
+      </div>
+      <div className="rf-preview">
+        {[...codes].map((c, i) => <span key={i} className={'rs-cell rs-' + (c === '-' ? 'none' : c)} title={short(i + 1)}>{c === '-' ? '' : c}</span>)}
+      </div>
+      <div className="link-actions">
+        <button className="btn" onClick={() => onSave(codes)} disabled={busy}>{busy ? 'Saving...' : 'Save month'}</button>
+        <button className="btn secondary" onClick={onClose}>Cancel</button>
+      </div>
+    </div>
+  );
+}
+
 export default function RosterPage({ initialMonth }) {
   const [branches, setBranches] = useState([]);
   const [branch, setBranch] = useState('');
@@ -96,6 +173,7 @@ export default function RosterPage({ initialMonth }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
+  const [fill, setFill] = useState(null); // the guard whose month is being filled
   const [agencies, setAgencies] = useState([]);
   const { pickAgency, branchAgencies, ag, chooseAgency } = useAgencyPick(branch, agencies);
 
@@ -188,6 +266,21 @@ export default function RosterPage({ initialMonth }) {
     }
   }
 
+  async function saveFill(codes) {
+    setBusy(true);
+    setError('');
+    try {
+      const r = (await api.rosterRow(branch, month, fill.ROWID, codes, ag)).data;
+      setData(d => ({ ...d, codes: { ...d.codes, [fill.ROWID]: r.codes } }));
+      setNote('✅ ' + fill.name + ': month saved.');
+      setFill(null);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const dayCount = (d, c) => shown.filter(g => codesOf(g)[d - 1] === c).length;
   const dayNums = Array.from({ length: days }, (_, i) => i + 1);
 
@@ -243,6 +336,8 @@ export default function RosterPage({ initialMonth }) {
           </div>
         )}
 
+        {fill && data && <FillMonth key={fill.ROWID + month} guard={fill} guards={data.guards} month={month} days={days} codesOf={codesOf} onSave={saveFill} onClose={() => setFill(null)} busy={busy} />}
+
         {!data && !error && <div className="loading-message">Loading...</div>}
 
         {data && (
@@ -260,7 +355,7 @@ export default function RosterPage({ initialMonth }) {
             </div>
             <div className="rs-legend">
               {CODES.map(c => <span key={c}><span className={'rs-cell rs-' + (c === '-' ? 'none' : c)}>{c}</span> {LABEL[c]}</span>)}
-              <span className="master-sub">· {filled} of {data.guards.length} guards have a roster this month{data.updated ? ' · last saved by ' + data.updated.by + ' ' + data.updated.at : ''} · tap a box to change it</span>
+              <span className="master-sub">· {filled} of {data.guards.length} guards have a roster this month{data.updated ? ' · last saved by ' + data.updated.by + ' ' + data.updated.at : ''} · tap a box to change one day, ✎ to fill a whole month</span>
             </div>
 
             <div className="rs-scroll">
@@ -279,7 +374,10 @@ export default function RosterPage({ initialMonth }) {
                     return (
                       <tr key={g.ROWID}>
                         <td className="rs-sticky rs-no">{i + 1}</td>
-                        <td className="rs-sticky rs-name"><b>{g.name}</b><div className="master-sub">{g.id}{g.area ? ' · ' + g.area : ''}</div></td>
+                        <td className="rs-sticky rs-name">
+                          <button className="rf-edit" onClick={() => { setFill(g); window.scrollTo({ top: 0, behavior: 'smooth' }); }} title={'Fill the whole month for ' + g.name}>✎</button>
+                          <b>{g.name}</b><div className="master-sub">{g.id}{g.area ? ' · ' + g.area : ''}</div>
+                        </td>
                         {dayNums.map(d => {
                           const c = codes[d - 1];
                           return <td key={d}><button className={'rs-cell rs-' + (c === '-' ? 'none' : c)} onClick={() => tap(g, d)} disabled={busy} title={g.name + ' · ' + d + ' · ' + LABEL[c]}>{c === '-' ? '' : c}</button></td>;

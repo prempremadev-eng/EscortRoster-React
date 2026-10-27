@@ -1124,3 +1124,15 @@ td.in-late{color:#b91c1c;}
 .desktop-toggle{white-space:nowrap;}
 .gsheet-top{flex-basis:100%;display:flex;align-items:center;justify-content:space-between;gap:10px;}
 .gm-fixed{display:block;padding:9px 0;font-weight:600;color:#1e3a8a;}
+
+/* ✎ Fill month (RosterPage.jsx FillMonth). */
+.rf-edit{float:right;margin-left:6px;width:28px;height:28px;border-radius:8px;border:1px solid var(--border);background:#fff;color:var(--blue-dark);font-size:15px;cursor:pointer;}
+.rf-edit:hover{background:var(--blue-light);}
+.rf-row{display:flex;flex-wrap:wrap;gap:12px;margin:10px 0;}
+.rf-row label,.rf-week{display:flex;flex-direction:column;gap:4px;font-size:13px;font-weight:600;}
+.rf-row select,.rf-week select{padding:7px 8px;border:1px solid var(--border);border-radius:8px;font-size:14px;min-width:150px;}
+.rf-weeks{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;margin-bottom:12px;}
+.rf-week span{display:flex;flex-direction:column;}
+.rf-week small{font-weight:400;color:#64748B;}
+.rf-preview{display:flex;flex-wrap:wrap;gap:3px;margin-bottom:12px;}
+.rf-preview .rs-cell{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;}

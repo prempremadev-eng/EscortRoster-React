@@ -49,8 +49,12 @@ module.exports = function rosterRoutes(app, h) {
       // roster"): an upload saves its rows fresh in file order, so the last upload is the newest block of rows
       // (made within a few minutes) in ROWID order. Older rows (guards not in that file) follow, then guards
       // without a row, by name.
-      const newest = rows.reduce((m, r) => (String(r.CREATEDTIME) > m ? String(r.CREATEDTIME) : m), '');
-      const cut = newest ? new Date(new Date(newest.slice(0, 19).replace(' ', 'T') + 'Z').getTime() - 10 * 60000).toISOString().slice(0, 19).replace('T', ' ') : '';
+      // The upload = the latest minute in which 5+ rows were made; a guard filled by hand later (✎ Fill month)
+      // comes after it.
+      const perMinute = {};
+      rows.forEach(r => { const m = String(r.CREATEDTIME).slice(0, 16); perMinute[m] = (perMinute[m] || 0) + 1; });
+      const newest = Object.keys(perMinute).filter(m => perMinute[m] >= 5).sort().pop() || '';
+      const cut = newest ? new Date(new Date(newest.replace(' ', 'T') + ':00Z').getTime() - 10 * 60000).toISOString().slice(0, 19).replace('T', ' ') : '';
       const block = r => (String(r.CREATEDTIME) >= cut ? 0 : 1);
       const rank = new Map(rows.map((r, i) => [String(r.guard_id), block(r) * 1e5 + i]));
       guards.sort((x, y) => (rank.has(String(x.ROWID)) ? rank.get(String(x.ROWID)) : 1e6) - (rank.has(String(y.ROWID)) ? rank.get(String(y.ROWID)) : 1e6));
@@ -101,6 +105,29 @@ module.exports = function rosterRoutes(app, h) {
       for (let i = 0; i < inserts.length; i += 100) await table.insertRows(inserts.slice(i, i + 100));
       for (let i = 0; i < olds.length; i += 200) await table.deleteRows(olds.slice(i, i + 200));
       ok(res, { added: inserts.length - olds.length, replaced: olds.length, skipped: skipped.length });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // One guard, the whole month at once (✎ Fill month, Prem 27 Oct: a new guard is added by the supervisor
+  // in the app, not by Excel). The guard's row keeps its place in the list.
+  app.post('/rosterRow', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const branch = auth.requireBranch(req, requireRowId(req.body.branch));
+      const month = requireMonth(req.body.month);
+      const days = daysIn(month);
+      const codes = cleanCodes(req.body.codes, days);
+      const g = (await zcql.executeZCQLQuery(`SELECT ROWID, branch_id, agency_id FROM Guards WHERE ROWID = ${requireRowId(req.body.guard_id)}`))[0];
+      const guard = auth.requireRow(req, g && g.Guards, 'guard');
+      if (String(guard.branch_id) !== String(branch)) throw new Error('This guard is in another branch.');
+      const existing = await zcql.executeZCQLQuery(`SELECT ROWID FROM MonthRoster WHERE guard_id = ${guard.ROWID} AND roster_month = '${month}'`);
+      const table = catalystApp.datastore().table('MonthRoster');
+      if (existing.length) await table.updateRow({ ROWID: existing[0].MonthRoster.ROWID, codes, updated_by: req.user.name });
+      else await table.insertRow({ guard_id: guard.ROWID, roster_month: month, codes, branch_id: branch, agency_id: guard.agency_id || null, updated_by: req.user.name });
+      ok(res, { codes });
     } catch (err) {
       fail(res, err);
     }
