@@ -270,7 +270,7 @@ export default function AdminHome({ hash }) {
             </aside>
           )}
           <div className="ah-grid-wrap">
-            <div className="ah-grid">
+            <div className={'ah-grid' + (groups.length === 1 ? ' ah-grid-shifts' : '')}>
               {groups.length === 1 && data.byShift.map(x => (
                 <ShiftTile key={x.code} x={x} on={view === 'group' && shift === x.code}
                   onPick={() => { setShift(x.code); go('#home/g/' + groups[0].branchId + '-' + groups[0].agencyId); }} />

@@ -506,3 +506,6 @@ button.ah-kpi:hover{background:#F8FAFC;}
 /* Back button pinned at the bottom of the screen, right corner (Prem, 27 Oct). */
 .ah-actions-bottom{position:fixed;right:24px;bottom:20px;margin:0;z-index:20;}
 .ah-actions-bottom .ah-btn{box-shadow:0 6px 16px rgba(220,38,38,.35);padding:12px 20px;font-size:15px;}
+/* The shift cards fill the row, so Shift C ends at the right edge and the back button sits under it. */
+.ah-grid-shifts,.ah-split-on .ah-grid-shifts{grid-template-columns:repeat(4,minmax(0,1fr));}
+@media (max-width:600px){.ah-grid-shifts,.ah-split-on .ah-grid-shifts{grid-template-columns:repeat(2,minmax(0,1fr));}.ah-actions-bottom{right:12px;bottom:14px;}}
