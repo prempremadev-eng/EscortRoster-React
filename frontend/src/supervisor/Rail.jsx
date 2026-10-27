@@ -24,11 +24,11 @@ export default function Rail({ active }) {
     if (!next) e.preventDefault(); // closing only folds the list, the page stays
   };
   const moreItems = [
-    ['escort', '#escort', 'Escort', Icon.car],
-    ['vehicles', '#vehicles', 'Vehicles', Icon.gate],
-    ['report', '#report', 'Report', Icon.clip],
+    ['escort', '#escort', 'Escort', Icon.escort],
+    ['vehicles', '#vehicles', 'Vehicles', Icon.barrier],
+    ['report', '#report', 'Report', Icon.report],
     ['history', '#history', 'History', Icon.history],
-    ['setup', '#setup', 'Setup', Icon.wrench]
+    ['setup', '#setup', 'Setup', Icon.gear]
   ];
   const groups = [
     ['Daily', [

@@ -1,3 +1,4 @@
+import { Icon } from '../post/icons.jsx';
 import { useUser, atLeast } from '../auth/user.js';
 
 // Setup in the order it has to be done (Prem, 27 Oct: "Guards, Post setup, Links … very confusing"):
@@ -86,28 +87,29 @@ export function ReportsHome() {
 // The More screen (#more, Prem 27 Oct: "Escort & Vehicles, Reports, Setup in one button, the menu looks
 // less crowded"). The menu keeps only the daily four; everything else is one tap away here, in groups.
 export function MoreHome() {
+  // Line icons on a soft colour tile, one colour per group (Prem, 27 Oct: "design it a bit better").
   const groups = [
     ['Escort & Vehicles', [
-      ['#escort', '🚗', 'Escort', 'The escort duty sheet: trips, seats, who is on escort today.'],
-      ['#vehicles', '🚧', 'Vehicles', 'Vehicle IN / OUT at the gates: scan, mark OUT, list of today.']
+      ['#escort', Icon.escort, 'Escort', 'The escort duty sheet: trips, seats, who is on escort today.'],
+      ['#vehicles', Icon.barrier, 'Vehicles', 'Vehicle IN / OUT at the gates: scan, mark OUT, list of today.']
     ]],
     ['Reports', [
-      ['#report', '📋', 'Shift report', 'Each shift: posts, IN, late, absent, leave, off, vacant (to send to the Branch Admin).'],
-      ['#history', '📖', 'Duty history', 'Who was at which post on past days; open any shift.']
+      ['#report', Icon.report, 'Shift report', 'Each shift: posts, IN, late, absent, leave, off, vacant (to send to the Branch Admin).'],
+      ['#history', Icon.history, 'Duty history', 'Who was at which post on past days; open any shift.']
     ]],
     ['Setup', [
-      ['#setup', '⚙️', 'Setup', 'Admin, posts, guards, guard links, card test: done once, in order.']
+      ['#setup', Icon.gear, 'Setup', 'Admin, posts, guards, guard links, card test: done once, in order.']
     ]]
   ];
   return (
     <>
       <div className="titlebar"><h1>☰ More</h1></div>
       <div className="hub-home">
-        {groups.map(([head, items]) => [
+        {groups.map(([head, items], g) => [
           <h2 key={head} className="hub-head">{head}</h2>,
           ...items.map(([href, icon, label, more]) => (
             <a key={href} href={href} className="hub-card">
-              <span className="hub-card-icon">{icon}</span>
+              <span className={'hub-tile hub-tile-' + g}>{icon}</span>
               <span className="hub-card-text"><b>{label}</b><span>{more}</span></span>
               <span className="hub-card-go">›</span>
             </a>

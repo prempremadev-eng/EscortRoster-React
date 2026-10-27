@@ -28,6 +28,11 @@ export const Icon = {
   chat: svg(22, 1.8, <path d="M21 12a8 8 0 0 1-11.6 7.1L4 20l1-4.6A8 8 0 1 1 21 12z"></path>),
   calendar: svg(22, 1.8, <><rect x="3" y="5" width="18" height="16" rx="2"></rect><path d="M3 10h18"></path><path d="M8 3v4"></path><path d="M16 3v4"></path></>),
   grid: svg(22, 1.8, <><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></>),
+  // The More menu and screen (Rail.jsx, SetupSteps.jsx MoreHome).
+  escort: svg(22, 1.8, <><path d="M3 16v-3.5L5 8.5A2 2 0 0 1 6.8 7.4h10.4A2 2 0 0 1 19 8.5l2 4V16a1 1 0 0 1-1 1h-1"></path><path d="M5 17H4a1 1 0 0 1-1-1"></path><path d="M9 17h6"></path><circle cx="7" cy="17" r="2"></circle><circle cx="17" cy="17" r="2"></circle><path d="M3.5 12h17"></path></>),
+  barrier: svg(22, 1.8, <><rect x="2" y="7" width="20" height="5" rx="1.5"></rect><path d="M6 7l-3 5M11 7l-3 5M16 7l-3 5M21 7l-3 5"></path><path d="M5 12v8M19 12v8"></path><path d="M3 20h4M17 20h4"></path></>),
+  report: svg(22, 1.8, <><rect x="5" y="4" width="14" height="17" rx="2"></rect><path d="M9 2.5h6v3H9z"></path><path d="M8.5 11h7M8.5 14.5h7M8.5 18h4"></path></>),
+  gear: svg(22, 1.8, <><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"></path></>),
   copy: svg(18, 2, <><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></>)
 };
 
