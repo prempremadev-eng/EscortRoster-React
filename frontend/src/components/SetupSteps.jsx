@@ -46,14 +46,14 @@ export function SetupHome() {
   return (
     <>
       <div className="titlebar"><h1>⚙️ Setup</h1></div>
-      <div className="setup-home">
-        <p className="setup-home-note">Do these once, in this order. Daily work (roster, schedule …) starts after them.</p>
+      <div className="hub-home">
+        <p className="hub-note">Do these once, in this order. Daily work (roster, schedule …) starts after them.</p>
         {steps.map(s => (
-          <a key={s.key} href={s.href} className="setup-card">
-            <span className="setup-card-step">{s.step}</span>
-            <span className="setup-card-icon">{ICON[s.key]}</span>
-            <span className="setup-card-text"><b>{s.label}</b><span>{MORE[s.key]}</span></span>
-            <span className="setup-card-go">›</span>
+          <a key={s.key} href={s.href} className="hub-card">
+            <span className="hub-card-step">{s.step}</span>
+            <span className="hub-card-icon">{ICON[s.key]}</span>
+            <span className="hub-card-text"><b>{s.label}</b><span>{MORE[s.key]}</span></span>
+            <span className="hub-card-go">›</span>
           </a>
         ))}
       </div>
@@ -70,12 +70,12 @@ export function ReportsHome() {
   return (
     <>
       <div className="titlebar"><h1>📊 Reports</h1></div>
-      <div className="setup-home">
+      <div className="hub-home">
         {items.map(([href, icon, label, more]) => (
-          <a key={href} href={href} className="setup-card">
-            <span className="setup-card-icon">{icon}</span>
-            <span className="setup-card-text"><b>{label}</b><span>{more}</span></span>
-            <span className="setup-card-go">›</span>
+          <a key={href} href={href} className="hub-card">
+            <span className="hub-card-icon">{icon}</span>
+            <span className="hub-card-text"><b>{label}</b><span>{more}</span></span>
+            <span className="hub-card-go">›</span>
           </a>
         ))}
       </div>

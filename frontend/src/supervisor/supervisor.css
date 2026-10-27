@@ -520,14 +520,14 @@ button.ah-kpi:hover{background:#F8FAFC;}
 .sc-step-now b{background:#fff;color:#1E4FB8;}
 .sup-rail-lbl span{white-space:nowrap;}
 /* Setup screen (#setup): the steps as big cards. */
-.setup-home{max-width:760px;margin:0 auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:12px;}
-.setup-home-note{color:var(--pd-muted);margin:0 0 4px;}
-.setup-card{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:16px 18px;text-decoration:none;color:#0F172A;box-shadow:0 1px 4px rgba(15,23,42,.05);}
-.setup-card:hover{border-color:#1E4FB8;box-shadow:0 4px 14px rgba(30,79,184,.12);}
-.setup-card-step{flex-shrink:0;width:40px;height:40px;border-radius:50%;background:#1E4FB8;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:14px;}
-.setup-card-icon{font-size:26px;flex-shrink:0;}
-.setup-card-text{flex:1;display:flex;flex-direction:column;gap:2px;}
-.setup-card-text b{font-size:17px;}
-.setup-card-text span{color:#64748B;font-size:14px;}
-.setup-card-go{font-size:26px;color:#94A3B8;}
+.hub-home{max-width:760px;margin:0 auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:12px;}
+.hub-note{color:var(--pd-muted);margin:0 0 4px;}
+.hub-card{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:16px 18px;text-decoration:none;color:#0F172A;box-shadow:0 1px 4px rgba(15,23,42,.05);}
+.hub-card:hover{border-color:#1E4FB8;box-shadow:0 4px 14px rgba(30,79,184,.12);}
+.hub-card-step{flex-shrink:0;width:40px;height:40px;border-radius:50%;background:#1E4FB8;color:#fff;font-weight:700;display:flex;align-items:center;justify-content:center;font-size:14px;}
+.hub-card-icon{font-size:26px;flex-shrink:0;}
+.hub-card-text{flex:1;display:flex;flex-direction:column;gap:2px;}
+.hub-card-text b{font-size:17px;}
+.hub-card-text span{color:#64748B;font-size:14px;}
+.hub-card-go{font-size:26px;color:#94A3B8;}
 a.setup-flow-title{text-decoration:none;}
