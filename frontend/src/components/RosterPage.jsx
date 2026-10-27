@@ -24,9 +24,23 @@ function keep(k, v) {
 // code in most day boxes. A person is matched by ID, then card (any format), then name.
 // The sheet that matches the most guards wins.
 function readRoster(XLSX, wb, guards, days) {
-  const byId = new Map(guards.map(g => [String(g.id).toUpperCase(), g]));
-  const byCard = new Map(guards.filter(g => g.card).map(g => [String(g.card).toUpperCase(), g]));
+  // An all-digit ID matches with or without its leading zeros (an agency roster may write 12345 for 012345).
+  const idKey = c => { const t = String(c).trim().toUpperCase(); return /^\d+$/.test(t) ? String(Number(t)) : t; };
+  const byId = new Map(guards.map(g => [idKey(g.id), g]));
+  const byCard = new Map(guards.filter(g => g.card).map(g => [idKey(g.card), g]));
   const byName = new Map(guards.map(g => [key(g.name), g]));
+  // A name written shorter than in the app ("RAVI" for RAVI K): the one guard whose name starts so.
+  // `taken`: guards already matched by a surer row, so "RAVI" can still find RAVI K beside RAVI KUMAR S.
+  const nameOf = (person, taken) => {
+    const k = key(person);
+    if (!k) return null;
+    if (byName.has(k)) return byName.get(k);
+    const like = guards.filter(g => (key(g.name).startsWith(k) || k.startsWith(key(g.name))) && !(taken && taken.has(g.ROWID)));
+    return like.length === 1 ? like[0] : null;
+  };
+  // Does the row's name fit the guard its ID points to? A typed-in roster can carry a wrong ID (two people
+  // with one ID); then the name decides.
+  const fits = (g, person) => !/[A-Za-z]{3}/.test(person) || person.toUpperCase().split(/[^A-Z]+/).some(w => w.length >= 3 && key(g.name).includes(w));
   let best = null;
   for (const name of wb.SheetNames) {
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[name], { header: 1, defval: '' });
@@ -36,21 +50,33 @@ function readRoster(XLSX, wb, guards, days) {
       if (i >= 0) { start = i; break; }
     }
     if (start < 0) continue;
-    const matched = new Map(), unmatched = [];
+    const matched = new Map(), unmatched = [], later = [];
     for (const r of rows) {
-      // Agency files write week off as "W/O" or "WO" (ISI, 27 Oct): read it as O.
-      const cells = r.slice(start, start + days).map(c => String(c).trim().toUpperCase().replace(/^W\/?O$/, 'O'));
+      // Agency files write week off as "W/O", "WO" or "OFF" (ISI, 27 Oct): read it as O.
+      const cells = r.slice(start, start + days).map(c => String(c).trim().toUpperCase().replace(/^(W\/?O|OFF)$/, 'O'));
       if (cells.filter(c => CODES.includes(c) && c !== '-').length < Math.min(20, days - 5)) continue;
       const before = r.slice(0, start).map(c => String(c).trim());
       // Any agency's ID / card format (Prem, 26 Oct: ISI uses 024081, IPF P12345 and VEN-IP-…): a cell that
       // is a known ID or card wins, then the longest name-like cell.
-      const pid = before.find(c => c && byId.has(c.toUpperCase()));
-      const ven = before.find(c => c && byCard.has(c.toUpperCase()));
+      const pid = before.find(c => c && byId.has(idKey(c)));
+      const ven = before.find(c => c && byCard.has(idKey(c)));
       const person = before.filter(c => /[A-Za-z]{2}/.test(c) && c !== pid && c !== ven && !/^VEN/i.test(c)).sort((a, b) => b.length - a.length)[0] || '';
-      const g = (pid && byId.get(pid.toUpperCase())) || (ven && byCard.get(ven.toUpperCase())) || byName.get(key(person));
+      const byNo = (pid && byId.get(idKey(pid))) || (ven && byCard.get(idKey(ven)));
+      // ID and name agree → that guard. They disagree → the name, if it names one guard; a name the app does
+      // not know at all is a spelling (SURESH / SURES) → the ID. A name like two guards waits.
+      const k = key(person);
+      const like = k ? guards.filter(x => key(x.name).startsWith(k) || k.startsWith(key(x.name))).length : 0;
+      const g = byNo && fits(byNo, person) ? byNo : (nameOf(person) || (like ? null : byNo));
       const codes = cells.map(c => (CODES.includes(c) ? c : '-')).join('');
       if (g) matched.set(g.ROWID, { guard_id: g.ROWID, codes });
-      else unmatched.push(person || pid || '?');
+      else later.push({ person, pid, byNo, codes });
+    }
+    // Second look at the rows left over, now that the sure rows have taken their guards; an ID whose name
+    // does not fit is only used when nobody else claimed that guard.
+    for (const { person, pid, byNo, codes } of later) {
+      const g = nameOf(person, matched) || (byNo && !matched.has(byNo.ROWID) ? byNo : null);
+      if (g) matched.set(g.ROWID, { guard_id: g.ROWID, codes });
+      else unmatched.push((person || pid || '?') + (byNo ? ' (ID ' + pid + ' is ' + byNo.name + ' in the app)' : ''));
     }
     if (!best || matched.size > best.matched.size) best = { sheet: name, matched, unmatched };
   }
