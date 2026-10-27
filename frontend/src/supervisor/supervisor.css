@@ -552,3 +552,9 @@ a.setup-flow-title{text-decoration:none;}
 .hub-tile-2{background:#E2E8F0;color:#334155;}
 .hub-card:hover .hub-tile{transform:scale(1.06);}
 .hub-tile{transition:transform .15s ease;}
+
+/* Today page: the Live button beside ↻ (AdminHome.jsx), a green blinking dot like a live broadcast. */
+.ah-live{display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 16px;border-radius:10px;background:#16A34A;color:#fff;font-weight:700;font-size:14px;text-decoration:none;box-shadow:0 4px 12px rgba(22,163,74,.3);}
+.ah-live:hover{background:#15803D;}
+.ah-live-dot{width:9px;height:9px;border-radius:50%;background:#fff;animation:ah-live-blink 1.4s ease-in-out infinite;}
+@keyframes ah-live-blink{0%,100%{opacity:1;}50%{opacity:.25;}}

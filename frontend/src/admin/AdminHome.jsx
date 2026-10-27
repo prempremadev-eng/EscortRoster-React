@@ -145,6 +145,8 @@ export default function AdminHome({ hash }) {
         ))}
       </div>}
       <button className="ah-refresh" onClick={load} aria-label="Refresh">↻</button>
+      {/* From the totals straight to the Live board, who is IN / OUT post by post (Prem, 27 Oct). */}
+      <a className="ah-live" href="#board"><span className="ah-live-dot"></span>Live</a>
     </div>
   );
 
