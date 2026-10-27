@@ -82,3 +82,25 @@ export function ReportsHome() {
     </>
   );
 }
+
+// Escort and Vehicles behind one button too (Prem, 27 Oct: "like setup and report").
+export function GateHome() {
+  const items = [
+    ['#escort', '🚗', 'Escort', 'The escort duty sheet: trips, seats, who is on escort today.'],
+    ['#vehicles', '🚧', 'Vehicles', 'Vehicle IN / OUT at the gates: scan, mark OUT, list of today.']
+  ];
+  return (
+    <>
+      <div className="titlebar"><h1>🚗 Escort & Vehicles</h1></div>
+      <div className="hub-home">
+        {items.map(([href, icon, label, more]) => (
+          <a key={href} href={href} className="hub-card">
+            <span className="hub-card-icon">{icon}</span>
+            <span className="hub-card-text"><b>{label}</b><span>{more}</span></span>
+            <span className="hub-card-go">›</span>
+          </a>
+        ))}
+      </div>
+    </>
+  );
+}

@@ -6,7 +6,7 @@ import { setupSteps } from '../components/SetupSteps.jsx';
 
 // The one menu of every signed-in page (Prem, 25 Oct: the top bar plus the rail, 13 buttons in no order,
 // confused even him). Three groups in the order of the work:
-//   Daily work: 1 Roster (once a month) → 2 Schedule → 3 Live board → 4 Posts → 5 Escort → 6 Vehicles
+//   Daily work: 1 Schedule → 2 Live → 3 Today → 4 Chats → 5 Escort & Vehicles
 //   Reports:    Shift report, Duty history
 //   Setup:      Guards, Post setup, Guard links, Admin (Branch Admin and above), Card simulator (Admin and above)
 // The round button at the bottom is the signed-in person: tap → sign out.
@@ -23,8 +23,8 @@ export default function Rail({ active }) {
       ['board', '#board', 'Live', Icon.grid, 2],
       ['home', '#home', 'Today', <svg key="h" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20H2"></path></svg>, 3],
       ['posts', '#supervisor', 'Chats', Icon.chat, 4],
-      ['escort', '#escort', 'Escort', Icon.car, 5],
-      ['vehicles', '#vehicles', 'Vehicles', Icon.gate, 6]
+      // Escort and Vehicles: one button, its screen offers both (Prem, 27 Oct).
+      ['gate', '#gate', 'Escort & Vehicles', Icon.car, 5]
     ].filter(Boolean)],
     // One Reports button: the Reports screen offers Shift report and Duty history.
     ['Reports', [['reports', '#reports', 'Reports', Icon.clip]]],
@@ -37,6 +37,7 @@ export default function Rail({ active }) {
   if (setupSteps(user).some(s => s.key === active)) active = 'setup';
   if (active === 'roster') active = 'schedule';
   if (active === 'report' || active === 'history') active = 'reports';
+  if (active === 'escort' || active === 'vehicles') active = 'gate';
   const here = groups.flatMap(g => g[1]).find(i => i[0] === active);
   const item = ([key, href, label, icon, step]) => (
     <a key={key} className={'sup-rail-btn sup-rail-lbl' + (active === key ? ' sup-rail-on' : '')} href={href} aria-label={label} title={label} onClick={() => setOpen(false)}>
