@@ -38,7 +38,8 @@ function readRoster(XLSX, wb, guards, days) {
     if (start < 0) continue;
     const matched = new Map(), unmatched = [];
     for (const r of rows) {
-      const cells = r.slice(start, start + days).map(c => String(c).trim().toUpperCase());
+      // Agency files write week off as "W/O" or "WO" (ISI, 27 Oct): read it as O.
+      const cells = r.slice(start, start + days).map(c => String(c).trim().toUpperCase().replace(/^W\/?O$/, 'O'));
       if (cells.filter(c => CODES.includes(c) && c !== '-').length < Math.min(20, days - 5)) continue;
       const before = r.slice(0, start).map(c => String(c).trim());
       // Any agency's ID / card format (Prem, 26 Oct: ISI uses 024081, IPF P12345 and VEN-IP-…): a cell that
