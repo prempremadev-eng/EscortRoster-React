@@ -33,7 +33,8 @@ export default function Rail({ active }) {
   const groups = [
     ['Daily', [
       // What the shift incharge opens every day, in order (Prem, 27 Oct). The month roster lives inside
-      // Schedule (its "Month roster" button and step 1), so Schedule is one button.
+      // Schedule (its "Month roster" button and step 1), so Schedule is one button. The order shows the
+      // flow; the menu shows no numbers (Prem, 27 Oct).
       ['schedule', '#schedule', 'Schedule', Icon.calendar, 1],
       ['board', '#board', 'Live', Icon.grid, 2],
       ['home', '#home', 'Today', <svg key="h" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20H2"></path></svg>, 3],
@@ -63,7 +64,7 @@ export default function Rail({ active }) {
     </div>
   ] : (
     <a key={key} className={'sup-rail-btn sup-rail-lbl' + (active === key ? ' sup-rail-on' : '')} href={href} aria-label={label} title={label} onClick={() => setOpen(false)}>
-      {icon}<span>{step ? step + ' ' : ''}{label}</span>
+      {icon}<span>{label}</span>
     </a>
   );
   return (
