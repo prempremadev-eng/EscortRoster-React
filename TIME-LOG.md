@@ -133,3 +133,5 @@ Note: after "good night" (00:40) work went on till about 03:05 (splash, Zoho log
 | 00:21 (2026-10-28) | ⏹️ Done ("innaiki itha mudichidalama" → day-end files) |
 
 **Total:** 09:17 → 00:21 (about 15 h, with breaks)
+
+Note: after the day-end files (00:21) work went on till about 01:00 (copy-from-yesterday follows the roster, 300-row limit removed, ISI 28 Oct copy test).
