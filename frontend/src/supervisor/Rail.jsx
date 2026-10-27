@@ -3,7 +3,6 @@ import { Icon, initials } from '../post/icons.jsx';
 import { useUser, atLeast, signOut } from '../auth/user.js';
 import { setupSteps } from '../components/SetupSteps.jsx';
 
-const SETUP_ICON = { admin: Icon.wrench, postsetup: Icon.pin, guards: Icon.shield, links: Icon.send, simulator: Icon.bell };
 
 // The one menu of every signed-in page (Prem, 25 Oct: the top bar plus the rail, 13 buttons in no order,
 // confused even him). Three groups in the order of the work:
@@ -33,8 +32,11 @@ export default function Rail({ active }) {
     ]],
     // Setup in its order (S1 Admin → S2 Posts → S3 Guards → S4 Links → S5 Card test), same list as the
     // step strip on those pages (SetupSteps.jsx).
-    ['Setup', setupSteps(user).map(s => [s.key, s.href, s.label, SETUP_ICON[s.key], s.step])]
+    // One Setup button (Prem, 27 Oct: five setup buttons confused people); the Setup screen lists the steps.
+    ['Setup', [['setup', '#setup', 'Setup', Icon.wrench]]]
   ];
+  // A setup page (Posts, Guards, Links, Admin, Card test) lights the one Setup button.
+  if (setupSteps(user).some(s => s.key === active)) active = 'setup';
   const here = groups.flatMap(g => g[1]).find(i => i[0] === active);
   const item = ([key, href, label, icon, step]) => (
     <a key={key} className={'sup-rail-btn sup-rail-lbl' + (active === key ? ' sup-rail-on' : '')} href={href} aria-label={label} title={label} onClick={() => setOpen(false)}>

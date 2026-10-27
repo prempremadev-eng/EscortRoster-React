@@ -20,7 +20,7 @@ export default function SetupSteps({ active }) {
   const at = steps.findIndex(s => s.key === active);
   return (
     <div className="sc-flow setup-flow no-print">
-      <span className="setup-flow-title">Setup</span>
+      <a className="setup-flow-title" href="#setup">⚙️ Setup</a>
       {steps.map((s, i) => [
         i > 0 && <span key={s.key + '-arrow'} className="sc-arrow">→</span>,
         <a key={s.key} href={s.href} className={'sc-step' + (i === at ? ' sc-step-now' : i < at ? ' sc-step-done' : '')} title={s.hint}>
@@ -28,5 +28,35 @@ export default function SetupSteps({ active }) {
         </a>
       ])}
     </div>
+  );
+}
+
+// The Setup screen (#setup, Prem 27 Oct: one Setup button in the menu instead of five): the steps as big
+// cards in order, so it can be explained in one look.
+export function SetupHome() {
+  const steps = setupSteps(useUser());
+  const ICON = { admin: '🏢', postsetup: '📍', guards: '🛡️', links: '🔗', simulator: '🪪' };
+  const MORE = {
+    admin: 'States, cities, branches, agencies and who may sign in (roles).',
+    postsetup: 'Every post of the branch and the shifts it needs (A, B, C, G).',
+    guards: 'ID, card, name and ⭐ shift incharge for each guard of the agency.',
+    links: 'One link / QR per guard: opened once on the guard’s phone for notifications.',
+    simulator: 'Press IN / OUT like the card machine to test a guard’s page.'
+  };
+  return (
+    <>
+      <div className="titlebar"><h1>⚙️ Setup</h1></div>
+      <div className="setup-home">
+        <p className="setup-home-note">Do these once, in this order. Daily work (roster, schedule …) starts after them.</p>
+        {steps.map(s => (
+          <a key={s.key} href={s.href} className="setup-card">
+            <span className="setup-card-step">{s.step}</span>
+            <span className="setup-card-icon">{ICON[s.key]}</span>
+            <span className="setup-card-text"><b>{s.label}</b><span>{MORE[s.key]}</span></span>
+            <span className="setup-card-go">›</span>
+          </a>
+        ))}
+      </div>
+    </>
   );
 }
