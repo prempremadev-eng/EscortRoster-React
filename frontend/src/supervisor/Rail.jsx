@@ -23,7 +23,8 @@ export default function Rail({ active }) {
       ['board', '#board', 'Live', Icon.grid, 3],
       ['home', '#home', 'Today', <svg key="h" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20H2"></path></svg>, 4],
       ['posts', '#supervisor', 'Chats', Icon.chat, 5],
-      ['escort', '#escort', 'Escort', Icon.car, 6],
+      // Escort only for the escort agency's incharge (escortEdit) and the office (Prem, 27 Oct).
+      (!user || user.role !== 'supervisor' || user.escortEdit) && ['escort', '#escort', 'Escort', Icon.car, 6],
       ['vehicles', '#vehicles', 'Vehicles', Icon.gate, 7]
     ].filter(Boolean)],
     ['Reports', [

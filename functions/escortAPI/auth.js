@@ -145,6 +145,11 @@ module.exports = function auth(catalyst, selectAll) {
         const ids = [...req.scope.branches].filter(id => /^[0-9]+$/.test(id));
         const team = ids.length ? await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE branch_id IN (${ids.join(', ')}) AND area = 'Escort' LIMIT 1`) : [];
         if (!team.length) return res.status(403).json({ status: 'failure', error: 'No escort duty in your branch.' });
+        // Prem, 27 Oct: a shift incharge of another agency (ISI, BSS) does not see the escort sheet any more.
+        if (role.role === 'supervisor') {
+          const own = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE agency_id = ${/^[0-9]+$/.test(String(role.agency_id || '')) ? role.agency_id : 0} AND area = 'Escort' LIMIT 1`);
+          if (!own.length) return res.status(403).json({ status: 'failure', error: 'The escort sheet is for the escort agency only.' });
+        }
       }
       if (role.role === 'supervisor' && ESCORT_WRITES.has(req.path)) {
         const team = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE agency_id = ${/^[0-9]+$/.test(String(role.agency_id || '')) ? role.agency_id : 0} AND area = 'Escort' LIMIT 1`);

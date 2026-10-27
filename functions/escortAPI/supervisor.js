@@ -304,6 +304,11 @@ module.exports = function supervisorRoutes(app, h) {
       const shiftsOut = shifts.map(x => { const w = windowOf(x.code, x.start); return { ...x, inFrom: w[0], inTo: w[1] }; });
 
       // Escort tab: escorts only.
+      // The escort tab is only for the escort agency's incharge (and the office), Prem 27 Oct.
+      if (req.query.shift === 'ESCORT' && req.user.role === 'supervisor') {
+        const own = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE agency_id = ${/^[0-9]+$/.test(String(req.user.agency_id || '')) ? req.user.agency_id : 0} AND area = 'Escort' LIMIT 1`);
+        if (!own.length) throw new Error('The escort tab is for the escort agency only.');
+      }
       if (req.query.shift === 'ESCORT') {
         const attention = [];
         const escort = await escortBoard(catalystApp, zcql, day, now, attention);

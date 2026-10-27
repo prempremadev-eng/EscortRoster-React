@@ -3,6 +3,7 @@ import { api } from '../api.js';
 import { useAgencyPick } from '../agencyPick.js';
 import { Icon } from '../post/icons.jsx';
 import Rail from './Rail.jsx';
+import { useUser } from '../auth/user.js';
 import '../post/post.css';
 import './supervisor.css';
 
@@ -44,6 +45,7 @@ const niceDate = d => new Date(d + 'T00:00:00Z').toLocaleDateString('en-GB', { w
 
 // Screen 10: live board of one branch and one shift. A post opens in the inbox.
 export default function SupervisorBoard() {
+  const me = useUser();
   const [branches, setBranches] = useState([]);
   // Starts empty: the remembered branch is used only if it is in this login's area.
   const [branch, setBranch] = useState('');
@@ -141,7 +143,7 @@ export default function SupervisorBoard() {
           <div className="pd-quick">
             <button className={'pd-chip' + (!shift ? ' pd-chip-primary' : '')} onClick={() => setShift('')} title="Follow the running shift">Auto{!shift && data ? ' · ' + data.shift.code : ''}</button>
             {shifts.map(s => <button key={s.code} className={'pd-chip' + (shift === s.code ? ' pd-chip-primary' : '')} onClick={() => setShift(s.code)}>Shift {s.code}</button>)}
-            <button className={'pd-chip' + (shift === 'ESCORT' ? ' pd-chip-primary' : '')} onClick={() => setShift('ESCORT')} title="Escort: 6 to 5 and 9 to 6">🚗 Escort</button>
+            {(!me || me.role !== 'supervisor' || me.escortEdit) && <button className={'pd-chip' + (shift === 'ESCORT' ? ' pd-chip-primary' : '')} onClick={() => setShift('ESCORT')} title="Escort: 6 to 5 and 9 to 6">🚗 Escort</button>}
           </div>
           <a className="pd-chip" href="#schedule">Edit schedule</a>
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
