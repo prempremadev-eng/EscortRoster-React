@@ -33,7 +33,7 @@ module.exports = function rosterRoutes(app, h) {
   }
   // A supervisor reads only their agency's rows (Prem, 25 Oct: no agency sees another's details).
   async function monthRows(req, zcql, branch, month) {
-    return selectAll(zcql, 'MonthRoster', `SELECT ROWID, guard_id, codes, updated_by, MODIFIEDTIME FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${month}' ORDER BY ROWID ASC`);
+    return selectAll(zcql, 'MonthRoster', `SELECT ROWID, guard_id, codes, updated_by, CREATEDTIME, MODIFIEDTIME FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${month}' ORDER BY ROWID ASC`);
   }
 
   // One branch, one month: the guards and their day codes (about 2 reads).
@@ -46,8 +46,13 @@ module.exports = function rosterRoutes(app, h) {
       const codes = {};
       let updated = null;
       // Guards in the order of the uploaded roster file (Prem, 27 Oct: "the order of the original monthly
-      // roster"): rows are saved in file order, so ROWID order is file order; guards without a row follow by name.
-      const rank = new Map(rows.map((r, i) => [String(r.guard_id), i]));
+      // roster"): an upload saves its rows fresh in file order, so the last upload is the newest block of rows
+      // (made within a few minutes) in ROWID order. Older rows (guards not in that file) follow, then guards
+      // without a row, by name.
+      const newest = rows.reduce((m, r) => (String(r.CREATEDTIME) > m ? String(r.CREATEDTIME) : m), '');
+      const cut = newest ? new Date(new Date(newest.slice(0, 19).replace(' ', 'T') + 'Z').getTime() - 10 * 60000).toISOString().slice(0, 19).replace('T', ' ') : '';
+      const block = r => (String(r.CREATEDTIME) >= cut ? 0 : 1);
+      const rank = new Map(rows.map((r, i) => [String(r.guard_id), block(r) * 1e5 + i]));
       guards.sort((x, y) => (rank.has(String(x.ROWID)) ? rank.get(String(x.ROWID)) : 1e6) - (rank.has(String(y.ROWID)) ? rank.get(String(y.ROWID)) : 1e6));
       rows.forEach(r => {
         codes[String(r.guard_id)] = r.codes;
