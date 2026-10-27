@@ -130,3 +130,6 @@ Note: after "good night" (00:40) work went on till about 03:05 (splash, Zoho log
 | Time | Event |
 |---|---|
 | 09:17 | ▶️ Start ("good morning") |
+| 00:21 (2026-10-28) | ⏹️ Done ("innaiki itha mudichidalama" → day-end files) |
+
+**Total:** 09:17 → 00:21 (about 15 h, with breaks)
