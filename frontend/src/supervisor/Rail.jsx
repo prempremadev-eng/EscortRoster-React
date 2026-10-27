@@ -17,19 +17,17 @@ export default function Rail({ active }) {
   const [open, setOpen] = useState(false);
   const groups = [
     ['Daily', [
-      // The shift incharge's day in order (Prem, 27 Oct): roster → schedule → live → today's numbers → posts.
-      ['roster', '#roster', 'Roster', Icon.history, 1],
-      ['schedule', '#schedule', 'Schedule', Icon.calendar, 2],
-      ['board', '#board', 'Live', Icon.grid, 3],
-      ['home', '#home', 'Today', <svg key="h" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20H2"></path></svg>, 4],
-      ['posts', '#supervisor', 'Chats', Icon.chat, 5],
-      ['escort', '#escort', 'Escort', Icon.car, 6],
-      ['vehicles', '#vehicles', 'Vehicles', Icon.gate, 7]
+      // What the shift incharge opens every day, in order (Prem, 27 Oct). The month roster lives inside
+      // Schedule (its "Month roster" button and step 1), so Schedule is one button.
+      ['schedule', '#schedule', 'Schedule', Icon.calendar, 1],
+      ['board', '#board', 'Live', Icon.grid, 2],
+      ['home', '#home', 'Today', <svg key="h" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20H2"></path></svg>, 3],
+      ['posts', '#supervisor', 'Chats', Icon.chat, 4],
+      ['escort', '#escort', 'Escort', Icon.car, 5],
+      ['vehicles', '#vehicles', 'Vehicles', Icon.gate, 6]
     ].filter(Boolean)],
-    ['Reports', [
-      ['report', '#report', 'Report', Icon.clip],
-      ['history', '#history', 'History', Icon.check]
-    ]],
+    // One Reports button: the Reports screen offers Shift report and Duty history.
+    ['Reports', [['reports', '#reports', 'Reports', Icon.clip]]],
     // Setup in its order (S1 Admin → S2 Posts → S3 Guards → S4 Links → S5 Card test), same list as the
     // step strip on those pages (SetupSteps.jsx).
     // One Setup button (Prem, 27 Oct: five setup buttons confused people); the Setup screen lists the steps.
@@ -37,6 +35,8 @@ export default function Rail({ active }) {
   ];
   // A setup page (Posts, Guards, Links, Admin, Card test) lights the one Setup button.
   if (setupSteps(user).some(s => s.key === active)) active = 'setup';
+  if (active === 'roster') active = 'schedule';
+  if (active === 'report' || active === 'history') active = 'reports';
   const here = groups.flatMap(g => g[1]).find(i => i[0] === active);
   const item = ([key, href, label, icon, step]) => (
     <a key={key} className={'sup-rail-btn sup-rail-lbl' + (active === key ? ' sup-rail-on' : '')} href={href} aria-label={label} title={label} onClick={() => setOpen(false)}>

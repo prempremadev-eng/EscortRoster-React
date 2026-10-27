@@ -60,3 +60,25 @@ export function SetupHome() {
     </>
   );
 }
+
+// The Reports screen (#reports, Prem 27 Oct: Report and History behind one button).
+export function ReportsHome() {
+  const items = [
+    ['#report', '📋', 'Shift report', 'Each shift: posts, IN, late, absent, leave, off, vacant (to send to the Branch Admin).'],
+    ['#history', '📖', 'Duty history', 'Who was at which post on past days; open any shift.']
+  ];
+  return (
+    <>
+      <div className="titlebar"><h1>📊 Reports</h1></div>
+      <div className="setup-home">
+        {items.map(([href, icon, label, more]) => (
+          <a key={href} href={href} className="setup-card">
+            <span className="setup-card-icon">{icon}</span>
+            <span className="setup-card-text"><b>{label}</b><span>{more}</span></span>
+            <span className="setup-card-go">›</span>
+          </a>
+        ))}
+      </div>
+    </>
+  );
+}

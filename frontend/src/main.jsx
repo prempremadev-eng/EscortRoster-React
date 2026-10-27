@@ -16,7 +16,7 @@ import SupervisorBoard from './supervisor/SupervisorBoard.jsx';
 import SupervisorSchedule from './supervisor/SupervisorSchedule.jsx';
 import AdminPage from './admin/AdminPage.jsx';
 import AdminHome from './admin/AdminHome.jsx';
-import { SetupHome } from './components/SetupSteps.jsx';
+import { SetupHome, ReportsHome } from './components/SetupSteps.jsx';
 import { useUser, atLeast } from './auth/user.js';
 import RosterPage from './components/RosterPage.jsx';
 import Rail from './supervisor/Rail.jsx';
@@ -152,6 +152,7 @@ function page(hash) {
   if (hash === '#supervisor' || hash.startsWith('#supervisor/')) return <SupervisorInbox key={hash} initialPost={hash.split('/')[1] || null} />;
   if (hash === '#board') return <SupervisorBoard />;
   if (hash === '#schedule') return <SupervisorSchedule />;
+  if (hash === '#reports') return <SupFrame active="reports"><ReportsHome /></SupFrame>;
   if (hash === '#setup') return <SupFrame active="setup"><SetupHome /></SupFrame>;
   if (hash === '#escort') return <SupFrame active="escort"><App /></SupFrame>;
   if (hash === '#home' || hash.startsWith('#home/')) return <SupFrame active="home"><AdminHome hash={hash} /></SupFrame>;
