@@ -521,6 +521,8 @@ button.ah-kpi:hover{background:#F8FAFC;}
 .sup-rail-lbl span{white-space:nowrap;}
 /* Setup screen (#setup): the steps as big cards. */
 .hub-home{max-width:760px;margin:0 auto;padding:20px 16px 40px;display:flex;flex-direction:column;gap:12px;}
+.hub-head{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748B;margin:10px 0 0;}
+.hub-head:first-child{margin-top:0;}
 .hub-note{color:var(--pd-muted);margin:0 0 4px;}
 .hub-card{display:flex;align-items:center;gap:14px;background:#fff;border:1px solid #E2E8F0;border-radius:14px;padding:16px 18px;text-decoration:none;color:#0F172A;box-shadow:0 1px 4px rgba(15,23,42,.05);}
 .hub-card:hover{border-color:#1E4FB8;box-shadow:0 4px 14px rgba(30,79,184,.12);}

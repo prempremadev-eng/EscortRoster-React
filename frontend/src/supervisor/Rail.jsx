@@ -6,9 +6,8 @@ import { setupSteps } from '../components/SetupSteps.jsx';
 
 // The one menu of every signed-in page (Prem, 25 Oct: the top bar plus the rail, 13 buttons in no order,
 // confused even him). Three groups in the order of the work:
-//   Daily work: 1 Schedule → 2 Live → 3 Today → 4 Chats → 5 Escort & Vehicles
-//   Reports:    Shift report, Duty history
-//   Setup:      Guards, Post setup, Guard links, Admin (Branch Admin and above), Card simulator (Admin and above)
+//   Daily work: 1 Schedule → 2 Live → 3 Today → 4 Chats
+//   More:       Escort & Vehicles, Reports, Setup (one screen, #more)
 // The round button at the bottom is the signed-in person: tap → sign out.
 // On a phone (Prem, 25 Oct: the manager looks on an iPhone) the rail hides behind a ☰ bar at the top,
 // so the page gets the whole width; tapping ☰ slides the menu in.
@@ -22,22 +21,15 @@ export default function Rail({ active }) {
       ['schedule', '#schedule', 'Schedule', Icon.calendar, 1],
       ['board', '#board', 'Live', Icon.grid, 2],
       ['home', '#home', 'Today', <svg key="h" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20H2"></path></svg>, 3],
-      ['posts', '#supervisor', 'Chats', Icon.chat, 4],
-      // Escort and Vehicles: one button, its screen offers both (Prem, 27 Oct).
-      ['gate', '#gate', 'Escort & Vehicles', Icon.car, 5]
+      ['posts', '#supervisor', 'Chats', Icon.chat, 4]
     ].filter(Boolean)],
-    // One Reports button: the Reports screen offers Shift report and Duty history.
-    ['Reports', [['reports', '#reports', 'Reports', Icon.clip]]],
-    // Setup in its order (S1 Admin → S2 Posts → S3 Guards → S4 Links → S5 Card test), same list as the
-    // step strip on those pages (SetupSteps.jsx).
-    // One Setup button (Prem, 27 Oct: five setup buttons confused people); the Setup screen lists the steps.
-    ['Setup', [['setup', '#setup', 'Setup', Icon.wrench]]]
+    // Escort & Vehicles, Reports and Setup sit behind one More button (Prem, 27 Oct: the menu looked
+    // crowded); the More screen lists them in groups.
+    ['More', [['more', '#more', 'More', <svg key="m" viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>]]]
   ];
-  // A setup page (Posts, Guards, Links, Admin, Card test) lights the one Setup button.
-  if (setupSteps(user).some(s => s.key === active)) active = 'setup';
+  // Every page behind More (setup pages, reports, escort, vehicles) lights the More button.
   if (active === 'roster') active = 'schedule';
-  if (active === 'report' || active === 'history') active = 'reports';
-  if (active === 'escort' || active === 'vehicles') active = 'gate';
+  if (setupSteps(user).some(s => s.key === active) || ['setup', 'reports', 'report', 'history', 'gate', 'escort', 'vehicles'].includes(active)) active = 'more';
   const here = groups.flatMap(g => g[1]).find(i => i[0] === active);
   const item = ([key, href, label, icon, step]) => (
     <a key={key} className={'sup-rail-btn sup-rail-lbl' + (active === key ? ' sup-rail-on' : '')} href={href} aria-label={label} title={label} onClick={() => setOpen(false)}>

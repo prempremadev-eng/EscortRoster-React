@@ -83,23 +83,36 @@ export function ReportsHome() {
   );
 }
 
-// Escort and Vehicles behind one button too (Prem, 27 Oct: "like setup and report").
-export function GateHome() {
-  const items = [
-    ['#escort', '🚗', 'Escort', 'The escort duty sheet: trips, seats, who is on escort today.'],
-    ['#vehicles', '🚧', 'Vehicles', 'Vehicle IN / OUT at the gates: scan, mark OUT, list of today.']
+// The More screen (#more, Prem 27 Oct: "Escort & Vehicles, Reports, Setup in one button, the menu looks
+// less crowded"). The menu keeps only the daily four; everything else is one tap away here, in groups.
+export function MoreHome() {
+  const groups = [
+    ['Escort & Vehicles', [
+      ['#escort', '🚗', 'Escort', 'The escort duty sheet: trips, seats, who is on escort today.'],
+      ['#vehicles', '🚧', 'Vehicles', 'Vehicle IN / OUT at the gates: scan, mark OUT, list of today.']
+    ]],
+    ['Reports', [
+      ['#report', '📋', 'Shift report', 'Each shift: posts, IN, late, absent, leave, off, vacant (to send to the Branch Admin).'],
+      ['#history', '📖', 'Duty history', 'Who was at which post on past days; open any shift.']
+    ]],
+    ['Setup', [
+      ['#setup', '⚙️', 'Setup', 'Admin, posts, guards, guard links, card test: done once, in order.']
+    ]]
   ];
   return (
     <>
-      <div className="titlebar"><h1>🚗 Escort & Vehicles</h1></div>
+      <div className="titlebar"><h1>☰ More</h1></div>
       <div className="hub-home">
-        {items.map(([href, icon, label, more]) => (
-          <a key={href} href={href} className="hub-card">
-            <span className="hub-card-icon">{icon}</span>
-            <span className="hub-card-text"><b>{label}</b><span>{more}</span></span>
-            <span className="hub-card-go">›</span>
-          </a>
-        ))}
+        {groups.map(([head, items]) => [
+          <h2 key={head} className="hub-head">{head}</h2>,
+          ...items.map(([href, icon, label, more]) => (
+            <a key={href} href={href} className="hub-card">
+              <span className="hub-card-icon">{icon}</span>
+              <span className="hub-card-text"><b>{label}</b><span>{more}</span></span>
+              <span className="hub-card-go">›</span>
+            </a>
+          ))
+        ])}
       </div>
     </>
   );

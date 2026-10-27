@@ -16,8 +16,7 @@ import SupervisorBoard from './supervisor/SupervisorBoard.jsx';
 import SupervisorSchedule from './supervisor/SupervisorSchedule.jsx';
 import AdminPage from './admin/AdminPage.jsx';
 import AdminHome from './admin/AdminHome.jsx';
-import { SetupHome, ReportsHome, GateHome } from './components/SetupSteps.jsx';
-import { useUser, atLeast } from './auth/user.js';
+import { SetupHome, ReportsHome, MoreHome } from './components/SetupSteps.jsx';
 import RosterPage from './components/RosterPage.jsx';
 import Rail from './supervisor/Rail.jsx';
 import './post/post.css';
@@ -152,7 +151,7 @@ function page(hash) {
   if (hash === '#supervisor' || hash.startsWith('#supervisor/')) return <SupervisorInbox key={hash} initialPost={hash.split('/')[1] || null} />;
   if (hash === '#board') return <SupervisorBoard />;
   if (hash === '#schedule') return <SupervisorSchedule />;
-  if (hash === '#gate') return <SupFrame active="gate"><GateHome /></SupFrame>;
+  if (hash === '#more') return <SupFrame active="more"><MoreHome /></SupFrame>;
   if (hash === '#reports') return <SupFrame active="reports"><ReportsHome /></SupFrame>;
   if (hash === '#setup') return <SupFrame active="setup"><SetupHome /></SupFrame>;
   if (hash === '#escort') return <SupFrame active="escort"><App /></SupFrame>;
@@ -160,11 +159,10 @@ function page(hash) {
   return <Landing />;
 }
 
-// The first page (Prem, 26 Oct): Branch Admin and above → the strength overview; a shift incharge → Posts.
+// The first page: the Today strength overview for every office login (Prem, 27 Oct; till then a shift
+// incharge landed on Posts).
 function Landing() {
-  const user = useUser();
-  if (atLeast(user, 'branch_admin')) return <SupFrame active="home"><AdminHome hash="#home" /></SupFrame>;
-  return <SupervisorInbox key="home" initialPost={null} />;
+  return <SupFrame active="home"><AdminHome hash="#home" /></SupFrame>;
 }
 
 createRoot(document.getElementById('root')).render(<Root />);
