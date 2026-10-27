@@ -45,6 +45,10 @@ module.exports = function rosterRoutes(app, h) {
       const [guards, rows] = await Promise.all([branchGuards(req, zcql, branch), monthRows(req, zcql, branch, month)]);
       const codes = {};
       let updated = null;
+      // Guards in the order of the uploaded roster file (Prem, 27 Oct: "the order of the original monthly
+      // roster"): rows are saved in file order, so ROWID order is file order; guards without a row follow by name.
+      const rank = new Map(rows.map((r, i) => [String(r.guard_id), i]));
+      guards.sort((x, y) => (rank.has(String(x.ROWID)) ? rank.get(String(x.ROWID)) : 1e6) - (rank.has(String(y.ROWID)) ? rank.get(String(y.ROWID)) : 1e6));
       rows.forEach(r => {
         codes[String(r.guard_id)] = r.codes;
         if (!updated || String(r.MODIFIEDTIME) > updated.at) updated = { at: String(r.MODIFIEDTIME).slice(0, 16), by: r.updated_by || '' };
@@ -59,8 +63,8 @@ module.exports = function rosterRoutes(app, h) {
     }
   });
 
-  // Save many guards at once (the Excel upload). Only guards of this branch in my area; a guard
-  // already in the month is replaced, the rest are added. Guards not in the upload are kept.
+  // Save many guards at once (the Excel upload), in the file's order. Only guards of this branch in my area;
+  // a guard already in the month is replaced, the rest are added. Guards not in the upload are kept.
   app.post('/rosterUpload', async (req, res) => {
     try {
       const catalystApp = admin(req);
@@ -74,7 +78,7 @@ module.exports = function rosterRoutes(app, h) {
       const [guards, rows] = await Promise.all([branchGuards(req, zcql, branch), monthRows(req, zcql, branch, month)]);
       const guardById = new Map(guards.map(g => [String(g.ROWID), g]));
       const rowByGuard = new Map(rows.map(r => [String(r.guard_id), r]));
-      const inserts = [], updates = [], skipped = [];
+      const inserts = [], olds = [], skipped = [];
       const seen = new Set();
       for (const e of entries) {
         const id = String(e.guard_id || '');
@@ -83,13 +87,15 @@ module.exports = function rosterRoutes(app, h) {
         seen.add(id);
         const codes = cleanCodes(e.codes, days);
         const old = rowByGuard.get(id);
-        if (old) updates.push({ ROWID: old.ROWID, codes, updated_by: req.user.name });
-        else inserts.push({ guard_id: id, roster_month: month, codes, branch_id: branch, agency_id: g.agency_id || null, updated_by: req.user.name });
+        // Every row is written fresh in the file's order (the page lists guards in ROWID order); a guard's old
+        // row goes only after the new rows are saved, so a failed upload loses nothing.
+        if (old) olds.push(old.ROWID);
+        inserts.push({ guard_id: id, roster_month: month, codes, branch_id: branch, agency_id: g.agency_id || null, updated_by: req.user.name });
       }
       const table = catalystApp.datastore().table('MonthRoster');
       for (let i = 0; i < inserts.length; i += 100) await table.insertRows(inserts.slice(i, i + 100));
-      for (let i = 0; i < updates.length; i += 100) await table.updateRows(updates.slice(i, i + 100));
-      ok(res, { added: inserts.length, replaced: updates.length, skipped: skipped.length });
+      for (let i = 0; i < olds.length; i += 200) await table.deleteRows(olds.slice(i, i + 200));
+      ok(res, { added: inserts.length - olds.length, replaced: olds.length, skipped: skipped.length });
     } catch (err) {
       fail(res, err);
     }

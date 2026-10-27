@@ -51,7 +51,7 @@ function readRoster(XLSX, wb, guards, days) {
     }
     if (start < 0) continue;
     const matched = new Map(), unmatched = [], later = [];
-    for (const r of rows) {
+    for (const [at, r] of rows.entries()) {
       // Agency files write week off as "W/O", "WO" or "OFF" (ISI, 27 Oct): read it as O.
       const cells = r.slice(start, start + days).map(c => String(c).trim().toUpperCase().replace(/^(W\/?O|OFF)$/, 'O'));
       if (cells.filter(c => CODES.includes(c) && c !== '-').length < Math.min(20, days - 5)) continue;
@@ -68,17 +68,19 @@ function readRoster(XLSX, wb, guards, days) {
       const like = k ? guards.filter(x => key(x.name).startsWith(k) || k.startsWith(key(x.name))).length : 0;
       const g = byNo && fits(byNo, person) ? byNo : (nameOf(person) || (like ? null : byNo));
       const codes = cells.map(c => (CODES.includes(c) ? c : '-')).join('');
-      if (g) matched.set(g.ROWID, { guard_id: g.ROWID, codes });
-      else later.push({ person, pid, byNo, codes });
+      if (g) matched.set(g.ROWID, { guard_id: g.ROWID, codes, at });
+      else later.push({ person, pid, byNo, codes, at });
     }
     // Second look at the rows left over, now that the sure rows have taken their guards; an ID whose name
     // does not fit is only used when nobody else claimed that guard.
-    for (const { person, pid, byNo, codes } of later) {
+    for (const { person, pid, byNo, codes, at } of later) {
       const g = nameOf(person, matched) || (byNo && !matched.has(byNo.ROWID) ? byNo : null);
-      if (g) matched.set(g.ROWID, { guard_id: g.ROWID, codes });
+      if (g) matched.set(g.ROWID, { guard_id: g.ROWID, codes, at });
       else unmatched.push((person || pid || '?') + (byNo ? ' (ID ' + pid + ' is ' + byNo.name + ' in the app)' : ''));
     }
-    if (!best || matched.size > best.matched.size) best = { sheet: name, matched, unmatched };
+    // Back in the file's order (the second look added its rows last); the roster page keeps this order.
+    const inOrder = new Map([...matched].sort((x, y) => x[1].at - y[1].at));
+    if (!best || inOrder.size > best.matched.size) best = { sheet: name, matched: inOrder, unmatched };
   }
   return best;
 }
