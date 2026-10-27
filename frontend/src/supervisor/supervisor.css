@@ -496,3 +496,6 @@ button.ah-kpi:hover{background:#F8FAFC;}
 .ah-tr{grid-template-columns:110px 130px repeat(6,minmax(56px,80px)) minmax(140px,1fr) 24px;}
 .ah-kpis{grid-template-columns:repeat(6,minmax(0,1fr));}
 @media (max-width:900px){.ah-kpis{grid-template-columns:repeat(3,minmax(0,1fr));}.ah-tr{grid-template-columns:auto 1fr auto;}.ah-mnums{flex-wrap:wrap;gap:4px 14px;}}
+.ah-actions-bottom{margin-top:18px;gap:10px;}
+.ah-btn-dark{background:#1E293B;color:#fff;border-color:#1E293B;}
+.ah-btn-dark:hover{background:#0F172A;}

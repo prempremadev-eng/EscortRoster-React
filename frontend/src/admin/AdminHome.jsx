@@ -247,7 +247,6 @@ export default function AdminHome({ hash }) {
         <section className={'ah-split' + (view === 'group' ? ' ah-split-on' : '')}>
           {view === 'group' && (
             <aside className="ah-detail">
-              <button className="ah-back" onClick={() => go(groups.length === 1 ? '#home' : '#home/list')}>{groups.length === 1 ? '← Today' : '← All branches'}</button>
               {!detail && <div className="ah-loading">Loading…</div>}
               {detail && detail.missing && <div className="ah-loading">No guards for this branch · agency on this day.</div>}
               {detail && !detail.missing && (
@@ -271,7 +270,6 @@ export default function AdminHome({ hash }) {
             </aside>
           )}
           <div className="ah-grid-wrap">
-            {view === 'list' && <button className="ah-back" onClick={() => go('#home')}>← Overall</button>}
             <div className="ah-grid">
               {groups.length === 1 && data.byShift.map(x => (
                 <ShiftTile key={x.code} x={x} on={view === 'group' && shift === x.code}
@@ -282,6 +280,11 @@ export default function AdminHome({ hash }) {
                   onPick={() => go('#home/g/' + g.branchId + '-' + g.agencyId)} />
               ))}
               {groups.length === 0 && <div className="ah-loading">No branch has guards on this day.</div>}
+            </div>
+            {/* Back at the bottom right (Prem, 27 Oct). */}
+            <div className="ah-actions ah-actions-bottom">
+              {view === 'group' && groups.length > 1 && <button className="ah-btn" onClick={() => go('#home/list')}>← All branches</button>}
+              <button className="ah-btn ah-btn-dark" onClick={() => go('#home')}>← Today</button>
             </div>
           </div>
         </section>
