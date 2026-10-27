@@ -430,15 +430,19 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
             <div className="pd-title pd-title-sm">{postTitle}</div>
             {/* Two short lines instead of one that wraps (Prem, 25 Oct): who, then which shift. */}
             <div className="pd-chat-who">{duty.name}</div>
-            <div className="pd-muted pd-small">
-              {here ? 'Covering for ' + here.guard
-                : onBreak ? myBreak.typeLabel + ' break · since ' + myBreak.start
-                  : shiftLine}
+            {/* The status pill sits under the name, beside the shift (Prem, 27 Oct: the full post name has to
+                show), so the name gets the width the pill took. */}
+            <div className="pd-chat-meta">
+              <span className="pd-muted pd-small">
+                {here ? 'Covering for ' + here.guard
+                  : onBreak ? myBreak.typeLabel + ' break · since ' + myBreak.start
+                    : shiftLine}
+              </span>
+              {here ? <span className="pd-pill pd-amber">Covering</span>
+                : onBreak ? <span className="pd-pill pd-amber">{myBreak.typeLabel} break</span>
+                  : <button className="pd-pill pd-green pd-pill-btn" onClick={() => setSheet(general ? 'general' : 'break')} disabled={!!myBreak}>On duty ▾</button>}
             </div>
           </div>
-          {here ? <div className="pd-pill pd-amber">Covering</div>
-            : onBreak ? <div className="pd-pill pd-amber">{myBreak.typeLabel} break</div>
-              : <button className="pd-pill pd-green pd-pill-btn" onClick={() => setSheet(general ? 'general' : 'break')} disabled={!!myBreak}>On duty ▾</button>}
           {/* 📞 like WhatsApp's call icon (Prem, 26 Oct): Safety today with call buttons, instead of a bar. */}
           <button className="pd-icon-btn" onClick={() => setSheet('safety')} aria-label="Safety today: who to call">{Icon.phone}</button>
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
