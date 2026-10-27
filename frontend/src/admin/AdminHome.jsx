@@ -220,7 +220,7 @@ export default function AdminHome({ hash }) {
               </div>
               {data.byShift.map((x, i) => (
                 <button key={x.code} role="row" className={'ah-tr' + (x.code === now ? ' ah-tr-now' : '')} style={{ animationDelay: (0.05 + i * 0.08) + 's' }}
-                  onClick={() => { setShift(x.code); go(groups.length === 1 ? '#home/g/' + groups[0].branchId + '-' + groups[0].agencyId : '#home/list'); }}>
+                  onClick={() => { setShift(x.code); go('#home/list'); }}>
                   <span className="ah-td-shift"><b className="ah-letter">{x.code}</b>{x.code === now && <em className="ah-now">● Now</em>}</span>
                   <span className="ah-td-time">{x.start} – {x.end}</span>
                   {/* Phone: the three numbers in one line (the columns are hidden there). */}
