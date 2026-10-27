@@ -14,6 +14,22 @@ import { setupSteps } from '../components/SetupSteps.jsx';
 export default function Rail({ active }) {
   const user = useUser();
   const [open, setOpen] = useState(false);
+  // More opens a list of small buttons under it (Prem, 27 Oct: like the old menu); a second tap closes it.
+  // Every page draws its own rail, so open / closed is kept in sessionStorage.
+  const [moreOpen, setMoreOpen] = useState(() => { try { return sessionStorage.getItem('railMore') === '1'; } catch { return false; } });
+  const toggleMore = (e) => {
+    const next = !moreOpen;
+    setMoreOpen(next);
+    try { sessionStorage.setItem('railMore', next ? '1' : ''); } catch { /* private mode */ }
+    if (!next) e.preventDefault(); // closing only folds the list, the page stays
+  };
+  const moreItems = [
+    ['escort', '#escort', 'Escort', Icon.car],
+    ['vehicles', '#vehicles', 'Vehicles', Icon.gate],
+    ['report', '#report', 'Report', Icon.clip],
+    ['history', '#history', 'History', Icon.history],
+    ['setup', '#setup', 'Setup', Icon.wrench]
+  ];
   const groups = [
     ['Daily', [
       // What the shift incharge opens every day, in order (Prem, 27 Oct). The month roster lives inside
@@ -27,11 +43,25 @@ export default function Rail({ active }) {
     // crowded); the More screen lists them in groups.
     ['More', [['more', '#more', 'More', <svg key="m" viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>]]]
   ];
-  // Every page behind More (setup pages, reports, escort, vehicles) lights the More button.
+  // Every page behind More (setup pages, reports, escort, vehicles) lights the More button; the small
+  // button of that page under More lights too.
   if (active === 'roster') active = 'schedule';
-  if (setupSteps(user).some(s => s.key === active) || ['setup', 'reports', 'report', 'history', 'gate', 'escort', 'vehicles'].includes(active)) active = 'more';
+  let sub = setupSteps(user).some(s => s.key === active) ? 'setup' : active === 'reports' ? '' : active;
+  if (setupSteps(user).some(s => s.key === active) || ['setup', 'reports', 'report', 'history', 'escort', 'vehicles'].includes(active)) active = 'more';
+  else sub = '';
   const here = groups.flatMap(g => g[1]).find(i => i[0] === active);
-  const item = ([key, href, label, icon, step]) => (
+  const item = ([key, href, label, icon, step]) => key === 'more' ? [
+    <a key={key} className={'sup-rail-btn sup-rail-lbl' + (active === key ? ' sup-rail-on' : '')} href={href} aria-label={label} title={label} aria-expanded={moreOpen} onClick={toggleMore}>
+      {icon}<span>{label} {moreOpen ? '▴' : '▾'}</span>
+    </a>,
+    moreOpen && <div key="more-list" className="sup-rail-sublist">
+      {moreItems.map(([k, h, l, ic]) => (
+        <a key={k} className={'sup-rail-btn sup-rail-lbl sup-rail-sub' + (sub === k ? ' sup-rail-on' : '')} href={h} aria-label={l} title={l} onClick={() => setOpen(false)}>
+          {ic}<span>{l}</span>
+        </a>
+      ))}
+    </div>
+  ] : (
     <a key={key} className={'sup-rail-btn sup-rail-lbl' + (active === key ? ' sup-rail-on' : '')} href={href} aria-label={label} title={label} onClick={() => setOpen(false)}>
       {icon}<span>{step ? step + ' ' : ''}{label}</span>
     </a>
