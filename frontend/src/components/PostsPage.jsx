@@ -157,6 +157,19 @@ export default function PostsPage() {
     }
   }
 
+  async function removePost(p) {
+    if (!window.confirm('Delete ' + p.post_name + ' for good? Only possible if nobody ever worked there.')) return;
+    setError('');
+    setNote('');
+    try {
+      await api.deletePost(p.ROWID);
+      setData(d => ({ ...d, posts: d.posts.filter(x => String(x.ROWID) !== String(p.ROWID)) }));
+      setNote('🗑️ ' + p.post_name + ' deleted.');
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function setActive(p, active) {
     setError('');
     setNote('');
@@ -338,7 +351,9 @@ export default function PostsPage() {
                       <td>{p.shift_codes || 'All'}</td>
                       <td>{isOn(p.vehicle_entry) ? '🚗 Yes' : '—'}</td>
                       <td><Toggle on={!off} label={p.post_name} disabled={!canEdit} onChange={() => setActive(p, off)} /></td>
-                      <td className="adm-actions">{canEdit && !off && <IconBtn icon="✏️" label={'Edit ' + p.post_name} onClick={() => { setError(''); setNote(''); loadGuards(); setForm({ ...p, rules: rulesOf(p) }); window.scrollTo({ top: 0 }); }} />}</td>
+                      <td className="adm-actions">{canEdit && !off && <IconBtn icon="✏️" label={'Edit ' + p.post_name} onClick={() => { setError(''); setNote(''); loadGuards(); setForm({ ...p, rules: rulesOf(p) }); window.scrollTo({ top: 0 }); }} />}
+                        {/* 🗑 only on a switched-off post; the server deletes it only if it was never used. */}
+                        {canEdit && off && <IconBtn icon="🗑️" label={'Delete ' + p.post_name} onClick={() => removePost(p)} />}</td>
                     </tr>
                   );
                 })}

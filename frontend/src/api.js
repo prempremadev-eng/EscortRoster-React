@@ -116,6 +116,7 @@ export const api = {
   addPost: post => apiCall('POST', '/addPost', post),
   updatePost: post => apiCall('PUT', '/updatePost', post),
   postOrder: ids => apiCall('POST', '/postOrder', { ids }),
+  deletePost: ROWID => apiCall('POST', '/deletePost', { ROWID }),
   getChart: (week, branch) => apiCall('GET', '/getChart?week=' + q(week || '') + (branch ? '&branch=' + q(branch) : '')),
   saveChart: row => apiCall('POST', '/saveChart', row),
   copyChart: (week, branch_id) => apiCall('POST', '/copyChart', { week, branch_id }),

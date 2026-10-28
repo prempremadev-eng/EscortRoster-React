@@ -1271,6 +1271,32 @@ app.post('/addPost', async (req, res) => {
   }
 });
 
+// Delete a post for good (Prem, 28 Oct: test posts). Only a post that is switched off and was never used:
+// no schedule, chart, duty, chat, break, alert, presence, safety, vehicle or work row points to it.
+// A used post stays (switched off) so old history keeps its name.
+app.post('/deletePost', async (req, res) => {
+  try {
+    auth.need(req, 'supervisor');
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const zcql = catalystApp.zcql();
+    const id = requireRowId(req.body.ROWID);
+    const found = await zcql.executeZCQLQuery(`SELECT ROWID, branch_id, agency_id, is_active, post_name FROM Posts WHERE ROWID = ${id}`);
+    if (!found.length) throw new Error('Post not found');
+    const post = auth.requireRow(req, found[0].Posts, 'post');
+    if (String(post.is_active) === 'true') throw new Error('Switch the post off first.');
+    const uses = ['Schedule', 'DutyChart', 'DutyLog', 'PostMessages', 'WorkUpdates', 'Breaks', 'Alerts', 'Presence', 'SafetyEntries', 'VehicleEntries']
+      .map(t => [t, `SELECT ROWID FROM ${t} WHERE post_id = ${id} LIMIT 1`]);
+    uses.push(['Breaks (cover)', `SELECT ROWID FROM Breaks WHERE cover_post_id = ${id} LIMIT 1`]);
+    const used = [];
+    for (const [t, sql] of uses) if ((await zcql.executeZCQLQuery(sql)).length) used.push(t);
+    if (used.length) throw new Error(post.post_name + ' has history (' + used.join(', ') + '), so it stays switched off and is not deleted.');
+    await catalystApp.datastore().table('Posts').deleteRow(id);
+    res.status(200).json({ status: 'success', data: { deleted: post.post_name } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
 // The order of the posts on the daily sheet (Prem, 28 Oct: a supervisor adds a post any day and puts it where
 // it suits him): the posts in their new order, numbered 1, 2, 3 … Only posts he may edit.
 app.post('/postOrder', async (req, res) => {
