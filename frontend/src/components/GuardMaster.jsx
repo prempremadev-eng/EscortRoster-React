@@ -319,7 +319,7 @@ export default function GuardMaster() {
               </label>
               <label className="gm-incharge-filter">
                 <span>Shift incharges</span>
-                <span><input type="checkbox" checked={filters.incharge} onChange={e => setFilter('incharge', e.target.checked)} /> ⭐ only ({incharges.size})</span>
+                <span><input type="checkbox" checked={filters.incharge} onChange={e => setFilter('incharge', e.target.checked)} /> ⭐ only ({guards.filter(g => incharges.has(String(g.ROWID))).length})</span>
               </label>
               <label className="master-search">Search name / ID / card
                 <input id="f-q" type="search" value={filters.q} onChange={e => setFilter('q', e.target.value)} placeholder="Name, ID or card no." />
