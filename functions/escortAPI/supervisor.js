@@ -639,7 +639,7 @@ module.exports = function supervisorRoutes(app, h) {
       const date = requireDate(req.query.date);
       const [posts, shifts, guards, roster] = await Promise.all([
         branchPosts(req, zcql, branch), getShifts(zcql),
-        pages(zcql, `SELECT ROWID, id_number, guard_name, area FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`, 'Guards'),
+        pages(zcql, `SELECT ROWID, id_number, guard_name, area, tags FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`, 'Guards'),
         // The month roster's letter for this date (A / B / C / G / O / L), so the page offers the
         // guards of the picked shift first and keeps those on week off or leave apart.
         pages(zcql, `SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${date.slice(0, 7)}'`, 'MonthRoster')
@@ -648,7 +648,7 @@ module.exports = function supervisorRoutes(app, h) {
       const rosterOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[dayIndex]; if (c && c !== '-') rosterOf[String(r.guard_id)] = c; });
       const rows = await dayRows(zcql, branch, date, posts);
-      const supIds = posts.some(p => regularOnly(p) && isIncharge(p)) ? await inchargeIds(zcql, branch) : [];
+      const supIds = await inchargeIds(zcql, branch); // also the ⭐ list in the guard picker
       // G on demand (Prem, 25 Oct): a post without G gets a G row only on a day someone was put there.
       const dayShifts = p => {
         const filled = rows.filter(r => String(r.post_id) === String(p.ROWID)).map(r => r.shift_code);
@@ -709,7 +709,7 @@ module.exports = function supervisorRoutes(app, h) {
           autoFill: dayPosts.some(p => isOn(p.auto_fill)),
           shifts: shifts.slice().sort((a, b) => SHIFT_ORDER.indexOf(a.code) - SHIFT_ORDER.indexOf(b.code)),
           slots: rows.map(r => ({ ROWID: String(r.ROWID), post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id), published: isOn(r.published) })),
-          guards: guards.map(g => ({ ROWID: String(g.ROWID), name: g.guard_name, id: g.id_number, area: g.area || '', roster: rosterOf[String(g.ROWID)] || '' })),
+          guards: guards.map(g => ({ ROWID: String(g.ROWID), name: g.guard_name, id: g.id_number, area: g.area || '', roster: rosterOf[String(g.ROWID)] || '', tags: g.tags || '', incharge: supIds.map(String).includes(String(g.ROWID)) })),
           hasRoster: roster.length > 0,
           ins, now: nowStamp(),
           escort: { batch: batch.map((id, i) => ({ guard: id, point: pointOf[id] || '', seat: seatOf[id] || i + 1 })), night: night.map((id, i) => ({ guard: id, seat: seatOf[id] || i + 1, extra: !!extraOf[id] })), canAdd: !!rosterDay, show: hasEscorts },

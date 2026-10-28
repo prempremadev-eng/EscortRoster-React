@@ -6,7 +6,10 @@ import { Toggle, IconBtn } from './RowControls.jsx';
 import { useUser } from '../auth/user.js';
 
 const NO_FILTERS = { state: '', city: '', branch: '', agency: '', area: '', q: '', incharge: false };
-const BLANK_GUARD = { id_number: '', card_number: '', guard_name: '', agency_id: '', branch_id: '', area: '', escort_id: '', phone: '' };
+const BLANK_GUARD = { id_number: '', card_number: '', guard_name: '', agency_id: '', branch_id: '', area: '', escort_id: '', phone: '', tags: '' };
+// Ready tags in the form (Prem, 28 Oct); any other word can be added.
+const TAG_PRESETS = ['Lady', 'Document', 'Driver', 'Gunman', 'Fire'];
+const tagList = t => String(t || '').split(',').map(x => x.trim()).filter(Boolean);
 const when = t => String(t || '').slice(0, 16);
 
 const uniq = list => [...new Set(list)];
@@ -109,7 +112,7 @@ export default function GuardMaster() {
     setNote('');
     setConfirmLeft(false);
     const next = g
-      ? { ...BLANK_GUARD, ...g, card_number: g.card_number || '', area: g.area || '', agency_id: g.agency_id || '', escort_id: g.escort_id || '', phone: g.phone || '', incharge: incharges.has(String(g.ROWID)) }
+      ? { ...BLANK_GUARD, ...g, card_number: g.card_number || '', area: g.area || '', agency_id: g.agency_id || '', escort_id: g.escort_id || '', phone: g.phone || '', tags: g.tags || '', incharge: incharges.has(String(g.ROWID)) }
       : { ...BLANK_GUARD, branch_id: filters.branch || (branches.length === 1 ? String(branches[0].ROWID) : ''), agency_id: ownAgency };
     setForm(next);
     setFreeEscorts(null);
@@ -141,7 +144,7 @@ export default function GuardMaster() {
     setSaving(true);
     setError('');
     try {
-      const fields = ['id_number', 'card_number', 'guard_name', 'agency_id', 'branch_id', 'area', 'phone', 'escort_id'];
+      const fields = ['id_number', 'card_number', 'guard_name', 'agency_id', 'branch_id', 'area', 'phone', 'escort_id', 'tags'];
       const payload = {};
       fields.forEach(k => { payload[k] = form[k]; });
       payload.incharge = !!form.incharge;
@@ -232,6 +235,18 @@ export default function GuardMaster() {
                   the escort sheet use it; "Escort" puts the guard on the escort sheet. Optional for other agencies. */}
               <label>Team / area (optional: PKL, MLCP, Escort…)<input id="g-area" value={form.area} onChange={e => setFormField('area', e.target.value)} list="g-areas" maxLength={30} /></label>
               <datalist id="g-areas">{uniq(allGuards.map(g => g.area).filter(Boolean)).sort().map(a => <option key={a} value={a} />)}</datalist>
+              {/* Tags (Prem, 28 Oct): lists by kind of guard in the roster and the schedule (Lady, Document …). */}
+              <div className="gm-tags">
+                <span>Tags (optional: lists in the roster and schedule)</span>
+                <div>
+                  {[...new Set([...TAG_PRESETS, ...tagList(form.tags), ...uniq(allGuards.flatMap(g => tagList(g.tags)))])].map(t => {
+                    const on = tagList(form.tags).includes(t);
+                    return <button type="button" key={t} className={'gm-tag' + (on ? ' on' : '')} onClick={() => setFormField('tags', (on ? tagList(form.tags).filter(x => x !== t) : [...tagList(form.tags), t]).join(','))}>{on ? '✓ ' : '+ '}{t}</button>;
+                  })}
+                  <input className="gm-tag-new" placeholder="New tag + Enter" maxLength={20}
+                    onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); const v = e.target.value.trim(); if (v) setFormField('tags', [...tagList(form.tags), v.charAt(0).toUpperCase() + v.slice(1)].join(',')); e.target.value = ''; } }} />
+                </div>
+              </div>
               <label>Phone (optional)<input id="g-phone" value={form.phone} onChange={e => setFormField('phone', e.target.value)} inputMode="tel" /></label>
               <label>Photo (optional)
                 <input id="g-photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setPhotoFile(e.target.files[0] || null)} />
@@ -335,7 +350,7 @@ export default function GuardMaster() {
                         <td className="master-sub">{i + 1}</td>
                         <td>{g.id_number}</td>
                         <td>{g.card_number || '—'}</td>
-                        <td className="left">{g.photo_key ? '📷 ' : ''}{g.guard_name}{incharges.has(String(g.ROWID)) && <span className="gm-incharge" title="Shift incharge (Admin → Agencies)">⭐ Shift Incharge</span>}</td>
+                        <td className="left">{g.photo_key ? '📷 ' : ''}{g.guard_name}{incharges.has(String(g.ROWID)) && <span className="gm-incharge" title="Shift incharge (Admin → Agencies)">⭐ Shift Incharge</span>}{tagList(g.tags).map(t => <span key={t} className="gm-tag-badge">{t}</span>)}</td>
                         <td>{g.agency}</td>
                         <td className="left">{b ? branchLabel(b) : '—'}<div className="master-sub">{b ? b.city + ', ' + b.state : ''}</div></td>
                         <td>{g.phone || '—'}</td>

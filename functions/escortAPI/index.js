@@ -1445,7 +1445,7 @@ app.get('/getMaster', async (req, res) => {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const [guards, branches] = await Promise.all([
-      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, card_number, guard_name, agency, agency_id, branch_id, area, escort_id, phone, photo_key, created_by, modified_by, CREATEDTIME, MODIFIEDTIME, is_active FROM Guards ORDER BY id_number ASC').then(g => auth.inArea(req, g)),
+      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, card_number, guard_name, agency, agency_id, branch_id, area, tags, escort_id, phone, photo_key, created_by, modified_by, CREATEDTIME, MODIFIEDTIME, is_active FROM Guards ORDER BY id_number ASC').then(g => auth.inArea(req, g)),
       activeBranches(req, zcql)
     ]);
     const [agencies, escortPosts] = await Promise.all([
@@ -1505,8 +1505,18 @@ function guardFromBody(b) {
     // Work area inside the branch (PKL, MLCP, Escort, Hospital…), from the agency's monthly file.
     area: String(b.area || '').trim().slice(0, 30) || null,
     escort_id: b.escort_id ? requireRowId(b.escort_id) : null,
-    phone: phone || null
+    phone: phone || null,
+    // Tags (Prem, 28 Oct): Lady, Document, Driver … for lists in the roster and schedule. Sent only by the form.
+    ...(b.tags !== undefined ? { tags: cleanTags(b.tags) } : {})
   };
+}
+// "Lady, document ,Lady" → "Lady,Document": words only, first letter capital, no repeats, at most 10.
+function cleanTags(v) {
+  const list = (Array.isArray(v) ? v : String(v || '').split(','))
+    .map(t => String(t).replace(/[^A-Za-z0-9 ]/g, '').trim().slice(0, 20))
+    .filter(Boolean)
+    .map(t => t.charAt(0).toUpperCase() + t.slice(1));
+  return [...new Set(list)].slice(0, 10).join(',') || null;
 }
 
 const CARD_RE = /^[A-Z0-9-]{1,30}$/;

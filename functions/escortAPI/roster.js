@@ -29,7 +29,7 @@ module.exports = function rosterRoutes(app, h) {
 
   // Active guards of a branch in my area (a supervisor: only their agency).
   async function branchGuards(req, zcql, branch) {
-    return selectAll(zcql, 'Guards', `SELECT ROWID, id_number, card_number, guard_name, area, agency, agency_id, branch_id FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`);
+    return selectAll(zcql, 'Guards', `SELECT ROWID, id_number, card_number, guard_name, area, tags, agency, agency_id, branch_id FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`);
   }
   // A supervisor reads only their agency's rows (Prem, 25 Oct: no agency sees another's details).
   async function monthRows(req, zcql, branch, month) {
@@ -49,7 +49,10 @@ module.exports = function rosterRoutes(app, h) {
       const zcql = admin(req).zcql();
       const branch = auth.requireBranch(req, requireRowId(req.query.branch));
       const month = requireMonth(req.query.month);
-      const [guards, rows] = await Promise.all([branchGuards(req, zcql, branch), monthRows(req, zcql, branch, month)]);
+      const [guards, rows, agencies] = await Promise.all([branchGuards(req, zcql, branch), monthRows(req, zcql, branch, month),
+        zcql.executeZCQLQuery('SELECT incharge_ids FROM Agencies')]);
+      // ⭐ shift incharges (Agencies.incharge_ids) for the page's "Incharge" list.
+      const incharge = new Set(agencies.flatMap(a => String(a.Agencies.incharge_ids || '').split(',').map(x => x.trim()).filter(Boolean)));
       const codes = {};
       let updated = null;
       // Guards in the order of the uploaded roster file (Prem, 27 Oct: "the order of the original monthly
@@ -63,7 +66,7 @@ module.exports = function rosterRoutes(app, h) {
       });
       ok(res, {
         month, days: daysIn(month), updated,
-        guards: guards.map(g => ({ ROWID: String(g.ROWID), id: g.id_number, card: g.card_number || '', name: g.guard_name, area: g.area || '', agency: g.agency || '' })),
+        guards: guards.map(g => ({ ROWID: String(g.ROWID), id: g.id_number, card: g.card_number || '', name: g.guard_name, area: g.area || '', agency: g.agency || '', tags: g.tags || '', incharge: incharge.has(String(g.ROWID)) })),
         codes
       });
     } catch (err) {

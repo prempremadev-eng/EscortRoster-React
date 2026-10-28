@@ -57,6 +57,7 @@ export default function SupervisorSchedule() {
   // ➕ Add post on the sheet itself (Prem, 28 Oct: a new start makes its posts here, then taps them to put names).
   const [adding, setAdding] = useState(null); // { name, shifts, place }
   const [dayList, setDayList] = useState(''); // which number of the day box shows its names
+  const [kind, setKind] = useState(''); // guard picker: '' all · '*' ⭐ incharges · a tag
   useEffect(() => { if (pick) setAdding(null); }, [pick]);
   const [search, setSearch] = useState('');
   const [pointDraft, setPointDraft] = useState({});
@@ -237,8 +238,12 @@ export default function SupervisorSchedule() {
   // escort list today (Prem, 21 Oct). No other rules: the supervisor picks. With no roster, everyone
   // free. A guard already on another shift today shows only for an extra duty post (e.g. VTitan).
   const pickedExtra = !!(pick && data && (data.posts.find(p => p.ROWID === pick.post) || {}).extraDuty);
-  const onShift = pick ? free.filter(g => (!otherShift[g.ROWID] || pickedExtra) && !escortIds.has(g.ROWID) && (!data.hasRoster || g.roster === pick.shift))
+  const tagsOf = g => String(g.tags || '').split(',').map(x => x.trim()).filter(Boolean);
+  const kindOk = g => !kind || (kind === '*' ? g.incharge : tagsOf(g).includes(kind));
+  const onShiftAll = pick ? free.filter(g => (!otherShift[g.ROWID] || pickedExtra) && !escortIds.has(g.ROWID) && (!data.hasRoster || g.roster === pick.shift))
     .sort((x, y) => x.name.localeCompare(y.name)) : [];
+  const onShift = onShiftAll.filter(kindOk);
+  const pickKinds = [...new Set(onShiftAll.flatMap(tagsOf))].sort();
   const b = branches.find(x => String(x.ROWID) === String(branch));
   const sheetDate = date.split('-').reverse().join('-');
   // One shift block of the daily sheet: S.No · NAME · SHIFT · POINT (the order the team writes it).
@@ -542,6 +547,12 @@ export default function SupervisorSchedule() {
               )}
               <div className="pd-label">GUARDS WITH NO POST · SHIFT {pick.shift}</div>
               <input className="pd-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search guard" aria-label="Search guard" />
+              {/* Only the kind needed here (Prem, 28 Oct): ⭐ incharges, Lady, Document … */}
+              {(pickKinds.length > 0 || onShiftAll.some(g => g.incharge)) && <div className="rs-kinds">
+                {[['', 'All'], ...(onShiftAll.some(g => g.incharge) ? [['*', '⭐ Incharge']] : []), ...pickKinds.map(k => [k, k])].map(([k, label]) => (
+                  <button key={k || 'all'} className={'rs-kind' + (kind === k ? ' on' : '')} onClick={() => setKind(k)}>{label}</button>
+                ))}
+              </div>}
               <div className="pd-small pd-muted">{onShift.length} guard(s) on Shift {pick.shift} with no post.</div>
               {onShift.map(g => <Person key={g.ROWID} g={g} />)}
               {onShift.length === 0 && <div className="pd-muted pd-small">Every Shift {pick.shift} guard has a post.</div>}

@@ -1160,3 +1160,16 @@ td.in-late{color:#b91c1c;}
   .rs-legend{font-size:9px;margin:0 0 4px;}
   .rs-legend .rs-cell{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
 }
+
+/* Lists by kind (Month roster, schedule picker) and tags in the guard form (Prem, 28 Oct). */
+.rs-kinds{display:flex;flex-wrap:wrap;gap:6px;margin:4px 0 8px;}
+.rs-kind{border:1px solid #CBD5E1;background:#fff;border-radius:999px;padding:5px 12px;font-size:13px;font-family:inherit;cursor:pointer;color:#334155;}
+.rs-kind b{margin-left:4px;color:#1E4FB8;}
+.rs-kind.on{background:#1E4FB8;border-color:#1E4FB8;color:#fff;}
+.rs-kind.on b{color:#fff;}
+.gm-tags{display:flex;flex-direction:column;gap:6px;font-size:13px;}
+.gm-tags > div{display:flex;flex-wrap:wrap;gap:6px;align-items:center;}
+.gm-tag{border:1px dashed #94A3B8;background:#fff;border-radius:999px;padding:4px 10px;font-size:13px;cursor:pointer;color:#334155;font-family:inherit;}
+.gm-tag.on{border-style:solid;border-color:#7C3AED;background:#F5F3FF;color:#6D28D9;font-weight:600;}
+.gm-tag-new{width:140px;padding:5px 8px;border:1px solid var(--border);border-radius:999px;font-size:13px;}
+.gm-tag-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:#F5F3FF;color:#6D28D9;font-size:11px;font-weight:600;}

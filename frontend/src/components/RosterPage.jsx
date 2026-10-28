@@ -185,6 +185,7 @@ export default function RosterPage({ initialMonth }) {
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
   const [fill, setFill] = useState(null); // the guard whose month is being filled
+  const [kind, setKind] = useState(''); // '' all · '*' ⭐ incharges · a tag (Lady, Document …)
   const [just, setJust] = useState(''); // the box saved last
   const [agencies, setAgencies] = useState([]);
   const { pickAgency, branchAgencies, ag, chooseAgency } = useAgencyPick(branch, agencies);
@@ -214,8 +215,11 @@ export default function RosterPage({ initialMonth }) {
   const days = data ? data.days : 0;
   const weekday = d => WD[new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7) - 1, d)).getUTCDay()];
   const areas = data ? [...new Set(data.guards.map(g => g.area).filter(Boolean))].sort() : [];
-  const shown = useMemo(() => !data ? [] : data.guards.filter(g =>
-    (!area || g.area === area) && (!q.trim() || (g.name + ' ' + g.id).toLowerCase().includes(q.trim().toLowerCase()))), [data, area, q]);
+  const tagsOf = g => String(g.tags || '').split(',').map(x => x.trim()).filter(Boolean);
+  const isKind = (g, k) => !k || (k === '*' ? g.incharge : tagsOf(g).includes(k));
+  const kinds = data ? [...new Set(data.guards.flatMap(tagsOf))].sort() : [];
+  const shown = useMemo(() => !data ? [] : data.guards.filter(g => isKind(g, kind) &&
+    (!area || g.area === area) && (!q.trim() || (g.name + ' ' + g.id).toLowerCase().includes(q.trim().toLowerCase()))), [data, area, q, kind]);
   const codesOf = g => pad(data.codes[g.ROWID], days);
   const filled = data ? data.guards.filter(g => data.codes[g.ROWID]).length : 0;
 
@@ -362,6 +366,7 @@ export default function RosterPage({ initialMonth }) {
               Month roster · {(branches.find(x => String(x.ROWID) === String(branch)) || {}).branch_name || ''}
               {pickAgency && ag ? ' · ' + ((branchAgencies.find(a => String(a.ROWID) === String(ag)) || {}).agency_name || '') : ''}
               {' · '}{MONTHS[+month.slice(5, 7) - 1]} {month.slice(0, 4)}
+              {kind ? ' · ' + (kind === '*' ? 'Shift incharges' : kind) : ''}
             </div>
             <div className="master-filters">
               <label>Area
@@ -373,6 +378,12 @@ export default function RosterPage({ initialMonth }) {
               <label className="master-search">Search name / ID
                 <input type="search" value={q} onChange={e => setQ(e.target.value)} placeholder="Name or P code" />
               </label>
+            </div>
+            {/* Lists by kind (Prem, 28 Oct): ⭐ incharges and the guards' tags; Print prints the list shown. */}
+            <div className="rs-kinds no-print">
+              {[['', 'All', data.guards.length], ['*', '⭐ Incharge', data.guards.filter(g => g.incharge).length], ...kinds.map(k => [k, k, data.guards.filter(g => isKind(g, k)).length])]
+                .filter(([k, , n]) => !k || n)
+                .map(([k, label, n]) => <button key={k || 'all'} className={'rs-kind' + (kind === k ? ' on' : '')} onClick={() => setKind(k)}>{label} <b>{n}</b></button>)}
             </div>
             <div className="rs-legend">
               {CODES.map(c => <span key={c}><span className={'rs-cell rs-' + (c === '-' ? 'none' : c)}>{c}</span> {LABEL[c]}</span>)}
@@ -397,7 +408,7 @@ export default function RosterPage({ initialMonth }) {
                         <td className="rs-sticky rs-no">{i + 1}</td>
                         <td className="rs-sticky rs-name">
                           <button className="rf-edit" onClick={() => { setFill(g); window.scrollTo({ top: 0, behavior: 'smooth' }); }} title={'Fill the whole month for ' + g.name}>✎</button>
-                          <b>{g.name}</b><div className="master-sub">{g.id}{g.area ? ' · ' + g.area : ''}</div>
+                          <b>{g.name}</b>{g.incharge && ' ⭐'}<div className="master-sub">{g.id}{g.area ? ' · ' + g.area : ''}{tagsOf(g).length ? ' · ' + tagsOf(g).join(', ') : ''}</div>
                         </td>
                         {dayNums.map(d => {
                           const c = codes[d - 1];
