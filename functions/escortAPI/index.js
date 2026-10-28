@@ -1271,6 +1271,27 @@ app.post('/addPost', async (req, res) => {
   }
 });
 
+// The order of the posts on the daily sheet (Prem, 28 Oct: a supervisor adds a post any day and puts it where
+// it suits him): the posts in their new order, numbered 1, 2, 3 … Only posts he may edit.
+app.post('/postOrder', async (req, res) => {
+  try {
+    auth.need(req, 'supervisor');
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const ids = (Array.isArray(req.body.ids) ? req.body.ids : []).map(requireRowId);
+    if (!ids.length || ids.length > 300) throw new Error('Nothing to order.');
+    const found = await catalystApp.zcql().executeZCQLQuery(`SELECT ROWID, branch_id, agency_id FROM Posts WHERE ROWID IN (${ids.join(', ')})`);
+    if (found.length !== new Set(ids).size) throw new Error('Post not found');
+    found.forEach(r => auth.requireRow(req, r.Posts, 'post'));
+    if (new Set(found.map(r => String(r.Posts.branch_id) + '-' + String(r.Posts.agency_id))).size > 1) throw new Error('Order the posts of one branch and agency at a time.');
+    const rows = ids.map((id, i) => ({ ROWID: id, sort_order: i + 1 }));
+    const table = catalystApp.datastore().table('Posts');
+    for (let i = 0; i < rows.length; i += 100) await table.updateRows(rows.slice(i, i + 100));
+    res.status(200).json({ status: 'success', data: { ordered: rows.length } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
 // Rename / change type, or switch a post off (never deleted: old charts point to it).
 app.put('/updatePost', async (req, res) => {
   try {
