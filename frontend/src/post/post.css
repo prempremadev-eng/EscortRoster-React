@@ -600,3 +600,6 @@ body:has(.gsheet-bar) .pd-group-fab,body:has(.pd-chat) .pd-group-fab{display:non
 @media (max-width:420px){
   .pd-chat-head .pd-chat-title .pd-title{font-size:17px;}
 }
+
+/* ⋯ More menu: a risky item (schedule Clear day) in red, last. */
+.pd-more-menu .pd-more-danger{color:#DC2626;border-top:1px solid var(--pd-border);}

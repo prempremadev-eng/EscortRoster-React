@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import MoreMenu from '../post/MoreMenu.jsx';
 import { api } from '../api.js';
 import { Icon, initials } from '../post/icons.jsx';
 import Rail from './Rail.jsx';
@@ -56,6 +57,7 @@ export default function SupervisorSchedule() {
   const [pick, setPick] = useState(null); // { post, shift }
   // ➕ Add post on the sheet itself (Prem, 28 Oct: a new start makes its posts here, then taps them to put names).
   const [adding, setAdding] = useState(null); // { name, shifts, place }
+  const uploadInput = useRef(null); // the hidden file box behind ⋯ More → Upload Excel
   const [dayList, setDayList] = useState(''); // which number of the day box shows its names
   const [kind, setKind] = useState(''); // guard picker: '' all · '*' ⭐ incharges · a tag
   useEffect(() => { if (pick) setAdding(null); }, [pick]);
@@ -339,16 +341,19 @@ export default function SupervisorSchedule() {
           )}
           {data && data.autoFill && <button className="pd-chip pd-chip-primary" onClick={autoFill} disabled={busy}
             title="Fill empty slots by the fill rules (now: Rule 1 Shift Incharge from the month roster)">⚡ Auto fill</button>}
-          <button className="pd-chip" onClick={downloadTemplate} disabled={!data} title="Excel of this day: every post and shift, plus the guards and their roster shift">📥 Template</button>
-          <label className="pd-chip sc-upload" title="Upload the filled Excel: the rows with a Guard ID become drafts">📤 Upload<input type="file" accept=".xlsx,.xls,.csv" hidden onChange={uploadSheet} /></label>
-          <button className="pd-chip" onClick={() => window.confirm('Empty the whole sheet of ' + niceDate(date) + '? All ' + filled + ' name(s) go, published ones too.') && run(() => api.scheduleClear(branch, date, ag), r => { setPick(null); setNote('🧹 Cleared · ' + r.data.cleared + ' slot(s) emptied.'); })} disabled={busy || !filled}
-            title="Empty this day to fill it again by hand, or to try one fill rule at a time">🧹 Clear day</button>
+          {/* Daily: Copy and Publish outside; the rest in ⋯ More (Prem, 28 Oct: ten buttons were too many). */}
           <button className="pd-chip" onClick={() => run(() => api.scheduleCopy(branch, date, ag), r => setNote(r.data.copied ? 'Copied ' + r.data.copied + ' slot(s) from the ' + r.data.from + '.' : 'Nothing to copy (no schedule yesterday, and the weekly chart has no free slots).'))} disabled={busy}>Copy from yesterday</button>
-          <button className="pd-chip" onClick={() => openAdd('')} disabled={busy || !data} title="Make a new post right here on the sheet">➕ Add post</button>
           <button className="pd-chip pd-chip-primary" onClick={publish} disabled={busy || !drafts}>Publish to guards</button>
-          <a className="pd-chip" href={'#roster/' + date.slice(0, 7)} title="Month roster: who works which shift each day">📅 Month roster</a>
-          <button className="pd-chip" onClick={() => window.print()} title="Print or save as PDF to share">🖨️ Print</button>
-          <a className="pd-chip" href="#history" title="Who worked where, IN / OUT, absent, leave (read only)">📖 Duty history</a>
+          <input ref={uploadInput} type="file" accept=".xlsx,.xls,.csv" hidden onChange={uploadSheet} />
+          <MoreMenu label="⋯ More" items={[
+            ['➕ Add post', () => openAdd('')],
+            data && ['📥 Template (Excel)', downloadTemplate],
+            ['📤 Upload Excel', () => uploadInput.current && uploadInput.current.click()],
+            ['📅 Month roster', () => { window.location.hash = '#roster/' + date.slice(0, 7); }],
+            ['🖨️ Print', () => window.print()],
+            ['📖 Duty history', () => { window.location.hash = '#history'; }],
+            filled > 0 && ['🧹 Clear day', () => window.confirm('Empty the whole sheet of ' + niceDate(date) + '? All ' + filled + ' name(s) go, published ones too.') && run(() => api.scheduleClear(branch, date, ag), r => { setPick(null); setNote('🧹 Cleared · ' + r.data.cleared + ' slot(s) emptied.'); }), 'pd-more-danger']
+          ]} />
           </>}
           <button className="pd-icon-btn sc-tools" onClick={toggleTools} aria-label={tools ? 'Hide buttons' : 'Show buttons'} title={tools ? 'Hide buttons (bigger sheet)' : 'Show buttons'}>{tools ? '▴' : '▾'}</button>
         </div>
