@@ -212,7 +212,16 @@ export default function SupervisorSchedule() {
     }
     return saved;
   }, saved => { setNote('➕ ' + saved.post_name + ' added. Tap its + to put a guard.'); setAdding(null); });
-  const publish = () => run(() => api.schedulePublish(branch, date, ag), r => setNote(r.data.published ? 'Published · ' + r.data.published + ' slot(s). Guards get it at card IN.' : 'Everything is already published.'));
+  const publishNow = () => run(() => api.schedulePublish(branch, date, ag), r => setNote(r.data.published ? 'Published · ' + r.data.published + ' slot(s). Guards get it at card IN.' : 'Everything is already published.'));
+  // Before Publish (Prem, 28 Oct): drafts whose guard's month roster now says another shift / off / leave (⚠️)
+  // are named, so a wrong post is not sent to the guard's phone by mistake.
+  const publish = () => {
+    const odd = data.slots.filter(x => !x.published).map(x => [x, rosterSays(x, data.posts.find(p => p.ROWID === x.post))]).filter(([, r]) => r);
+    if (odd.length && !window.confirm(odd.length + ' guard(s) do not match the month roster:\n\n' +
+      odd.slice(0, 8).map(([x, r]) => '⚠️ ' + guardName(x.guard) + ': sheet ' + x.shift + ' · ' + ((data.posts.find(p => p.ROWID === x.post) || {}).name || '') + ', roster ' + ({ O: 'week off', L: 'leave' }[r] || 'Shift ' + r)).join('\n') +
+      (odd.length > 8 ? '\n… and ' + (odd.length - 8) + ' more' : '') + '\n\nPublish anyway?')) return;
+    publishNow();
+  };
   const toSummary = () => { const el = document.getElementById('sc-summary'); if (el) el.scrollIntoView({ behavior: 'smooth' }); };
   // Day summary: per shift how many slots, filled, unfilled (with the empty posts by name), then a total.
   const summary = data ? [...ABC, ...(shiftG ? [shiftG] : [])].map(s => {
