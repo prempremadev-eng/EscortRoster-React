@@ -321,7 +321,12 @@ export default function SupervisorSchedule() {
       <main className="sb">
         <div className="sb-head">
           <div>
-            {tools && <div className="pd-muted pd-small">{b ? (b.company || 'Nokia') + ' ' + b.branch_name : ''}</div>}
+            {/* Branch · agency · who is signed in (Prem, 28 Oct: one look tells which login fills this sheet). */}
+            <div className="pd-muted pd-small sc-who">
+              {b ? (b.company || 'Nokia') + ' ' + b.branch_name : ''}
+              {(() => { const a = agencies.find(x => String(x.ROWID) === String(ag || (me && me.agency_id) || '')); return a ? ' · ' + a.agency_name : ''; })()}
+              {me && <span className="sc-who-me"> · 👤 {me.name} ({me.roleName})</span>}
+            </div>
             <div className="pd-row-gap sc-date">
               <button className="pd-icon-btn" onClick={() => setDate(d => addDays(d, -1))} aria-label="Previous day">{Icon.back}</button>
               <div className="pd-title">Schedule · {niceDate(date)}</div>

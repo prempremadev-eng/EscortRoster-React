@@ -590,3 +590,6 @@ a.setup-flow-title{text-decoration:none;}
   .sup-rail-who b{font-size:13px;}
   .sup-rail-who span{font-size:11px;}
 }
+
+/* Schedule header: branch · agency · 👤 signed-in name. */
+.sc-who-me{color:#1E4FB8;font-weight:600;}
