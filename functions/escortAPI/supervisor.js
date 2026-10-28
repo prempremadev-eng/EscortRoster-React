@@ -695,6 +695,12 @@ module.exports = function supervisorRoutes(app, h) {
         today.filter(r => r.extra).forEach(r => { extraOf[r.guardId] = true; });
       }
       const off = guards.filter(g => ['O', 'L'].includes(rosterOf[String(g.ROWID)])).map(g => ({ guard: String(g.ROWID), code: rosterOf[String(g.ROWID)] }));
+      // Who swiped IN that duty day (the day box on the page counts absent from it; Prem, 28 Oct). Only up to
+      // today, only the guards in today's slots: one read.
+      const slotGuards = [...new Set(rows.map(r => String(r.guard_id)))];
+      const ins = date <= shiftDate() && slotGuards.length
+        ? [...new Set((await pages(zcql, `SELECT guard_id FROM AccessLog WHERE duty_date = '${date}' AND direction = 'IN' AND guard_id IN (${idList(slotGuards)}) ORDER BY ROWID ASC`, 'AccessLog')).map(x => String(x.guard_id)))]
+        : null;
       res.status(200).json({
         status: 'success',
         data: {
@@ -705,6 +711,7 @@ module.exports = function supervisorRoutes(app, h) {
           slots: rows.map(r => ({ ROWID: String(r.ROWID), post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id), published: isOn(r.published) })),
           guards: guards.map(g => ({ ROWID: String(g.ROWID), name: g.guard_name, id: g.id_number, area: g.area || '', roster: rosterOf[String(g.ROWID)] || '' })),
           hasRoster: roster.length > 0,
+          ins, now: nowStamp(),
           escort: { batch: batch.map((id, i) => ({ guard: id, point: pointOf[id] || '', seat: seatOf[id] || i + 1 })), night: night.map((id, i) => ({ guard: id, seat: seatOf[id] || i + 1, extra: !!extraOf[id] })), canAdd: !!rosterDay, show: hasEscorts },
           off
         }

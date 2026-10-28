@@ -56,6 +56,7 @@ export default function SupervisorSchedule() {
   const [pick, setPick] = useState(null); // { post, shift }
   // ➕ Add post on the sheet itself (Prem, 28 Oct: a new start makes its posts here, then taps them to put names).
   const [adding, setAdding] = useState(null); // { name, shifts, place }
+  const [dayList, setDayList] = useState(''); // which number of the day box shows its names
   useEffect(() => { if (pick) setAdding(null); }, [pick]);
   const [search, setSearch] = useState('');
   const [pointDraft, setPointDraft] = useState({});
@@ -351,6 +352,49 @@ export default function SupervisorSchedule() {
             <a className="sc-step" href="#board"><b>5</b>Watch the Live board</a>
           </div>
         )}
+        {data && (() => {
+          // The day in numbers (Prem, 28 Oct: total, leave, absent, allotted, vacant on the schedule page itself).
+          // Roster: on duty / week off / leave. Sheet: allotted, free, vacant. Card IN: absent once a shift has run
+          // 15 minutes (today) or for a past day; a future day shows —.
+          const r = c => data.guards.filter(g => g.roster === c);
+          const onDuty = data.guards.filter(g => 'ABCG'.includes(g.roster || '-'));
+          const inSlot = new Set(data.slots.map(x => x.guard));
+          const allotted = data.guards.filter(g => inSlot.has(g.ROWID));
+          const minus15 = new Date(new Date(String(data.now || '').replace(' ', 'T') + ':00Z').getTime() - 15 * 60000).toISOString().slice(0, 16).replace('T', ' ');
+          const begun = code => { const sh = data.shifts.find(x => x.code === code); return !!sh && ((sh.start < '06:00' ? addDays(date, 1) : date) + ' ' + sh.start) <= minus15; };
+          const absent = data.ins ? data.guards.filter(g => data.slots.some(x => x.guard === g.ROWID && begun(x.shift)) && !data.ins.includes(g.ROWID)) : null;
+          const byShift = list => ['A', 'B', 'C', 'G'].map(c => [c, list.filter(g => g.roster === c).length]).filter(x => x[1]).map(x => x.join(' ')).join(' · ');
+          const rows = [
+            ['guards', 'Guards', data.guards, ''],
+            ['duty', 'On duty', onDuty, byShift(onDuty)],
+            ['off', 'Week off', r('O'), ''],
+            ['leave', 'Leave', r('L'), ''],
+            ['allotted', 'Allotted', allotted, 'have a post'],
+            ['free', 'Free', idle, 'duty, no post'],
+            ['vacant', 'Vacant', null, 'empty posts'],
+            ['absent', 'Absent', absent, absent ? 'no card IN' : 'after the shift starts']
+          ];
+          const vacantNames = summary.flatMap(x => x.empty.map(n => n + ' (' + x.code + ')'));
+          const shown = rows.find(x => x[0] === dayList);
+          return (
+            <div className="sc-day no-print">
+              {rows.map(([k, label, list, hint]) => {
+                const n = k === 'vacant' ? total - filled : list ? list.length : '—';
+                return (
+                  <button key={k} className={'sc-day-n' + (dayList === k ? ' on' : '') + (k === 'vacant' && n ? ' warn' : '') + (k === 'absent' && n ? ' bad' : '')}
+                    onClick={() => setDayList(d => (d === k ? '' : k))} disabled={n === '—' || n === 0} title={hint}>
+                    <span>{label}</span><b>{n}</b>{hint && <small>{hint}</small>}
+                  </button>
+                );
+              })}
+              {shown && (
+                <div className="sc-day-list">
+                  <b>{shown[1]}:</b> {(shown[0] === 'vacant' ? vacantNames : (shown[2] || []).map(g => g.name + (g.roster ? ' (' + g.roster + ')' : ''))).join(' · ') || '—'}
+                </div>
+              )}
+            </div>
+          );
+        })()}
         {error && <div className="pd-error-bar">{error}</div>}
         {note && tools && <div className="sc-note">{note}</div>}
         {!data && !error && <div className="pd-muted sup-pad">Loading...</div>}
