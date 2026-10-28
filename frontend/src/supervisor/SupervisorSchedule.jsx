@@ -54,6 +54,9 @@ export default function SupervisorSchedule() {
   const [date, setDate] = useState(() => ymd(new Date()));
   const [data, setData] = useState(null);
   const [pick, setPick] = useState(null); // { post, shift }
+  // ➕ Add post on the sheet itself (Prem, 28 Oct: a new start makes its posts here, then taps them to put names).
+  const [adding, setAdding] = useState(null); // { name, shifts, place }
+  useEffect(() => { if (pick) setAdding(null); }, [pick]);
   const [search, setSearch] = useState('');
   const [pointDraft, setPointDraft] = useState({});
   const [busy, setBusy] = useState(false);
@@ -189,6 +192,17 @@ export default function SupervisorSchedule() {
     run(() => api.escortPoint(branch, date, guard, value), () => setNote(nameOf(guard) + ': support point ' + (value ? 'saved.' : 'removed.')));
   }
   const autoFill = () => run(() => api.scheduleAuto(branch, date, ag), r => setNote('⚡ Auto fill: ' + r.data.filled + ' filled. ' + r.data.rules.map((x, i) => 'Rule ' + (x.no || i + 1) + ' · ' + x.rule + ': ' + (x.filled.length > 6 ? x.filled.length + ' filled' : x.filled.join(', ') || 'nothing new') + (x.empty.length ? ' · no one for ' + (x.empty.length > 6 ? x.empty.length + ' slot(s)' : x.empty.join(', ')) : '')).join(' | ') + '. Check, fix and then Publish.'));
+  const openAdd = code => { setPick(null); setAdding({ name: '', shifts: code ? (code === 'G' ? 'G' : 'ABC') : 'ABC', place: '' }); };
+  const savePost = () => run(async () => {
+    const saved = (await api.addPost({ branch_id: branch, agency_id: ag || (me && me.agency_id) || '', post_name: adding.name.trim(), post_type: 'POST', shift_codes: adding.shifts })).data;
+    // The sheet order: at the end unless "after" a post was picked; numbered 1, 2, 3 … like Post setup's ▲ ▼.
+    if (adding.place) {
+      const ids = data.posts.map(x => x.ROWID).filter(id => String(id) !== String(saved.ROWID));
+      ids.splice(adding.place === 'top' ? 0 : ids.indexOf(adding.place) + 1, 0, saved.ROWID);
+      await api.postOrder(ids);
+    }
+    return saved;
+  }, saved => { setNote('➕ ' + saved.post_name + ' added. Tap its + to put a guard.'); setAdding(null); });
   const publish = () => run(() => api.schedulePublish(branch, date, ag), r => setNote(r.data.published ? 'Published · ' + r.data.published + ' slot(s). Guards get it at card IN.' : 'Everything is already published.'));
   const toSummary = () => { const el = document.getElementById('sc-summary'); if (el) el.scrollIntoView({ behavior: 'smooth' }); };
   // Day summary: per shift how many slots, filled, unfilled (with the empty posts by name), then a total.
@@ -246,6 +260,9 @@ export default function SupervisorSchedule() {
           );
         })}
       </tbody>
+      <tfoot className="no-print">
+        <tr><td colSpan={4}><button className="sh-add" onClick={() => openAdd(code)} disabled={busy}>➕ Add post</button></td></tr>
+      </tfoot>
     </table>
   );
   // One slot of the sheet: a dash when the post has no such shift.
@@ -304,6 +321,7 @@ export default function SupervisorSchedule() {
           <button className="pd-chip" onClick={() => window.confirm('Empty the whole sheet of ' + niceDate(date) + '? All ' + filled + ' name(s) go, published ones too.') && run(() => api.scheduleClear(branch, date, ag), r => { setPick(null); setNote('🧹 Cleared · ' + r.data.cleared + ' slot(s) emptied.'); })} disabled={busy || !filled}
             title="Empty this day to fill it again by hand, or to try one fill rule at a time">🧹 Clear day</button>
           <button className="pd-chip" onClick={() => run(() => api.scheduleCopy(branch, date, ag), r => setNote(r.data.copied ? 'Copied ' + r.data.copied + ' slot(s) from the ' + r.data.from + '.' : 'Nothing to copy (no schedule yesterday, and the weekly chart has no free slots).'))} disabled={busy}>Copy from yesterday</button>
+          <button className="pd-chip" onClick={() => openAdd('')} disabled={busy || !data} title="Make a new post right here on the sheet">➕ Add post</button>
           <button className="pd-chip pd-chip-primary" onClick={publish} disabled={busy || !drafts}>Publish to guards</button>
           <a className="pd-chip" href={'#roster/' + date.slice(0, 7)} title="Month roster: who works which shift each day">📅 Month roster</a>
           <button className="pd-chip" onClick={() => window.print()} title="Print or save as PDF to share">🖨️ Print</button>
@@ -437,6 +455,31 @@ export default function SupervisorSchedule() {
               <div className="pd-legend"><span className="sc-key sc-cell-pub"></span>Published <span className="sc-key sc-cell-draft"></span>Not published yet <span className="sc-key sc-cell-empty"></span>Empty</div>
             </div>
 
+            {adding && <aside className="sb-side sh-drawer">
+              <div className="pd-row-between">
+                <div className="pd-label">➕ NEW POST · {b ? b.branch_name : ''}</div>
+                <button className="pd-chip" onClick={() => setAdding(null)}>✕</button>
+              </div>
+              <label className="pd-small">Post name
+                <input className="pd-search" value={adding.name} onChange={e => setAdding(a => ({ ...a, name: e.target.value }))} placeholder="e.g. Gate 3" autoFocus />
+              </label>
+              <div className="pd-small">Shifts (G only if it is needed every day)</div>
+              <div className="sh-add-shifts">
+                {['A', 'B', 'C', 'G'].map(c => (
+                  <label key={c}><input type="checkbox" checked={adding.shifts.includes(c)}
+                    onChange={ev => setAdding(a => ({ ...a, shifts: ['A', 'B', 'C', 'G'].filter(x => (x === c ? ev.target.checked : a.shifts.includes(x))).join('') }))} /> {c}</label>
+                ))}
+              </div>
+              <label className="pd-small">Place on the sheet
+                <select className="pd-search" value={adding.place} onChange={e => setAdding(a => ({ ...a, place: e.target.value }))}>
+                  <option value="">At the end</option>
+                  <option value="top">At the top</option>
+                  {data.posts.map(x => <option key={x.ROWID} value={x.ROWID}>After {x.name}</option>)}
+                </select>
+              </label>
+              <button className="pd-chip pd-chip-primary" onClick={savePost} disabled={busy || !adding.name.trim() || !adding.shifts}>Save post</button>
+              <div className="pd-small pd-muted">The post is saved in Post setup too (same post). Then tap its + on the sheet and pick a guard.</div>
+            </aside>}
             {pick && <aside className="sb-side sh-drawer">
               <div className="pd-row-between">
                 <div className="pd-label">{(data.posts.find(x => x.ROWID === pick.post) || {}).name} · SHIFT {pick.shift}</div>

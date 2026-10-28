@@ -558,3 +558,9 @@ a.setup-flow-title{text-decoration:none;}
 .ah-live:hover{background:#15803D;}
 .ah-live-dot{width:9px;height:9px;border-radius:50%;background:#fff;animation:ah-live-blink 1.4s ease-in-out infinite;}
 @keyframes ah-live-blink{0%,100%{opacity:1;}50%{opacity:.25;}}
+
+/* ➕ Add post on the schedule sheet (SupervisorSchedule.jsx): a quiet row under each shift block. */
+.sh-add{width:100%;border:1px dashed #94A3B8;background:transparent;color:#1E4FB8;font-weight:600;font-size:12px;padding:5px;border-radius:6px;cursor:pointer;}
+.sh-add:hover{background:#EFF6FF;}
+.sh-add-shifts{display:flex;gap:14px;margin:4px 0 8px;font-weight:600;}
+.sh-drawer label.pd-small{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;}
