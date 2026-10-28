@@ -335,7 +335,7 @@ export default function PostsPage() {
                   return (
                     <tr key={p.ROWID} className={off ? 'master-left' : ''}>
                       <td className="master-sub p-order">
-                        {canEdit && branch !== 'ALL' && !find.trim() && (
+                        {canEdit && (branch !== 'ALL' || branchesShown.length === 1) && !find.trim() && (
                           <span className="p-move">
                             <button type="button" onClick={() => move(p, -1)} aria-label={'Move ' + p.post_name + ' up'} title="Up on the daily sheet">▲</button>
                             <button type="button" onClick={() => move(p, 1)} aria-label={'Move ' + p.post_name + ' down'} title="Down on the daily sheet">▼</button>
