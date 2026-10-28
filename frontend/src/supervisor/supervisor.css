@@ -592,4 +592,6 @@ a.setup-flow-title{text-decoration:none;}
 }
 
 /* Schedule header: branch · agency · 👤 signed-in name. */
-.sc-who-me{color:#1E4FB8;font-weight:600;}
+.sc-head-who{position:relative;padding-top:26px;}
+.sc-who-me{position:absolute;top:4px;right:16px;font-size:13px;color:#1E4FB8;font-weight:700;background:#EFF6FF;border:1px solid #BFDBFE;border-radius:999px;padding:2px 12px;white-space:nowrap;max-width:70%;overflow:hidden;text-overflow:ellipsis;}
+.sc-who-me span{font-weight:500;color:#475569;}

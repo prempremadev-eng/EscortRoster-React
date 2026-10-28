@@ -319,13 +319,14 @@ export default function SupervisorSchedule() {
     <div className="pd sup">
       <Rail active="schedule" />
       <main className="sb">
-        <div className="sb-head">
+        <div className="sb-head sc-head-who">
+          {/* Who is signed in, top right (Prem, 28 Oct). */}
+          {me && <div className="sc-who-me">👤 {me.name} <span>({me.roleName})</span></div>}
           <div>
             {/* Branch · agency · who is signed in (Prem, 28 Oct: one look tells which login fills this sheet). */}
             <div className="pd-muted pd-small sc-who">
               {b ? (b.company || 'Nokia') + ' ' + b.branch_name : ''}
               {(() => { const a = agencies.find(x => String(x.ROWID) === String(ag || (me && me.agency_id) || '')); return a ? ' · ' + a.agency_name : ''; })()}
-              {me && <span className="sc-who-me"> · 👤 {me.name} ({me.roleName})</span>}
             </div>
             <div className="pd-row-gap sc-date">
               <button className="pd-icon-btn" onClick={() => setDate(d => addDays(d, -1))} aria-label="Previous day">{Icon.back}</button>
