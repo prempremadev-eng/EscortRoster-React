@@ -73,12 +73,15 @@ export default function Rail({ active }) {
       <div className="sup-mbar">
         <button className="sup-mbar-btn" onClick={() => setOpen(true)} aria-label="Open the menu">☰</button>
         <span className="sup-mbar-title">{here ? here[2] : ''}</span>
+        {user && <span className="sup-mbar-who">{user.name}</span>}
       </div>
       {open && <div className="sup-rail-dim" onClick={() => setOpen(false)}></div>}
       <nav className={'sup-rail' + (open ? ' sup-rail-open' : '')}>
         {groups.map(([head, items]) => [<div key={head} className="sup-rail-head">{head}</div>, ...items.map(item)])}
         <div className="pd-grow"></div>
         {user && <button className="sup-rail-btn sup-rail-me" title={user.name + ' · ' + user.roleName + ' · tap to sign out'} onClick={() => { if (window.confirm('Sign out ' + user.name + '?')) signOut(); }}>{initials(user.name)}</button>}
+        {/* Who is signed in, on every page (Prem, 28 Oct: "IS" alone did not say which login). */}
+        {user && <div className="sup-rail-who" title={user.name + ' · ' + user.roleName}><b>{user.name}</b><span>{user.roleName}</span></div>}
       </nav>
     </>
   );

@@ -579,3 +579,14 @@ a.setup-flow-title{text-decoration:none;}
 .sc-day-n.warn b{color:#B45309;}
 .sc-day-n.bad b{color:#DC2626;}
 .sc-day-list{flex-basis:100%;font-size:13px;background:#F8FAFC;border:1px solid #E2E8F0;border-radius:10px;padding:8px 12px;}
+
+/* Signed-in name under the round button (Rail.jsx); on a phone at the right of the top bar. */
+.sup-rail-who{width:62px;text-align:center;color:#C9CCD4;line-height:1.15;margin-top:4px;word-break:break-word;}
+.sup-rail-who b{display:block;font-size:9px;color:#fff;font-weight:700;}
+.sup-rail-who span{display:block;font-size:8px;color:#8A93A6;}
+.sup-mbar-who{margin-left:auto;font-size:12px;color:#C9CCD4;max-width:45%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+@media (max-width:700px){
+  .sup-rail-who{width:auto;text-align:left;margin:4px 0 0 6px;}
+  .sup-rail-who b{font-size:13px;}
+  .sup-rail-who span{font-size:11px;}
+}
