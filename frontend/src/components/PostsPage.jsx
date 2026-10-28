@@ -101,8 +101,8 @@ export default function PostsPage() {
     && (!find.trim() || p.post_name.toLowerCase().includes(find.trim().toLowerCase())))
     .sort((a, b) => secRank(a) - secRank(b) || (Number(a.sort_order) || 999) - (Number(b.sort_order) || 999) || a.post_name.localeCompare(b.post_name)) : [];
 
-  // The posts that share one daily sheet with p (same branch, agency and section), in sheet order. ↑ ↓ and
-  // "Place on the sheet" move a post inside this list (Prem, 28 Oct: a supervisor puts a new post where it
+  // The posts that share one daily sheet with p (same branch, agency and section), in sheet order.
+  // "Place on the sheet" moves a post inside this list (Prem, 28 Oct: a supervisor puts a new post where it
   // suits him, any day).
   const sheetOrder = (a, b) => (Number(a.sort_order) || 999) - (Number(b.sort_order) || 999) || a.post_name.localeCompare(b.post_name);
   const sheetOf = (branchId, agencyId, section) => (data ? data.posts : [])
@@ -112,15 +112,6 @@ export default function PostsPage() {
     await api.postOrder(list.map(x => x.ROWID));
     const at = new Map(list.map((x, i) => [String(x.ROWID), String(i + 1)]));
     setData(d => ({ ...d, posts: d.posts.map(x => (at.has(String(x.ROWID)) ? { ...x, sort_order: at.get(String(x.ROWID)) } : x)) }));
-  }
-  async function move(p, step) {
-    const list = sheetOf(p.branch_id, p.agency_id, p.section);
-    const i = list.findIndex(x => String(x.ROWID) === String(p.ROWID));
-    const j = i + step;
-    if (i < 0 || j < 0 || j >= list.length) return;
-    [list[i], list[j]] = [list[j], list[i]];
-    setError('');
-    try { await saveOrder(list); } catch (err) { setError(err.message); }
   }
 
   function putRow(saved) {
@@ -334,15 +325,7 @@ export default function PostsPage() {
                   const b = branchOf(p.branch_id);
                   return (
                     <tr key={p.ROWID} className={off ? 'master-left' : ''}>
-                      <td className="master-sub p-order">
-                        {canEdit && (branch !== 'ALL' || branchesShown.length === 1) && !find.trim() && (
-                          <span className="p-move">
-                            <button type="button" onClick={() => move(p, -1)} aria-label={'Move ' + p.post_name + ' up'} title="Up on the daily sheet">▲</button>
-                            <button type="button" onClick={() => move(p, 1)} aria-label={'Move ' + p.post_name + ' down'} title="Down on the daily sheet">▼</button>
-                          </span>
-                        )}
-                        {i + 1}
-                      </td>
+                      <td className="master-sub">{i + 1}</td>
                       <td className="left">{p.post_name}</td>
                       <td>{agencyName(p.agency_id)}</td>
                       <td className="left">{b.branch_name || '—'}</td>

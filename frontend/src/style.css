@@ -1141,8 +1141,3 @@ td.in-late{color:#b91c1c;}
 .rs-just{outline:2px solid #16A34A;outline-offset:1px;animation:rs-just 1.2s ease;}
 @keyframes rs-just{0%{transform:scale(1.25);}100%{transform:none;}}
 
-/* Post setup ▲ ▼: move a post up / down on the daily sheet (PostsPage.jsx). Big enough for a thumb. */
-.p-order{white-space:nowrap;}
-.p-move{display:inline-flex;flex-direction:column;gap:2px;margin-right:6px;vertical-align:middle;}
-.p-move button{width:30px;height:22px;border:1px solid var(--border);border-radius:6px;background:#fff;color:var(--blue-dark);font-size:10px;line-height:1;cursor:pointer;padding:0;}
-.p-move button:hover{background:var(--blue-light);}
