@@ -328,6 +328,7 @@ export default function RosterPage({ initialMonth }) {
           📤 Upload Excel
           <input type="file" accept=".xlsx,.xls,.csv" onChange={pickFile} hidden />
         </label>
+        <button className="btn secondary" onClick={() => window.print()} disabled={!data} title="Print or save as PDF (landscape, all days on one width)">🖨️ Print</button>
         <button className="btn" onClick={load}>🔄 Refresh</button>
         <a className="btn" href="#schedule" title="Step 2: fill the daily schedule from this roster">Next: Schedule →</a>
       </div>
@@ -356,6 +357,12 @@ export default function RosterPage({ initialMonth }) {
 
         {data && (
           <>
+            {/* Only on paper (Prem, 28 Oct): which roster this is. */}
+            <div className="rs-print-title">
+              Month roster · {(branches.find(x => String(x.ROWID) === String(branch)) || {}).branch_name || ''}
+              {pickAgency && ag ? ' · ' + ((branchAgencies.find(a => String(a.ROWID) === String(ag)) || {}).agency_name || '') : ''}
+              {' · '}{MONTHS[+month.slice(5, 7) - 1]} {month.slice(0, 4)}
+            </div>
             <div className="master-filters">
               <label>Area
                 <select value={area} onChange={e => setArea(e.target.value)}>

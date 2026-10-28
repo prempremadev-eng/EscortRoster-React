@@ -1141,3 +1141,22 @@ td.in-late{color:#b91c1c;}
 .rs-just{outline:2px solid #16A34A;outline-offset:1px;animation:rs-just 1.2s ease;}
 @keyframes rs-just{0%{transform:scale(1.25);}100%{transform:none;}}
 
+
+/* Month roster on paper / PDF (RosterPage.jsx 🖨️ Print): landscape, all 31 days on one width, the header row on
+   every page, colours kept, nothing that only works on screen. */
+.rs-print-title{display:none;}
+@media print{
+  @page{size:A4 landscape;margin:8mm;}
+  .rs-print-title{display:block;font-weight:700;font-size:14px;margin:0 0 6px;}
+  .master-filters,.master-form,.sim-push,.trip-error,.rf-edit,.rs-legend .master-sub{display:none !important;}
+  .rs-scroll{overflow:visible !important;max-height:none !important;border:none !important;}
+  .rs-table{font-size:8px;width:100%;}
+  .rs-table thead{display:table-header-group;}
+  .rs-table tr{break-inside:avoid;}
+  .rs-table thead th,.rs-sticky{position:static !important;}
+  .rs-table th,.rs-table td{padding:1px !important;min-width:0 !important;}
+  .rs-name{min-width:110px !important;max-width:130px !important;}
+  .rs-cell{width:15px;height:15px;font-size:8px;border-radius:3px;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+  .rs-legend{font-size:9px;margin:0 0 4px;}
+  .rs-legend .rs-cell{-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
