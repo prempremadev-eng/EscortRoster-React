@@ -564,3 +564,6 @@ a.setup-flow-title{text-decoration:none;}
 .sh-add:hover{background:#EFF6FF;}
 .sh-add-shifts{display:flex;gap:14px;margin:4px 0 8px;font-weight:600;}
 .sh-drawer label.pd-small{display:flex;flex-direction:column;gap:4px;margin-bottom:8px;}
+
+/* Schedule: a guard whose month roster now says another shift / off / leave (SupervisorSchedule.jsx rosterSays). */
+.sh-warn{color:#DC2626;font-weight:700;font-size:11px;white-space:nowrap;}

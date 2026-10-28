@@ -104,6 +104,13 @@ export default function SupervisorSchedule() {
 
   const slotOf = (post, shift) => data && data.slots.find(s => s.post === post && s.shift === shift);
   const guardName = id => ((data && data.guards.find(g => g.ROWID === id)) || {}).name || 'Guard';
+  // The month roster changed after the guard was put here (Prem, 28 Oct: roster A → B, the slot stayed A): the
+  // slot is the supervisor's choice, so it stays, but a ⚠️ says the roster now differs. An extra-duty post is fine.
+  const rosterSays = (slot, post) => {
+    if (!data || !data.hasRoster || (post && post.extraDuty)) return '';
+    const r = (data.guards.find(g => g.ROWID === slot.guard) || {}).roster || '';
+    return r && r !== slot.shift ? r : '';
+  };
 
   function tapCell(post, shift) {
     setPick(p => (p && p.post === post && p.shift === shift ? null : { post, shift }));
@@ -252,6 +259,7 @@ export default function SupervisorSchedule() {
                 <button className={'sh-slot' + (slot ? (slot.published ? ' sh-pub' : ' sh-draft') : ' sh-open')} onClick={() => tapCell(p.ROWID, code)} disabled={busy}
                   title={slot ? 'Tap to change or remove' : 'Tap, then pick a guard'}>
                   {slot ? guardName(slot.guard) : '+'}
+                  {slot && rosterSays(slot, p) && <span className="sh-warn" title={'Month roster says ' + ({ O: 'week off', L: 'leave' }[rosterSays(slot, p)] || 'Shift ' + rosterSays(slot, p)) + ' today'}> ⚠️ {({ O: 'OFF', L: 'LEAVE' }[rosterSays(slot, p)] || rosterSays(slot, p))}</span>}
                 </button>
               </td>
               <td className="sh-code">{code}</td>
