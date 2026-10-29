@@ -38,7 +38,9 @@ module.exports = function attendanceRoutes(app, h) {
       ]);
       const branchById = {};
       branches.filter(b => auth.branchOk(req, b.ROWID)).forEach(b => { branchById[String(b.ROWID)] = b; });
-      const guards = auth.inArea(req, guardsAll).filter(g => branchById[String(g.branch_id)]);
+      // Relievers are not regular guards (Prem, 30 Oct: they come some day only): not listed, not counted.
+      // Their visits are on Setup → Relievers.
+      const guards = auth.inArea(req, guardsAll).filter(g => branchById[String(g.branch_id)] && !String(g.tags || '').split(',').includes('Reliever'));
       // Absent only after the shift has begun + 15 min late time (30 Oct: at 00:41 the day's A and C showed Absent).
       const startOf = {};
       for (const id of Object.keys(branchById)) {
@@ -66,7 +68,6 @@ module.exports = function attendanceRoutes(app, h) {
         const firstIn = x.log.find(l => l.direction === 'IN');
         const outs = firstIn ? x.log.filter(l => l.direction === 'OUT' && l.CREATEDTIME > firstIn.CREATEDTIME) : [];
         const lastOut = outs[outs.length - 1];
-        const reliever = String(g.tags || '').split(',').includes('Reliever');
         const b = branchById[String(g.branch_id)];
         const [y, m, d] = x.day.split('-');
         rows.push({
@@ -82,7 +83,7 @@ module.exports = function attendanceRoutes(app, h) {
           approvedBy: lastOut && lastOut.allowed_by ? lastOut.allowed_by : '',
           agency: g.agency || '',
           approvedTime: lastOut && lastOut.allowed_by ? niceTime(lastOut.CREATEDTIME) : '',
-          designation: reliever ? 'Reliever' : g.designation || '',
+          designation: g.designation || '',
           day: +d, month: +m, year: +y,
           addedUser: firstIn ? SOURCE[firstIn.source] || firstIn.source || '' : '',
           status2: '',
