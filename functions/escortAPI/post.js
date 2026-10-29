@@ -775,5 +775,5 @@ module.exports = function postRoutes(app, h) {
     express, crypto, MEDIA, MEDIA_BUCKET, MEDIA_SOURCES, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, mediaLabel, TIME_RE, permitEnd
   });
 
-  return { onPostIn, onPostOut };
+  return { onPostIn, onPostOut, notify: (...x) => sup.notify(...x) };
 };

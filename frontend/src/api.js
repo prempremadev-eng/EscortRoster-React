@@ -123,6 +123,8 @@ export const api = {
   qrCheck: body => apiCall('POST', '/qrCheck', body),
   qrPunch: body => apiCall('POST', '/qrPunch', body),
   qrReliever: body => apiCall('POST', '/qrReliever', body),
+  qrOnDuty: branch => apiCall('GET', '/qrOnDuty?branch=' + encodeURIComponent(branch)),
+  qrAllowOut: guard_id => apiCall('POST', '/qrAllowOut', { guard_id }),
   qrAdmin: branch => apiCall('GET', '/qrAdmin?branch=' + encodeURIComponent(branch)),
   qrAdminSave: body => apiCall('POST', '/qrAdmin', body),
   getChart: (week, branch) => apiCall('GET', '/getChart?week=' + q(week || '') + (branch ? '&branch=' + q(branch) : '')),

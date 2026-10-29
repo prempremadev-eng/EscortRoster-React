@@ -41,6 +41,50 @@ const hours = s => s.start.slice(0, 2).replace(/^0/, '') + '–' + s.end.slice(0
 
 // Screen 12: one day of one branch. Tap an empty slot, then a free guard. Tap a filled slot to
 // empty it. "Publish to guards" makes the day's drafts the guards' duty for their card IN.
+// 📍 Gate now (Prem, 29 Oct, QR branches like Cumbum): who is IN at the gate with the IN selfie, the next shift's
+// handover, the relievers of today; Allow OUT for a guard stuck because nobody came.
+function GateNow({ branch }) {
+  const [g, setG] = useState(null);
+  const [msg, setMsg] = useState('');
+  const load = useCallback(() => { api.qrOnDuty(branch).then(r => setG(r.data)).catch(() => setG(null)); }, [branch]);
+  useEffect(() => { if (branch) load(); }, [branch, load]);
+  if (!g || !g.gate) return null;
+  const allow = async x => {
+    if (!window.confirm('Let ' + x.name + ' go OUT now? (Shift ' + x.next + ' is not IN.) It is recorded with your name.')) return;
+    try { const r = (await api.qrAllowOut(x.id)).data; setMsg('🏁 ' + r.name + ' OUT ' + r.time + ' (allowed by you).'); load(); } catch (err) { setMsg(err.message); }
+  };
+  return (
+    <div className="gn no-print">
+      <div className="gn-head"><b>📍 Gate now</b><button className="pd-chip" onClick={load}>↻</button></div>
+      {msg && <div className="sc-note">{msg}</div>}
+      <div className="gn-list">
+        {g.on.map(x => (
+          <div key={x.id} className="gn-card">
+            {x.selfie ? <img src={x.selfie} alt={'IN photo of ' + x.name} /> : <div className="gn-noimg">🙂</div>}
+            <div className="gn-info">
+              <b>{x.name}</b>
+              <span>IN {x.in}{x.distance != null && x.distance !== '' ? ' · ' + x.distance + ' m' : ''}</span>
+              {x.next && <span>{x.nextOk ? '✅ Shift ' + x.next + ' is IN' : '🔒 Shift ' + x.next + ' not IN'}</span>}
+              {x.next && !x.nextOk && <button className="pd-chip gn-allow" onClick={() => allow(x)}>Allow OUT</button>}
+            </div>
+          </div>
+        ))}
+        {g.relievers.map(r => (
+          <div key={r.rs} className="gn-card gn-rel">
+            {r.selfie ? <img src={r.selfie} alt={'IN photo of reliever ' + r.name} /> : <div className="gn-noimg">🔁</div>}
+            <div className="gn-info">
+              <b>🔁 {r.name} {r.phone}</b>
+              <span>Reliever · Shift {r.shift}</span>
+              <span>{r.in ? '✅ IN ' + r.in : '⏳ waiting'}{r.addedBy ? ' · by ' + r.addedBy : ''}</span>
+            </div>
+          </div>
+        ))}
+        {g.on.length === 0 && g.relievers.length === 0 && <div className="pd-muted pd-small">Nobody IN at the gate now.</div>}
+      </div>
+    </div>
+  );
+}
+
 export default function SupervisorSchedule() {
   const [branches, setBranches] = useState([]);
   // Starts empty: the remembered branch is used only if it is in this login's area.
@@ -420,6 +464,7 @@ export default function SupervisorSchedule() {
             </div>
           );
         })()}
+        {data && <GateNow branch={branch} />}
         {error && <div className="pd-error-bar">{error}</div>}
         {note && tools && <div className="sc-note">{note}</div>}
         {!data && !error && <div className="pd-muted sup-pad">Loading...</div>}

@@ -17,7 +17,7 @@ const TICKET_MS = 3 * 60000; // the photo check is valid for 3 minutes before IN
 const OPEN_IN_HOURS = 16; // an IN older than this is not closed by the next scan (forgotten OUT)
 
 module.exports = function qrRoutes(app, h) {
-  const { catalyst, fail, requireRowId, auth, istNow, getShifts, getVapidKeys, onCardIn, onPostOut, rosterShiftOf } = h;
+  const { catalyst, fail, requireRowId, auth, istNow, getShifts, getVapidKeys, onCardIn, onPostOut, rosterShiftOf, notify } = h;
   const admin = req => catalyst.initialize(req, { scope: 'admin' });
   const ok = (res, data) => res.status(200).json({ status: 'success', data });
 
@@ -177,6 +177,15 @@ module.exports = function qrRoutes(app, h) {
     }
   });
 
+  // 🔔 to the office (step 5): the branch's post chat channel (SupervisorSubs of that branch), so the phones that
+  // turned on notifications for this branch hear it. Never fails the guard's action.
+  async function tellOffice(catalystApp, branchId, title, body) {
+    try {
+      const p = await catalystApp.zcql().executeZCQLQuery(`SELECT ROWID FROM Posts WHERE branch_id = ${requireRowId(branchId)} AND post_type = 'POST' AND is_active = 'true' LIMIT 1`);
+      if (p.length) await notify(catalystApp, p[0].Posts.ROWID, title, body, true);
+    } catch (err) { console.error('QR office alert failed:', err.message || err); }
+  }
+
   // ---------- relievers (step 2, Prem 29 Oct) ----------
   // On a guard's off day the ISI field officer sends someone not known before. The guard on duty adds him for
   // the next shift (new: name + phone; known: from the list); only an added reliever can IN. The first time
@@ -313,6 +322,7 @@ module.exports = function qrRoutes(app, h) {
         } finally {
           cleanTmp();
         }
+        if (!hit && phone) await tellOffice(catalystApp, b.ROWID, '⚠️ Unknown reliever at the gate', 'Phone ••••' + phone.slice(-4) + ' tried to IN but was not added by the guard on duty.');
         if (!hit) return ok(res, { matched: false, distance, relieverWanted: rows.some(r => !r.in_at && !(byId.get(String(r.reliever_id)) || {}).photo_key) });
         const action = hit.r.in_at ? 'OUT' : 'IN';
         const key = 'qr/' + b.ROWID + '/' + today + '/rel-' + hit.p.ROWID + '-' + crypto.randomBytes(5).toString('hex') + '.jpg';
@@ -397,6 +407,60 @@ module.exports = function qrRoutes(app, h) {
     }
   });
 
+  // ---------- office (step 4 / 6): who is at the gate now, with selfies; Allow OUT ----------
+  const signed = async (bucket, key) => { try { return key ? (await bucket.generatePreSignedUrl(key, 'GET', { expiryIn: '3600' })).signature : ''; } catch (e) { return ''; } };
+  app.get('/qrOnDuty', async (req, res) => {
+    try {
+      auth.need(req, 'supervisor');
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const branch = auth.requireBranch(req, requireRowId(req.query.branch));
+      const br = (await zcql.executeZCQLQuery(`SELECT qr_key FROM Branches WHERE ROWID = ${branch}`))[0].Branches;
+      if (!br.qr_key) return ok(res, { gate: false });
+      const bucket = catalystApp.stratus().bucket(BUCKET);
+      const guards = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)}`)).map(r => r.Guards);
+      const on = [];
+      for (const g of guards) {
+        const open = await openIn(zcql, g.ROWID);
+        if (!open) continue;
+        const last = (await zcql.executeZCQLQuery(`SELECT punch_time, selfie_key, distance_m, source FROM AccessLog WHERE guard_id = ${g.ROWID} AND direction = 'IN' ORDER BY CREATEDTIME DESC LIMIT 1`))[0].AccessLog;
+        const hand = await handover(zcql, branch, g.ROWID, open);
+        on.push({ id: String(g.ROWID), name: g.guard_name, idNo: g.id_number, in: last.punch_time, since: String(open.CREATEDTIME).slice(0, 16), distance: last.distance_m, selfie: await signed(bucket, last.selfie_key), next: hand.code, nextOk: hand.ok });
+      }
+      const today = qrDay();
+      const rel = (await reliefRows(zcql, branch, [plusDay(today, -1), today, plusDay(today, 1)])).filter(r => !r.out_at);
+      const people = await relieversOf(zcql, branch);
+      const relievers = [];
+      for (const r of rel) {
+        const p = people.find(x => String(x.ROWID) === String(r.reliever_id)) || {};
+        const sel = (await zcql.executeZCQLQuery(`SELECT in_selfie FROM ReliefShifts WHERE ROWID = ${r.ROWID}`))[0].ReliefShifts.in_selfie;
+        relievers.push({ rs: String(r.ROWID), name: p.name || '?', phone: masked(p.phone), shift: r.shift_code, day: r.duty_date, in: r.in_at ? String(r.in_at).slice(11, 16) : '', addedBy: r.added_by || '', selfie: await signed(bucket, sel) });
+      }
+      ok(res, { gate: true, on, relievers });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // The office lets a guard go OUT when nobody came (Prem, 29 Oct: "office Allow OUT"); recorded with who allowed.
+  app.post('/qrAllowOut', async (req, res) => {
+    try {
+      auth.need(req, 'supervisor');
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, branch_id, agency_id, escort_id, guard_token, is_active FROM Guards WHERE ROWID = ${requireRowId(req.body.guard_id)}`))[0];
+      const guard = auth.requireRow(req, g && g.Guards, 'guard');
+      const open = await openIn(zcql, guard.ROWID);
+      if (!open) throw new Error(guard.guard_name + ' is not IN.');
+      const { time } = istNow();
+      await catalystApp.datastore().table('AccessLog').insertRow({ guard_id: guard.ROWID, direction: 'OUT', punch_time: time, duty_date: open.duty_date, source: 'QR', allowed_by: req.user.name });
+      try { await onPostOut(catalystApp, guard); } catch (err) { console.error('Allow OUT follow-up failed:', err.message || err); }
+      ok(res, { name: guard.guard_name, time });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   // A one-post site without a supervisor (Cumbum): no one publishes a day schedule, so a QR IN puts the guard
   // on that post for his roster shift (published), like a card IN on a published day. The post page then opens.
   async function autoSchedule(catalystApp, zcql, guard, day) {
@@ -445,7 +509,10 @@ module.exports = function qrRoutes(app, h) {
       if ((t.a === 'IN') !== !open) throw new Error('Already ' + (open ? 'IN' : 'OUT') + '. Scan again.');
       if (t.a === 'OUT') {
         const hand = await handover(zcql, b.ROWID, guard.ROWID, open);
-        if (!hand.ok) throw new Error('🔒 OUT locked: the Shift ' + hand.code + ' guard or reliever is not IN yet. Wait, or ask the office.');
+        if (!hand.ok) {
+          await tellOffice(catalystApp, b.ROWID, '🔒 ' + guard.guard_name + ' wants to go OUT', 'Shift ' + hand.code + (hand.reliever ? ': reliever ' + hand.reliever.name + ' not IN' : ': nobody IN, no reliever added') + '. Allow OUT on the Schedule page if needed.');
+          throw new Error('🔒 OUT locked: the Shift ' + hand.code + ' guard or reliever is not IN yet. Wait, or ask the office.');
+        }
       }
       const { time } = istNow();
       const day = t.a === 'OUT' && t.dd ? t.dd : qrDay(); // an OUT belongs to its IN's duty day (C shift)
