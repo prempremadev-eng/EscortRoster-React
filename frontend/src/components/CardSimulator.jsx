@@ -17,6 +17,52 @@ function pushNote(name, push) {
 // Pretends to be the access-card machine at the gate: each button press writes one AccessLog row.
 // Every guard in the Guards master can swipe (POST and ESCORT).
 // Later the real card system writes the same table, and nothing else in the app has to change.
+// 🧪 Face match test (Prem, 29 Oct): two photos → Zia says if it is the same person and how sure. Photos are
+// made small (600 px) here so they fit the request; nothing is saved.
+function shrink(file) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      const k = Math.min(1, 600 / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = reject;
+    img.src = URL.createObjectURL(file);
+  });
+}
+function FaceTest() {
+  const [a, setA] = useState('');
+  const [b, setB] = useState('');
+  const [out, setOut] = useState(null);
+  const [busy, setBusy] = useState(false);
+  async function run() {
+    setBusy(true); setOut(null);
+    try { setOut((await api.faceTest(a, b)).data); } catch (err) { setOut({ error: err.message }); } finally { setBusy(false); }
+  }
+  const pick = set => async e => { const f = e.target.files[0]; if (f) set(await shrink(f)); };
+  const r = out && out.result;
+  return (
+    <div className="master-form">
+      <div className="master-form-title">🧪 Face match test (Zia)</div>
+      <div className="link-actions">
+        <label>Photo 1 (registered)<input type="file" accept="image/*" onChange={pick(setA)} /></label>
+        <label>Photo 2 (selfie)<input type="file" accept="image/*" onChange={pick(setB)} /></label>
+      </div>
+      <div className="link-actions">
+        {a && <img src={a} alt="Photo 1" style={{ height: 120, borderRadius: 8 }} />}
+        {b && <img src={b} alt="Photo 2" style={{ height: 120, borderRadius: 8 }} />}
+      </div>
+      <button className="btn" onClick={run} disabled={busy || !a || !b}>{busy ? 'Checking…' : 'Compare'}</button>
+      {out && (out.error
+        ? <div className="trip-error">{out.error}</div>
+        : <div className="sim-push"><b>{r && r.matched !== undefined ? (r.matched ? '✅ Same person' : '❌ Not the same') : (r && r.match ? '✅ Same person' : '❌ Not the same')}</b> · {JSON.stringify(r)} · {out.ms} ms</div>)}
+    </div>
+  );
+}
+
 export default function CardSimulator() {
   const dutyDate = dutyDayStr();
   const [guards, setGuards] = useState([]);
@@ -115,6 +161,7 @@ export default function CardSimulator() {
       </div>
 
       <div className="dash">
+        <FaceTest />
         <div className="sim-note">Test only: these buttons act like the guard's access card at the gate.</div>
         {error && <div className="trip-error">{error}</div>}
         {note && <div className="sim-push">{note}</div>}

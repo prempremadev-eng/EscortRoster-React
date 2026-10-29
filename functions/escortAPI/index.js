@@ -1678,6 +1678,33 @@ app.post('/guardPhoto', express.raw({ type: () => true, limit: '6mb' }), async (
   }
 });
 
+// 🧪 Face match test (Prem, 29 Oct, before the Cumbum QR attendance): two photos → Zia facial comparison
+// (IN data centre). Admin only; nothing is saved. Photos come as data URLs, written to /tmp because the SDK
+// sends file streams.
+app.post('/faceTest', async (req, res) => {
+  const files = [];
+  try {
+    auth.need(req, 'admin');
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const take = (v, name) => {
+      const m = String(v || '').match(/^data:image\/(jpeg|png|webp);base64,(.+)$/);
+      if (!m) throw new Error('Pick two photos (JPG / PNG / WEBP).');
+      const file = require('os').tmpdir() + '/face-' + crypto.randomBytes(6).toString('hex') + '-' + name + '.' + (m[1] === 'jpeg' ? 'jpg' : m[1]);
+      require('fs').writeFileSync(file, Buffer.from(m[2], 'base64'));
+      files.push(file);
+      return require('fs').createReadStream(file);
+    };
+    const a = take(req.body.a, 'a'), b = take(req.body.b, 'b');
+    const t0 = Date.now();
+    const result = await catalystApp.zia().compareFace(a, b);
+    res.status(200).json({ status: 'success', data: { result, ms: Date.now() - t0 } });
+  } catch (err) {
+    fail(res, err);
+  } finally {
+    files.forEach(f => { try { require('fs').unlinkSync(f); } catch (e) { /* gone */ } });
+  }
+});
+
 app.get('/guardPhotoUrl', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
