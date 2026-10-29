@@ -17,6 +17,9 @@ const today = () => new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10
 export default function AttendancePage() {
   const [branches, setBranches] = useState([]);
   const [agencies, setAgencies] = useState([]);
+  // All states, cities, branches, agencies on one page (Prem, 30 Oct); '' = All. Picking a state narrows the cities, etc.
+  const [state, setState] = useState('');
+  const [city, setCity] = useState('');
   const [branch, setBranch] = useState('');
   const [agency, setAgency] = useState('');
   const [from, setFrom] = useState(today);
@@ -28,24 +31,30 @@ export default function AttendancePage() {
   const [note, setNote] = useState('');
 
   useEffect(() => {
-    api.getPosts().then(r => { setBranches(r.data.branches); setAgencies(r.data.agencies || []); if (r.data.branches[0]) setBranch(String(r.data.branches[0].ROWID)); })
+    api.getPosts().then(r => { setBranches(r.data.branches); setAgencies(r.data.agencies || []); })
       .catch(err => setError(err.message));
   }, []);
-  // No auto-refresh: every load costs Data Store reads. Change a filter or press 🔄.
+  // No auto-refresh: every load costs Data Store reads. Only the dates load again; the other filters work on the page.
   async function load() {
-    if (!branch) return;
     setError(''); setNote(''); setData(null);
-    try { setData((await api.attendance(branch, agency, from, to)).data); } catch (err) { setError(err.message); setData({ rows: [] }); }
+    try { setData((await api.attendance('', '', from, to)).data); } catch (err) { setError(err.message); setData({ rows: [] }); }
   }
-  useEffect(() => { load(); }, [branch, agency, from, to]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(); }, [from, to]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const branchAgencies = agencies.filter(a => (a.is_active === true || a.is_active === 'true') && worksIn(a, branch));
-  const rows = useMemo(() => {
+  const uniq = list => [...new Set(list.filter(Boolean))].sort();
+  const states = uniq(branches.map(b => b.state));
+  const cities = uniq(branches.filter(b => !state || b.state === state).map(b => b.city));
+  const shownBranches = branches.filter(b => (!state || b.state === state) && (!city || b.city === city));
+  const shownAgencies = agencies.filter(a => (a.is_active === true || a.is_active === 'true') && (branch ? worksIn(a, branch) : shownBranches.some(b => worksIn(a, String(b.ROWID)))));
+  // Rows for the place filters (state · city · branch · agency) and the search; the chips count these.
+  const placed = useMemo(() => {
     const s = search.trim().toLowerCase();
-    return ((data && data.rows) || []).filter(r => (show === 'all' || r.status === show)
+    return ((data && data.rows) || []).filter(r => (!state || r.state === state) && (!city || r.city === city)
+      && (!branch || r.branchId === branch) && (!agency || r.agencyId === agency)
       && (!s || [r.name, r.clock, r.vendorId, r.post].some(v => String(v).toLowerCase().includes(s))));
-  }, [data, show, search]);
-  const count = k => ((data && data.rows) || []).filter(r => k === 'all' || r.status === k).length;
+  }, [data, state, city, branch, agency, search]);
+  const rows = placed.filter(r => show === 'all' || r.status === show);
+  const count = k => placed.filter(r => k === 'all' || r.status === k).length;
 
   // 📤 Excel with the same headings, in the order on screen.
   async function exportXlsx() {
@@ -59,7 +68,7 @@ export default function AttendancePage() {
     const blob = new Blob([await wb.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'Attendances-' + (b ? b.branch_name : '') + '-' + from + (to !== from ? '-to-' + to : '') + '.xlsx';
+    a.download = 'Attendances-' + (b ? b.branch_name : city || state || 'All') + '-' + from + (to !== from ? '-to-' + to : '') + '.xlsx';
     a.click();
     URL.revokeObjectURL(a.href);
     setNote('📤 Exported ' + rows.length + ' row(s).');
@@ -69,12 +78,21 @@ export default function AttendancePage() {
     <>
       <div className="titlebar"><h1>🗓️ Attendances</h1></div>
       <div className="toolbar no-print at-tools">
+        <select value={state} onChange={e => { setState(e.target.value); setCity(''); setBranch(''); setAgency(''); }} aria-label="State">
+          <option value="">All states</option>
+          {states.map(x => <option key={x} value={x}>{x}</option>)}
+        </select>
+        <select value={city} onChange={e => { setCity(e.target.value); setBranch(''); setAgency(''); }} aria-label="City">
+          <option value="">All cities</option>
+          {cities.map(x => <option key={x} value={x}>{x}</option>)}
+        </select>
         <select value={branch} onChange={e => { setBranch(e.target.value); setAgency(''); }} aria-label="Branch">
-          {branches.map(b => <option key={b.ROWID} value={b.ROWID}>{b.branch_name} · {b.city}</option>)}
+          <option value="">All branches</option>
+          {shownBranches.map(b => <option key={b.ROWID} value={b.ROWID}>{b.branch_name} · {b.city}</option>)}
         </select>
         <select value={agency} onChange={e => setAgency(e.target.value)} aria-label="Agency">
           <option value="">All agencies</option>
-          {branchAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+          {shownAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
         </select>
         <label>From <input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} /></label>
         <label>To <input type="date" value={to} min={from} onChange={e => setTo(e.target.value)} /></label>
