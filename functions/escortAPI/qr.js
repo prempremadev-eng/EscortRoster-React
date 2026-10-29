@@ -198,6 +198,30 @@ module.exports = function qrRoutes(app, h) {
     return (await zcql.executeZCQLQuery(`SELECT ROWID, name, phone, photo_key, visits FROM Relievers WHERE branch_id = ${branchId} ORDER BY name ASC`)).map(r => r.Relievers);
   }
 
+  // Step 3, handover (Prem, 29 Oct): a guard may OUT only when the next shift is IN: the regular guard whose roster
+  // says that shift, or the added reliever. G (09–18) has no next shift. Nobody IN → OUT stays locked.
+  async function handover(zcql, branchId, guardId, open) {
+    const code = await rosterShiftOf(zcql, guardId, open.duty_date);
+    const next = NEXT[code];
+    if (!next) return { ok: true, code: '', regulars: [], reliever: null };
+    const day = code === 'C' ? plusDay(open.duty_date, 1) : open.duty_date;
+    const guards = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE branch_id = ${requireRowId(branchId)} AND is_active = 'true'`)).map(r => r.Guards)
+      .filter(g => String(g.ROWID) !== String(guardId));
+    const regulars = [];
+    for (const g of guards) {
+      if ((await rosterShiftOf(zcql, g.ROWID, day)) !== next) continue;
+      const ins = await zcql.executeZCQLQuery(`SELECT punch_time FROM AccessLog WHERE guard_id = ${g.ROWID} AND duty_date = '${day}' AND direction = 'IN' LIMIT 1`);
+      regulars.push({ name: g.guard_name, in: ins.length ? ins[0].AccessLog.punch_time : '' });
+    }
+    const row = (await reliefRows(zcql, branchId, [day])).find(r => r.shift_code === next);
+    let reliever = null;
+    if (row) {
+      const p = (await relieversOf(zcql, branchId)).find(x => String(x.ROWID) === String(row.reliever_id));
+      reliever = { name: p ? p.name : '?', phone: p ? masked(p.phone) : '', in: row.in_at && !row.out_at ? String(row.in_at).slice(11, 16) : '' };
+    }
+    return { ok: regulars.some(g => g.in) || !!(reliever && reliever.in), code: next, day, regulars, reliever };
+  }
+
   // GPS + live photo → which guard (face), IN or OUT next. Nothing is saved yet except the photo.
   app.post('/qrCheck', async (req, res) => {
     try {
@@ -313,8 +337,9 @@ module.exports = function qrRoutes(app, h) {
           relief = { code: slot.code, day: slot.day, added: who ? who.name + ' ' + masked(who.phone) : '', list: people.map(p => ({ id: String(p.ROWID), name: p.name, phone: masked(p.phone), visits: Number(p.visits) || 0 })) };
         }
       }
+      const hand = open ? await handover(zcql, b.ROWID, found.ROWID, open) : null;
       ok(res, {
-        matched: true, ticket, action, distance, relief,
+        matched: true, ticket, action, distance, relief, handover: hand,
         guard: { name: found.guard_name, id: found.id_number },
         shift: sh ? { code: sh.code, start: sh.start, end: sh.end } : (code ? { code } : null),
         since: open ? String(open.CREATEDTIME).slice(11, 16) : ''
@@ -407,6 +432,10 @@ module.exports = function qrRoutes(app, h) {
       // Pressed twice, or the state changed since the check: refuse.
       const open = await openIn(zcql, guard.ROWID);
       if ((t.a === 'IN') !== !open) throw new Error('Already ' + (open ? 'IN' : 'OUT') + '. Scan again.');
+      if (t.a === 'OUT') {
+        const hand = await handover(zcql, b.ROWID, guard.ROWID, open);
+        if (!hand.ok) throw new Error('🔒 OUT locked: the Shift ' + hand.code + ' guard or reliever is not IN yet. Wait, or ask the office.');
+      }
       const { time } = istNow();
       const day = t.a === 'OUT' && t.dd ? t.dd : qrDay(); // an OUT belongs to its IN's duty day (C shift)
       await catalystApp.datastore().table('AccessLog').insertRow({

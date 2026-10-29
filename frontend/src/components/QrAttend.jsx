@@ -135,7 +135,17 @@ export default function QrAttend({ qrKey }) {
           <div className="qr-name">{check.guard.name}</div>
           <div className="qr-sub">ID {check.guard.id}{check.shift ? ' · Shift ' + check.shift.code + (check.shift.start ? ' ' + check.shift.start + '–' + check.shift.end : '') : ''}{check.since ? ' · IN since ' + check.since : ''}</div>
           <div className="qr-sub">📍 {check.distance} m from the gate</div>
-          <button className={'qr-big ' + (check.action === 'IN' ? 'qr-in' : 'qr-out')} onClick={punch}>{check.action === 'IN' ? '✅ IN' : '🏁 OUT'}</button>
+          {/* Handover (step 3): who of the next shift is IN; OUT only when someone is. */}
+          {check.handover && check.handover.code && (
+            <div className="qr-hand">
+              <div className="qr-hand-title">Next: Shift {check.handover.code}</div>
+              {check.handover.regulars.map(g => <div key={g.name} className="qr-hand-row">👤 {g.name} <b>{g.in ? '✅ IN ' + g.in : '❌ not IN'}</b></div>)}
+              <div className="qr-hand-row">🔁 Reliever: {check.handover.reliever ? <>{check.handover.reliever.name} {check.handover.reliever.phone} <b>{check.handover.reliever.in ? '✅ IN ' + check.handover.reliever.in : '⏳ not IN yet'}</b></> : <b>not added</b>}</div>
+            </div>
+          )}
+          {check.handover && !check.handover.ok
+            ? <div className="qr-lock">🔒 OUT locked: wait for the Shift {check.handover.code} guard{check.handover.reliever ? ' / ' + check.handover.reliever.name : ''}</div>
+            : <button className={'qr-big ' + (check.action === 'IN' ? 'qr-in' : 'qr-out')} onClick={punch}>{check.action === 'IN' ? '✅ IN' : '🏁 OUT'}</button>}
           {check.addedBy && <div className="qr-sub">Added by {check.addedBy}</div>}
           {check.relief && (
             <div className="qr-rel">
