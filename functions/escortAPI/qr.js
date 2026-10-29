@@ -105,7 +105,10 @@ module.exports = function qrRoutes(app, h) {
     const byEyes = (tip.x - Math.min(le.x, re.x)) / Math.abs(le.x - re.x); // 0.5 = nose tip between the eyes
     const byJaw = jaw.length >= 2 ? (tip.x - Math.min(jaw[0].x, jaw[jaw.length - 1].x)) / Math.abs(jaw[jaw.length - 1].x - jaw[0].x) : 0.5;
     console.log('qr front check', JSON.stringify({ ...facts, eye, byEyes, byJaw, tilt: Math.abs(re.y - le.y) / eye, box }));
-    const out = { byJaw, byEyes };
+    // How open the eyes are: height / width of each eye's points (open ≈ 0.3, closed ≈ 0.1); for the blink check.
+    const open = list => { if (list.length < 3) return null; const xs = list.map(p => p.x), ys = list.map(p => p.y); const w = Math.max(...xs) - Math.min(...xs); return w ? (Math.max(...ys) - Math.min(...ys)) / w : null; };
+    const eo = [open(pts(lm[k('lefteye')])), open(pts(lm[k('righteye')]))].filter(v => v !== null);
+    const out = { byJaw, byEyes, eyes: eo.length ? eo.reduce((a, b) => a + b, 0) / eo.length : null };
     if (imgWidth && box.length >= 4 && Math.abs(box[2] - box[0]) < imgWidth * 0.2) return { ...out, why: '🙂 Come closer to the camera.' };
     if (Math.abs(re.y - le.y) / eye > 0.2) return { ...out, why: '🙂 Keep your head straight (not tilted).' };
     if (Math.abs(byEyes - 0.5) > 0.12 || Math.abs(byJaw - 0.5) > 0.1) return { ...out, why: '🙂 Look straight at the camera (not to the side).' };
@@ -275,16 +278,16 @@ module.exports = function qrRoutes(app, h) {
       const selfieFile = tmpFile(photo, 'jpg');
       const notFront = await frontFace(catalystApp, selfieFile, Number(req.body.w) || 0);
       if (notFront) { cleanTmp(); throw new Error(notFront); }
-      const ch = await readTicket(catalystApp, req.body.c);
+      await readTicket(catalystApp, req.body.c); // a fresh check started from this page
+      // Live person (Prem, 29 Oct: the head turn confused the guards): the second photo has the eyes closed. A
+      // photo or a screen cannot close its eyes. Both photos must be the same person.
       const m2 = String(req.body.photo2 || '').match(/^data:image\/jpeg;base64,(.+)$/);
-      if (!m2) { cleanTmp(); throw new Error('Turn your head as asked and try again.'); }
+      if (!m2) { cleanTmp(); throw new Error('😌 Close your eyes when asked and try again.'); }
       const turnFile = tmpFile(Buffer.from(m2[1], 'base64'), 'jpg');
-      const turn = await measureFace(catalystApp, turnFile, 0);
-      // How far the nose tip moved from the middle of the jaw, in the asked direction. The photo is not
-      // mirrored: a head turned to the guard's LEFT puts the nose tip to the image's right (29 Oct test: 0.78).
-      const moved = Number.isFinite(turn.byJaw) ? (turn.byJaw - 0.5) * (ch.dir === 'LEFT' ? 1 : -1) : 0;
-      console.log('qr liveness', JSON.stringify({ dir: ch.dir, byJaw: turn.byJaw, byEyes: turn.byEyes, moved }));
-      if (moved < 0.12) { cleanTmp(); throw new Error('🔄 Turn your head ' + (ch.dir === 'LEFT' ? '⬅ LEFT' : 'RIGHT ➡') + ' when asked. Try again.'); }
+      const first = await measureFace(catalystApp, selfieFile, 0);
+      const shut = await measureFace(catalystApp, turnFile, 0);
+      console.log('qr blink', JSON.stringify({ open: first.eyes, closed: shut.eyes }));
+      if (!first.eyes || shut.eyes === null || shut.eyes === undefined || !(shut.eyes < first.eyes * 0.65)) { cleanTmp(); throw new Error('😌 Close your eyes when asked (2 seconds) and try again.'); }
       const same = await catalystApp.zia().compareFace(fs.createReadStream(selfieFile), fs.createReadStream(turnFile));
       if (!yes(same && same.matched)) { cleanTmp(); throw new Error('The two photos are not the same person. Try again.'); }
       let found = null, score = null;

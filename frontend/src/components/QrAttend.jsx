@@ -32,6 +32,10 @@ export default function QrAttend({ qrKey }) {
   const stream = useRef(null);
   const fix = useRef(null);
   const resetTimer = useRef(null);
+  // The steps show the first time on this phone, later behind ❓ Help.
+  const [firstTime, setFirstTime] = useState(() => { try { return !localStorage.getItem('qr-help-seen'); } catch { return true; } });
+  const [help, setHelp] = useState(false);
+  const seenHelp = () => { try { localStorage.setItem('qr-help-seen', '1'); } catch { /* private mode */ } setFirstTime(false); setHelp(false); };
   const last = useRef(null); // the last photos, sent again with a reliever's phone number
   const [relPhone, setRelPhone] = useState('');
   const [relForm, setRelForm] = useState(null); // { pick, name, phone } — the duty guard adds a reliever
@@ -47,9 +51,10 @@ export default function QrAttend({ qrKey }) {
     try {
       setStep('gps');
       fix.current = await getFix();
-      const ch = (await api.qrChallenge(qrKey)).data; // LEFT or RIGHT, picked by the server
+      const ch = (await api.qrChallenge(qrKey)).data; // a fresh signed start for this check
+      setCount(3);
+      setHint('Look straight · நேராகப் பாருங்கள்');
       setStep('camera');
-      setHint('Look straight at the camera · head straight');
       stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 720 } }, audio: false });
       video.current.srcObject = stream.current;
       await video.current.play();
@@ -62,12 +67,14 @@ export default function QrAttend({ qrKey }) {
       };
       for (let n = 3; n > 0; n--) { setCount(n); await new Promise(r => setTimeout(r, 1000)); }
       const c = snap();
-      // Live check (29 Oct): now turn the head the way the server asked; a photo or a screen cannot.
-      setHint(ch.dir === 'LEFT' ? 'Now turn your head ⬅ LEFT' : 'Now turn your head RIGHT ➡');
-      setCount(ch.dir === 'LEFT' ? '⬅' : '➡');
-      await new Promise(r => setTimeout(r, 1200));
-      for (let n = 2; n > 0; n--) { setCount((ch.dir === 'LEFT' ? '⬅ ' : '') + n + (ch.dir === 'RIGHT' ? ' ➡' : '')); await new Promise(r => setTimeout(r, 800)); }
+      // Live check (29 Oct): close the eyes for the second photo; a photo or a screen cannot.
+      setHint('😌 Close your eyes · கண்ணை மூடுங்கள்');
+      setCount('😌');
+      await new Promise(r => setTimeout(r, 1300));
       const c2 = snap();
+      setHint('✅ Open your eyes · கண்ணைத் திறங்கள்');
+      setCount('👀');
+      await new Promise(r => setTimeout(r, 500));
       stopCam();
       setStep('checking');
       last.current = { k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), photo2: c2.toDataURL('image/jpeg', 0.8), c: ch.c, w: c.width };
@@ -119,9 +126,21 @@ export default function QrAttend({ qrKey }) {
       {msg && <div className="qr-msg">{msg}</div>}
       {site && !site.ready && <div className="qr-msg">The gate location is not set yet. Ask the office.</div>}
 
-      {step === 'start' && site && site.ready && (
-        <button className="qr-big" onClick={() => start('')}>🤳 Start<small>Location + face check</small></button>
+      {step === 'start' && site && site.ready && (help || firstTime) && (
+        <div className="qr-help">
+          <b>How to mark attendance · வருகை பதிவு</b>
+          <ol>
+            <li>Stand at the gate, Location ON · கேட்டில் நில்லுங்கள், Location ON</li>
+            <li>Look straight at the camera: 3 · 2 · 1 · கேமராவை நேராகப் பாருங்கள்</li>
+            <li>😌 "Close your eyes": close them for 2 seconds · "கண்ணை மூடுங்கள்" வந்ததும் 2 வினாடி மூடுங்கள்</li>
+            <li>✅ IN / 🏁 OUT</li>
+          </ol>
+        </div>
       )}
+      {step === 'start' && site && site.ready && (
+        <button className="qr-big" onClick={() => { seenHelp(); start(''); }}>🤳 Start<small>Location + face check</small></button>
+      )}
+      {step === 'start' && site && site.ready && !firstTime && <button className="qr-link" onClick={() => setHelp(h => !h)}>❓ Help</button>}
       {step === 'gps' && <div className="qr-wait">📍 Finding your location…</div>}
       <div className="qr-cam" style={{ display: step === 'camera' ? 'block' : 'none' }}>
         <video ref={video} playsInline muted />
