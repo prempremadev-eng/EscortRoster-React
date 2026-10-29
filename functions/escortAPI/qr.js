@@ -204,8 +204,10 @@ module.exports = function qrRoutes(app, h) {
     return next ? { code: next, day: code === 'C' ? plusDay(open.duty_date, 1) : open.duty_date } : null;
   }
   async function reliefRows(zcql, branchId, days) {
-    return (await zcql.executeZCQLQuery(`SELECT ROWID, duty_date, shift_code, reliever_id, added_by, in_at, out_at FROM ReliefShifts WHERE branch_id = ${branchId} AND duty_date IN (${days.map(d => `'${d}'`).join(', ')})`)).map(r => r.ReliefShifts);
+    return (await zcql.executeZCQLQuery(`SELECT ROWID, duty_date, shift_code, reliever_id, added_by, in_at, out_at, CREATEDTIME FROM ReliefShifts WHERE branch_id = ${branchId} AND duty_date IN (${days.map(d => `'${d}'`).join(', ')})`)).map(r => r.ReliefShifts);
   }
+  // A slot can have more than one reliever in a day (one left, another came, 29 Oct): the one not OUT yet counts.
+  const activeRow = (rows, code) => rows.filter(r => r.shift_code === code && !r.out_at).sort((x, y) => String(y.CREATEDTIME).localeCompare(String(x.CREATEDTIME)))[0] || null;
   async function relieversOf(zcql, branchId) {
     return (await zcql.executeZCQLQuery(`SELECT ROWID, name, phone, photo_key, visits FROM Relievers WHERE branch_id = ${branchId} ORDER BY name ASC`)).map(r => r.Relievers);
   }
@@ -236,11 +238,11 @@ module.exports = function qrRoutes(app, h) {
       const ins = await zcql.executeZCQLQuery(`SELECT punch_time FROM AccessLog WHERE guard_id = ${g.ROWID} AND duty_date = '${day}' AND direction = 'IN' LIMIT 1`);
       regulars.push({ name: g.guard_name, in: ins.length ? ins[0].AccessLog.punch_time : '' });
     }
-    const row = (await reliefRows(zcql, branchId, [day])).find(r => r.shift_code === next);
+    const row = activeRow(await reliefRows(zcql, branchId, [day]), next);
     let reliever = null;
     if (row) {
       const p = (await relieversOf(zcql, branchId)).find(x => String(x.ROWID) === String(row.reliever_id));
-      reliever = { name: p ? p.name : '?', phone: p ? masked(p.phone) : '', in: row.in_at && !row.out_at ? String(row.in_at).slice(11, 16) : '' };
+      reliever = { name: p ? p.name : '?', phone: p ? masked(p.phone) : '', in: row.in_at ? String(row.in_at).slice(11, 16) : '' };
     }
     return { ok: regulars.some(g => g.in) || !!(reliever && reliever.in), code: next, day, regulars, reliever };
   }
@@ -355,7 +357,7 @@ module.exports = function qrRoutes(app, h) {
       if (open) {
         const slot = await nextSlot(zcql, found.ROWID, open, b.ROWID);
         if (slot) {
-          const row = (await reliefRows(zcql, b.ROWID, [slot.day])).find(r => r.shift_code === slot.code);
+          const row = activeRow(await reliefRows(zcql, b.ROWID, [slot.day]), slot.code);
           const people = await relieversOf(zcql, b.ROWID);
           const who = row && people.find(p => String(p.ROWID) === String(row.reliever_id));
           relief = { code: slot.code, day: slot.day, added: who ? who.name + ' ' + masked(who.phone) : '', list: people.map(p => ({ id: String(p.ROWID), name: p.name, phone: masked(p.phone), visits: Number(p.visits) || 0 })) };
@@ -399,7 +401,7 @@ module.exports = function qrRoutes(app, h) {
         else relId = String((await catalystApp.datastore().table('Relievers').insertRow({ branch_id: b.ROWID, name: name.toUpperCase(), phone, visits: 0, created_by: g.guard_name })).ROWID);
       }
       const table = catalystApp.datastore().table('ReliefShifts');
-      const row = (await reliefRows(zcql, b.ROWID, [slot.day])).find(r => r.shift_code === slot.code);
+      const row = activeRow(await reliefRows(zcql, b.ROWID, [slot.day]), slot.code); // an OUT reliever's row is done
       if (row && row.in_at) throw new Error('The reliever of shift ' + slot.code + ' is already IN.');
       if (row) await table.updateRow({ ROWID: row.ROWID, reliever_id: relId, added_by: g.guard_name });
       else await table.insertRow({ branch_id: b.ROWID, duty_date: slot.day, shift_code: slot.code, reliever_id: relId, added_by: g.guard_name });
