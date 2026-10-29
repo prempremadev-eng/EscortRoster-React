@@ -7,6 +7,7 @@ import { useAgencyPick } from '../agencyPick.js';
 const CODES = ['A', 'B', 'C', 'G', 'O', 'L', '-'];
 const LABEL = { A: 'Morning', B: 'Afternoon', C: 'Night', G: 'General', O: 'Week off', L: 'Leave', '-': 'Not set' };
 const WD = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
+const TEAM_HEAD = { PKL: 'PKL', MLCP: 'MLCP', ESCORT: 'Escort', HOSPITAL: 'Hospital', HOSP: 'Hospital' };
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 const thisMonth = () => new Date().toISOString().slice(0, 7);
@@ -56,7 +57,12 @@ function readRoster(XLSX, wb, guards, days, month) {
     }
     if (start < 0) continue;
     const matched = new Map(), unmatched = [], later = [];
+    // Team of the month (Prem, 30 Oct: IPF guards change PKL / MLCP / Escort / Hospital every month): a row
+    // that only says "MLCP", "ESCORT" … starts that team's rows.
+    let team = '';
     for (const [at, r] of rows.entries()) {
+      const head = r.map(c => String(c).trim().toUpperCase()).filter(Boolean);
+      if (head.length === 1 && TEAM_HEAD[head[0]]) { team = TEAM_HEAD[head[0]]; continue; }
       // Agency files write week off as "W/O", "WO" or "OFF" (ISI, 27 Oct): read it as O.
       const cells = r.slice(start, start + days).map(c => String(c).trim().toUpperCase().replace(/^(W\/?O|OFF)$/, 'O'));
       if (cells.filter(c => CODES.includes(c) && c !== '-').length < Math.min(20, days - 5)) continue;
@@ -74,14 +80,14 @@ function readRoster(XLSX, wb, guards, days, month) {
       const like = k ? guards.filter(x => key(x.name).startsWith(k) || k.startsWith(key(x.name))).length : 0;
       const g = byNo && fits(byNo, person) ? byNo : (nameOf(person) || (like ? null : byNo));
       const codes = cells.map(c => (CODES.includes(c) ? c : '-')).join('');
-      if (g) matched.set(g.ROWID, { guard_id: g.ROWID, codes, at });
-      else later.push({ person, pid, byNo, codes, at });
+      if (g) matched.set(g.ROWID, { guard_id: g.ROWID, codes, at, team });
+      else later.push({ person, pid, byNo, codes, at, team });
     }
     // Second look at the rows left over, now that the sure rows have taken their guards; an ID whose name
     // does not fit is only used when nobody else claimed that guard.
-    for (const { person, pid, byNo, codes, at } of later) {
+    for (const { person, pid, byNo, codes, at, team } of later) {
       const g = nameOf(person, matched) || (byNo && !matched.has(byNo.ROWID) ? byNo : null);
-      if (g) matched.set(g.ROWID, { guard_id: g.ROWID, codes, at });
+      if (g) matched.set(g.ROWID, { guard_id: g.ROWID, codes, at, team });
       else unmatched.push((person || pid || '?') + (byNo ? ' (ID ' + pid + ' is ' + byNo.name + ' in the app)' : ''));
     }
     // Back in the file's order (the second look added its rows last); the roster page keeps this order.

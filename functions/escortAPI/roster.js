@@ -29,12 +29,13 @@ module.exports = function rosterRoutes(app, h) {
 
   // Active guards of a branch in my area (a supervisor: only their agency).
   // Reliever profiles (QR gate, tag Reliever) are not roster guards: they show in the Relievers section.
+  const TEAMS = ['PKL', 'MLCP', 'Escort', 'Hospital'];
   async function branchGuards(req, zcql, branch) {
     return (await selectAll(zcql, 'Guards', `SELECT ROWID, id_number, card_number, guard_name, area, tags, agency, agency_id, branch_id FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`)).filter(g => !String(g.tags || '').split(',').includes('Reliever'));
   }
   // A supervisor reads only their agency's rows (Prem, 25 Oct: no agency sees another's details).
   async function monthRows(req, zcql, branch, month) {
-    return selectAll(zcql, 'MonthRoster', `SELECT ROWID, guard_id, codes, sort_no, updated_by, MODIFIEDTIME FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${month}' ORDER BY ROWID ASC`);
+    return selectAll(zcql, 'MonthRoster', `SELECT ROWID, guard_id, codes, sort_no, updated_by, team, MODIFIEDTIME FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${month}' ORDER BY ROWID ASC`);
   }
 
   // A guard's first row of the month by hand (✎ / a box) goes after everybody listed.
@@ -56,6 +57,10 @@ module.exports = function rosterRoutes(app, h) {
       const incharge = new Set(agencies.flatMap(a => String(a.Agencies.incharge_ids || '').split(',').map(x => x.trim()).filter(Boolean)));
       const codes = {};
       let updated = null;
+      // This month's team from the file wins over Guards.area, except the fixed PKL groups (Lady Guards …).
+      const teamOf = {};
+      rows.forEach(r => { if (r.team) teamOf[String(r.guard_id)] = r.team; });
+      const areaOf = (g, team) => (!team ? g.area || '' : team === 'PKL' && g.area && !TEAMS.includes(g.area) ? g.area : team);
       // Guards in the order of the uploaded roster file (Prem, 27 Oct: "the order of the original monthly
       // roster"): MonthRoster.sort_no is the file's row number; a guard filled by hand gets the next number.
       // Rows without a number, then guards without a row, follow by name (ROWIDs are not in insert order).
@@ -83,7 +88,7 @@ module.exports = function rosterRoutes(app, h) {
       } catch (err) { relievers = []; }
       ok(res, {
         month, days: daysIn(month), updated, relievers,
-        guards: guards.map(g => ({ ROWID: String(g.ROWID), id: g.id_number, card: g.card_number || '', name: g.guard_name, area: g.area || '', agency: g.agency || '', tags: g.tags || '', incharge: incharge.has(String(g.ROWID)) })),
+        guards: guards.map(g => ({ ROWID: String(g.ROWID), id: g.id_number, card: g.card_number || '', name: g.guard_name, area: areaOf(g, teamOf[String(g.ROWID)]), agency: g.agency || '', tags: g.tags || '', incharge: incharge.has(String(g.ROWID)) })),
         codes
       });
     } catch (err) {
@@ -116,8 +121,10 @@ module.exports = function rosterRoutes(app, h) {
         const codes = cleanCodes(e.codes, days);
         const old = rowByGuard.get(id);
         const sort_no = seen.size; // the file's order (entries come in file order)
-        if (old) updates.push({ ROWID: old.ROWID, codes, sort_no, updated_by: req.user.name });
-        else inserts.push({ guard_id: id, roster_month: month, codes, sort_no, branch_id: branch, agency_id: g.agency_id || null, updated_by: req.user.name });
+        // The file's team section this month (PKL / MLCP / Escort / Hospital), when the file has sections.
+        const team = TEAMS.includes(e.team) ? { team: e.team } : {};
+        if (old) updates.push({ ROWID: old.ROWID, codes, sort_no, updated_by: req.user.name, ...team });
+        else inserts.push({ guard_id: id, roster_month: month, codes, sort_no, branch_id: branch, agency_id: g.agency_id || null, updated_by: req.user.name, ...team });
       }
       // Guards of this month not in the file keep their codes and go after the file's guards.
       rows.filter(r => !seen.has(String(r.guard_id)) && Number(r.sort_no) !== 9999).forEach(r => updates.push({ ROWID: r.ROWID, sort_no: 9999 }));

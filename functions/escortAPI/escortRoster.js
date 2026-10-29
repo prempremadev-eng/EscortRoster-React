@@ -35,10 +35,15 @@ async function escortDay(catalystApp, date) {
   const monday = addDays(date, 1 - weekday(date));
   const sat = addDays(monday, 5), sun = addDays(monday, 6);
   const months = [...new Set([monday, date, sat, sun].map(d => d.slice(0, 7)))];
-  const [guards, ...rosters] = await Promise.all([
-    all(zcql, "SELECT ROWID, guard_name, id_number, phone, agency, escort_id FROM Guards WHERE is_active = 'true' AND area = 'Escort' ORDER BY ROWID ASC", 'Guards'),
-    ...months.map(m => all(zcql, `SELECT ROWID, guard_id, codes FROM MonthRoster WHERE roster_month = '${m}' ORDER BY ROWID ASC`, 'MonthRoster'))
-  ]);
+  const rosters = await Promise.all(months.map(m => all(zcql, `SELECT ROWID, guard_id, codes, team FROM MonthRoster WHERE roster_month = '${m}' ORDER BY ROWID ASC`, 'MonthRoster')));
+  // The Escort team of this month's roster file (Prem, 30 Oct: the team changes every month); a month
+  // uploaded without team sections still uses Guards.area = Escort.
+  const monthRows = rosters[months.indexOf(date.slice(0, 7))];
+  const teamIds = monthRows.filter(r => r.team === 'Escort').map(r => String(r.guard_id)).filter(id => /^\d+$/.test(id));
+  const GCOLS = 'ROWID, guard_name, id_number, phone, agency, escort_id';
+  const guards = monthRows.some(r => r.team)
+    ? (teamIds.length ? await all(zcql, `SELECT ${GCOLS} FROM Guards WHERE is_active = 'true' AND ROWID IN (${teamIds.join(', ')}) ORDER BY ROWID ASC`, 'Guards') : [])
+    : await all(zcql, `SELECT ${GCOLS} FROM Guards WHERE is_active = 'true' AND area = 'Escort' ORDER BY ROWID ASC`, 'Guards');
   const codesOf = {};
   months.forEach((m, i) => { codesOf[m] = {}; rosters[i].forEach(r => { codesOf[m][String(r.guard_id)] = String(r.codes || ''); }); });
   const code = (id, d) => ((codesOf[d.slice(0, 7)] || {})[id] || '')[Number(d.slice(8, 10)) - 1] || '';
