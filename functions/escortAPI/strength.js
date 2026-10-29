@@ -68,6 +68,10 @@ module.exports = function strengthRoutes(app, h) {
       // Shift started 15 min ago? Before that nobody is "absent" yet.
       const begunOf = sh => (sh.start < '06:00' ? addDay(date) : date) + ' ' + sh.start <= minus(nowStamp(), LATE_MIN);
       const begun = begunOf(shift);
+      // A guard is late / absent by his own branch's times (Prem, 29 Oct: Cumbum A starts 06:00).
+      const timesOf = {};
+      for (const b of branches) timesOf[String(b.ROWID)] = await getShifts(zcql, b.ROWID);
+      const begunAt = (code, branchId) => { const sh = (timesOf[String(branchId)] || shifts).find(x => x.code === code); return sh ? begunOf(sh) : false; };
 
       // Every shift of the day in one go, for the home page's A / G / B / C lines (Prem, 26 Oct), plus the
       // day's leave and week off (roster L / O, not per shift).
@@ -75,18 +79,18 @@ module.exports = function strengthRoutes(app, h) {
       const inArea = guards.filter(g => g.branch_id && branchOk.has(String(g.branch_id)));
       const byShift = shifts.map(sh => {
         const on = new Set(slots.filter(x => x.shift_code === sh.code).map(x => String(x.guard_id)));
-        let allotted = 0, present = 0, out = 0, leave = 0, off = 0;
+        let allotted = 0, present = 0, out = 0, absent = 0, leave = 0, off = 0;
         inArea.forEach(g => {
           const id = String(g.ROWID);
           if (on.has(id) || (!hasSchedule(g) && codeOf[id] === sh.code)) {
             allotted++;
-            if (firstIn[id]) { present++; if (lastDir[id] === 'OUT') out++; }
+            if (firstIn[id]) { present++; if (lastDir[id] === 'OUT') out++; } else if (begunAt(sh.code, g.branch_id)) absent++;
           } else if (usualOf[id] === sh.code && codeOf[id] === 'L') leave++;
           else if (usualOf[id] === sh.code && codeOf[id] === 'O') off++;
         });
         const b = begunOf(sh);
         // present = came in (card IN), out = has gone (last swipe OUT), still in = present - out.
-        return { code: sh.code, start: sh.start, end: sh.end, begun: b, allotted, present, out, absent: b ? allotted - present : 0, leave, off };
+        return { code: sh.code, start: sh.start, end: sh.end, begun: b, allotted, present, out, absent, leave, off };
       }).sort((x, y) => 'AGBC'.indexOf(x.code) - 'AGBC'.indexOf(y.code));
       const day0 = { leave: inArea.filter(g => codeOf[String(g.ROWID)] === 'L').length, off: inArea.filter(g => codeOf[String(g.ROWID)] === 'O').length };
 
@@ -105,7 +109,7 @@ module.exports = function strengthRoutes(app, h) {
         let state = '';
         if (allotted) {
           gr.allotted++;
-          if (firstIn[id]) { gr.present++; state = 'present'; } else if (begun) { gr.absent++; state = 'absent'; } else state = 'due';
+          if (firstIn[id]) { gr.present++; state = 'present'; } else if (begunAt(shift.code, g.branch_id)) { gr.absent++; state = 'absent'; } else state = 'due';
         } else if (code === 'L' && (usualOf[id] || shift.code) === shift.code) { gr.leave++; state = 'leave'; } else if (code === 'O' && (usualOf[id] || shift.code) === shift.code) { gr.off++; state = 'off'; }
         if (state && pickBranch === String(g.branch_id) && pickAgency === String(g.agency_id || '')) {
           gr.people.push({ id: g.id_number || '', name: g.guard_name, state, in: firstIn[id] || '', postId: onShift[id] || '' });
@@ -140,7 +144,7 @@ module.exports = function strengthRoutes(app, h) {
           const id = String(g.ROWID), code = codeOf[id] || '';
           const mine = shifts.filter(sh => (slotOf[sh.code] || {})[id] || (!hasSchedule(g) && code === sh.code));
           let st = '';
-          if (mine.length) st = firstIn[id] ? 'present' : mine.some(begunOf) ? 'absent' : 'due';
+          if (mine.length) st = firstIn[id] ? 'present' : mine.some(sh => begunAt(sh.code, g.branch_id)) ? 'absent' : 'due';
           else if (code === 'L') st = 'leave';
           else if (code === 'O') st = 'off';
           if (st !== listState) return;

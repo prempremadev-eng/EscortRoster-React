@@ -291,7 +291,7 @@ module.exports = function supervisorRoutes(app, h) {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const zcql = catalystApp.zcql();
       const branch = auth.requireBranch(req, requireRowId(req.query.branch));
-      const shifts = await getShifts(zcql);
+      const shifts = await getShifts(zcql, branch);
       const now = nowStamp();
       const code = shifts.some(s => s.code === req.query.shift) ? req.query.shift : runningShift(shifts, now);
       const shift = shifts.find(s => s.code === code) || { code, start: '', end: '' };
@@ -522,7 +522,7 @@ module.exports = function supervisorRoutes(app, h) {
         }
       };
       const [posts, shifts, guards, roster, slots] = await Promise.all([
-        branchPosts(req, zcql, branch), getShifts(zcql),
+        branchPosts(req, zcql, branch), getShifts(zcql, branch),
         all(`SELECT ROWID, id_number, guard_name, area, agency FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
         all(`SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${date.slice(0, 7)}' ORDER BY ROWID ASC`, 'MonthRoster'),
         all(`SELECT post_id, shift_code, guard_id FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${date}' AND published = true ORDER BY ROWID ASC`, 'Schedule')
@@ -638,7 +638,7 @@ module.exports = function supervisorRoutes(app, h) {
       const branch = auth.requireBranch(req, requireRowId(req.query.branch));
       const date = requireDate(req.query.date);
       const [posts, shifts, guards, roster] = await Promise.all([
-        branchPosts(req, zcql, branch), getShifts(zcql),
+        branchPosts(req, zcql, branch), getShifts(zcql, branch),
         pages(zcql, `SELECT ROWID, id_number, guard_name, area, tags FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`, 'Guards'),
         // The month roster's letter for this date (A / B / C / G / O / L), so the page offers the
         // guards of the picked shift first and keeps those on week off or leave apart.
@@ -1130,7 +1130,7 @@ module.exports = function supervisorRoutes(app, h) {
       pages(zcql, `SELECT guard_id, direction, CREATEDTIME FROM AccessLog WHERE duty_date = '${date}' AND guard_id IN (${ids.join(', ')}) ORDER BY CREATEDTIME DESC`, 'AccessLog'),
       zcql.executeZCQLQuery(`SELECT ROWID, guard_token FROM Guards WHERE ROWID IN (${ids.join(', ')})`).then(r => r.map(x => x.Guards)),
       zcql.executeZCQLQuery(`SELECT ROWID, post_name FROM Posts WHERE branch_id = ${requireRowId(branch)}`).then(r => r.map(x => x.Posts)),
-      getShifts(zcql)
+      getShifts(zcql, branch)
     ]);
     const lastSwipe = {};
     swipes.forEach(s => { if (!lastSwipe[String(s.guard_id)]) lastSwipe[String(s.guard_id)] = s.direction; });

@@ -11,7 +11,7 @@ const PAGE = 300;
 
 module.exports = function historyRoutes(app, h) {
   const { catalyst, fail, requireRowId, requireDate, getShifts, nowStamp, hhmm, minutesBetween, isTrue,
-    namesOf, onDutyLog, viewLog, workView, mediaLinks, mediaLabel } = h;
+    namesOf, onDutyLog, viewLog, workView, mediaLinks, mediaLabel, postBranch } = h;
 
   // All rows of a query, 300 at a time (ZCQL's page size).
   async function all(zcql, table, query) {
@@ -44,7 +44,7 @@ module.exports = function historyRoutes(app, h) {
       const postId = requireRowId(log.post_id);
       const [logs, shifts, msgs] = await Promise.all([
         all(zcql, 'DutyLog', `SELECT ROWID, guard_id, shift_code, duty_date, status, in_at, taken_over_at, handed_over_at FROM DutyLog WHERE post_id = ${postId} AND duty_date >= '${from}' AND duty_date <= '${to}' ORDER BY CREATEDTIME ASC`),
-        getShifts(zcql),
+        postBranch(zcql, postId).then(b => getShifts(zcql, b)),
         all(zcql, 'PostMessages', `SELECT duty_log_id, kind, CREATEDTIME FROM PostMessages WHERE post_id = ${postId} AND CREATEDTIME >= '${from} 00:00:00' ORDER BY CREATEDTIME ASC`)
       ]);
       const names = await namesOf(zcql, logs.map(l => l.guard_id));
@@ -115,7 +115,7 @@ module.exports = function historyRoutes(app, h) {
       const shiftLog = rows.length ? rows[0].DutyLog : null;
       if (!shiftLog || String(shiftLog.post_id) !== String(log.post_id)) throw new Error('That shift is not at this post.');
       const postId = requireRowId(log.post_id);
-      const shifts = await getShifts(zcql);
+      const shifts = await getShifts(zcql, await postBranch(zcql, postId));
       const shift = shifts.find(s => s.code === shiftLog.shift_code) || { code: shiftLog.shift_code, start: '', end: '' };
       // The window: from card IN (or shift start) to hand over (or now, if still on duty).
       const start = shiftLog.in_at || shiftStart(shiftLog.duty_date, shift) || shiftLog.duty_date + ' 00:00';

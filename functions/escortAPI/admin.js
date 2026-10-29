@@ -12,7 +12,7 @@ const CODE_RE = /^[A-Z0-9-]{2,20}$/;
 const isOwner = u => u.created_by === 'setup';
 
 module.exports = function adminRoutes(app, h) {
-  const { catalyst, selectAll, requireRowId, requireText, fail, auth } = h;
+  const { catalyst, selectAll, requireRowId, requireText, fail, auth, parseShiftTimes, forgetShiftTimes } = h;
   const { ROLES, RANK, ROLE_NAME, EMAIL_RE, need, branchOk, requireBranch, branchList, forgetBranches, forgetUser } = auth;
 
   const admin = req => catalyst.initialize(req, { scope: 'admin' });
@@ -83,16 +83,20 @@ module.exports = function adminRoutes(app, h) {
     try {
       need(req, 'branch_admin');
       const zcql = admin(req).zcql();
-      const [branches, agencies, places, users] = await Promise.all([
+      const [branches, agencies, places, users, times] = await Promise.all([
         branchList(zcql),
         agencyList(zcql),
         placeList(zcql),
-        selectAll(zcql, 'UserRoles', 'SELECT ROWID, email, name, role, city, state, branch_id, agency_id, is_active, created_by, CREATEDTIME FROM UserRoles ORDER BY name ASC')
+        selectAll(zcql, 'UserRoles', 'SELECT ROWID, email, name, role, city, state, branch_id, agency_id, is_active, created_by, CREATEDTIME FROM UserRoles ORDER BY name ASC'),
+        // Each branch's own shift times (29 Oct); read apart so the page still opens before the column exists.
+        selectAll(zcql, 'Branches', 'SELECT ROWID, shift_times FROM Branches ORDER BY ROWID ASC').catch(() => [])
       ]);
+      const timesOf = {};
+      times.forEach(t => { timesOf[String(t.ROWID)] = t.shift_times || ''; });
       ok(res, {
         me: { email: req.user.email, role: req.user.role, city: req.user.city, state: req.user.state, branch_id: req.user.branch_id },
         roles: ROLES.filter(r => RANK[r] < req.user.rank || req.user.role === 'super_admin').reverse().map(r => ({ code: r, name: ROLE_NAME[r] })),
-        branches: branches.filter(b => branchOk(req, b.ROWID)),
+        branches: branches.filter(b => branchOk(req, b.ROWID)).map(b => ({ ...b, shift_times: timesOf[String(b.ROWID)] || '' })),
         agencies,
         states: places.states,
         // A city admin sees only their own city.
@@ -283,6 +287,12 @@ module.exports = function adminRoutes(app, h) {
         supervisor_phone: phone || null,
         is_active: b.is_active === false ? 'false' : 'true'
       };
+      // Own shift times (Prem, 29 Oct): "A 06:00-14:00, …"; empty = the common times. Sent only by the form.
+      if (b.shift_times !== undefined) {
+        const t = parseShiftTimes(b.shift_times);
+        if (String(b.shift_times).trim() && !Object.keys(t).length) throw new Error('Shift times: like A 06:00-14:00, B 14:00-22:00');
+        row.shift_times = ['A', 'B', 'C', 'G'].filter(c => t[c]).map(c => c + ' ' + t[c].start + '-' + t[c].end).join(', ') || null;
+      }
       if (!req.scope.all && row.city.toLowerCase() !== req.user.city.toLowerCase()) throw new Error('You can add branches only in ' + req.user.city + '.');
       const self = b.ROWID ? String(requireRowId(b.ROWID)) : '';
       if (self) requireBranch(req, self);
@@ -292,6 +302,7 @@ module.exports = function adminRoutes(app, h) {
       const table = catalystApp.datastore().table('Branches');
       const saved = self ? await table.updateRow({ ROWID: self, ...row }) : await table.insertRow(row);
       forgetBranches();
+      forgetShiftTimes();
       ok(res, { ROWID: saved.ROWID });
     } catch (err) {
       fail(res, err);

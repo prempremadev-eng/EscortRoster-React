@@ -1173,3 +1173,11 @@ td.in-late{color:#b91c1c;}
 .gm-tag.on{border-style:solid;border-color:#7C3AED;background:#F5F3FF;color:#6D28D9;font-weight:600;}
 .gm-tag-new{width:140px;padding:5px 8px;border:1px solid var(--border);border-radius:999px;font-size:13px;}
 .gm-tag-badge{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:999px;background:#F5F3FF;color:#6D28D9;font-size:11px;font-weight:600;}
+
+/* Admin → Branch: the branch's own shift times (AdminPage.jsx). */
+.adm-times{margin:10px 0;display:flex;flex-direction:column;gap:6px;}
+.adm-times-title{font-weight:600;font-size:14px;}
+.adm-times-title span{font-weight:400;color:#64748B;font-size:12px;}
+.adm-time-row{display:flex;align-items:center;gap:8px;font-size:14px;}
+.adm-time-row b{width:18px;}
+.adm-time-row input{padding:5px 8px;border:1px solid var(--border);border-radius:6px;}

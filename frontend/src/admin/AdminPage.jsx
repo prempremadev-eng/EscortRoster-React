@@ -19,6 +19,9 @@ const MAIL_TEXT = { invited: 'Invite mail sent.', already: 'Already a user, so n
 const BLANK_USER = { email: '', name: '', role: '', city: '', state: '', branch_id: '', agency_id: '' };
 const BLANK_AGENCY = { agency_name: '', branch_ids: [] };
 const BLANK_BRANCH = { branch_code: '', branch_name: '', state_id: '', city_id: '' };
+// A branch's own shift times (Prem, 29 Oct): "A 06:00-14:00, B 14:00-22:00, …"; a shift left empty keeps the common time.
+const readTimes = t => Object.fromEntries(String(t || '').split(',').map(x => x.trim().match(/^([ABCG])\s+(\d\d:\d\d)-(\d\d:\d\d)$/)).filter(Boolean).map(m => [m[1], { start: m[2], end: m[3] }]));
+const writeTimes = o => ['A', 'B', 'C', 'G'].filter(c => o[c] && o[c].start && o[c].end).map(c => c + ' ' + o[c].start + '-' + o[c].end).join(', ');
 const isOn = v => v === true || v === 'true';
 const needsBranch = role => role === 'supervisor' || role === 'branch_admin';
 const uniq = list => [...new Set(list.filter(Boolean))].sort();
@@ -90,7 +93,8 @@ export default function AdminPage() {
   }
   function saveBranch(e) {
     e.preventDefault();
-    const { kind, ...body } = form;
+    const { kind, times, ...body } = form;
+    if (times) body.shift_times = writeTimes(times);
     run(() => api.branchSave({ ...body, is_active: form.is_active === undefined ? true : isOn(form.is_active) }), () => '✅ ' + form.branch_name + ' saved.');
   }
   function saveState(e) {
@@ -218,6 +222,22 @@ export default function AdminPage() {
               </label>
               <label>Branch name<input value={form.branch_name} onChange={e => set('branch_name', e.target.value)} placeholder="Beach" required /></label>
               <label>Branch code<input value={form.branch_code} onChange={e => set('branch_code', e.target.value.toUpperCase())} placeholder="TN-CHN-BCH" required /></label>
+            </div>
+            {/* Shift times of this branch (late, absent, phone IN all use them). Empty = the common times. */}
+            <div className="adm-times">
+              <div className="adm-times-title">Shift times of this branch <span>(leave empty to use the common times)</span></div>
+              {['A', 'B', 'C', 'G'].map(c => {
+                const t = form.times || readTimes(form.shift_times); // half-typed times stay on screen till Save
+                const put = (k, v) => set('times', { ...t, [c]: { ...(t[c] || {}), [k]: v } });
+                return (
+                  <label key={c} className="adm-time-row">
+                    <b>{c}</b>
+                    <input type="time" value={(t[c] || {}).start || ''} onChange={e => put('start', e.target.value)} aria-label={'Shift ' + c + ' start'} />
+                    <span>to</span>
+                    <input type="time" value={(t[c] || {}).end || ''} onChange={e => put('end', e.target.value)} aria-label={'Shift ' + c + ' end'} />
+                  </label>
+                );
+              })}
             </div>
             <div className="link-actions">
               <button className="btn" type="submit" disabled={busy}>{busy ? 'Saving...' : 'Save branch'}</button>

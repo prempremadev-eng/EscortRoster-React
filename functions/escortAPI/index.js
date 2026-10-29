@@ -619,7 +619,7 @@ async function onCardIn(catalystApp, guard, time, dutyDate) {
   let rosterShift = '';
   if (!duty) {
     rosterShift = await roster.shiftOf(zcql, guard.ROWID, shiftDate());
-    const sh = (await getShifts(zcql)).find(x => x.code === rosterShift);
+    const sh = (await getShifts(zcql, guard.branch_id)).find(x => x.code === rosterShift);
     if (sh) body = 'Today: ' + shiftText(sh) + ' (month roster). Your supervisor will give your post.';
     else if (rosterShift === 'O') body = 'The month roster says today is your week off. Ask your supervisor.';
     else if (rosterShift === 'L') body = 'The month roster says you are on leave today. Ask your supervisor.';
@@ -629,7 +629,7 @@ async function onCardIn(catalystApp, guard, time, dutyDate) {
   const myRow = rosterDay && rosterDay.rows.find(r => r.guardId === String(guard.ROWID) && r.onDuty);
   if (myRow) {
     seat = myRow.seat;
-    const sh = (await getShifts(zcql)).find(x => x.code === 'C');
+    const sh = (await getShifts(zcql, guard.branch_id)).find(x => x.code === 'C');
     body = 'Today your Seat ' + seat + ' · Escort ' + myRow.batch + (sh ? ' · ' + shiftText(sh) : '');
   } else if (duty && duty.post.post_type === 'ESCORT') {
     body = 'Your card IN is noted';
@@ -719,7 +719,7 @@ app.get('/guardDay', async (req, res) => {
     // Month Roster escort duty (C escort on a weekday) comes before the old weekly chart.
     const rosterDay = !duty || duty.post.post_type === 'ESCORT' ? await escortDay(catalystApp, dutyDate) : null;
     const myRow = rosterDay && rosterDay.rows.find(r => r.guardId === String(me.ROWID) && r.onDuty);
-    const shiftC = myRow ? (await getShifts(zcql)).find(x => x.code === 'C') : null;
+    const shiftC = myRow ? (await getShifts(zcql, me.branch_id)).find(x => x.code === 'C') : null;
 
     // First IN time of each guard (by Guards ROWID) on this duty day.
     const ins = await selectAll(zcql, 'AccessLog', `SELECT guard_id, punch_time FROM AccessLog WHERE duty_date = '${dutyDate}' AND direction = 'IN' ORDER BY CREATEDTIME ASC`);
@@ -1126,12 +1126,40 @@ function requireMonday(value) {
 
 // Shift timings rarely change; kept while this function instance stays warm (saves reads).
 let shiftCache = null;
-async function getShifts(zcql) {
+// Each branch may have its own times (Prem, 29 Oct: Cumbum B 14–22, Estancia B 13–21): Branches.shift_times
+// "A 06:00-14:00, B 14:00-22:00, C 22:00-06:00, G 09:00-18:00". A shift not written there keeps the common
+// time from the Shifts table. Read with the branches every 5 minutes at most.
+let branchTimes = null, branchTimesAt = 0;
+function parseShiftTimes(text) {
+  const out = {};
+  String(text || '').split(',').forEach(part => {
+    const m = part.trim().toUpperCase().match(/^([ABCG])\s*(\d{1,2}):?(\d{2})\s*-\s*(\d{1,2}):?(\d{2})$/);
+    if (m) out[m[1]] = { start: m[2].padStart(2, '0') + ':' + m[3], end: m[4].padStart(2, '0') + ':' + m[5] };
+  });
+  return out;
+}
+async function branchShiftTimes(zcql) {
+  if (!branchTimes || Date.now() - branchTimesAt > 5 * 60000) {
+    try {
+      const rows = await selectAll(zcql, 'Branches', 'SELECT ROWID, shift_times FROM Branches ORDER BY ROWID ASC');
+      branchTimes = {};
+      rows.forEach(r => { const t = parseShiftTimes(r.shift_times); if (Object.keys(t).length) branchTimes[String(r.ROWID)] = t; });
+    } catch (err) {
+      branchTimes = {}; // no shift_times column yet: everybody keeps the common times
+    }
+    branchTimesAt = Date.now();
+  }
+  return branchTimes;
+}
+function forgetShiftTimes() { branchTimes = null; }
+async function getShifts(zcql, branchId) {
   if (!shiftCache) {
     const rows = await selectAll(zcql, 'Shifts', 'SELECT shift_code, start_time, end_time FROM Shifts ORDER BY shift_code ASC');
     shiftCache = rows.map(r => ({ code: r.shift_code, start: r.start_time, end: r.end_time }));
   }
-  return shiftCache;
+  if (!branchId) return shiftCache;
+  const own = (await branchShiftTimes(zcql))[String(branchId)];
+  return own ? shiftCache.map(sh => (own[sh.code] ? { ...sh, ...own[sh.code] } : sh)) : shiftCache;
 }
 
 const shiftText = sh => 'Shift ' + sh.code + ' (' + sh.start + '–' + sh.end + ')';
@@ -1153,10 +1181,8 @@ async function dutyOf(zcql, guardId, week, day) {
   }
   // The weekly Duty Chart is no longer a fallback (Prem, 22 Oct): no published schedule → no post.
   if (!c) return null;
-  const [posts, shifts] = await Promise.all([
-    zcql.executeZCQLQuery(`SELECT ROWID, post_name, post_type FROM Posts WHERE ROWID = ${c.post_id}`),
-    getShifts(zcql)
-  ]);
+  const posts = await zcql.executeZCQLQuery(`SELECT ROWID, post_name, post_type, branch_id FROM Posts WHERE ROWID = ${c.post_id}`);
+  const shifts = await getShifts(zcql, posts.length ? posts[0].Posts.branch_id : null); // the post's branch times
   const shift = shifts.find(x => x.code === c.shift_code);
   if (!posts.length || !shift) return null;
   return { post: posts[0].Posts, shift };
@@ -1777,7 +1803,7 @@ app.post('/testPush', async (req, res) => {
 
 /* ---------------- ADMIN (admin.js) ---------------- */
 
-const admin = require('./admin.js')(app, { catalyst, selectAll, requireRowId, requireText, fail, auth });
+const admin = require('./admin.js')(app, { catalyst, selectAll, requireRowId, requireText, fail, auth, parseShiftTimes, forgetShiftTimes });
 
 // Month roster (roster.js): the agency's monthly shift chart.
 const roster = require('./roster.js')(app, { catalyst, selectAll, requireRowId, fail, auth });
