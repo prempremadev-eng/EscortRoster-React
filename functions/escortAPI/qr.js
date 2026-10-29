@@ -267,7 +267,7 @@ module.exports = function qrRoutes(app, h) {
 
       // Registered guards of this branch with a photo. Typed ID → only that guard; else the guard who is
       // IN now comes first (likely OUT), then those whose roster says a shift today.
-      const guards = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number, photo_key, branch_id, agency_id, escort_id, guard_token, is_active FROM Guards WHERE branch_id = ${b.ROWID} AND is_active = 'true'`))
+      const guards = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number, photo_key, tags, branch_id, agency_id, escort_id, guard_token, is_active FROM Guards WHERE branch_id = ${b.ROWID} AND is_active = 'true'`))
         .map(r => r.Guards).filter(g => g.photo_key);
       const typed = String(req.body.id || '').trim().replace(/^0+/, '').toUpperCase();
       let list = typed ? guards.filter(g => String(g.id_number).replace(/^0+/, '').toUpperCase() === typed) : guards;
@@ -292,9 +292,51 @@ module.exports = function qrRoutes(app, h) {
       if (!first.eyes || shut.eyes === null || shut.eyes === undefined || !(shut.eyes < first.eyes * 0.65)) { cleanTmp(); throw new Error('😌 Close your eyes when asked (2 seconds) and try again.'); }
       const same = await catalystApp.zia().compareFace(fs.createReadStream(selfieFile), fs.createReadStream(turnFile));
       if (!yes(same && same.matched)) { cleanTmp(); throw new Error('The two photos are not the same person. Try again.'); }
+      const purpose = ['IN', 'OUT', 'REG'].includes(req.body.purpose) ? req.body.purpose : '';
+      const day = qrDay();
+      const shifts = await getShifts(zcql, b.ROWID);
+      const shiftOf = code => { const sh = shifts.find(x => x.code === code); return sh ? { code: sh.code, start: sh.start, end: sh.end } : (code ? { code } : null); };
+      const keyFor = who => 'qr/' + b.ROWID + '/' + day + '/' + who + '-' + crypto.randomBytes(5).toString('hex') + '.jpg';
+
+      // 🆕 New Registration (Prem, 29 Oct): the first time, the live photo becomes the face. Regular guard: ID +
+      // name + last 4 of his phone, and no face yet. Reliever: the name + phone the guard on duty added.
+      if (purpose === 'REG') {
+        cleanTmp();
+        const today3 = [plusDay(day, -1), day, plusDay(day, 1)];
+        if (req.body.reg === 'reliever') {
+          const phone = phoneOf(req.body.phone);
+          const people = await relieversOf(zcql, b.ROWID);
+          const p = people.find(x => String(x.phone) === phone);
+          const row = p && (await reliefRows(zcql, b.ROWID, today3)).filter(r => String(r.reliever_id) === String(p.ROWID) && !r.in_at && !r.out_at)[0];
+          if (!p || !row) {
+            await tellOffice(catalystApp, b.ROWID, '⚠️ Unknown reliever at the gate', 'Phone ••••' + phone.slice(-4) + ' tried to register but was not added by the guard on duty.');
+            throw new Error('Not added as a reliever today. Ask the guard on duty to add your name and phone.');
+          }
+          if (p.photo_key) throw new Error('Already registered. Press ✅ IN.');
+          const key = keyFor('rel-' + p.ROWID);
+          await catalystApp.stratus().bucket(BUCKET).putObject(key, photo, { contentType: 'image/jpeg' });
+          const ticket = await makeTicket(catalystApp, { rs: String(row.ROWID), rel: String(p.ROWID), b: String(b.ROWID), a: 'RIN', s: key, d: distance, reg: true });
+          return ok(res, { matched: true, reliever: true, registering: true, ticket, action: 'IN', distance, guard: { name: p.name + ' 🔁 reliever', id: masked(p.phone) }, shift: shiftOf(row.shift_code), addedBy: row.added_by || '' });
+        }
+        const idT = String(req.body.id || '').trim().replace(/^0+/, '').toUpperCase();
+        const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number, phone, photo_key, tags FROM Guards WHERE branch_id = ${b.ROWID} AND is_active = 'true'`)).map(r => r.Guards)
+          .find(x => String(x.id_number).replace(/^0+/, '').toUpperCase() === idT);
+        if (!g) throw new Error('ID ' + (req.body.id || '') + ' is not a guard of this site. Ask the office.');
+        if (g.photo_key) throw new Error('Already registered. Press ✅ IN.');
+        const first = String(req.body.name || '').trim().toUpperCase().split(/\s+/)[0] || '';
+        if (first.length < 2 || !String(g.guard_name).toUpperCase().includes(first)) throw new Error('Name does not match ID ' + req.body.id + '.');
+        if (g.phone && String(req.body.phone4 || '').replace(/\D/g, '') !== String(g.phone).replace(/\D/g, '').slice(-4)) throw new Error('Phone (last 4 digits) does not match.');
+        if (await openIn(zcql, g.ROWID)) throw new Error('Already IN.');
+        const key = keyFor(g.ROWID);
+        await catalystApp.stratus().bucket(BUCKET).putObject(key, photo, { contentType: 'image/jpeg' });
+        const code = await rosterShiftOf(zcql, g.ROWID, day);
+        const ticket = await makeTicket(catalystApp, { g: String(g.ROWID), b: String(b.ROWID), a: 'IN', s: key, la: lat, ln: lng, d: distance, m: null, dd: '', reg: true });
+        return ok(res, { matched: true, registering: true, ticket, action: 'IN', distance, guard: { name: g.guard_name, id: g.id_number }, shift: shiftOf(code) });
+      }
+
       let found = null, score = null;
       try {
-        for (const g of list.slice(0, 8)) {
+        for (const g of list.slice(0, 10)) {
           const regFile = await storedPhoto(bucket, g.photo_key);
           const r = await catalystApp.zia().compareFace(fs.createReadStream(regFile), fs.createReadStream(selfieFile));
           if (yes(r && r.matched)) { found = g; score = Number(r.confidence) || null; break; }
@@ -302,55 +344,34 @@ module.exports = function qrRoutes(app, h) {
       } finally {
         cleanTmp();
       }
-      if (!found) {
-        // Not a regular guard: an added reliever? (expected IN, or IN now and leaving)
-        const today = qrDay();
-        const rows = (await reliefRows(zcql, b.ROWID, [plusDay(today, -1), today, plusDay(today, 1)])).filter(r => !r.out_at);
-        const people = await relieversOf(zcql, b.ROWID);
-        const byId = new Map(people.map(p => [String(p.ROWID), p]));
-        let hit = null;
-        const phone = req.body.phone ? phoneOf(req.body.phone) : '';
-        try {
-          const self2 = tmpFile(photo, 'jpg');
-          for (const r of rows) {
-            const p = byId.get(String(r.reliever_id));
-            if (!p) continue;
-            if (p.photo_key) {
-              const reg = await storedPhoto(bucket, p.photo_key);
-              const cmp = await catalystApp.zia().compareFace(fs.createReadStream(reg), fs.createReadStream(self2));
-              if (yes(cmp && cmp.matched)) { hit = { r, p, score: Number(cmp.confidence) || null }; break; }
-            } else if (!r.in_at && phone && String(p.phone) === phone) {
-              hit = { r, p, score: null, register: true }; // first time: this photo becomes his face
-              break;
-            }
-          }
-        } finally {
-          cleanTmp();
+      if (!found) return ok(res, { matched: false, distance });
+
+      // A reliever (a guard profile with the Reliever tag): IN only with a duty allotted today (Prem, 29 Oct).
+      if (String(found.tags || '').split(',').includes('Reliever')) {
+        const p = (await zcql.executeZCQLQuery(`SELECT ROWID, name, phone FROM Relievers WHERE guard_id = ${found.ROWID}`)).map(r => r.Relievers)[0];
+        const rows = p ? (await reliefRows(zcql, b.ROWID, [plusDay(day, -1), day, plusDay(day, 1)])).filter(r => String(r.reliever_id) === String(p.ROWID) && !r.out_at) : [];
+        const inRow = rows.find(r => r.in_at), waiting = rows.find(r => !r.in_at);
+        const act = purpose === 'OUT' ? 'OUT' : purpose === 'IN' ? 'IN' : (inRow ? 'OUT' : 'IN');
+        const row = act === 'OUT' ? inRow : waiting;
+        if (!row) {
+          if (act === 'IN') await tellOffice(catalystApp, b.ROWID, '⚠️ Reliever without duty at the gate', found.guard_name + ' scanned IN but no guard added him today.');
+          throw new Error(act === 'IN' ? '🔁 ' + found.guard_name + ': no duty allotted today. Ask the guard on duty to add you.' : 'You are not IN. Press ✅ IN.');
         }
-        if (!hit && phone) await tellOffice(catalystApp, b.ROWID, '⚠️ Unknown reliever at the gate', 'Phone ••••' + phone.slice(-4) + ' tried to IN but was not added by the guard on duty.');
-        if (!hit) return ok(res, { matched: false, distance, relieverWanted: rows.some(r => !r.in_at && !(byId.get(String(r.reliever_id)) || {}).photo_key) });
-        const action = hit.r.in_at ? 'OUT' : 'IN';
-        const key = 'qr/' + b.ROWID + '/' + today + '/rel-' + hit.p.ROWID + '-' + crypto.randomBytes(5).toString('hex') + '.jpg';
+        const key = keyFor('rel-' + p.ROWID);
         await bucket.putObject(key, photo, { contentType: 'image/jpeg' });
-        const sh = (await getShifts(zcql, b.ROWID)).find(x => x.code === hit.r.shift_code);
-        const ticket = await makeTicket(catalystApp, { rs: String(hit.r.ROWID), rel: String(hit.p.ROWID), b: String(b.ROWID), a: 'R' + action, s: key, d: distance, reg: !!hit.register });
-        return ok(res, {
-          matched: true, reliever: true, ticket, action, distance,
-          guard: { name: hit.p.name + ' (reliever)', id: masked(hit.p.phone) },
-          shift: sh ? { code: sh.code, start: sh.start, end: sh.end } : { code: hit.r.shift_code },
-          since: hit.r.in_at ? String(hit.r.in_at).slice(11, 16) : '',
-          addedBy: hit.r.added_by || ''
-        });
+        const ticket = await makeTicket(catalystApp, { rs: String(row.ROWID), rel: String(p.ROWID), b: String(b.ROWID), a: 'R' + act, s: key, d: distance });
+        return ok(res, { matched: true, reliever: true, ticket, action: act, distance, guard: { name: found.guard_name + ' 🔁 reliever', id: masked(p.phone) }, shift: shiftOf(row.shift_code), since: row.in_at ? String(row.in_at).slice(11, 16) : '', addedBy: row.added_by || '' });
       }
 
       // Keep the selfie (90 days) and say what the next press does.
-      const day = qrDay();
-      const selfie_key = 'qr/' + b.ROWID + '/' + day + '/' + found.ROWID + '-' + crypto.randomBytes(5).toString('hex') + '.jpg';
+      const selfie_key = keyFor(found.ROWID);
       await bucket.putObject(selfie_key, photo, { contentType: 'image/jpeg' });
       const open = await openIn(zcql, found.ROWID);
+      if (purpose === 'IN' && open) throw new Error('Already IN since ' + String(open.CREATEDTIME).slice(11, 16) + '. Press 🏁 OUT to go.');
+      if (purpose === 'OUT' && !open) throw new Error('You are not IN. Press ✅ IN.');
       const action = open ? 'OUT' : 'IN';
       const code = open ? '' : await rosterShiftOf(zcql, found.ROWID, day);
-      const sh = (await getShifts(zcql, b.ROWID)).find(x => x.code === code);
+      const sh = shiftOf(code);
       const ticket = await makeTicket(catalystApp, { g: String(found.ROWID), b: String(b.ROWID), a: action, s: selfie_key, la: lat, ln: lng, d: distance, m: score, dd: open ? open.duty_date : '' });
       // On duty now: he may add the reliever for the next shift.
       let relief = null;
@@ -367,7 +388,7 @@ module.exports = function qrRoutes(app, h) {
       ok(res, {
         matched: true, ticket, action, distance, relief, handover: hand,
         guard: { name: found.guard_name, id: found.id_number },
-        shift: sh ? { code: sh.code, start: sh.start, end: sh.end } : (code ? { code } : null),
+        shift: sh,
         since: open ? String(open.CREATEDTIME).slice(11, 16) : ''
       });
     } catch (err) {
@@ -423,7 +444,9 @@ module.exports = function qrRoutes(app, h) {
       const br = (await zcql.executeZCQLQuery(`SELECT qr_key FROM Branches WHERE ROWID = ${branch}`))[0].Branches;
       if (!br.qr_key) return ok(res, { gate: false });
       const bucket = catalystApp.stratus().bucket(BUCKET);
-      const guards = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)}`)).map(r => r.Guards);
+      // Reliever profiles show in the relievers list below, not twice.
+      const guards = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number, tags FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)}`)).map(r => r.Guards)
+        .filter(g => !String(g.tags || '').split(',').includes('Reliever'));
       const on = [];
       for (const g of guards) {
         const open = await openIn(zcql, g.ROWID);
@@ -532,7 +555,7 @@ module.exports = function qrRoutes(app, h) {
     try {
       const catalystApp = admin(req);
       const zcql = catalystApp.zcql();
-      const p = (await zcql.executeZCQLQuery(`SELECT ROWID, branch_id, name, photo_key FROM Relievers WHERE ROWID = ${requireRowId(req.body.id)}`))[0];
+      const p = (await zcql.executeZCQLQuery(`SELECT ROWID, branch_id, name, photo_key, guard_id FROM Relievers WHERE ROWID = ${requireRowId(req.body.id)}`))[0];
       if (!p) throw new Error('Not found.');
       const rel = p.Relievers;
       await reliefBranchCheck(req, zcql, rel.branch_id);
@@ -541,6 +564,8 @@ module.exports = function qrRoutes(app, h) {
       const keys = [rel.photo_key, ...rows.flatMap(r => [r.in_selfie, r.out_selfie])].filter(Boolean);
       for (const k of [...new Set(keys)]) { try { await bucket.deleteObject(k); } catch (err) { console.error('Reliever photo not removed:', err.message || err); } }
       if (rows.length) await catalystApp.datastore().table('ReliefShifts').deleteRows(rows.map(r => r.ROWID));
+      // His guard profile stays for the old swipes, switched off, without photo or link.
+      if (rel.guard_id) await catalystApp.datastore().table('Guards').updateRow({ ROWID: rel.guard_id, is_active: 'false', photo_key: null, guard_token: null, relieved_reason: 'Reliever removed' });
       await catalystApp.datastore().table('Relievers').deleteRow(rel.ROWID);
       ok(res, { removed: rel.name, shifts: rows.length, photos: keys.length });
     } catch (err) {
@@ -566,6 +591,37 @@ module.exports = function qrRoutes(app, h) {
       fail(res, err);
     }
   });
+
+  // A reliever works like a guard (Prem, 29 Oct: same post page, his name on the sheet): a guard profile with the
+  // Reliever tag, ID R-<phone>, made the first time. The Guards page and the month roster hide these profiles.
+  async function relieverGuard(catalystApp, zcql, b, rel, photoKey) {
+    const cols = 'ROWID, guard_name, id_number, branch_id, agency_id, escort_id, guard_token, is_active, photo_key';
+    if (rel.guard_id) {
+      const g = (await zcql.executeZCQLQuery(`SELECT ${cols} FROM Guards WHERE ROWID = ${requireRowId(rel.guard_id)}`))[0];
+      if (g) {
+        const upd = { ROWID: g.Guards.ROWID, is_active: 'true', ...(photoKey ? { photo_key: photoKey } : {}) };
+        await catalystApp.datastore().table('Guards').updateRow(upd);
+        return { ...g.Guards, ...upd };
+      }
+    }
+    const post = (await zcql.executeZCQLQuery(`SELECT agency_id FROM Posts WHERE branch_id = ${b.ROWID} AND post_type = 'POST' AND is_active = 'true' LIMIT 1`))[0];
+    const agency = post ? post.Posts.agency_id : null;
+    const ag = agency ? (await zcql.executeZCQLQuery(`SELECT agency_name FROM Agencies WHERE ROWID = ${agency}`))[0] : null;
+    const g = await catalystApp.datastore().table('Guards').insertRow({
+      guard_name: rel.name, id_number: 'R-' + rel.phone, phone: rel.phone, branch_id: b.ROWID, agency_id: agency, agency: ag ? ag.Agencies.agency_name : null,
+      tags: 'Reliever', is_active: 'true', photo_key: photoKey || rel.photo_key || null, created_by: 'QR reliever'
+    });
+    await catalystApp.datastore().table('Relievers').updateRow({ ROWID: rel.ROWID, guard_id: g.ROWID });
+    return g;
+  }
+  // The reliever's slot on the day sheet: the site's post, the shift he covers (published), if it is free.
+  async function reliefSlot(catalystApp, zcql, guard, r) {
+    const post = (await zcql.executeZCQLQuery(`SELECT ROWID FROM Posts WHERE branch_id = ${requireRowId(guard.branch_id)} AND post_type = 'POST' AND is_active = 'true'`)).map(x => x.Posts);
+    if (post.length !== 1) return;
+    const taken = await zcql.executeZCQLQuery(`SELECT ROWID, guard_id FROM Schedule WHERE post_id = ${post[0].ROWID} AND sched_date = '${r.duty_date}' AND shift_code = '${r.shift_code}'`);
+    if (taken.length) return;
+    await catalystApp.datastore().table('Schedule').insertRow({ branch_id: guard.branch_id, sched_date: r.duty_date, post_id: post[0].ROWID, shift_code: r.shift_code, guard_id: guard.ROWID, published: true });
+  }
 
   // A one-post site without a supervisor (Cumbum): no one publishes a day schedule, so a QR IN puts the guard
   // on that post for his roster shift (published), like a card IN on a published day. The post page then opens.
@@ -595,17 +651,28 @@ module.exports = function qrRoutes(app, h) {
       if (t.a === 'RIN' || t.a === 'ROUT') {
         const { time } = istNow();
         const now = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 16).replace('T', ' ');
-        const row = (await zcql.executeZCQLQuery(`SELECT ROWID, in_at, out_at FROM ReliefShifts WHERE ROWID = ${requireRowId(t.rs)}`))[0];
+        const row = (await zcql.executeZCQLQuery(`SELECT ROWID, duty_date, shift_code, in_at, out_at FROM ReliefShifts WHERE ROWID = ${requireRowId(t.rs)}`))[0];
         const r = row && row.ReliefShifts;
         if (!r || r.out_at || (t.a === 'RIN') !== !r.in_at) throw new Error('Scan again.');
-        const rel = (await zcql.executeZCQLQuery(`SELECT ROWID, name, visits FROM Relievers WHERE ROWID = ${requireRowId(t.rel)}`))[0].Relievers;
+        const rel = (await zcql.executeZCQLQuery(`SELECT ROWID, name, phone, visits, guard_id, photo_key FROM Relievers WHERE ROWID = ${requireRowId(t.rel)}`))[0].Relievers;
+        const guard = await relieverGuard(catalystApp, zcql, b, rel, t.reg ? t.s : '');
+        let token = '';
         if (t.a === 'RIN') {
           await catalystApp.datastore().table('ReliefShifts').updateRow({ ROWID: r.ROWID, in_at: now, in_selfie: t.s, in_distance_m: t.d });
           await catalystApp.datastore().table('Relievers').updateRow({ ROWID: rel.ROWID, visits: (Number(rel.visits) || 0) + 1, last_seen: now, ...(t.reg ? { photo_key: t.s } : {}) });
+          // Same as a guard: the IN swipe, his slot on the day sheet, the post page.
+          await catalystApp.datastore().table('AccessLog').insertRow({ guard_id: guard.ROWID, direction: 'IN', punch_time: time, duty_date: r.duty_date, source: 'QR', distance_m: t.d, selfie_key: t.s });
+          await reliefSlot(catalystApp, zcql, guard, r);
+          try { await onCardIn(catalystApp, guard, time, r.duty_date); } catch (err) { console.error('Reliever IN follow-up failed:', err.message || err); }
+          token = guard.guard_token || crypto.randomBytes(16).toString('hex');
+          if (!guard.guard_token) await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, guard_token: token });
+          if (t.reg) await tellOffice(catalystApp, b.ROWID, '🆕 New reliever registered', rel.name + ' ••••' + String(rel.phone).slice(-4) + ' · Shift ' + r.shift_code + '. Check the photo in Setup → Relievers.');
         } else {
           await catalystApp.datastore().table('ReliefShifts').updateRow({ ROWID: r.ROWID, out_at: now, out_selfie: t.s });
+          await catalystApp.datastore().table('AccessLog').insertRow({ guard_id: guard.ROWID, direction: 'OUT', punch_time: time, duty_date: r.duty_date, source: 'QR', distance_m: t.d, selfie_key: t.s });
+          try { await onPostOut(catalystApp, guard); } catch (err) { console.error('Reliever OUT follow-up failed:', err.message || err); }
         }
-        return ok(res, { action: t.a.slice(1), time, name: rel.name + ' (reliever)', token: '' });
+        return ok(res, { action: t.a.slice(1), time, name: rel.name + ' (reliever)', token });
       }
       const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number, branch_id, agency_id, escort_id, guard_token, is_active FROM Guards WHERE ROWID = ${requireRowId(t.g)}`))[0];
       const guard = g && g.Guards;
@@ -626,6 +693,11 @@ module.exports = function qrRoutes(app, h) {
         guard_id: guard.ROWID, direction: t.a, punch_time: time, duty_date: day, source: 'QR',
         lat: t.la, lng: t.ln, distance_m: t.d, selfie_key: t.s, match_score: t.m
       });
+      if (t.reg) {
+        // 🆕 First time: this live photo is his registered face (Guards page shows it); the office hears it.
+        await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, photo_key: t.s });
+        await tellOffice(catalystApp, b.ROWID, '🆕 New face registered', guard.guard_name + ' · ID ' + guard.id_number + '. If it is not him, remove the photo in Setup → Guards.');
+      }
       let token = '';
       try {
         if (t.a === 'IN') {

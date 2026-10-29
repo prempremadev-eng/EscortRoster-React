@@ -28,8 +28,9 @@ module.exports = function rosterRoutes(app, h) {
   }
 
   // Active guards of a branch in my area (a supervisor: only their agency).
+  // Reliever profiles (QR gate, tag Reliever) are not roster guards: they show in the Relievers section.
   async function branchGuards(req, zcql, branch) {
-    return selectAll(zcql, 'Guards', `SELECT ROWID, id_number, card_number, guard_name, area, tags, agency, agency_id, branch_id FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`);
+    return (await selectAll(zcql, 'Guards', `SELECT ROWID, id_number, card_number, guard_name, area, tags, agency, agency_id, branch_id FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`)).filter(g => !String(g.tags || '').split(',').includes('Reliever'));
   }
   // A supervisor reads only their agency's rows (Prem, 25 Oct: no agency sees another's details).
   async function monthRows(req, zcql, branch, month) {

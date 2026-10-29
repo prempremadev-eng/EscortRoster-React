@@ -44,6 +44,7 @@ export default function GuardMaster() {
   const [showLeft, setShowLeft] = useState(false);
   const [form, setForm] = useState(null);
   const [confirmLeft, setConfirmLeft] = useState(false);
+  const [showRel, setShowRel] = useState(false);
   const [freeEscorts, setFreeEscorts] = useState(null);
   // Photo picked in the form (sent after the guard is saved) and the saved photo's link.
   const [photoFile, setPhotoFile] = useState(null);
@@ -80,7 +81,10 @@ export default function GuardMaster() {
   const inCity = inState.filter(b => !filters.city || b.city === filters.city);
   const allGuards = data ? data.guards : [];
   const leftCount = allGuards.filter(g => g.is_active !== 'true').length;
-  const guards = showLeft ? allGuards : allGuards.filter(g => g.is_active === 'true');
+  // Reliever profiles (QR gate, tag Reliever) stay out of the list unless asked (Prem, 29 Oct: they come and go).
+  const isRel = g => String(g.tags || '').split(',').includes('Reliever');
+  const relCount = allGuards.filter(g => isRel(g) && g.is_active === 'true').length;
+  const guards = (showLeft ? allGuards : allGuards.filter(g => g.is_active === 'true')).filter(g => showRel || !isRel(g));
 
   const q = filters.q.trim().toLowerCase();
   // Everything except the status filter, so the summary boxes count the same group.
@@ -469,6 +473,7 @@ export default function GuardMaster() {
             <div className="master-bar">
               <div className="master-trail">Showing: <b>{trail.join(' › ')}</b></div>
               <button className="btn secondary" onClick={() => setFilters(NO_FILTERS)}>Clear filters</button>
+              {relCount > 0 && <label className="master-left-toggle"><input type="checkbox" checked={showRel} onChange={e => setShowRel(e.target.checked)} /> Show relievers ({relCount})</label>}
               {leftCount > 0 && (
                 <label className="master-left-toggle">
                   <input id="f-left" type="checkbox" checked={showLeft} onChange={e => setShowLeft(e.target.checked)} /> Show guards who left ({leftCount})

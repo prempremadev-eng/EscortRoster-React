@@ -27,7 +27,6 @@ export default function QrAttend({ qrKey }) {
   const [msg, setMsg] = useState('');
   const [check, setCheck] = useState(null);
   const [done, setDone] = useState(null);
-  const [id, setId] = useState('');
   const video = useRef(null);
   const stream = useRef(null);
   const fix = useRef(null);
@@ -37,7 +36,8 @@ export default function QrAttend({ qrKey }) {
   const [help, setHelp] = useState(false);
   const seenHelp = () => { try { localStorage.setItem('qr-help-seen', '1'); } catch { /* private mode */ } setFirstTime(false); setHelp(false); };
   const last = useRef(null); // the last photos, sent again with a reliever's phone number
-  const [relPhone, setRelPhone] = useState('');
+  const [purpose, setPurpose] = useState(''); // IN · OUT · REG (Prem, 29 Oct: say why you scan)
+  const [reg, setReg] = useState({ type: 'regular', id: '', name: '', phone4: '', phone: '' });
   const [relForm, setRelForm] = useState(null); // { pick, name, phone } — the duty guard adds a reliever
   const [relMsg, setRelMsg] = useState('');
 
@@ -46,8 +46,8 @@ export default function QrAttend({ qrKey }) {
   useEffect(() => stopCam, []);
 
   // Start → location → camera → 3 · 2 · 1 → photo → server face check.
-  async function start(typedId) {
-    setMsg(''); setCheck(null);
+  async function start(p, reg) {
+    setMsg(''); setCheck(null); setPurpose(p);
     try {
       setStep('gps');
       fix.current = await getFix();
@@ -78,7 +78,7 @@ export default function QrAttend({ qrKey }) {
       stopCam();
       setStep('checking');
       last.current = { k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), photo2: c2.toDataURL('image/jpeg', 0.8), c: ch.c, w: c.width };
-      const r = (await api.qrCheck({ ...last.current, id: typedId || '' })).data;
+      const r = (await api.qrCheck({ ...last.current, purpose: p, ...(reg || {}) })).data;
       setCheck(r);
       setStep(r.matched ? 'found' : 'nomatch');
     } catch (err) {
@@ -88,16 +88,6 @@ export default function QrAttend({ qrKey }) {
     }
   }
 
-  // A reliever's first time: the same photos again with his phone number (the duty guard gave it).
-  async function asReliever() {
-    setMsg(''); setStep('checking');
-    try {
-      const r = (await api.qrCheck({ ...last.current, phone: relPhone })).data;
-      setCheck(r);
-      setStep(r.matched ? 'found' : 'nomatch');
-      if (!r.matched) setMsg('Not added as a reliever (or wrong phone). Ask the guard on duty to add you.');
-    } catch (err) { setMsg(err.message); setStep('start'); }
-  }
   async function addReliever() {
     setRelMsg('');
     try {
@@ -113,7 +103,7 @@ export default function QrAttend({ qrKey }) {
     try {
       setDone((await api.qrPunch({ k: qrKey, ticket: check.ticket })).data);
       setStep('done');
-      resetTimer.current = setTimeout(() => { setStep('start'); setDone(null); setCheck(null); setId(''); }, 30000);
+      resetTimer.current = setTimeout(() => { setStep('start'); setDone(null); setCheck(null); }, 30000);
     } catch (err) {
       setMsg(err.message);
       setStep('start');
@@ -138,7 +128,31 @@ export default function QrAttend({ qrKey }) {
         </div>
       )}
       {step === 'start' && site && site.ready && (
-        <button className="qr-big" onClick={() => { seenHelp(); start(''); }}>🤳 Start<small>Location + face check</small></button>
+        <div className="qr-three">
+          <button className="qr-big qr-in" onClick={() => { seenHelp(); start('IN'); }}>✅ IN<small>Duty start · பணி தொடக்கம்</small></button>
+          <button className="qr-big qr-out" onClick={() => { seenHelp(); start('OUT'); }}>🏁 OUT<small>Duty end · பணி முடிவு</small></button>
+          <button className="qr-big qr-reg" onClick={() => { seenHelp(); setStep('reg'); }}>🆕 New Registration<small>First time here · முதல் முறை</small></button>
+        </div>
+      )}
+      {/* 🆕 First time: regular guard (ID + name + last 4 of phone) or reliever (name + phone the guard on duty added). */}
+      {step === 'reg' && (
+        <div className="qr-card">
+          <div className="qr-name">🆕 New Registration</div>
+          <div className="qr-tabs">
+            <button className={reg.type === 'regular' ? 'on' : ''} onClick={() => setReg({ ...reg, type: 'regular' })}>👤 Guard of this site</button>
+            <button className={reg.type === 'reliever' ? 'on' : ''} onClick={() => setReg({ ...reg, type: 'reliever' })}>🔁 Reliever</button>
+          </div>
+          <div className="qr-relform">
+            {reg.type === 'regular' && <input value={reg.id} onChange={e => setReg({ ...reg, id: e.target.value })} inputMode="numeric" placeholder="Your ID (Clock No)" />}
+            <input value={reg.name} onChange={e => setReg({ ...reg, name: e.target.value })} placeholder="Your name" />
+            {reg.type === 'regular'
+              ? <input value={reg.phone4} onChange={e => setReg({ ...reg, phone4: e.target.value.replace(/\D/g, '').slice(0, 4) })} inputMode="numeric" placeholder="Last 4 digits of your phone" />
+              : <input value={reg.phone} onChange={e => setReg({ ...reg, phone: e.target.value })} inputMode="tel" placeholder="Your phone (10 digits)" />}
+            <button disabled={reg.type === 'regular' ? !(reg.id.trim() && reg.name.trim() && reg.phone4.length === 4) : !(reg.name.trim() && reg.phone.replace(/\D/g, '').length >= 10)}
+              onClick={() => start('REG', reg.type === 'regular' ? { reg: 'regular', id: reg.id, name: reg.name, phone4: reg.phone4 } : { reg: 'reliever', name: reg.name, phone: reg.phone })}>📷 Continue: take my photo</button>
+          </div>
+          <button className="qr-link" onClick={() => setStep('start')}>Back</button>
+        </div>
       )}
       {step === 'start' && site && site.ready && !firstTime && <button className="qr-link" onClick={() => setHelp(h => !h)}>❓ Help</button>}
       {step === 'gps' && <div className="qr-wait">📍 Finding your location…</div>}
@@ -151,6 +165,7 @@ export default function QrAttend({ qrKey }) {
 
       {step === 'found' && check && (
         <div className="qr-card">
+          {check.registering && <div className="qr-sub">🆕 Registering your face (first time)</div>}
           <div className="qr-name">{check.guard.name}</div>
           <div className="qr-sub">ID {check.guard.id}{check.shift ? ' · Shift ' + check.shift.code + (check.shift.start ? ' ' + check.shift.start + '–' + check.shift.end : '') : ''}{check.since ? ' · IN since ' + check.since : ''}</div>
           <div className="qr-sub">📍 {check.distance} m from the gate</div>
@@ -164,7 +179,7 @@ export default function QrAttend({ qrKey }) {
           )}
           {check.handover && !check.handover.ok
             ? <div className="qr-lock">🔒 OUT locked: wait for the Shift {check.handover.code} guard{check.handover.reliever ? ' / ' + check.handover.reliever.name : ''}</div>
-            : <button className={'qr-big ' + (check.action === 'IN' ? 'qr-in' : 'qr-out')} onClick={punch}>{check.action === 'IN' ? '✅ IN' : '🏁 OUT'}</button>}
+            : <button className={'qr-big ' + (check.action === 'IN' ? 'qr-in' : 'qr-out')} onClick={punch}>{check.action === 'IN' ? (check.registering ? '✅ Register & IN' : '✅ IN') : '🏁 OUT'}</button>}
           {check.addedBy && <div className="qr-sub">Added by {check.addedBy}</div>}
           {check.relief && (
             <div className="qr-rel">
@@ -193,11 +208,10 @@ export default function QrAttend({ qrKey }) {
       {step === 'nomatch' && (
         <div className="qr-card">
           <div className="qr-name">❌ Face not matched</div>
-          <button className="qr-big" onClick={() => start('')}>🔁 Try again<small>Good light, face the camera</small></button>
-          <div className="qr-sub">Reliever, first time here? Type your phone number:</div>
-          <div className="qr-id"><input value={relPhone} onChange={e => setRelPhone(e.target.value)} inputMode="tel" placeholder="Your phone (10 digits)" /><button onClick={asReliever} disabled={relPhone.replace(/\D/g, '').length < 10 || !last.current}>Go</button></div>
-          <div className="qr-sub">Or type your ID and try:</div>
-          <div className="qr-id"><input value={id} onChange={e => setId(e.target.value)} inputMode="numeric" placeholder="Your ID (Clock No)" /><button onClick={() => start(id)} disabled={!id.trim()}>Go</button></div>
+          <button className="qr-big" onClick={() => start(purpose)}>🔁 Try again<small>Good light, face the camera</small></button>
+          <div className="qr-sub">First time here? Register your face once:</div>
+          <button className="qr-big qr-reg" onClick={() => setStep('reg')}>🆕 New Registration</button>
+          <button className="qr-link" onClick={() => setStep('start')}>Back</button>
         </div>
       )}
 
