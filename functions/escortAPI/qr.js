@@ -288,8 +288,9 @@ module.exports = function qrRoutes(app, h) {
       const turnFile = tmpFile(Buffer.from(m2[1], 'base64'), 'jpg');
       const first = await measureFace(catalystApp, selfieFile, 0);
       const shut = await measureFace(catalystApp, turnFile, 0);
+      // 29 Oct tests: real blink 0.18–0.23 against 0.32 open (0.55–0.70); a photo stays ≈ 1.0. Limit 0.75.
       console.log('qr blink', JSON.stringify({ open: first.eyes, closed: shut.eyes }));
-      if (!first.eyes || shut.eyes === null || shut.eyes === undefined || !(shut.eyes < first.eyes * 0.65)) { cleanTmp(); throw new Error('😌 Close your eyes when asked (2 seconds) and try again.'); }
+      if (!first.eyes || shut.eyes === null || shut.eyes === undefined || !(shut.eyes < first.eyes * 0.75)) { cleanTmp(); throw new Error('😌 Close your eyes when asked (2 seconds) and try again.'); }
       const same = await catalystApp.zia().compareFace(fs.createReadStream(selfieFile), fs.createReadStream(turnFile));
       if (!yes(same && same.matched)) { cleanTmp(); throw new Error('The two photos are not the same person. Try again.'); }
       const purpose = ['IN', 'OUT', 'REG'].includes(req.body.purpose) ? req.body.purpose : '';
