@@ -213,7 +213,7 @@ module.exports = function qrRoutes(app, h) {
   // Step 3, handover (Prem, 29 Oct): a guard may OUT only when the next shift is IN: the regular guard whose roster
   // says that shift, or the added reliever. G (09–18) has no next shift. Nobody IN → OUT stays locked.
   // The shift a guard is on: his roster; with no roster (29 Oct test), the A/B/C shift whose start is nearest his
-  // IN time (within 3 hours).
+  // IN time.
   async function shiftNow(zcql, branchId, guardId, open) {
     const code = await rosterShiftOf(zcql, guardId, open.duty_date);
     if ('ABC'.includes(code || '-') || code === 'G') return code;
@@ -221,7 +221,7 @@ module.exports = function qrRoutes(app, h) {
     const mins = t => +t.slice(0, 2) * 60 + +t.slice(3, 5);
     const gap = sh => { const d = Math.abs(mins(at) - mins(sh.start)); return Math.min(d, 1440 - d); };
     const best = (await getShifts(zcql, branchId)).filter(sh => 'ABC'.includes(sh.code) && sh.start).sort((x, y) => gap(x) - gap(y))[0];
-    return best && gap(best) <= 180 ? best.code : '';
+    return best ? best.code : ''; // no 3-hour limit (29 Oct: a 17:31 IN found no shift and slipped past the lock)
   }
   async function handover(zcql, branchId, guardId, open) {
     const code = await shiftNow(zcql, branchId, guardId, open);
