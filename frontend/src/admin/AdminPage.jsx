@@ -19,6 +19,57 @@ const MAIL_TEXT = { invited: 'Invite mail sent.', already: 'Already a user, so n
 const BLANK_USER = { email: '', name: '', role: '', city: '', state: '', branch_id: '', agency_id: '' };
 const BLANK_AGENCY = { agency_name: '', branch_ids: [] };
 const BLANK_BRANCH = { branch_code: '', branch_name: '', state_id: '', city_id: '' };
+
+// 📍 Gate location + QR (Prem, 29 Oct, Cumbum): phone attendance only where this is set. "Use my location"
+// while standing at the gate; the QR opens #qr/<key> (no login), so print it and stick it at the gate.
+function GateQr({ branchId, branchName }) {
+  const [g, setG] = useState(null);
+  const [qr, setQr] = useState('');
+  const [msg, setMsg] = useState('');
+  const [busy, setBusy] = useState(false);
+  const link = k => window.location.origin + '/app/index.html#qr/' + k;
+  const draw = async k => { const QRCode = (await import('qrcode')).default; setQr(k ? await QRCode.toDataURL(link(k), { width: 320, margin: 1 }) : ''); };
+  useEffect(() => { api.qrAdmin(branchId).then(r => { setG(r.data); draw(r.data.qr_key); }).catch(err => setMsg(err.message)); }, [branchId]);
+  const here = () => {
+    setMsg('📍 Finding this phone\'s location…');
+    navigator.geolocation.getCurrentPosition(
+      p => { setG(x => ({ ...x, lat: p.coords.latitude.toFixed(6), lng: p.coords.longitude.toFixed(6) })); setMsg('📍 Got it (±' + Math.round(p.coords.accuracy) + ' m). Press Save location.'); },
+      () => setMsg('📍 Location blocked or not found.'), { enableHighAccuracy: true, timeout: 15000 });
+  };
+  async function save(newKey) {
+    setBusy(true); setMsg('');
+    try { const r = (await api.qrAdminSave({ branch: branchId, lat: g.lat, lng: g.lng, radius_m: g.radius_m, newKey })).data; setG(r); await draw(r.qr_key); setMsg('✅ Saved.' + (newKey ? ' New QR: the old printed QR no longer works.' : '')); }
+    catch (err) { setMsg(err.message); } finally { setBusy(false); }
+  }
+  if (!g) return <div className="adm-gate">{msg || 'Loading gate…'}</div>;
+  return (
+    <div className="adm-gate">
+      <div className="adm-times-title">📍 Gate location &amp; QR attendance <span>(only for a site without a card machine)</span></div>
+      <div className="adm-gate-row">
+        <label>Latitude<input value={g.lat} onChange={e => setG({ ...g, lat: e.target.value })} placeholder="9.7350" /></label>
+        <label>Longitude<input value={g.lng} onChange={e => setG({ ...g, lng: e.target.value })} placeholder="77.2810" /></label>
+        <label>Allowed distance (m)<input type="number" value={g.radius_m} onChange={e => setG({ ...g, radius_m: e.target.value })} /></label>
+        <button type="button" className="btn secondary" onClick={here}>📍 Use my location</button>
+        <button type="button" className="btn" onClick={() => save(false)} disabled={busy || !g.lat || !g.lng}>Save location</button>
+      </div>
+      {msg && <div className="master-sub">{msg}</div>}
+      {qr && (
+        <div className="link-box">
+          <img src={qr} alt={'Attendance QR of ' + branchName} width="200" height="200" />
+          <div className="link-info">
+            <div className="link-name">Attendance QR · {branchName}</div>
+            <div className="link-url">{link(g.qr_key)}</div>
+            <div className="link-actions">
+              <a className="btn" href={qr} download={'attendance-qr-' + branchName + '.png'}>⬇️ Download QR</a>
+              <button type="button" className="btn secondary" onClick={() => window.confirm('Make a new QR? The printed one stops working.') && save(true)} disabled={busy}>🔄 New QR</button>
+            </div>
+            <div className="sim-note">Print and stick at the gate. Guards scan → location → face → IN / OUT.</div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 // A branch's own shift times (Prem, 29 Oct): "A 06:00-14:00, B 14:00-22:00, …"; a shift left empty keeps the common time.
 const readTimes = t => Object.fromEntries(String(t || '').split(',').map(x => x.trim().match(/^([ABCG])\s+(\d\d:\d\d)-(\d\d:\d\d)$/)).filter(Boolean).map(m => [m[1], { start: m[2], end: m[3] }]));
 const writeTimes = o => ['A', 'B', 'C', 'G'].filter(c => o[c] && o[c].start && o[c].end).map(c => c + ' ' + o[c].start + '-' + o[c].end).join(', ');
@@ -239,6 +290,7 @@ export default function AdminPage() {
                 );
               })}
             </div>
+            {form.ROWID && <GateQr branchId={form.ROWID} branchName={form.branch_name} />}
             <div className="link-actions">
               <button className="btn" type="submit" disabled={busy}>{busy ? 'Saving...' : 'Save branch'}</button>
               <button className="btn secondary" type="button" onClick={() => setForm(null)}>Cancel</button>

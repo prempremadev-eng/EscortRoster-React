@@ -22,6 +22,7 @@ import Rail from './supervisor/Rail.jsx';
 import './post/post.css';
 import './supervisor/supervisor.css';
 import AuthGate from './auth/AuthGate.jsx';
+import QrAttend from './components/QrAttend.jsx';
 import SplashHost from './components/Splash.jsx';
 import GroupChat from './post/GroupChat.jsx';
 import { api } from './api.js';
@@ -117,6 +118,8 @@ function Root() {
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
   // Guard's phone: the secret link is the key, no login.
+  // Gate QR attendance (Cumbum, 29 Oct): any phone, no login.
+  if (hash.startsWith('#qr/')) return <QrAttend qrKey={hash.slice('#qr/'.length)} />;
   if (hash.startsWith('#group/')) return <GuardGroup token={hash.slice('#group/'.length)} />;
   if (hash.startsWith('#setup/')) return <GuardSetup token={hash.slice('#setup/'.length)} />;
   if (hash.startsWith('#guard/')) {

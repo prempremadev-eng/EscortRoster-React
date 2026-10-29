@@ -1847,4 +1847,10 @@ const post = require('./post.js')(app, {
   getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN, auth, getSetting, dutyOf, istNow
 });
 
+// QR attendance at a gate without a card machine (qr.js, Cumbum, 29 Oct).
+require('./qr.js')(app, {
+  catalyst, fail, requireRowId, auth, istNow, getShifts, getVapidKeys, onCardIn,
+  onPostOut: (...a) => post.onPostOut(...a), rosterShiftOf: (...a) => roster.shiftOf(...a)
+});
+
 module.exports = app;
