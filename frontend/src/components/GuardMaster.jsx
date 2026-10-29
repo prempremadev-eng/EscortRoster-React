@@ -51,6 +51,7 @@ export default function GuardMaster() {
   const [aadhaarFile, setAadhaarFile] = useState(null);
   const [left, setLeft] = useState({ date: new Date().toISOString().slice(0, 10), reason: '' }); // relieved date + reason
   const [photoUrl, setPhotoUrl] = useState(null);
+  const [thumbs, setThumbs] = useState({}); // guard ROWID → photo link for the Photo column
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -102,6 +103,21 @@ export default function GuardMaster() {
       && (!q || g.guard_name.toLowerCase().includes(q) || g.id_number.toLowerCase().includes(q) || String(g.card_number || '').toLowerCase().includes(q));
   });
   const shown = base;
+
+  // Photo column (Prem, 29 Oct): links only for the guards on the page that have a photo and no link yet, 50 per call.
+  useEffect(() => {
+    const need = shown.filter(g => g.photo_key && thumbs[g.ROWID + ':' + g.photo_key] === undefined);
+    if (!need.length) return;
+    const keyOf = g => g.ROWID + ':' + g.photo_key;
+    setThumbs(t => { const n = { ...t }; for (const g of need) n[keyOf(g)] = null; return n; }); // null = asked, waiting
+    (async () => {
+      for (let k = 0; k < need.length; k += 50) {
+        const part = need.slice(k, k + 50);
+        const got = await api.guardPhotoUrls(part.map(g => g.ROWID)).then(r => r.data).catch(() => ({}));
+        setThumbs(t => { const n = { ...t }; for (const g of part) n[keyOf(g)] = got[g.ROWID] || ''; return n; });
+      }
+    })();
+  }, [shown, thumbs]);
 
   function setFilter(key, value) {
     setFilters(prev => {
@@ -484,7 +500,7 @@ export default function GuardMaster() {
             <div className="dash-scroll">
               <table className="dash-table adm-table">
                 <thead>
-                  <tr><th>S.No</th><th>ID</th><th>Card</th><th>Guard name</th><th>Designation</th><th>Agency</th><th>Branch</th><th>Phone</th><th>Created by</th><th>Modified by</th><th>Status</th><th></th></tr>
+                  <tr><th>S.No</th><th>Photo</th><th>ID</th><th>Card</th><th>Guard name</th><th>Designation</th><th>Agency</th><th>Branch</th><th>Phone</th><th>Created by</th><th>Modified by</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody>
                   {shown.map((g, i) => {
@@ -493,9 +509,12 @@ export default function GuardMaster() {
                     return (
                       <tr key={g.ROWID} className={left ? 'master-left' : ''}>
                         <td className="master-sub">{i + 1}</td>
+                        <td>{g.photo_key && thumbs[g.ROWID + ':' + g.photo_key]
+                          ? <a href={thumbs[g.ROWID + ':' + g.photo_key]} target="_blank" rel="noreferrer"><img className="gm-thumb" src={thumbs[g.ROWID + ':' + g.photo_key]} alt={g.guard_name} loading="lazy" /></a>
+                          : <span className="gm-thumb gm-thumb-none">{g.photo_key ? '…' : '👤'}</span>}</td>
                         <td>{g.id_number}</td>
                         <td>{g.card_number || '—'}</td>
-                        <td className="left">{g.photo_key ? '📷 ' : ''}{g.guard_name}{incharges.has(String(g.ROWID)) && <span className="gm-incharge" title="Shift incharge (Admin → Agencies)">⭐ Shift Incharge</span>}{tagList(g.tags).map(t => <span key={t} className="gm-tag-badge">{t}</span>)}</td>
+                        <td className="left">{g.guard_name}{incharges.has(String(g.ROWID)) && <span className="gm-incharge" title="Shift incharge (Admin → Agencies)">⭐ Shift Incharge</span>}{tagList(g.tags).map(t => <span key={t} className="gm-tag-badge">{t}</span>)}</td>
                         <td>{g.designation || '—'}{g.date_of_joining ? <div className="master-sub">Since {day10(g.date_of_joining)}</div> : null}</td>
                         <td>{g.agency}</td>
                         <td className="left">{b ? branchLabel(b) : '—'}<div className="master-sub">{b ? b.city + ', ' + b.state : ''}</div></td>

@@ -14,7 +14,7 @@ self.addEventListener('push', event => {
   const data = event.data ? event.data.json() : {};
   const urgent = !!data.urgent;
   event.waitUntil(Promise.all([
-    self.registration.showNotification(data.title || 'Escort Duty', {
+    self.registration.showNotification(data.title || 'GuardDesk', {
       body: data.body || '',
       data: { url: data.url || 'index.html' },
       tag: data.tag || undefined,

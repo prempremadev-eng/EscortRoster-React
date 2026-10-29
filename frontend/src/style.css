@@ -1231,3 +1231,5 @@ td.in-late{color:#b91c1c;}
 .qr-tabs{display:flex;gap:8px;width:100%;}
 .qr-tabs button{flex:1;padding:10px;border:1px solid #CBD5E1;border-radius:10px;background:#fff;font-weight:600;font-family:inherit;}
 .qr-tabs button.on{background:#1E4FB8;color:#fff;border-color:#1E4FB8;}
+/* Guards list Photo column (29 Oct) */
+.gm-thumb{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid var(--border);background:#f1f5f9;font-size:18px;vertical-align:middle;}

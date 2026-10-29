@@ -1873,6 +1873,26 @@ app.get('/guardPhotoUrl', async (req, res) => {
   }
 });
 
+// Guards list Photo column (Prem, 29 Oct): photo links for up to 50 guards in one read.
+app.post('/guardPhotoUrls', async (req, res) => {
+  try {
+    auth.need(req, 'supervisor');
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const ids = (Array.isArray(req.body.ids) ? req.body.ids : []).slice(0, 50).map(requireRowId);
+    if (!ids.length) return res.status(200).json({ status: 'success', data: {} });
+    const rows = (await catalystApp.zcql().executeZCQLQuery(`SELECT ROWID, photo_key, branch_id, agency_id FROM Guards WHERE ROWID IN (${ids.join(', ')})`)).map(r => r.Guards);
+    const bucket = catalystApp.stratus().bucket('escortcardaccess-media');
+    const out = {};
+    await Promise.all(rows.filter(g => g.photo_key).map(async g => {
+      auth.requireRow(req, g, 'guard');
+      try { out[g.ROWID] = (await bucket.generatePreSignedUrl(g.photo_key, 'GET', { expiryIn: '3600' })).signature; } catch (err) { console.error('Photo link failed:', err.message || err); }
+    }));
+    res.status(200).json({ status: 'success', data: out });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
 // Supervisor page: every active guard, their link token and how many phones are set up.
 app.get('/getGuardLinks', async (req, res) => {
   try {
