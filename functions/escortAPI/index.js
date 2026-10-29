@@ -1697,7 +1697,12 @@ app.post('/faceTest', async (req, res) => {
     const a = take(req.body.a, 'a'), b = take(req.body.b, 'b');
     const t0 = Date.now();
     const result = await catalystApp.zia().compareFace(a, b);
-    res.status(200).json({ status: 'success', data: { result, ms: Date.now() - t0 } });
+    const ms = Date.now() - t0;
+    // Where the eyes and nose are on photo 2 (front face / head turn checks for the gate QR).
+    let face = null;
+    try { face = await catalystApp.zia().analyseFace(require('fs').createReadStream(files[1]), { mode: 'advanced' }); } catch (e) { face = { error: e.message }; }
+    console.log('faceTest analyseFace', JSON.stringify(face));
+    res.status(200).json({ status: 'success', data: { result, ms, face } });
   } catch (err) {
     fail(res, err);
   } finally {

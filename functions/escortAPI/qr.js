@@ -76,6 +76,35 @@ module.exports = function qrRoutes(app, h) {
     return d.toISOString().slice(0, 10);
   }
 
+  // Front face only (Prem, 29 Oct: side and tilted faces matched too). Zia face analysis gives the eyes and the
+  // nose: the nose must sit between the eyes, the eyes level, one face, big enough. Returns '' or the reason.
+  const centre = v => {
+    const flat = []; (function walk(x) { if (Array.isArray(x)) x.forEach(walk); else if (Number.isFinite(Number(x))) flat.push(Number(x)); })(v);
+    if (flat.length < 2) return null;
+    let sx = 0, sy = 0, n = 0;
+    for (let i = 0; i + 1 < flat.length; i += 2) { sx += flat[i]; sy += flat[i + 1]; n++; }
+    return { x: sx / n, y: sy / n };
+  };
+  async function frontFace(catalystApp, file, imgWidth) {
+    let r;
+    try { r = await catalystApp.zia().analyseFace(fs.createReadStream(file), { mode: 'advanced' }); } catch (err) { console.error('analyseFace failed:', err.message || err); return ''; }
+    const faces = (r && r.faces) || [];
+    if (!faces.length) return '🙂 No face found. Face the camera in good light.';
+    if (faces.length > 1) return '🙂 Only one person in the photo, please.';
+    const f = faces[0], lm = f.landmarks || {};
+    const k = name => Object.keys(lm).find(x => x.toLowerCase().replace(/[^a-z]/g, '').includes(name));
+    const le = centre(lm[k('lefteye')]), re = centre(lm[k('righteye')]), no = centre(lm[k('nose')]);
+    console.log('qr front check', JSON.stringify({ keys: Object.keys(lm), le, re, no, box: f.co_ordinates }));
+    if (!le || !re || !no) return ''; // no landmarks: the face match alone decides
+    const eye = Math.hypot(re.x - le.x, re.y - le.y);
+    if (!eye) return '';
+    const box = f.co_ordinates || [];
+    if (imgWidth && box.length >= 4 && Math.abs(box[2] - box[0]) < imgWidth * 0.2) return '🙂 Come closer to the camera.';
+    if (Math.abs(re.y - le.y) / eye > 0.25) return '🙂 Keep your head straight (not tilted).';
+    if (Math.abs(no.x - (le.x + re.x) / 2) / eye > 0.18) return '🙂 Look straight at the camera (not to the side).';
+    return '';
+  }
+
   // The guard's last swipe within OPEN_IN_HOURS: an IN means this scan is the OUT (also after midnight).
   async function openIn(zcql, guardId) {
     const r = await zcql.executeZCQLQuery(`SELECT direction, duty_date, CREATEDTIME FROM AccessLog WHERE guard_id = ${requireRowId(guardId)} ORDER BY CREATEDTIME DESC LIMIT 1`);
@@ -158,6 +187,8 @@ module.exports = function qrRoutes(app, h) {
 
       const bucket = catalystApp.stratus().bucket(BUCKET);
       const selfieFile = tmpFile(photo, 'jpg');
+      const notFront = await frontFace(catalystApp, selfieFile, Number(req.body.w) || 0);
+      if (notFront) { cleanTmp(); throw new Error(notFront); }
       let found = null, score = null;
       try {
         for (const g of list.slice(0, 8)) {

@@ -52,7 +52,7 @@ export default function QrAttend({ qrKey }) {
       c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
       stopCam();
       setStep('checking');
-      const r = (await api.qrCheck({ k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), id: typedId || '' })).data;
+      const r = (await api.qrCheck({ k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), w: c.width, id: typedId || '' })).data;
       setCheck(r);
       setStep(r.matched ? 'found' : 'nomatch');
     } catch (err) {
@@ -87,7 +87,7 @@ export default function QrAttend({ qrKey }) {
       <div className="qr-cam" style={{ display: step === 'camera' ? 'block' : 'none' }}>
         <video ref={video} playsInline muted />
         <div className="qr-count">{count}</div>
-        <div className="qr-hint">Look at the camera</div>
+        <div className="qr-hint">Look straight at the camera · head straight</div>
       </div>
       {step === 'checking' && <div className="qr-wait">🔎 Checking your face…</div>}
 
