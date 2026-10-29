@@ -24,6 +24,7 @@ import './supervisor/supervisor.css';
 import AuthGate from './auth/AuthGate.jsx';
 import QrAttend from './components/QrAttend.jsx';
 import RelieversPage from './components/RelieversPage.jsx';
+import AttendancePage from './components/AttendancePage.jsx';
 import SplashHost from './components/Splash.jsx';
 import GroupChat from './post/GroupChat.jsx';
 import { api } from './api.js';
@@ -146,6 +147,7 @@ function page(hash) {
   // #vehicles/add/<post>: the + of the office chat opens the IN form of that post.
   if (hash === '#vehicles' || hash.startsWith('#vehicles/add/')) return <SupFrame active="vehicles"><VehiclesPage addFor={hash.split('/')[2] || ''} /></SupFrame>;
   if (hash === '#report') return <SupFrame active="report"><ShiftReport /></SupFrame>;
+  if (hash === '#attendance') return <SupFrame active="attendance"><AttendancePage /></SupFrame>;
   if (hash === '#history' || hash === '#chart') return <SupFrame active="history"><DutyHistory /></SupFrame>;
   if (hash === '#simulator') return <SupFrame active="simulator"><CardSimulator /></SupFrame>;
   if (hash === '#links') return <SupFrame active="links"><GuardLinks /></SupFrame>;

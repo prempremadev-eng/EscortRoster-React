@@ -1234,3 +1234,10 @@ td.in-late{color:#b91c1c;}
 .qr-tabs button.on{background:#1E4FB8;color:#fff;border-color:#1E4FB8;}
 /* Guards list Photo column (29 Oct) */
 .gm-thumb{display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;object-fit:cover;border:1px solid var(--border);background:#f1f5f9;font-size:18px;vertical-align:middle;}
+/* Attendances page (30 Oct) */
+.at-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
+.at-chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;}
+.at-table td,.at-table th{white-space:nowrap;}
+.at-vendor{color:#dc2626;}
+.at-present{color:#15803d;font-weight:600;}
+.at-absent{color:#dc2626;font-weight:600;}

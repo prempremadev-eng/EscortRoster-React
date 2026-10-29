@@ -101,7 +101,8 @@ export function MoreHome() {
     ]],
     ['Reports', [
       ['#report', Icon.report, 'Shift report', 'Each shift: posts, IN, late, absent, leave, off, vacant (to send to the Branch Admin).'],
-      ['#history', Icon.history, 'Duty history', 'Who was at which post on past days; open any shift.']
+      ['#history', Icon.history, 'Duty history', 'Who was at which post on past days; open any shift.'],
+      ['#attendance', Icon.calendar, 'Attendances', 'Every guard, every day: Present / Absent, entry and exit time. Export to Excel.']
     ]],
     ['Setup', [
       ['#setup', Icon.gear, 'Setup', 'Admin, posts, guards, guard links, card test: done once, in order.']

@@ -28,6 +28,7 @@ export default function Rail({ active }) {
     ['vehicles', '#vehicles', 'Vehicles', Icon.barrier],
     ['report', '#report', 'Report', Icon.report],
     ['history', '#history', 'History', Icon.history],
+    ['attendance', '#attendance', 'Attendance', Icon.calendar],
     ['setup', '#setup', 'Setup', Icon.gear]
   ];
   const groups = [
@@ -49,7 +50,7 @@ export default function Rail({ active }) {
   // Live is opened from the Today page (its green Live button), so the Live board lights Today (Prem, 27 Oct).
   if (active === 'board') active = 'home';
   let sub = setupSteps(user).some(s => s.key === active) ? 'setup' : active === 'reports' ? '' : active;
-  if (setupSteps(user).some(s => s.key === active) || ['setup', 'reports', 'report', 'history', 'escort', 'vehicles'].includes(active)) active = 'more';
+  if (setupSteps(user).some(s => s.key === active) || ['setup', 'reports', 'report', 'history', 'attendance', 'escort', 'vehicles'].includes(active)) active = 'more';
   else sub = '';
   const here = groups.flatMap(g => g[1]).find(i => i[0] === active);
   const item = ([key, href, label, icon, step]) => key === 'more' ? [
