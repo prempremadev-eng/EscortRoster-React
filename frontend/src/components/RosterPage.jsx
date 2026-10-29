@@ -23,7 +23,12 @@ function keep(k, v) {
 // Reads the agency Excel: finds the row of day numbers (1, 2, 3 …), then every row under it with a
 // code in most day boxes. A person is matched by ID, then card (any format), then name.
 // The sheet that matches the most guards wins.
-function readRoster(XLSX, wb, guards, days) {
+// One workbook may hold many months as sheets (Cumbum: July … November, Prem 29 Oct): the sheet named after the
+// picked month wins; otherwise the sheet that matches the most guards.
+function readRoster(XLSX, wb, guards, days, month) {
+  const MONTH_FULL = ['JANUARY', 'FEBRUARY', 'MARCH', 'APRIL', 'MAY', 'JUNE', 'JULY', 'AUGUST', 'SEPTEMBER', 'OCTOBER', 'NOVEMBER', 'DECEMBER'];
+  const mi = month ? +month.slice(5, 7) - 1 : -1;
+  const isMonthSheet = name => mi >= 0 && (() => { const n = String(name).toUpperCase().replace(/[^A-Z]/g, ''); return n.startsWith(MONTHS[mi]) || n.includes(MONTH_FULL[mi]); })();
   // An all-digit ID matches with or without its leading zeros (an agency roster may write 12345 for 012345).
   const idKey = c => { const t = String(c).trim().toUpperCase(); return /^\d+$/.test(t) ? String(Number(t)) : t; };
   const byId = new Map(guards.map(g => [idKey(g.id), g]));
@@ -80,7 +85,9 @@ function readRoster(XLSX, wb, guards, days) {
     }
     // Back in the file's order (the second look added its rows last); the roster page keeps this order.
     const inOrder = new Map([...matched].sort((x, y) => x[1].at - y[1].at));
-    if (!best || inOrder.size > best.matched.size) best = { sheet: name, matched: inOrder, unmatched };
+    const own = isMonthSheet(name);
+    if (inOrder.size && own && !(best && best.own)) best = { sheet: name, matched: inOrder, unmatched, own };
+    else if (!best || (!best.own && inOrder.size > best.matched.size)) best = { sheet: name, matched: inOrder, unmatched, own };
   }
   return best;
 }
@@ -240,7 +247,7 @@ export default function RosterPage({ initialMonth }) {
         setNote('This file is for ' + fileMonth + '. Switched to that month; pick the file again.');
         return;
       }
-      const r = readRoster(XLSX, wb, data.guards, days);
+      const r = readRoster(XLSX, wb, data.guards, days, month);
       // Say which file was picked (Prem, 27 Oct: the schedule file and the roster file both say "Oct").
       if (!r) throw new Error('"' + file.name + '" is not a month roster: no row of days 1, 2, 3 … was found. Pick the roster file.');
       if (!r.matched.size) throw new Error('No guard of this branch was found in "' + file.name + '" (' + r.unmatched.length + ' names / IDs did not match the Guards list).');
