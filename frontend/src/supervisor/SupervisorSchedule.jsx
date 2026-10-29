@@ -388,7 +388,8 @@ export default function SupervisorSchedule() {
           </select>
           {pickAgency && branchAgencies.length > 0 && (
             <select className="pd-search sb-branch" value={ag} onChange={e => chooseAgency(e.target.value)} aria-label="Agency">
-              {branchAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+              {/* "Cumbum ISI", not just "ISI" (Prem, 29 Oct): ISI works in more than one branch. */}
+              {branchAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{b ? b.branch_name + ' ' : ''}{a.agency_name}</option>)}
             </select>
           )}
           {data && data.autoFill && <button className="pd-chip pd-chip-primary" onClick={autoFill} disabled={busy}
