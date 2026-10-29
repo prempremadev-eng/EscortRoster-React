@@ -249,7 +249,8 @@ module.exports = function qrRoutes(app, h) {
 
   // 🆕 Who is registering: checked before the camera (Prem, 29 Oct: wrong phone / name → no photo) and again with
   // the photo. Regular: ID + name + last 4 of the phone. Reliever: phone + name the guard on duty added.
-  const firstWord = n => String(n || '').trim().toUpperCase().split(/\s+/)[0] || '';
+  // The full name must match (Prem, 29 Oct); capitals, spaces and dots do not count ("Ravi kumar P" = "RAVIKUMAR.P").
+  const sameName = (typed, saved) => { const n = x => String(x || '').toUpperCase().replace(/[^A-Z]/g, ''); return n(typed).length >= 2 && n(typed) === n(saved); };
   async function regWho(catalystApp, zcql, b, body, day, tell) {
     if (body.reg === 'reliever') {
       const phone = phoneOf(body.phone);
@@ -259,8 +260,7 @@ module.exports = function qrRoutes(app, h) {
         if (tell) await tellOffice(catalystApp, b.ROWID, '⚠️ Unknown reliever at the gate', 'Phone ••••' + phone.slice(-4) + ' tried to register but was not added by the guard on duty.');
         throw new Error('This phone number is not added today. Check the number, or ask the guard on duty to add your name and phone.');
       }
-      const first = firstWord(body.name);
-      if (first.length < 2 || !String(p.name).toUpperCase().includes(first)) throw new Error('Name does not match this phone number. Give the name the guard on duty added.');
+      if (!sameName(body.name, p.name)) throw new Error('Name does not match this phone number. Give your full name as the guard on duty added it.');
       if (p.photo_key) throw new Error('Already registered. Press ✅ IN.');
       return { p, row };
     }
@@ -269,8 +269,7 @@ module.exports = function qrRoutes(app, h) {
       .find(x => String(x.id_number).replace(/^0+/, '').toUpperCase() === idT);
     if (!g) throw new Error('ID ' + (body.id || '') + ' is not a guard of this site. Check the ID, or ask the office.');
     if (g.photo_key) throw new Error('Already registered. Press ✅ IN.');
-    const first = firstWord(body.name);
-    if (first.length < 2 || !String(g.guard_name).toUpperCase().includes(first)) throw new Error('Name does not match ID ' + body.id + '. Give your correct name.');
+    if (!sameName(body.name, g.guard_name)) throw new Error('Name does not match ID ' + body.id + '. Give your full name as in the office records (with the initial).');
     if (g.phone && String(body.phone4 || '').replace(/\D/g, '') !== String(g.phone).replace(/\D/g, '').slice(-4)) throw new Error('Phone (last 4 digits) does not match. Give your correct phone number.');
     if (await openIn(zcql, g.ROWID)) throw new Error('Already IN.');
     return { g };
@@ -337,7 +336,7 @@ module.exports = function qrRoutes(app, h) {
         seen.push(shut.eyes);
         if (shut.eyes !== null && shut.eyes !== undefined && shut.eyes < first.eyes * 0.75) { turnFile = f; break; }
       }
-      console.log('qr blink', JSON.stringify({ open: first.eyes, closed: seen }));
+      console.log('qr blink', JSON.stringify({ open: first.eyes, closed: seen, light: Number(req.body.light) || null }));
       if (!turnFile) { cleanTmp(); throw new Error('😌 Close your eyes when you hear the beep (2 seconds) and try again. First time here? Press 🆕 New Registration.'); }
       const same = await catalystApp.zia().compareFace(fs.createReadStream(selfieFile), fs.createReadStream(turnFile));
       if (!yes(same && same.matched)) { cleanTmp(); throw new Error('The two photos are not the same person. Try again.'); }

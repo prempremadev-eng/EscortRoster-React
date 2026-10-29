@@ -32,6 +32,15 @@ function beep(freq) {
   try { navigator.vibrate && navigator.vibrate(200); } catch { /* no buzz */ }
 }
 
+// Average brightness of the middle of a photo, 0 (black) – 255 (white). Too dark → Zia cannot see the eyes (29 Oct).
+function lightOf(c) {
+  const w = c.width, h = c.height, d = c.getContext('2d').getImageData(Math.round(w * 0.25), Math.round(h * 0.2), Math.round(w * 0.5), Math.round(h * 0.6)).data;
+  let sum = 0, n = 0;
+  for (let i = 0; i < d.length; i += 16) { sum += 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2]; n++; }
+  return n ? Math.round(sum / n) : 0;
+}
+const TOO_DARK = 60; // first guess; the server log shows "light" to tune it
+
 export default function QrAttend({ qrKey }) {
   const [site, setSite] = useState(null);
   const [step, setStep] = useState('start'); // start · gps · camera · checking · found · nomatch · done
@@ -85,6 +94,8 @@ export default function QrAttend({ qrKey }) {
       };
       for (let n = 3; n > 0; n--) { setCount(n); await new Promise(r => setTimeout(r, 1000)); }
       const c = snap();
+      const light = lightOf(c);
+      if (light < TOO_DARK) { stopCam(); setMsg('💡 Too dark. Stand under a light and try again · இருட்டாக உள்ளது, வெளிச்சத்தில் நின்று மீண்டும் முயற்சிக்கவும்'); setStep(p === 'REG' ? 'reg' : 'start'); return; }
       // Live check (29 Oct): close the eyes for the second photo; a photo or a screen cannot.
       setHint('😌 Close your eyes · கண்ணை மூடுங்கள்');
       setCount('😌');
@@ -97,7 +108,7 @@ export default function QrAttend({ qrKey }) {
       await new Promise(r => setTimeout(r, 500));
       stopCam();
       setStep('checking');
-      last.current = { k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), photo2: shut[0].toDataURL('image/jpeg', 0.75), photo3: shut[1].toDataURL('image/jpeg', 0.75), photo4: shut[2].toDataURL('image/jpeg', 0.75), c: ch.c, w: c.width };
+      last.current = { k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), photo2: shut[0].toDataURL('image/jpeg', 0.75), photo3: shut[1].toDataURL('image/jpeg', 0.75), photo4: shut[2].toDataURL('image/jpeg', 0.75), c: ch.c, w: c.width, light };
       const r = (await api.qrCheck({ ...last.current, purpose: p, ...(reg || {}) })).data;
       setCheck(r);
       if (r.pass) savePass(r.pass);
@@ -207,6 +218,7 @@ export default function QrAttend({ qrKey }) {
       {step === 'start' && site && site.ready && !firstTime && <button className="qr-link" onClick={() => setHelp(h => !h)}>❓ Help</button>}
       {step === 'gps' && <div className="qr-wait">📍 Finding your location…</div>}
       <div className="qr-cam" style={{ display: step === 'camera' ? 'block' : 'none' }}>
+        {/* White glow round the picture: the screen lights the face like a selfie flash. */}
         <video ref={video} playsInline muted />
         <div className="qr-count">{count}</div>
         <div className="qr-hint">{hint}</div>
