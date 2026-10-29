@@ -392,18 +392,27 @@ module.exports = function supervisorRoutes(app, h) {
       openW.filter(w => w.permit_end && now > w.permit_end).forEach(w => {
         attention.push({ post: postName(w.post_id) + ' · Permit expired', postId: String(w.post_id), text: w.contractor + ' still working after ' + w.permit_to, level: 'red' });
       });
+      // Shift C with the escort team in it (Prem, 30 Oct): the night escorts (6 to 5, 9 to 6) are C-shift people of
+      // the escort agency, so they show and count here too. Only where this branch (and agency) has escort guards.
+      let escort = null;
+      if (code === 'C') {
+        const own = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE branch_id = ${branch} AND area = 'Escort'${auth.agencyWhere(req)} LIMIT 1`);
+        if (own.length) escort = await escortBoard(catalystApp, zcql, day, now, attention);
+      }
+      const er = escort ? escort.rows : [];
       attention.sort((a, b) => (a.level === b.level ? 0 : a.level === 'red' ? -1 : 1));
       const kpi = {
-        total: cards.length,
-        onDuty: cards.filter(c => c.state === 'on_duty' || c.state === 'break').length,
+        total: cards.length + er.length,
+        onDuty: cards.filter(c => c.state === 'on_duty' || c.state === 'break').length + er.filter(r => r.state === 'on_duty').length,
         waiting: cards.filter(c => c.state === 'waiting').length,
-        notIn: cards.filter(c => c.state === 'not_in').length,
-        vacant: cards.filter(c => c.state === 'vacant').length
+        notIn: cards.filter(c => c.state === 'not_in').length + er.filter(r => r.state === 'not_in').length,
+        vacant: cards.filter(c => c.state === 'vacant').length,
+        posts: cards.length, escorts: er.length
       };
       res.status(200).json({
         status: 'success',
         data: {
-          shift, shifts: shiftsOut, date: day, posts: cards, kpi, attention,
+          shift, shifts: shiftsOut, date: day, posts: cards, kpi, attention, escort,
           works: recentW.map(w => ({ ...workView(w), post: postName(w.post_id), postId: String(w.post_id) }))
         }
       });

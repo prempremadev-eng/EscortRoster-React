@@ -164,7 +164,7 @@ export default function SupervisorBoard() {
             <div className="sb-main">
               {!escortView && <>
               <div className="sb-kpis">
-                {kpiBox('', 'Total posts', data.kpi.total, '')}
+                {kpiBox('', data.escort ? 'Total (' + data.kpi.posts + ' posts + ' + data.kpi.escorts + ' escorts)' : 'Total posts', data.kpi.total, '')}
                 {kpiBox('on_duty', 'On duty', data.kpi.onDuty, 'sb-kpi-green')}
                 {kpiBox('waiting', 'IN, not taken over', data.kpi.waiting, 'sb-kpi-amber')}
                 {kpiBox('not_in', 'Guard not IN', data.kpi.notIn, 'sb-kpi-red')}
@@ -180,6 +180,19 @@ export default function SupervisorBoard() {
                 ))}
                 {data.posts.length === 0 && <div className="pd-muted">No posts in this branch. Add them in Posts.</div>}
               </div>
+              {/* Shift C: the escort team below the posts (Prem, 30 Oct). */}
+              {data.escort && data.escort.rows.length > 0 && <>
+                <div className="pd-label sb-escort-head">🚗 ESCORT TEAM · 6 TO 5 (18:00) · 9 TO 6 (21:00) · {data.escort.rows.length}</div>
+                <div className="sb-grid">
+                  {data.escort.rows.filter(r => !pick || r.state === pick).map(r => (
+                    <button key={r.batch + r.seat} className={'sb-card ' + STATE[r.state].cls} onClick={() => openEscort(r.name)} title="Open this escort's trips in the Escort Dashboard">
+                      <div className="pd-row-between"><b>Escort S.No {r.seat} · {r.batch}</b><span className="sb-label">{r.state === 'on_duty' && r.meta.startsWith('On trip') ? 'On trip' : STATE[r.state].label}</span></div>
+                      <div className="sb-guard">{r.name}</div>
+                      <div className="pd-small pd-muted">{r.meta}</div>
+                    </button>
+                  ))}
+                </div>
+              </>}
               </>}
               {escortView && !data.escort && <div className="pd-muted">No escort duty today (Saturday / Sunday, or no month roster).</div>}
               {escortView && data.escort && (
