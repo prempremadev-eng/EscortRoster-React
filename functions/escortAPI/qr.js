@@ -186,8 +186,8 @@ module.exports = function qrRoutes(app, h) {
   const phoneOf = v => { const d = String(v || '').replace(/\D/g, '').slice(-10); if (d.length !== 10) throw new Error('Phone: 10 digits.'); return d; };
   const masked = p => (p ? '••••' + String(p).slice(-4) : '');
   // The shift after the one this guard is on, and its duty day (C → next day's A).
-  async function nextSlot(zcql, guardId, open) {
-    const code = await rosterShiftOf(zcql, guardId, open.duty_date);
+  async function nextSlot(zcql, guardId, open, branchId) {
+    const code = await shiftNow(zcql, branchId, guardId, open);
     const next = NEXT[code];
     return next ? { code: next, day: code === 'C' ? plusDay(open.duty_date, 1) : open.duty_date } : null;
   }
@@ -200,8 +200,19 @@ module.exports = function qrRoutes(app, h) {
 
   // Step 3, handover (Prem, 29 Oct): a guard may OUT only when the next shift is IN: the regular guard whose roster
   // says that shift, or the added reliever. G (09–18) has no next shift. Nobody IN → OUT stays locked.
-  async function handover(zcql, branchId, guardId, open) {
+  // The shift a guard is on: his roster; with no roster (29 Oct test), the A/B/C shift whose start is nearest his
+  // IN time (within 3 hours).
+  async function shiftNow(zcql, branchId, guardId, open) {
     const code = await rosterShiftOf(zcql, guardId, open.duty_date);
+    if ('ABC'.includes(code || '-') || code === 'G') return code;
+    const at = String(open.CREATEDTIME).slice(11, 16);
+    const mins = t => +t.slice(0, 2) * 60 + +t.slice(3, 5);
+    const gap = sh => { const d = Math.abs(mins(at) - mins(sh.start)); return Math.min(d, 1440 - d); };
+    const best = (await getShifts(zcql, branchId)).filter(sh => 'ABC'.includes(sh.code) && sh.start).sort((x, y) => gap(x) - gap(y))[0];
+    return best && gap(best) <= 180 ? best.code : '';
+  }
+  async function handover(zcql, branchId, guardId, open) {
+    const code = await shiftNow(zcql, branchId, guardId, open);
     const next = NEXT[code];
     if (!next) return { ok: true, code: '', regulars: [], reliever: null };
     const day = code === 'C' ? plusDay(open.duty_date, 1) : open.duty_date;
@@ -329,7 +340,7 @@ module.exports = function qrRoutes(app, h) {
       // On duty now: he may add the reliever for the next shift.
       let relief = null;
       if (open) {
-        const slot = await nextSlot(zcql, found.ROWID, open);
+        const slot = await nextSlot(zcql, found.ROWID, open, b.ROWID);
         if (slot) {
           const row = (await reliefRows(zcql, b.ROWID, [slot.day])).find(r => r.shift_code === slot.code);
           const people = await relieversOf(zcql, b.ROWID);
@@ -361,7 +372,7 @@ module.exports = function qrRoutes(app, h) {
       const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE ROWID = ${requireRowId(t.g)}`))[0].Guards;
       const open = await openIn(zcql, g.ROWID);
       if (!open) throw new Error('You are not IN. Scan again.');
-      const slot = await nextSlot(zcql, g.ROWID, open);
+      const slot = await nextSlot(zcql, g.ROWID, open, b.ROWID);
       if (!slot) throw new Error('No next shift for you to hand over.');
       let relId = req.body.reliever_id ? String(requireRowId(req.body.reliever_id)) : '';
       const people = await relieversOf(zcql, b.ROWID);
