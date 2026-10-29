@@ -78,12 +78,17 @@ module.exports = function qrRoutes(app, h) {
 
   // Front face only (Prem, 29 Oct: side and tilted faces matched too). Zia face analysis gives the eyes and the
   // nose: the nose must sit between the eyes, the eyes level, one face, big enough. Returns '' or the reason.
+  // { why, byJaw } of one photo: why = '' when it is a good front face.
   async function frontFace(catalystApp, file, imgWidth) {
+    const m = await measureFace(catalystApp, file, imgWidth);
+    return m.why;
+  }
+  async function measureFace(catalystApp, file, imgWidth) {
     let r;
-    try { r = await catalystApp.zia().analyseFace(fs.createReadStream(file), { mode: 'advanced' }); } catch (err) { console.error('analyseFace failed:', err.message || err); return ''; }
+    try { r = await catalystApp.zia().analyseFace(fs.createReadStream(file), { mode: 'advanced' }); } catch (err) { console.error('analyseFace failed:', err.message || err); return { why: '' }; }
     const faces = (r && r.faces) || [];
-    if (!faces.length) return '🙂 No face found. Face the camera in good light.';
-    if (faces.length > 1) return '🙂 Only one person in the photo, please.';
+    if (!faces.length) return { why: '🙂 No face found. Face the camera in good light.' };
+    if (faces.length > 1) return { why: '🙂 Only one person in the photo, please.' };
     const f = faces[0], lm = f.landmarks || {};
     const k = name => Object.keys(lm).find(x => x.toLowerCase().replace(/[^a-z]/g, '') === name);
     // Points as [x, y] pairs. Nose: the last 5 points are the tip and nostrils (the bridge stays centred when
@@ -95,15 +100,16 @@ module.exports = function qrRoutes(app, h) {
     const tip = mid(nose.length >= 5 ? nose.slice(-5) : nose);
     const box = f.co_ordinates || [];
     const facts = { le, re, tip, jawL: jaw[0], jawR: jaw[jaw.length - 1] };
-    if (!le || !re || !tip) { console.log('qr front check: no landmarks', Object.keys(lm)); return ''; }
+    if (!le || !re || !tip) { console.log('qr front check: no landmarks', Object.keys(lm)); return { why: '' }; }
     const eye = Math.hypot(re.x - le.x, re.y - le.y);
     const byEyes = (tip.x - Math.min(le.x, re.x)) / Math.abs(le.x - re.x); // 0.5 = nose tip between the eyes
     const byJaw = jaw.length >= 2 ? (tip.x - Math.min(jaw[0].x, jaw[jaw.length - 1].x)) / Math.abs(jaw[jaw.length - 1].x - jaw[0].x) : 0.5;
     console.log('qr front check', JSON.stringify({ ...facts, eye, byEyes, byJaw, tilt: Math.abs(re.y - le.y) / eye, box }));
-    if (imgWidth && box.length >= 4 && Math.abs(box[2] - box[0]) < imgWidth * 0.2) return '🙂 Come closer to the camera.';
-    if (Math.abs(re.y - le.y) / eye > 0.2) return '🙂 Keep your head straight (not tilted).';
-    if (Math.abs(byEyes - 0.5) > 0.12 || Math.abs(byJaw - 0.5) > 0.1) return '🙂 Look straight at the camera (not to the side).';
-    return '';
+    const out = { byJaw, byEyes };
+    if (imgWidth && box.length >= 4 && Math.abs(box[2] - box[0]) < imgWidth * 0.2) return { ...out, why: '🙂 Come closer to the camera.' };
+    if (Math.abs(re.y - le.y) / eye > 0.2) return { ...out, why: '🙂 Keep your head straight (not tilted).' };
+    if (Math.abs(byEyes - 0.5) > 0.12 || Math.abs(byJaw - 0.5) > 0.1) return { ...out, why: '🙂 Look straight at the camera (not to the side).' };
+    return { ...out, why: '' };
   }
 
   // The guard's last swipe within OPEN_IN_HOURS: an IN means this scan is the OUT (also after midnight).
@@ -157,6 +163,20 @@ module.exports = function qrRoutes(app, h) {
     }
   });
 
+  // Live person, not a photo or a screen (Prem, 29 Oct: an AI picture of the guard on a screen was let OUT):
+  // the server picks LEFT or RIGHT; after the front photo the guard turns the head that way for a second
+  // photo. A flat photo cannot turn: its nose tip stays in the middle of the jaw.
+  app.get('/qrChallenge', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      await branchByKey(catalystApp.zcql(), req.query.k);
+      const dir = crypto.randomInt(2) ? 'LEFT' : 'RIGHT';
+      ok(res, { dir, c: await makeTicket(catalystApp, { dir }) });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   // GPS + live photo → which guard (face), IN or OUT next. Nothing is saved yet except the photo.
   app.post('/qrCheck', async (req, res) => {
     try {
@@ -190,6 +210,18 @@ module.exports = function qrRoutes(app, h) {
       const selfieFile = tmpFile(photo, 'jpg');
       const notFront = await frontFace(catalystApp, selfieFile, Number(req.body.w) || 0);
       if (notFront) { cleanTmp(); throw new Error(notFront); }
+      const ch = await readTicket(catalystApp, req.body.c);
+      const m2 = String(req.body.photo2 || '').match(/^data:image\/jpeg;base64,(.+)$/);
+      if (!m2) { cleanTmp(); throw new Error('Turn your head as asked and try again.'); }
+      const turnFile = tmpFile(Buffer.from(m2[1], 'base64'), 'jpg');
+      const turn = await measureFace(catalystApp, turnFile, 0);
+      // How far the nose tip moved from the middle of the jaw. Both directions are logged; LEFT / RIGHT is
+      // matched to the image side once real tests show which way it goes.
+      const moved = Number.isFinite(turn.byJaw) ? turn.byJaw - 0.5 : 0;
+      console.log('qr liveness', JSON.stringify({ dir: ch.dir, byJaw: turn.byJaw, byEyes: turn.byEyes }));
+      if (Math.abs(moved) < 0.12) { cleanTmp(); throw new Error('🔄 Turn your head ' + (ch.dir === 'LEFT' ? '⬅ LEFT' : 'RIGHT ➡') + ' when asked. Try again.'); }
+      const same = await catalystApp.zia().compareFace(fs.createReadStream(selfieFile), fs.createReadStream(turnFile));
+      if (!yes(same && same.matched)) { cleanTmp(); throw new Error('The two photos are not the same person. Try again.'); }
       let found = null, score = null;
       try {
         for (const g of list.slice(0, 8)) {

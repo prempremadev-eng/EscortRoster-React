@@ -119,6 +119,7 @@ export const api = {
   deletePost: ROWID => apiCall('POST', '/deletePost', { ROWID }),
   faceTest: (a, b) => apiCall('POST', '/faceTest', { a, b }),
   qrSite: k => apiCall('GET', '/qrSite?k=' + encodeURIComponent(k)),
+  qrChallenge: k => apiCall('GET', '/qrChallenge?k=' + encodeURIComponent(k)),
   qrCheck: body => apiCall('POST', '/qrCheck', body),
   qrPunch: body => apiCall('POST', '/qrPunch', body),
   qrAdmin: branch => apiCall('GET', '/qrAdmin?branch=' + encodeURIComponent(branch)),

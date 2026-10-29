@@ -23,6 +23,7 @@ export default function QrAttend({ qrKey }) {
   const [site, setSite] = useState(null);
   const [step, setStep] = useState('start'); // start · gps · camera · checking · found · nomatch · done
   const [count, setCount] = useState(3);
+  const [hint, setHint] = useState('');
   const [msg, setMsg] = useState('');
   const [check, setCheck] = useState(null);
   const [done, setDone] = useState(null);
@@ -41,18 +42,30 @@ export default function QrAttend({ qrKey }) {
     try {
       setStep('gps');
       fix.current = await getFix();
+      const ch = (await api.qrChallenge(qrKey)).data; // LEFT or RIGHT, picked by the server
       setStep('camera');
+      setHint('Look straight at the camera · head straight');
       stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 720 } }, audio: false });
       video.current.srcObject = stream.current;
       await video.current.play();
+      const snap = () => {
+        const v = video.current, k = Math.min(1, 600 / Math.max(v.videoWidth, v.videoHeight));
+        const c = document.createElement('canvas');
+        c.width = Math.round(v.videoWidth * k); c.height = Math.round(v.videoHeight * k);
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+        return c;
+      };
       for (let n = 3; n > 0; n--) { setCount(n); await new Promise(r => setTimeout(r, 1000)); }
-      const v = video.current, k = Math.min(1, 600 / Math.max(v.videoWidth, v.videoHeight));
-      const c = document.createElement('canvas');
-      c.width = Math.round(v.videoWidth * k); c.height = Math.round(v.videoHeight * k);
-      c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+      const c = snap();
+      // Live check (29 Oct): now turn the head the way the server asked; a photo or a screen cannot.
+      setHint(ch.dir === 'LEFT' ? 'Now turn your head ⬅ LEFT' : 'Now turn your head RIGHT ➡');
+      setCount(ch.dir === 'LEFT' ? '⬅' : '➡');
+      await new Promise(r => setTimeout(r, 1200));
+      for (let n = 2; n > 0; n--) { setCount((ch.dir === 'LEFT' ? '⬅ ' : '') + n + (ch.dir === 'RIGHT' ? ' ➡' : '')); await new Promise(r => setTimeout(r, 800)); }
+      const c2 = snap();
       stopCam();
       setStep('checking');
-      const r = (await api.qrCheck({ k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), w: c.width, id: typedId || '' })).data;
+      const r = (await api.qrCheck({ k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), photo2: c2.toDataURL('image/jpeg', 0.8), c: ch.c, w: c.width, id: typedId || '' })).data;
       setCheck(r);
       setStep(r.matched ? 'found' : 'nomatch');
     } catch (err) {
@@ -87,7 +100,7 @@ export default function QrAttend({ qrKey }) {
       <div className="qr-cam" style={{ display: step === 'camera' ? 'block' : 'none' }}>
         <video ref={video} playsInline muted />
         <div className="qr-count">{count}</div>
-        <div className="qr-hint">Look straight at the camera · head straight</div>
+        <div className="qr-hint">{hint}</div>
       </div>
       {step === 'checking' && <div className="qr-wait">🔎 Checking your face…</div>}
 
