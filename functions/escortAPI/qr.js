@@ -177,6 +177,27 @@ module.exports = function qrRoutes(app, h) {
     }
   });
 
+  // ---------- relievers (step 2, Prem 29 Oct) ----------
+  // On a guard's off day the ISI field officer sends someone not known before. The guard on duty adds him for
+  // the next shift (new: name + phone; known: from the list); only an added reliever can IN. The first time
+  // his live photo becomes his registered face; later the face finds him like a regular guard.
+  const NEXT = { A: 'B', B: 'C', C: 'A' };
+  const plusDay = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  const phoneOf = v => { const d = String(v || '').replace(/\D/g, '').slice(-10); if (d.length !== 10) throw new Error('Phone: 10 digits.'); return d; };
+  const masked = p => (p ? '••••' + String(p).slice(-4) : '');
+  // The shift after the one this guard is on, and its duty day (C → next day's A).
+  async function nextSlot(zcql, guardId, open) {
+    const code = await rosterShiftOf(zcql, guardId, open.duty_date);
+    const next = NEXT[code];
+    return next ? { code: next, day: code === 'C' ? plusDay(open.duty_date, 1) : open.duty_date } : null;
+  }
+  async function reliefRows(zcql, branchId, days) {
+    return (await zcql.executeZCQLQuery(`SELECT ROWID, duty_date, shift_code, reliever_id, added_by, in_at, out_at FROM ReliefShifts WHERE branch_id = ${branchId} AND duty_date IN (${days.map(d => `'${d}'`).join(', ')})`)).map(r => r.ReliefShifts);
+  }
+  async function relieversOf(zcql, branchId) {
+    return (await zcql.executeZCQLQuery(`SELECT ROWID, name, phone, photo_key, visits FROM Relievers WHERE branch_id = ${branchId} ORDER BY name ASC`)).map(r => r.Relievers);
+  }
+
   // GPS + live photo → which guard (face), IN or OUT next. Nothing is saved yet except the photo.
   app.post('/qrCheck', async (req, res) => {
     try {
@@ -232,7 +253,45 @@ module.exports = function qrRoutes(app, h) {
       } finally {
         cleanTmp();
       }
-      if (!found) return ok(res, { matched: false, distance });
+      if (!found) {
+        // Not a regular guard: an added reliever? (expected IN, or IN now and leaving)
+        const today = qrDay();
+        const rows = (await reliefRows(zcql, b.ROWID, [plusDay(today, -1), today, plusDay(today, 1)])).filter(r => !r.out_at);
+        const people = await relieversOf(zcql, b.ROWID);
+        const byId = new Map(people.map(p => [String(p.ROWID), p]));
+        let hit = null;
+        const phone = req.body.phone ? phoneOf(req.body.phone) : '';
+        try {
+          const self2 = tmpFile(photo, 'jpg');
+          for (const r of rows) {
+            const p = byId.get(String(r.reliever_id));
+            if (!p) continue;
+            if (p.photo_key) {
+              const reg = await storedPhoto(bucket, p.photo_key);
+              const cmp = await catalystApp.zia().compareFace(fs.createReadStream(reg), fs.createReadStream(self2));
+              if (yes(cmp && cmp.matched)) { hit = { r, p, score: Number(cmp.confidence) || null }; break; }
+            } else if (!r.in_at && phone && String(p.phone) === phone) {
+              hit = { r, p, score: null, register: true }; // first time: this photo becomes his face
+              break;
+            }
+          }
+        } finally {
+          cleanTmp();
+        }
+        if (!hit) return ok(res, { matched: false, distance, relieverWanted: rows.some(r => !r.in_at && !(byId.get(String(r.reliever_id)) || {}).photo_key) });
+        const action = hit.r.in_at ? 'OUT' : 'IN';
+        const key = 'qr/' + b.ROWID + '/' + today + '/rel-' + hit.p.ROWID + '-' + crypto.randomBytes(5).toString('hex') + '.jpg';
+        await bucket.putObject(key, photo, { contentType: 'image/jpeg' });
+        const sh = (await getShifts(zcql, b.ROWID)).find(x => x.code === hit.r.shift_code);
+        const ticket = await makeTicket(catalystApp, { rs: String(hit.r.ROWID), rel: String(hit.p.ROWID), b: String(b.ROWID), a: 'R' + action, s: key, d: distance, reg: !!hit.register });
+        return ok(res, {
+          matched: true, reliever: true, ticket, action, distance,
+          guard: { name: hit.p.name + ' (reliever)', id: masked(hit.p.phone) },
+          shift: sh ? { code: sh.code, start: sh.start, end: sh.end } : { code: hit.r.shift_code },
+          since: hit.r.in_at ? String(hit.r.in_at).slice(11, 16) : '',
+          addedBy: hit.r.added_by || ''
+        });
+      }
 
       // Keep the selfie (90 days) and say what the next press does.
       const day = qrDay();
@@ -243,14 +302,61 @@ module.exports = function qrRoutes(app, h) {
       const code = open ? '' : await rosterShiftOf(zcql, found.ROWID, day);
       const sh = (await getShifts(zcql, b.ROWID)).find(x => x.code === code);
       const ticket = await makeTicket(catalystApp, { g: String(found.ROWID), b: String(b.ROWID), a: action, s: selfie_key, la: lat, ln: lng, d: distance, m: score, dd: open ? open.duty_date : '' });
+      // On duty now: he may add the reliever for the next shift.
+      let relief = null;
+      if (open) {
+        const slot = await nextSlot(zcql, found.ROWID, open);
+        if (slot) {
+          const row = (await reliefRows(zcql, b.ROWID, [slot.day])).find(r => r.shift_code === slot.code);
+          const people = await relieversOf(zcql, b.ROWID);
+          const who = row && people.find(p => String(p.ROWID) === String(row.reliever_id));
+          relief = { code: slot.code, day: slot.day, added: who ? who.name + ' ' + masked(who.phone) : '', list: people.map(p => ({ id: String(p.ROWID), name: p.name, phone: masked(p.phone), visits: Number(p.visits) || 0 })) };
+        }
+      }
       ok(res, {
-        matched: true, ticket, action, distance,
+        matched: true, ticket, action, distance, relief,
         guard: { name: found.guard_name, id: found.id_number },
         shift: sh ? { code: sh.code, start: sh.start, end: sh.end } : (code ? { code } : null),
         since: open ? String(open.CREATEDTIME).slice(11, 16) : ''
       });
     } catch (err) {
       cleanTmp();
+      fail(res, err);
+    }
+  });
+
+  // The guard on duty adds the reliever for the next shift (needs his fresh check ticket).
+  app.post('/qrReliever', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const b = await branchByKey(zcql, req.body.k);
+      const t = await readTicket(catalystApp, req.body.ticket);
+      if (t.b !== String(b.ROWID) || t.a !== 'OUT' || !t.g) throw new Error('Scan again.');
+      const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE ROWID = ${requireRowId(t.g)}`))[0].Guards;
+      const open = await openIn(zcql, g.ROWID);
+      if (!open) throw new Error('You are not IN. Scan again.');
+      const slot = await nextSlot(zcql, g.ROWID, open);
+      if (!slot) throw new Error('No next shift for you to hand over.');
+      let relId = req.body.reliever_id ? String(requireRowId(req.body.reliever_id)) : '';
+      const people = await relieversOf(zcql, b.ROWID);
+      if (relId && !people.some(p => String(p.ROWID) === relId)) throw new Error('Reliever not found.');
+      if (!relId) {
+        const name = String(req.body.name || '').replace(/[^A-Za-z .]/g, '').trim().slice(0, 60);
+        if (name.length < 2) throw new Error('Reliever name, please.');
+        const phone = phoneOf(req.body.phone);
+        const same = people.find(p => String(p.phone) === phone);
+        if (same) relId = String(same.ROWID); // known by the phone number
+        else relId = String((await catalystApp.datastore().table('Relievers').insertRow({ branch_id: b.ROWID, name: name.toUpperCase(), phone, visits: 0, created_by: g.guard_name })).ROWID);
+      }
+      const table = catalystApp.datastore().table('ReliefShifts');
+      const row = (await reliefRows(zcql, b.ROWID, [slot.day])).find(r => r.shift_code === slot.code);
+      if (row && row.in_at) throw new Error('The reliever of shift ' + slot.code + ' is already IN.');
+      if (row) await table.updateRow({ ROWID: row.ROWID, reliever_id: relId, added_by: g.guard_name });
+      else await table.insertRow({ branch_id: b.ROWID, duty_date: slot.day, shift_code: slot.code, reliever_id: relId, added_by: g.guard_name });
+      const who = (await relieversOf(zcql, b.ROWID)).find(p => String(p.ROWID) === relId);
+      ok(res, { code: slot.code, day: slot.day, name: who ? who.name : '' });
+    } catch (err) {
       fail(res, err);
     }
   });
@@ -280,6 +386,21 @@ module.exports = function qrRoutes(app, h) {
       const b = await branchByKey(zcql, req.body.k);
       const t = await readTicket(catalystApp, req.body.ticket);
       if (t.b !== String(b.ROWID)) throw new Error('Scan again.');
+      if (t.a === 'RIN' || t.a === 'ROUT') {
+        const { time } = istNow();
+        const now = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 16).replace('T', ' ');
+        const row = (await zcql.executeZCQLQuery(`SELECT ROWID, in_at, out_at FROM ReliefShifts WHERE ROWID = ${requireRowId(t.rs)}`))[0];
+        const r = row && row.ReliefShifts;
+        if (!r || r.out_at || (t.a === 'RIN') !== !r.in_at) throw new Error('Scan again.');
+        const rel = (await zcql.executeZCQLQuery(`SELECT ROWID, name, visits FROM Relievers WHERE ROWID = ${requireRowId(t.rel)}`))[0].Relievers;
+        if (t.a === 'RIN') {
+          await catalystApp.datastore().table('ReliefShifts').updateRow({ ROWID: r.ROWID, in_at: now, in_selfie: t.s, in_distance_m: t.d });
+          await catalystApp.datastore().table('Relievers').updateRow({ ROWID: rel.ROWID, visits: (Number(rel.visits) || 0) + 1, last_seen: now, ...(t.reg ? { photo_key: t.s } : {}) });
+        } else {
+          await catalystApp.datastore().table('ReliefShifts').updateRow({ ROWID: r.ROWID, out_at: now, out_selfie: t.s });
+        }
+        return ok(res, { action: t.a.slice(1), time, name: rel.name + ' (reliever)', token: '' });
+      }
       const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number, branch_id, agency_id, escort_id, guard_token, is_active FROM Guards WHERE ROWID = ${requireRowId(t.g)}`))[0];
       const guard = g && g.Guards;
       if (!guard || guard.is_active !== 'true') throw new Error('Guard not found.');

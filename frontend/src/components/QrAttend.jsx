@@ -32,6 +32,10 @@ export default function QrAttend({ qrKey }) {
   const stream = useRef(null);
   const fix = useRef(null);
   const resetTimer = useRef(null);
+  const last = useRef(null); // the last photos, sent again with a reliever's phone number
+  const [relPhone, setRelPhone] = useState('');
+  const [relForm, setRelForm] = useState(null); // { pick, name, phone } — the duty guard adds a reliever
+  const [relMsg, setRelMsg] = useState('');
 
   useEffect(() => { api.qrSite(qrKey).then(r => setSite(r.data)).catch(err => setMsg(err.message)); }, [qrKey]);
   const stopCam = () => { if (stream.current) stream.current.getTracks().forEach(t => t.stop()); stream.current = null; };
@@ -66,7 +70,8 @@ export default function QrAttend({ qrKey }) {
       const c2 = snap();
       stopCam();
       setStep('checking');
-      const r = (await api.qrCheck({ k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), photo2: c2.toDataURL('image/jpeg', 0.8), c: ch.c, w: c.width, id: typedId || '' })).data;
+      last.current = { k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), photo2: c2.toDataURL('image/jpeg', 0.8), c: ch.c, w: c.width };
+      const r = (await api.qrCheck({ ...last.current, id: typedId || '' })).data;
       setCheck(r);
       setStep(r.matched ? 'found' : 'nomatch');
     } catch (err) {
@@ -74,6 +79,26 @@ export default function QrAttend({ qrKey }) {
       setMsg(err.name === 'NotAllowedError' ? '📷 Camera is blocked. Allow the camera for this page.' : err.message);
       setStep('start');
     }
+  }
+
+  // A reliever's first time: the same photos again with his phone number (the duty guard gave it).
+  async function asReliever() {
+    setMsg(''); setStep('checking');
+    try {
+      const r = (await api.qrCheck({ ...last.current, phone: relPhone })).data;
+      setCheck(r);
+      setStep(r.matched ? 'found' : 'nomatch');
+      if (!r.matched) setMsg('Not added as a reliever (or wrong phone). Ask the guard on duty to add you.');
+    } catch (err) { setMsg(err.message); setStep('start'); }
+  }
+  async function addReliever() {
+    setRelMsg('');
+    try {
+      const r = (await api.qrReliever({ k: qrKey, ticket: check.ticket, ...(relForm.pick ? { reliever_id: relForm.pick } : { name: relForm.name, phone: relForm.phone }) })).data;
+      setRelMsg('✅ ' + r.name + ' added for Shift ' + r.code + '. He scans this QR when he comes.');
+      setCheck(c => ({ ...c, relief: { ...c.relief, added: r.name } }));
+      setRelForm(null);
+    } catch (err) { setRelMsg(err.message); }
   }
 
   async function punch() {
@@ -111,6 +136,27 @@ export default function QrAttend({ qrKey }) {
           <div className="qr-sub">ID {check.guard.id}{check.shift ? ' · Shift ' + check.shift.code + (check.shift.start ? ' ' + check.shift.start + '–' + check.shift.end : '') : ''}{check.since ? ' · IN since ' + check.since : ''}</div>
           <div className="qr-sub">📍 {check.distance} m from the gate</div>
           <button className={'qr-big ' + (check.action === 'IN' ? 'qr-in' : 'qr-out')} onClick={punch}>{check.action === 'IN' ? '✅ IN' : '🏁 OUT'}</button>
+          {check.addedBy && <div className="qr-sub">Added by {check.addedBy}</div>}
+          {check.relief && (
+            <div className="qr-rel">
+              <div className="qr-sub">Shift {check.relief.code} reliever: <b>{check.relief.added || 'not added'}</b></div>
+              {!relForm && <button className="qr-link" onClick={() => { setRelMsg(''); setRelForm({ pick: '', name: '', phone: '' }); }}>➕ Add reliever for Shift {check.relief.code}</button>}
+              {relForm && (
+                <div className="qr-relform">
+                  {check.relief.list.length > 0 && (
+                    <select value={relForm.pick} onChange={e => setRelForm({ ...relForm, pick: e.target.value })}>
+                      <option value="">New reliever…</option>
+                      {check.relief.list.map(p => <option key={p.id} value={p.id}>{p.name} {p.phone}{p.visits ? ' · came ' + p.visits + '×' : ''}</option>)}
+                    </select>
+                  )}
+                  {!relForm.pick && <input value={relForm.name} onChange={e => setRelForm({ ...relForm, name: e.target.value })} placeholder="Reliever name" />}
+                  {!relForm.pick && <input value={relForm.phone} onChange={e => setRelForm({ ...relForm, phone: e.target.value })} inputMode="tel" placeholder="Reliever phone (10 digits)" />}
+                  <button onClick={addReliever} disabled={!relForm.pick && (!relForm.name.trim() || relForm.phone.replace(/\D/g, '').length < 10)}>Add</button>
+                </div>
+              )}
+              {relMsg && <div className="qr-sub">{relMsg}</div>}
+            </div>
+          )}
           <button className="qr-link" onClick={() => { setStep('start'); setCheck(null); }}>Not me</button>
         </div>
       )}
@@ -119,6 +165,8 @@ export default function QrAttend({ qrKey }) {
         <div className="qr-card">
           <div className="qr-name">❌ Face not matched</div>
           <button className="qr-big" onClick={() => start('')}>🔁 Try again<small>Good light, face the camera</small></button>
+          <div className="qr-sub">Reliever, first time here? Type your phone number:</div>
+          <div className="qr-id"><input value={relPhone} onChange={e => setRelPhone(e.target.value)} inputMode="tel" placeholder="Your phone (10 digits)" /><button onClick={asReliever} disabled={relPhone.replace(/\D/g, '').length < 10 || !last.current}>Go</button></div>
           <div className="qr-sub">Or type your ID and try:</div>
           <div className="qr-id"><input value={id} onChange={e => setId(e.target.value)} inputMode="numeric" placeholder="Your ID (Clock No)" /><button onClick={() => start(id)} disabled={!id.trim()}>Go</button></div>
         </div>
