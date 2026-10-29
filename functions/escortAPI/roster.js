@@ -64,8 +64,24 @@ module.exports = function rosterRoutes(app, h) {
         codes[String(r.guard_id)] = r.codes;
         if (!updated || String(r.MODIFIEDTIME) > updated.at) updated = { at: String(r.MODIFIEDTIME).slice(0, 16), by: r.updated_by || '' };
       });
+      // Relievers who worked this month at a QR gate (Cumbum, 29 Oct): shown under the guards, not counted.
+      let relievers = [];
+      try {
+        const rs = (await zcql.executeZCQLQuery(`SELECT reliever_id, duty_date, shift_code, in_at FROM ReliefShifts WHERE branch_id = ${branch} AND duty_date >= '${month}-01' AND duty_date <= '${month}-${String(daysIn(month)).padStart(2, '0')}'`)).map(r => r.ReliefShifts);
+        if (rs.length) {
+          const ids = [...new Set(rs.map(r => String(r.reliever_id)))];
+          const people = (await zcql.executeZCQLQuery(`SELECT ROWID, name, phone FROM Relievers WHERE ROWID IN (${ids.map(requireRowId).join(', ')})`)).map(r => r.Relievers);
+          relievers = ids.map(id => {
+            const p = people.find(x => String(x.ROWID) === id) || {};
+            const codes = Array(daysIn(month)).fill('-');
+            // Came (IN) → the shift letter; added but never came → a small dot.
+            rs.filter(r => String(r.reliever_id) === id).forEach(r => { codes[Number(String(r.duty_date).slice(8, 10)) - 1] = r.in_at ? r.shift_code : '·'; });
+            return { id, name: p.name || '?', phone: p.phone ? '••••' + String(p.phone).slice(-4) : '', codes: codes.join('') };
+          });
+        }
+      } catch (err) { relievers = []; }
       ok(res, {
-        month, days: daysIn(month), updated,
+        month, days: daysIn(month), updated, relievers,
         guards: guards.map(g => ({ ROWID: String(g.ROWID), id: g.id_number, card: g.card_number || '', name: g.guard_name, area: g.area || '', agency: g.agency || '', tags: g.tags || '', incharge: incharge.has(String(g.ROWID)) })),
         codes
       });

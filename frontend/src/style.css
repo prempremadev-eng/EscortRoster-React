@@ -1220,3 +1220,5 @@ td.in-late{color:#b91c1c;}
 .qr-hand-title{font-weight:700;color:#0F172A;}
 .qr-hand-row{font-size:14px;color:#334155;display:flex;justify-content:space-between;gap:8px;}
 .qr-lock{width:100%;padding:18px;border-radius:18px;background:#FEF2F2;border:2px solid #FCA5A5;color:#B91C1C;font-weight:800;font-size:18px;}
+
+.rs-rel td{background:#FAF5FF;}

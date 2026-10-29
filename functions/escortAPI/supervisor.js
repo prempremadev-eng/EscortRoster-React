@@ -701,6 +701,15 @@ module.exports = function supervisorRoutes(app, h) {
       const ins = date <= shiftDate() && slotGuards.length
         ? [...new Set((await pages(zcql, `SELECT guard_id FROM AccessLog WHERE duty_date = '${date}' AND direction = 'IN' AND guard_id IN (${idList(slotGuards)}) ORDER BY ROWID ASC`, 'AccessLog')).map(x => String(x.guard_id)))]
         : null;
+      // Relievers of this day at a QR gate (Cumbum, 29 Oct): not guards, shown apart on the sheet.
+      let relief = [];
+      try {
+        const rs = (await zcql.executeZCQLQuery(`SELECT ROWID, shift_code, reliever_id, added_by, in_at, out_at FROM ReliefShifts WHERE branch_id = ${branch} AND duty_date = '${date}'`)).map(r => r.ReliefShifts);
+        if (rs.length) {
+          const people = (await zcql.executeZCQLQuery(`SELECT ROWID, name, phone FROM Relievers WHERE ROWID IN (${idList(rs.map(r => r.reliever_id))})`)).map(r => r.Relievers);
+          relief = rs.map(r => { const p = people.find(x => String(x.ROWID) === String(r.reliever_id)) || {}; return { shift: r.shift_code, name: p.name || '?', phone: p.phone ? '••••' + String(p.phone).slice(-4) : '', addedBy: r.added_by || '', in: r.in_at ? String(r.in_at).slice(11, 16) : '', out: r.out_at ? String(r.out_at).slice(11, 16) : '' }; });
+        }
+      } catch (err) { relief = []; }
       res.status(200).json({
         status: 'success',
         data: {
@@ -711,7 +720,7 @@ module.exports = function supervisorRoutes(app, h) {
           slots: rows.map(r => ({ ROWID: String(r.ROWID), post: String(r.post_id), shift: r.shift_code, guard: String(r.guard_id), published: isOn(r.published) })),
           guards: guards.map(g => ({ ROWID: String(g.ROWID), name: g.guard_name, id: g.id_number, area: g.area || '', roster: rosterOf[String(g.ROWID)] || '', tags: g.tags || '', incharge: supIds.map(String).includes(String(g.ROWID)) })),
           hasRoster: roster.length > 0,
-          ins, now: nowStamp(),
+          ins, now: nowStamp(), relief,
           escort: { batch: batch.map((id, i) => ({ guard: id, point: pointOf[id] || '', seat: seatOf[id] || i + 1 })), night: night.map((id, i) => ({ guard: id, seat: seatOf[id] || i + 1, extra: !!extraOf[id] })), canAdd: !!rosterDay, show: hasEscorts },
           off
         }

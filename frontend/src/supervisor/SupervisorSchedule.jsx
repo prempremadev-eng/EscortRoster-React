@@ -454,6 +454,20 @@ export default function SupervisorSchedule() {
                       {data.off.length === 0 && <tr><td colSpan={3} className="sh-empty">{data.hasRoster ? 'Nobody is off' : 'No month roster'}</td></tr>}
                     </tbody>
                   </table>
+                  {/* Relievers at a QR gate (Cumbum, 29 Oct): added by the guard on duty; not guards. */}
+                  {data.relief && data.relief.length > 0 && <table className="sh-t">
+                    <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code" /><col className="w-point" /></colgroup>
+                    <thead>
+                      <tr className="sh-head sh-head-off"><th colSpan={4}>🔁 RELIEVERS · {sheetDate}</th></tr>
+                      <tr className="sh-cols"><th>S No</th><th>NAME</th><th>SHIFT</th><th>STATUS</th></tr>
+                    </thead>
+                    <tbody>
+                      {data.relief.map((r, i) => (
+                        <tr key={i}><td className="sh-no">{i + 1}</td><td className="sh-name">{r.name} <span className="sh-rel-ph">{r.phone}</span></td><td className="sh-code">{r.shift}</td>
+                          <td className="sh-point">{r.out ? '🏁 OUT ' + r.out : r.in ? '✅ IN ' + r.in : '⏳ waiting'}{r.addedBy ? ' · added by ' + r.addedBy : ''}</td></tr>
+                      ))}
+                    </tbody>
+                  </table>}
                   {data.escort.show && <table className="sh-t">
                     <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code2" /><col className="w-point" /></colgroup>
                     <thead>

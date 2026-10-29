@@ -428,6 +428,20 @@ export default function RosterPage({ initialMonth }) {
                   })}
                   {shown.length === 0 && <tr><td colSpan={days + 4}>No guards match.</td></tr>}
                 </tbody>
+                {/* Relievers this month (QR gate, 29 Oct): who came which day; not guards, not in the counts. */}
+                {data.relievers && data.relievers.length > 0 && (
+                  <tbody className="rs-rel">
+                    <tr><td className="rs-sticky rs-no"></td><td className="rs-sticky rs-name"><b>🔁 Relievers</b></td><td colSpan={days + 2}></td></tr>
+                    {data.relievers.map(r => (
+                      <tr key={r.id}>
+                        <td className="rs-sticky rs-no">🔁</td>
+                        <td className="rs-sticky rs-name"><b>{r.name}</b><div className="master-sub">Reliever {r.phone}</div></td>
+                        {[...r.codes].map((c, i) => <td key={i}>{c === '-' ? '' : <span className={'rs-cell rs-' + (c === '·' ? 'none' : c)} title={c === '·' ? 'Added, did not come' : 'Came · Shift ' + c}>{c === '·' ? '·' : c}</span>}</td>)}
+                        <td><b>{[...r.codes].filter(c => 'ABCG'.includes(c)).length}</b></td><td></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                )}
                 <tfoot>
                   {['A', 'B', 'C', 'G', 'O', 'L'].map(c => (
                     <tr key={c}>
