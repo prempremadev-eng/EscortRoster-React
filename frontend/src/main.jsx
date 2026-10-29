@@ -149,6 +149,7 @@ function page(hash) {
   if (hash === '#report') return <SupFrame active="report"><ShiftReport /></SupFrame>;
   if (hash === '#attendance') return <SupFrame active="attendance"><AttendancePage /></SupFrame>;
   if (hash === '#history' || hash === '#chart') return <SupFrame active="history"><DutyHistory /></SupFrame>;
+  if (hash.startsWith('#history/')) return <SupFrame active="history"><DutyHistory key={hash} initialDate={hash.slice('#history/'.length)} /></SupFrame>;
   if (hash === '#simulator') return <SupFrame active="simulator"><CardSimulator /></SupFrame>;
   if (hash === '#links') return <SupFrame active="links"><GuardLinks /></SupFrame>;
   if (hash === '#admin') return <SupFrame active="admin"><AdminPage /></SupFrame>;

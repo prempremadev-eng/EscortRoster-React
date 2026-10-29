@@ -128,8 +128,15 @@ export default function SupervisorBoard() {
       <main className="sb">
         <div className="sb-head">
           <div>
-            <div className="pd-muted pd-small">{b ? (b.company || 'Nokia') + ' ' + b.branch_name : ''}{data ? ' · ' + niceDate(data.date) : ''}</div>
+            <div className="pd-muted pd-small">{b ? (b.company || 'Nokia') + ' ' + b.branch_name : ''}</div>
             <div className="pd-title">{escortView ? 'Live escorts · 6 to 5 and 9 to 6' : 'Live posts' + (data ? ' · Shift ' + data.shift.code : '')}</div>
+            {/* The duty day, big, with a picker (Prem, 30 Oct): another day opens Duty history for that day. */}
+            {data && (
+              <label className="sb-day" title="Duty day. Night shift after 00:00 still counts as the day it started. Pick another day to see its history.">
+                📅 <b>{niceDate(data.date)}</b>
+                <input type="date" value={data.date} onChange={e => { if (e.target.value && e.target.value !== data.date) window.location.hash = '#history/' + e.target.value; }} aria-label="Pick a day" />
+              </label>
+            )}
           </div>
           <div className="pd-grow"></div>
           <select className="pd-search sb-branch" value={branch} onChange={e => { setBranch(e.target.value); setShift(''); }} aria-label="Branch">

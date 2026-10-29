@@ -13,10 +13,11 @@ function remember(k, fallback) {
   try { const v = localStorage.getItem(k); return v === null ? fallback : JSON.parse(v); } catch { return fallback; }
 }
 
-export default function DutyHistory() {
+// #history/2026-10-28 opens that day (Prem, 30 Oct: the live board's date picker goes here for another day).
+export default function DutyHistory({ initialDate }) {
   const [branches, setBranches] = useState([]);
   const [branch, setBranch] = useState('');
-  const [date, setDate] = useState(today);
+  const [date, setDate] = useState(() => (/^\d{4}-\d{2}-\d{2}$/.test(initialDate || '') ? initialDate : today()));
   const [data, setData] = useState(null);
   const [full, toggleFull] = useFullView('full-' + 'DutyHistory');
   const [agency, setAgency] = useState('');
