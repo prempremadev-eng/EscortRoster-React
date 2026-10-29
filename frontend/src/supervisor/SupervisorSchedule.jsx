@@ -76,6 +76,7 @@ function GateNow({ branch }) {
               <b>🔁 {r.name} {r.phone}</b>
               <span>Reliever · Shift {r.shift}</span>
               <span>{r.in ? '✅ IN ' + r.in : '⏳ waiting'}{r.addedBy ? ' · by ' + r.addedBy : ''}</span>
+              {!r.in && <span className="pd-muted">{r.registered ? 'Photo: from an earlier visit' : 'First time: no photo yet'}</span>}
             </div>
           </div>
         ))}

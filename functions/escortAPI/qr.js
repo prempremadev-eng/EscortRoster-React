@@ -439,7 +439,8 @@ module.exports = function qrRoutes(app, h) {
       for (const r of rel) {
         const p = people.find(x => String(x.ROWID) === String(r.reliever_id)) || {};
         const sel = (await zcql.executeZCQLQuery(`SELECT in_selfie FROM ReliefShifts WHERE ROWID = ${r.ROWID}`))[0].ReliefShifts.in_selfie;
-        relievers.push({ rs: String(r.ROWID), name: p.name || '?', phone: masked(p.phone), shift: r.shift_code, day: r.duty_date, in: r.in_at ? String(r.in_at).slice(11, 16) : '', addedBy: r.added_by || '', selfie: await signed(bucket, sel) });
+        // Waiting: his registered face (if he came before), so the office sees who should come.
+        relievers.push({ rs: String(r.ROWID), name: p.name || '?', phone: masked(p.phone), shift: r.shift_code, day: r.duty_date, in: r.in_at ? String(r.in_at).slice(11, 16) : '', addedBy: r.added_by || '', selfie: await signed(bucket, sel || p.photo_key), registered: !!p.photo_key });
       }
       ok(res, { gate: true, on, relievers });
     } catch (err) {
