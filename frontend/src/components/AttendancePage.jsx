@@ -82,7 +82,7 @@ export default function AttendancePage() {
         <button className="btn secondary" onClick={load}>🔄</button>
         <button className="btn" onClick={exportXlsx} disabled={!rows.length}>📤 Export Excel</button>
       </div>
-      <div className="dash">
+      <div className="dash at-page">
         {error && <div className="trip-error">{error}</div>}
         {note && <div className="sim-push">{note}</div>}
         <div className="at-chips">

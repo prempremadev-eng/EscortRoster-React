@@ -1237,7 +1237,17 @@ td.in-late{color:#b91c1c;}
 /* Attendances page (30 Oct) */
 .at-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center;}
 .at-chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;}
+.at-page{max-width:none;}
+.at-page .dash-scroll{overflow:auto;max-height:calc(100vh - 230px);scrollbar-width:auto;scrollbar-color:#94a3b8 #e2e8f0;}
 .at-table td,.at-table th{white-space:nowrap;}
+/* Date, Employee Name, Clock NO, Name stay in view while the rest scrolls sideways; the headings stay on top. */
+.at-table thead th{position:sticky;top:0;z-index:2;}
+.at-table td:nth-child(-n+4),.at-table th:nth-child(-n+4){position:sticky;background:var(--surface,#fff);z-index:1;}
+.at-table th:nth-child(-n+4){z-index:3;background:var(--blue-header);}
+.at-table td:nth-child(1),.at-table th:nth-child(1){left:0;min-width:110px;}
+.at-table td:nth-child(2),.at-table th:nth-child(2){left:110px;min-width:150px;}
+.at-table td:nth-child(3),.at-table th:nth-child(3){left:260px;min-width:90px;}
+.at-table td:nth-child(4),.at-table th:nth-child(4){left:350px;min-width:160px;box-shadow:2px 0 0 #cbd5e1;}
 .at-vendor{color:#dc2626;}
 .at-present{color:#15803d;font-weight:600;}
 .at-absent{color:#dc2626;font-weight:600;}

@@ -9,7 +9,7 @@ const MON = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct
 const MAX_DAYS = 31;
 
 module.exports = function attendanceRoutes(app, h) {
-  const { catalyst, selectAll, requireRowId, fail, auth } = h;
+  const { catalyst, selectAll, requireRowId, fail, auth, getShifts } = h;
   const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
   // "2026-10-29" → "29-Oct-2026"; "2026-10-29 17:34:59:123" → "29-Oct-2026 17:34:59".
@@ -31,13 +31,17 @@ module.exports = function attendanceRoutes(app, h) {
       if ((Date.parse(to) - Date.parse(from)) / 86400000 >= MAX_DAYS) throw new Error('At most ' + MAX_DAYS + ' days at a time.');
       const agWhere = agency ? ` AND agency_id = ${agency}` : '';
 
-      const [br, guards, logs, sched, posts] = await Promise.all([
+      const [br, guards, logs, sched, posts, shifts] = await Promise.all([
         zcql.executeZCQLQuery(`SELECT branch_name, city FROM Branches WHERE ROWID = ${branch}`),
         selectAll(zcql, 'Guards', `SELECT ROWID, guard_name, id_number, card_number, designation, agency, agency_id, branch_id, is_active, tags FROM Guards WHERE branch_id = ${branch}${agWhere} ORDER BY ROWID ASC`),
         selectAll(zcql, 'AccessLog', `SELECT ROWID, guard_id, direction, duty_date, source, allowed_by, CREATEDTIME FROM AccessLog WHERE duty_date >= '${from}' AND duty_date <= '${to}' ORDER BY CREATEDTIME ASC`),
         selectAll(zcql, 'Schedule', `SELECT guard_id, sched_date, shift_code, post_id FROM Schedule WHERE branch_id = ${branch} AND sched_date >= '${from}' AND sched_date <= '${to}' AND published = true ORDER BY ROWID ASC`),
-        selectAll(zcql, 'Posts', `SELECT ROWID, post_name FROM Posts WHERE branch_id = ${branch} ORDER BY ROWID ASC`)
+        selectAll(zcql, 'Posts', `SELECT ROWID, post_name FROM Posts WHERE branch_id = ${branch} ORDER BY ROWID ASC`),
+        getShifts(zcql, branch)
       ]);
+      // Absent only after the shift has begun + 15 min late time (30 Oct: at 00:41 the day's A and C showed Absent).
+      const startOf = {};
+      shifts.forEach(s => { if (s.start) startOf[s.code] = s.start; });
       const b = br.length ? br[0].Branches : {};
       const office = [b.city, b.branch_name].filter(Boolean).join(' - ');
       const byGuard = {};
@@ -51,10 +55,12 @@ module.exports = function attendanceRoutes(app, h) {
       logs.forEach(l => { if (byGuard[String(l.guard_id)]) slot(String(l.guard_id), String(l.duty_date).slice(0, 10)).log.push(l); });
       sched.forEach(s => { if (s.guard_id && byGuard[String(s.guard_id)]) { const x = slot(String(s.guard_id), String(s.sched_date).slice(0, 10)); x.duty = x.duty || s; } });
 
-      const today = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
+      const nowIst = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 16).replace('T', ' ');
+      const today = nowIst.slice(0, 10);
+      const begun = (day, code) => { const st = startOf[code]; if (!st) return day < today; return mins(day + ' ' + st + ':00') + 15 <= mins(nowIst + ':00'); };
       const rows = [];
       for (const x of Object.values(days)) {
-        if (!x.log.length && x.day > today) continue; // a future duty is not absent yet
+        if (!x.log.length && (x.day > today || (x.duty && !begun(x.day, x.duty.shift_code)))) continue; // not begun: not absent yet
         const g = byGuard[x.gid];
         const firstIn = x.log.find(l => l.direction === 'IN');
         const outs = firstIn ? x.log.filter(l => l.direction === 'OUT' && l.CREATEDTIME > firstIn.CREATEDTIME) : [];
