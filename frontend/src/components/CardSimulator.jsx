@@ -43,7 +43,7 @@ function FaceTest() {
     try { setOut((await api.faceTest(a, b)).data); } catch (err) { setOut({ error: err.message }); } finally { setBusy(false); }
   }
   const pick = set => async e => { const f = e.target.files[0]; if (f) set(await shrink(f)); };
-  const r = out && out.result;
+  const r = out && out.result; // Zia sends matched as the text "true" / "false"
   return (
     <div className="master-form">
       <div className="master-form-title">🧪 Face match test (Zia)</div>
@@ -58,7 +58,7 @@ function FaceTest() {
       <button className="btn" onClick={run} disabled={busy || !a || !b}>{busy ? 'Checking…' : 'Compare'}</button>
       {out && (out.error
         ? <div className="trip-error">{out.error}</div>
-        : <div className="sim-push"><b>{r && r.matched !== undefined ? (r.matched ? '✅ Same person' : '❌ Not the same') : (r && r.match ? '✅ Same person' : '❌ Not the same')}</b> · {JSON.stringify(r)} · {out.ms} ms</div>)}
+        : <div className="sim-push"><b>{r && [true, 'true'].includes(r.matched !== undefined ? r.matched : r.match) ? '✅ Same person' : '❌ Not the same'}</b> · {JSON.stringify(r)} · {out.ms} ms</div>)}
     </div>
   );
 }
