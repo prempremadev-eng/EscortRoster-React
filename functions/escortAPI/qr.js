@@ -215,11 +215,11 @@ module.exports = function qrRoutes(app, h) {
       if (!m2) { cleanTmp(); throw new Error('Turn your head as asked and try again.'); }
       const turnFile = tmpFile(Buffer.from(m2[1], 'base64'), 'jpg');
       const turn = await measureFace(catalystApp, turnFile, 0);
-      // How far the nose tip moved from the middle of the jaw. Both directions are logged; LEFT / RIGHT is
-      // matched to the image side once real tests show which way it goes.
-      const moved = Number.isFinite(turn.byJaw) ? turn.byJaw - 0.5 : 0;
-      console.log('qr liveness', JSON.stringify({ dir: ch.dir, byJaw: turn.byJaw, byEyes: turn.byEyes }));
-      if (Math.abs(moved) < 0.12) { cleanTmp(); throw new Error('🔄 Turn your head ' + (ch.dir === 'LEFT' ? '⬅ LEFT' : 'RIGHT ➡') + ' when asked. Try again.'); }
+      // How far the nose tip moved from the middle of the jaw, in the asked direction. The photo is not
+      // mirrored: a head turned to the guard's LEFT puts the nose tip to the image's right (29 Oct test: 0.78).
+      const moved = Number.isFinite(turn.byJaw) ? (turn.byJaw - 0.5) * (ch.dir === 'LEFT' ? 1 : -1) : 0;
+      console.log('qr liveness', JSON.stringify({ dir: ch.dir, byJaw: turn.byJaw, byEyes: turn.byEyes, moved }));
+      if (moved < 0.12) { cleanTmp(); throw new Error('🔄 Turn your head ' + (ch.dir === 'LEFT' ? '⬅ LEFT' : 'RIGHT ➡') + ' when asked. Try again.'); }
       const same = await catalystApp.zia().compareFace(fs.createReadStream(selfieFile), fs.createReadStream(turnFile));
       if (!yes(same && same.matched)) { cleanTmp(); throw new Error('The two photos are not the same person. Try again.'); }
       let found = null, score = null;
