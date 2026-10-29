@@ -31,6 +31,7 @@ export default function QrAttend({ qrKey }) {
   const video = useRef(null);
   const stream = useRef(null);
   const fix = useRef(null);
+  const resetTimer = useRef(null);
 
   useEffect(() => { api.qrSite(qrKey).then(r => setSite(r.data)).catch(err => setMsg(err.message)); }, [qrKey]);
   const stopCam = () => { if (stream.current) stream.current.getTracks().forEach(t => t.stop()); stream.current = null; };
@@ -80,7 +81,7 @@ export default function QrAttend({ qrKey }) {
     try {
       setDone((await api.qrPunch({ k: qrKey, ticket: check.ticket })).data);
       setStep('done');
-      setTimeout(() => { setStep('start'); setDone(null); setCheck(null); setId(''); }, 15000);
+      resetTimer.current = setTimeout(() => { setStep('start'); setDone(null); setCheck(null); setId(''); }, 30000);
     } catch (err) {
       setMsg(err.message);
       setStep('start');
@@ -127,6 +128,7 @@ export default function QrAttend({ qrKey }) {
         <div className="qr-card qr-ok">
           <div className="qr-name">{done.action === 'IN' ? '✅ IN' : '🏁 OUT'} {done.time}</div>
           <div className="qr-sub">{done.name}</div>
+          {done.token && <a className="qr-big qr-in" href={'#guard/' + done.token} onClick={() => clearTimeout(resetTimer.current)}>📋 Open my duty page<small>Post · take over · chat · break</small></a>}
         </div>
       )}
     </div>

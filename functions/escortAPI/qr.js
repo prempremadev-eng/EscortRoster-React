@@ -255,6 +255,23 @@ module.exports = function qrRoutes(app, h) {
     }
   });
 
+  // A one-post site without a supervisor (Cumbum): no one publishes a day schedule, so a QR IN puts the guard
+  // on that post for his roster shift (published), like a card IN on a published day. The post page then opens.
+  async function autoSchedule(catalystApp, zcql, guard, day) {
+    const has = await zcql.executeZCQLQuery(`SELECT ROWID FROM Schedule WHERE guard_id = ${guard.ROWID} AND sched_date = '${day}' AND published = true LIMIT 1`);
+    if (has.length) return;
+    const posts = (await zcql.executeZCQLQuery(`SELECT ROWID, shift_codes FROM Posts WHERE branch_id = ${requireRowId(guard.branch_id)} AND agency_id = ${requireRowId(guard.agency_id)} AND post_type = 'POST' AND is_active = 'true'`)).map(r => r.Posts);
+    if (posts.length !== 1) return;
+    const code = await rosterShiftOf(zcql, guard.ROWID, day);
+    const p = posts[0];
+    if (!'ABCG'.includes(code || '-') || (p.shift_codes && !String(p.shift_codes).includes(code))) return;
+    const taken = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_id FROM Schedule WHERE post_id = ${p.ROWID} AND sched_date = '${day}' AND shift_code = '${code}'`)).map(r => r.Schedule);
+    const table = catalystApp.datastore().table('Schedule');
+    const mine = taken.find(x => String(x.guard_id) === String(guard.ROWID));
+    if (mine) await table.updateRow({ ROWID: mine.ROWID, published: true });
+    else if (!taken.length) await table.insertRow({ branch_id: guard.branch_id, sched_date: day, post_id: p.ROWID, shift_code: code, guard_id: guard.ROWID, published: true });
+  }
+
   // The press after a successful check: the IN / OUT is saved like a card swipe.
   app.post('/qrPunch', async (req, res) => {
     try {
@@ -275,13 +292,19 @@ module.exports = function qrRoutes(app, h) {
         guard_id: guard.ROWID, direction: t.a, punch_time: time, duty_date: day, source: 'QR',
         lat: t.la, lng: t.ln, distance_m: t.d, selfie_key: t.s, match_score: t.m
       });
+      let token = '';
       try {
-        if (t.a === 'IN') await onCardIn(catalystApp, guard, time, day);
-        else await onPostOut(catalystApp, guard);
+        if (t.a === 'IN') {
+          await autoSchedule(catalystApp, zcql, guard, day);
+          await onCardIn(catalystApp, guard, time, day);
+          // The guard's own duty page opens on this phone after the IN (face + gate GPS proved who it is).
+          token = guard.guard_token || crypto.randomBytes(16).toString('hex');
+          if (!guard.guard_token) await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, guard_token: token });
+        } else await onPostOut(catalystApp, guard);
       } catch (err) {
         console.error('QR swipe follow-up failed:', err.message || err);
       }
-      ok(res, { action: t.a, time, name: guard.guard_name });
+      ok(res, { action: t.a, time, name: guard.guard_name, token });
     } catch (err) {
       fail(res, err);
     }
