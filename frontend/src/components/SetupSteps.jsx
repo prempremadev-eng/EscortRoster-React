@@ -57,6 +57,12 @@ export function SetupHome() {
             <span className="hub-card-go">›</span>
           </a>
         ))}
+        <a href="#relievers" className="hub-card">
+          <span className="hub-card-step">QR</span>
+          <span className="hub-card-icon">🔁</span>
+          <span className="hub-card-text"><b>Relievers</b><span>Relievers at a QR gate (Cumbum): photo, phone, how often they came.</span></span>
+          <span className="hub-card-go">›</span>
+        </a>
       </div>
     </>
   );

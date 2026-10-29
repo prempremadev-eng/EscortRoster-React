@@ -23,6 +23,7 @@ import './post/post.css';
 import './supervisor/supervisor.css';
 import AuthGate from './auth/AuthGate.jsx';
 import QrAttend from './components/QrAttend.jsx';
+import RelieversPage from './components/RelieversPage.jsx';
 import SplashHost from './components/Splash.jsx';
 import GroupChat from './post/GroupChat.jsx';
 import { api } from './api.js';
@@ -154,6 +155,7 @@ function page(hash) {
   if (hash === '#supervisor' || hash.startsWith('#supervisor/')) return <SupervisorInbox key={hash} initialPost={hash.split('/')[1] || null} />;
   if (hash === '#board') return <SupervisorBoard />;
   if (hash === '#schedule') return <SupervisorSchedule />;
+  if (hash === '#relievers') return <SupFrame active="setup"><RelieversPage /></SupFrame>;
   if (hash === '#more') return <SupFrame active="more"><MoreHome /></SupFrame>;
   if (hash === '#reports') return <SupFrame active="reports"><ReportsHome /></SupFrame>;
   if (hash === '#setup') return <SupFrame active="setup"><SetupHome /></SupFrame>;
