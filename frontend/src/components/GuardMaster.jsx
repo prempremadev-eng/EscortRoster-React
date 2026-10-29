@@ -190,20 +190,51 @@ export default function GuardMaster() {
     }
   }
 
-  // 📤 Export: the guards on the page in the agency's heading order (Aadhaar only as ••••last 4).
+  // 📤 Export: the guards on the page in the agency's heading order, the real photo in the Photo column (29 Oct),
+  // Aadhaar only as ••••last 4. exceljs (not xlsx) because it can put pictures in cells.
   async function exportDetails() {
-    const XLSX = await import('xlsx');
-    const rows = shown.map(g => {
-      const b = branchById[String(g.branch_id)];
-      const off = g.is_active !== 'true';
-      return [g.photo_key ? 'Yes' : '', g.card_number || '', g.guard_name, g.agency || '', g.gender || '', g.phone || '', g.designation || '', g.id_number, day10(g.date_of_joining),
-        g.emergency_contact || '', off ? 'Relieved' : 'Active', day10(g.date_of_birth), b ? b.branch_name : '', g.aadhaar_file_key ? 'Yes' : '', g.aadhaar_last4 ? '••••' + g.aadhaar_last4 : '',
-        day10(g.relieved_date), g.relieved_reason || '', serviceYears(g.date_of_joining, off ? g.relieved_date : '')];
-    });
-    const ws = XLSX.utils.aoa_to_sheet([DETAIL_HEADINGS, ...rows]);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, 'All_Security_Details');
-    XLSX.writeFile(wb, 'All Security Details ' + new Date().toISOString().slice(0, 10) + '.xlsx');
+    setError(''); setSaving(true);
+    try {
+      const ExcelJS = (await import('exceljs')).default;
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('All_Security_Details');
+      ws.addRow(DETAIL_HEADINGS).font = { bold: true };
+      ws.columns = DETAIL_HEADINGS.map((h, i) => ({ width: i === 0 ? 11 : Math.max(12, h.length + 2) }));
+      shown.forEach(g => {
+        const b = branchById[String(g.branch_id)];
+        const off = g.is_active !== 'true';
+        const row = ws.addRow(['', g.card_number || '', g.guard_name, g.agency || '', g.gender || '', g.phone || '', g.designation || '', g.id_number, day10(g.date_of_joining),
+          g.emergency_contact || '', off ? 'Relieved' : 'Active', day10(g.date_of_birth), b ? b.branch_name : '', g.aadhaar_file_key ? 'Yes' : '', g.aadhaar_last4 ? '••••' + g.aadhaar_last4 : '',
+          day10(g.relieved_date), g.relieved_reason || '', serviceYears(g.date_of_joining, off ? g.relieved_date : '')]);
+        row.alignment = { vertical: 'middle' };
+        if (g.photo_key) row.height = 60;
+      });
+      // Photos, 5 per call, made small (80 px) so the file stays light.
+      const withPhoto = shown.map((g, i) => [g, i]).filter(([g]) => g.photo_key);
+      const shrink = (mime, b64) => new Promise(res => { const im = new Image(); im.onload = () => { const k = 80 / Math.max(im.width, im.height); const c = document.createElement('canvas'); c.width = Math.round(im.width * k); c.height = Math.round(im.height * k); c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); res({ data: c.toDataURL('image/jpeg', 0.8), w: c.width, h: c.height }); }; im.onerror = () => res(null); im.src = 'data:' + mime + ';base64,' + b64; });
+      for (let k = 0; k < withPhoto.length; k += 5) {
+        setNote('📤 Photos ' + Math.min(k + 5, withPhoto.length) + ' / ' + withPhoto.length + '…');
+        const part = withPhoto.slice(k, k + 5);
+        const got = (await api.guardPhotosData(part.map(([g]) => g.ROWID))).data;
+        for (const p of got) {
+          const at = part.find(([g]) => String(g.ROWID) === p.id);
+          const small = at && await shrink(p.mime, p.b64);
+          if (!small) continue;
+          const img = wb.addImage({ base64: small.data, extension: 'jpeg' });
+          ws.addImage(img, { tl: { col: 0.1, row: at[1] + 1.05 }, ext: { width: small.w * 0.9, height: small.h * 0.9 } });
+        }
+      }
+      const blob = new Blob([await wb.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'All Security Details ' + new Date().toISOString().slice(0, 10) + '.xlsx';
+      a.click();
+      setNote('📤 Exported ' + shown.length + ' guard(s), ' + withPhoto.length + ' with photo.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
   }
   // 📥 Import: an "All Security Details" Excel → guards added (new Clock NO) or updated (Clock NO already here).
   async function importDetails(e) {
@@ -227,7 +258,28 @@ export default function GuardMaster() {
         status: col(r, 'status'), aadhaar: String(col(r, 'aadhaarno')).replace(/\D/g, ''), relievedDate: excelDate(col(r, 'relieveddate')), relievedReason: col(r, 'relievedreason')
       }));
       const r = (await api.guardImport(rows)).data;
-      setNote('📥 ' + file.name + ': ' + r.added + ' added, ' + r.updated + ' updated' + (r.skipped.length ? ' · skipped ' + r.skipped.length + ': ' + r.skipped.join(' · ') : '') + '.');
+      // Pictures in the Photo column become the guards' photos (29 Oct): read with exceljs, matched by the row's Clock NO.
+      let photos = 0;
+      try {
+        const ExcelJS = (await import('exceljs')).default;
+        const xb = new ExcelJS.Workbook();
+        await xb.xlsx.load(await file.arrayBuffer());
+        const sheet = xb.worksheets[0];
+        let headRow = 0, clockCol = 0;
+        sheet.eachRow((row, n) => { if (headRow) return; row.eachCell((c, ci) => { if (key(c.text) === 'clockno') { headRow = n; clockCol = ci; } }); });
+        for (const im of sheet.getImages()) {
+          const rowNo = Math.floor(im.range.tl.nativeRow ?? im.range.tl.row) + 1;
+          if (rowNo <= headRow) continue;
+          const clock = String(sheet.getRow(rowNo).getCell(clockCol).text || '').trim();
+          const id = r.ids && r.ids[clock];
+          const media = xb.getImage(im.imageId);
+          if (!id || !media || !media.buffer) continue;
+          const ext = String(media.extension || 'jpeg').replace('jpg', 'jpeg');
+          await api.guardPhoto(id, new File([media.buffer], clock + '.' + ext, { type: 'image/' + ext }));
+          photos++;
+        }
+      } catch (err) { console.error('Photos from the Excel not read:', err); }
+      setNote('📥 ' + file.name + ': ' + r.added + ' added, ' + r.updated + ' updated' + (photos ? ', ' + photos + ' photo(s)' : '') + (r.skipped.length ? ' · skipped ' + r.skipped.length + ': ' + r.skipped.join(' · ') : '') + '.');
       await load();
     } catch (err) {
       setError(err.message);

@@ -1779,6 +1779,34 @@ app.get('/guardAadhaarUrl', async (req, res) => {
   }
 });
 
+// Guard photos for the 📤 Export Excel (29 Oct: the Photo column holds the real picture): up to 5 guards per call,
+// as data the browser can shrink and put into the sheet.
+app.post('/guardPhotosData', async (req, res) => {
+  try {
+    auth.need(req, 'supervisor');
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const ids = (Array.isArray(req.body.ids) ? req.body.ids : []).slice(0, 5).map(requireRowId);
+    if (!ids.length) return res.status(200).json({ status: 'success', data: [] });
+    const rows = (await catalystApp.zcql().executeZCQLQuery(`SELECT ROWID, photo_key, branch_id, agency_id FROM Guards WHERE ROWID IN (${ids.join(', ')})`)).map(r => r.Guards);
+    const bucket = catalystApp.stratus().bucket('escortcardaccess-media');
+    const out = [];
+    for (const g of rows) {
+      if (!g.photo_key) continue;
+      auth.requireRow(req, g, 'guard');
+      try {
+        const obj = await bucket.getObject(g.photo_key);
+        const chunks = [];
+        for await (const c of obj) chunks.push(Buffer.from(c));
+        const ext = String(g.photo_key).split('.').pop().toLowerCase();
+        out.push({ id: String(g.ROWID), mime: ext === 'png' ? 'image/png' : ext === 'webp' ? 'image/webp' : 'image/jpeg', b64: Buffer.concat(chunks).toString('base64') });
+      } catch (err) { console.error('Photo for export failed:', err.message || err); }
+    }
+    res.status(200).json({ status: 'success', data: out });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
 // 📥 Guards from the agency's "All Security Details" Excel (Prem, 29 Oct): one row per guard; Clock NO is the
 // ID. A Clock NO already in the app updates that guard, a new one adds a guard. Agency and Branch by name.
 app.post('/guardImport', async (req, res) => {
@@ -1800,7 +1828,7 @@ app.post('/guardImport', async (req, res) => {
     const branchOf = t => branches.find(b => String(b.branch_name).trim().toUpperCase() === String(t || '').trim().toUpperCase());
     const table = catalystApp.datastore().table('Guards');
     let added = 0, updated = 0;
-    const skipped = [];
+    const skipped = [], ids = {}; // Clock NO → guard, so the page can add the photos from the Excel
     for (const [i, r] of rows.entries()) {
       const line = 'Row ' + (i + 2);
       try {
@@ -1818,13 +1846,13 @@ app.post('/guardImport', async (req, res) => {
         await checkGuard(req, zcql, row, old ? old.ROWID : null);
         const relieved = /relie|inactive|left/i.test(String(r.status || ''));
         const state = relieved ? { is_active: 'false', relieved_date: DATE_ONLY.test(String(r.relievedDate || '')) ? r.relievedDate : null, relieved_reason: String(r.relievedReason || '').slice(0, 255) || null } : {};
-        if (old) { await table.updateRow({ ROWID: old.ROWID, ...row, ...state, modified_by: req.user.name }); updated++; }
-        else { const ins = await table.insertRow({ ...row, ...state, created_by: req.user.name, modified_by: req.user.name }); byId.set(norm(id), ins); added++; }
+        if (old) { await table.updateRow({ ROWID: old.ROWID, ...row, ...state, modified_by: req.user.name }); updated++; ids[id] = String(old.ROWID); }
+        else { const ins = await table.insertRow({ ...row, ...state, created_by: req.user.name, modified_by: req.user.name }); byId.set(norm(id), ins); added++; ids[id] = String(ins.ROWID); }
       } catch (err) {
         skipped.push(line + ': ' + (err.message || err));
       }
     }
-    res.status(200).json({ status: 'success', data: { added, updated, skipped } });
+    res.status(200).json({ status: 'success', data: { added, updated, skipped, ids } });
   } catch (err) {
     fail(res, err);
   }

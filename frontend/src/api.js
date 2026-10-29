@@ -136,6 +136,7 @@ export const api = {
   updateGuard: guard => apiCall('PUT', '/updateGuard', guard),
   setGuardActive: (ROWID, active, more) => apiCall('PUT', '/setGuardActive', { ROWID, active, ...(more || {}) }),
   guardImport: rows => apiCall('POST', '/guardImport', { rows }),
+  guardPhotosData: ids => apiCall('POST', '/guardPhotosData', { ids }),
   guardAadhaarUrl: guard => apiCall('GET', '/guardAadhaarUrl?guard=' + q(guard)),
   guardAadhaarFile: async (guard, file) => {
     const res = await fetch(API_BASE + '/guardAadhaarFile?guard=' + q(guard), { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
