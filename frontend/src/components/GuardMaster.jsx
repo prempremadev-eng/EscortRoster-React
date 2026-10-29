@@ -6,7 +6,22 @@ import { Toggle, IconBtn } from './RowControls.jsx';
 import { useUser } from '../auth/user.js';
 
 const NO_FILTERS = { state: '', city: '', branch: '', agency: '', area: '', q: '', incharge: false };
-const BLANK_GUARD = { id_number: '', card_number: '', guard_name: '', agency_id: '', branch_id: '', area: '', escort_id: '', phone: '', tags: '' };
+const BLANK_GUARD = { id_number: '', card_number: '', guard_name: '', agency_id: '', branch_id: '', area: '', escort_id: '', phone: '', tags: '',
+  gender: '', designation: '', date_of_joining: '', date_of_birth: '', emergency_contact: '', aadhaar_no: '' };
+// The agency's "All Security Details" columns (Prem, 29 Oct): the same for every branch; Export / Import use them.
+const DETAIL_HEADINGS = ['Photo', 'Vendor ID', 'Name', 'Agency', 'Gender', 'Mobile NO', 'Designation', 'Clock NO', 'Date of Joining', 'Emergeny Contact', 'Status', 'Date of Birth', 'Branch', 'Aadhaar File', 'Aadhaar No', 'Relieved Date', 'Relieved Reason', 'ServiceYear'];
+const day10 = v => String(v || '').slice(0, 10);
+// Completed years of service (at least 1), to the relieved date or today: as in the agency's sheet.
+const serviceYears = (doj, until) => { if (!doj) return ''; const y = (new Date(until || Date.now()) - new Date(doj)) / (365.25 * 86400000); return y > 0 ? Math.max(1, Math.floor(y)) : ''; };
+// Excel dates: a serial number (45765) or text like 17-04-2025 / 2025-04-17 → 2025-04-17.
+function excelDate(v) {
+  if (v === '' || v === null || v === undefined) return '';
+  if (typeof v === 'number') return new Date(Date.UTC(1899, 11, 30) + Math.round(v) * 86400000).toISOString().slice(0, 10);
+  const t = String(v).trim();
+  let m = t.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/); if (m) return m[1] + '-' + m[2].padStart(2, '0') + '-' + m[3].padStart(2, '0');
+  m = t.match(/^(\d{1,2})[-/.](\d{1,2})[-/.](\d{4})$/); if (m) return m[3] + '-' + m[2].padStart(2, '0') + '-' + m[1].padStart(2, '0');
+  return '';
+}
 // Ready tags in the form (Prem, 28 Oct); any other word can be added.
 const TAG_PRESETS = ['Lady', 'Document', 'Driver', 'Gunman', 'Fire'];
 const tagList = t => String(t || '').split(',').map(x => x.trim()).filter(Boolean);
@@ -32,6 +47,8 @@ export default function GuardMaster() {
   const [freeEscorts, setFreeEscorts] = useState(null);
   // Photo picked in the form (sent after the guard is saved) and the saved photo's link.
   const [photoFile, setPhotoFile] = useState(null);
+  const [aadhaarFile, setAadhaarFile] = useState(null);
+  const [left, setLeft] = useState({ date: new Date().toISOString().slice(0, 10), reason: '' }); // relieved date + reason
   const [photoUrl, setPhotoUrl] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -112,11 +129,12 @@ export default function GuardMaster() {
     setNote('');
     setConfirmLeft(false);
     const next = g
-      ? { ...BLANK_GUARD, ...g, card_number: g.card_number || '', area: g.area || '', agency_id: g.agency_id || '', escort_id: g.escort_id || '', phone: g.phone || '', tags: g.tags || '', incharge: incharges.has(String(g.ROWID)) }
+      ? { ...BLANK_GUARD, ...g, card_number: g.card_number || '', area: g.area || '', agency_id: g.agency_id || '', escort_id: g.escort_id || '', phone: g.phone || '', tags: g.tags || '', gender: g.gender || '', designation: g.designation || '', date_of_joining: day10(g.date_of_joining), date_of_birth: day10(g.date_of_birth), emergency_contact: g.emergency_contact || '', aadhaar_no: '', incharge: incharges.has(String(g.ROWID)) }
       : { ...BLANK_GUARD, branch_id: filters.branch || (branches.length === 1 ? String(branches[0].ROWID) : ''), agency_id: ownAgency };
     setForm(next);
     setFreeEscorts(null);
     setPhotoFile(null);
+    setAadhaarFile(null);
     setPhotoUrl(null);
     // The saved photo is fetched only when a guard with a photo is opened (one read).
     if (g && g.photo_key) api.guardPhotoUrl(g.ROWID).then(r => setPhotoUrl(r.data.url)).catch(() => {});
@@ -144,14 +162,16 @@ export default function GuardMaster() {
     setSaving(true);
     setError('');
     try {
-      const fields = ['id_number', 'card_number', 'guard_name', 'agency_id', 'branch_id', 'area', 'phone', 'escort_id', 'tags'];
+      const fields = ['id_number', 'card_number', 'guard_name', 'agency_id', 'branch_id', 'area', 'phone', 'escort_id', 'tags', 'gender', 'designation', 'date_of_joining', 'date_of_birth', 'emergency_contact'];
       const payload = {};
       fields.forEach(k => { payload[k] = form[k]; });
       payload.incharge = !!form.incharge;
+      if (String(form.aadhaar_no || '').trim()) payload.aadhaar_no = form.aadhaar_no; // only when typed: kept encrypted
       let saved = form.ROWID
         ? (await api.updateGuard({ ROWID: form.ROWID, ...payload })).data
         : (await api.addGuard(payload)).data;
       if (photoFile) saved = { ...saved, photo_key: (await api.guardPhoto(saved.ROWID, photoFile)).data.photo_key };
+      if (aadhaarFile) saved = { ...saved, aadhaar_file_key: (await api.guardAadhaarFile(saved.ROWID, aadhaarFile)).data.aadhaar_file_key };
       putRow(saved);
       // The ⭐ tick lives in the agency's incharge list; keep the copy on screen in step (no reload).
       setData(d => ({ ...d, agencies: d.agencies.map(a => {
@@ -170,12 +190,58 @@ export default function GuardMaster() {
     }
   }
 
-  async function setActive(g, active) {
+  // 📤 Export: the guards on the page in the agency's heading order (Aadhaar only as ••••last 4).
+  async function exportDetails() {
+    const XLSX = await import('xlsx');
+    const rows = shown.map(g => {
+      const b = branchById[String(g.branch_id)];
+      const off = g.is_active !== 'true';
+      return [g.photo_key ? 'Yes' : '', g.card_number || '', g.guard_name, g.agency || '', g.gender || '', g.phone || '', g.designation || '', g.id_number, day10(g.date_of_joining),
+        g.emergency_contact || '', off ? 'Relieved' : 'Active', day10(g.date_of_birth), b ? b.branch_name : '', g.aadhaar_file_key ? 'Yes' : '', g.aadhaar_last4 ? '••••' + g.aadhaar_last4 : '',
+        day10(g.relieved_date), g.relieved_reason || '', serviceYears(g.date_of_joining, off ? g.relieved_date : '')];
+    });
+    const ws = XLSX.utils.aoa_to_sheet([DETAIL_HEADINGS, ...rows]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'All_Security_Details');
+    XLSX.writeFile(wb, 'All Security Details ' + new Date().toISOString().slice(0, 10) + '.xlsx');
+  }
+  // 📥 Import: an "All Security Details" Excel → guards added (new Clock NO) or updated (Clock NO already here).
+  async function importDetails(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    setError(''); setNote(''); setSaving(true);
+    try {
+      const XLSX = await import('xlsx');
+      const wb = XLSX.read(await file.arrayBuffer());
+      const all = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { header: 1, defval: '' });
+      const key = h => String(h).toLowerCase().replace(/[^a-z]/g, '');
+      const hi = all.findIndex(r => r.some(c => key(c) === 'clockno'));
+      if (hi < 0) throw new Error('"' + file.name + '" has no "Clock NO" heading. Use the All Security Details format.');
+      const head = all[hi].map(key);
+      const col = (r, ...names) => { const i = head.findIndex(h => names.includes(h)); return i < 0 ? '' : r[i]; };
+      const rows = all.slice(hi + 1).filter(r => String(col(r, 'clockno')).trim()).map(r => ({
+        clock: String(col(r, 'clockno')).trim(), vendor: String(col(r, 'vendorid')).trim(), name: String(col(r, 'name')).trim(), agency: col(r, 'agency'), branch: col(r, 'branch'),
+        gender: String(col(r, 'gender')).trim(), mobile: String(col(r, 'mobileno', 'mobile')), designation: String(col(r, 'designation')).trim(),
+        doj: excelDate(col(r, 'dateofjoining')), dob: excelDate(col(r, 'dateofbirth')), emergency: String(col(r, 'emergenycontact', 'emergencycontact')),
+        status: col(r, 'status'), aadhaar: String(col(r, 'aadhaarno')).replace(/\D/g, ''), relievedDate: excelDate(col(r, 'relieveddate')), relievedReason: col(r, 'relievedreason')
+      }));
+      const r = (await api.guardImport(rows)).data;
+      setNote('📥 ' + file.name + ': ' + r.added + ' added, ' + r.updated + ' updated' + (r.skipped.length ? ' · skipped ' + r.skipped.length + ': ' + r.skipped.join(' · ') : '') + '.');
+      await load();
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function setActive(g, active, more) {
     setSaving(true);
     setError('');
     setNote('');
     try {
-      putRow((await api.setGuardActive(g.ROWID, active)).data);
+      putRow((await api.setGuardActive(g.ROWID, active, more)).data);
       setNote(active ? '↩️ ' + g.guard_name + ' is active again.' : '🚫 ' + g.guard_name + ' is switched off (left). Their link and phone stop working.');
       setForm(null);
       setFreeEscorts(null);
@@ -199,6 +265,8 @@ export default function GuardMaster() {
       <div className="toolbar no-print">
         <div className="spacer"></div>
         <button className="btn secondary" onClick={() => openForm()}>➕ Add guard</button>
+        <label className="btn secondary" title="All Security Details Excel: Clock NO, Name, Agency, Branch, Gender …">📥 Import Excel<input type="file" accept=".xlsx,.xls,.csv" hidden onChange={importDetails} /></label>
+        <button className="btn secondary" onClick={exportDetails} disabled={!data} title="The guards shown, in the All Security Details headings">📤 Export Excel</button>
         <button className="btn" onClick={load}>🔄 Refresh</button>
       </div>
 
@@ -248,6 +316,22 @@ export default function GuardMaster() {
                 </div>
               </div>
               <label>Phone (optional)<input id="g-phone" value={form.phone} onChange={e => setFormField('phone', e.target.value)} inputMode="tel" /></label>
+              {/* All Security Details (29 Oct): same fields for every branch. */}
+              <label>Gender
+                <select value={form.gender} onChange={e => setFormField('gender', e.target.value)}>
+                  <option value="">—</option><option>Male</option><option>Female</option><option>Other</option>
+                </select>
+              </label>
+              <label>Designation<input value={form.designation} onChange={e => setFormField('designation', e.target.value)} placeholder="Security Guard" maxLength={40} list="g-desig" /></label>
+              <datalist id="g-desig"><option value="Security Guard" /><option value="Lady Guard" /><option value="Shift Incharge" /><option value="Supervisor" /><option value="Gunman" /></datalist>
+              <label>Date of Joining<input type="date" value={form.date_of_joining} onChange={e => setFormField('date_of_joining', e.target.value)} /></label>
+              <label>Date of Birth<input type="date" value={form.date_of_birth} onChange={e => setFormField('date_of_birth', e.target.value)} /></label>
+              <label>Emergency Contact<input value={form.emergency_contact} onChange={e => setFormField('emergency_contact', e.target.value)} inputMode="tel" /></label>
+              <label>Aadhaar No<input value={form.aadhaar_no} onChange={e => setFormField('aadhaar_no', e.target.value.replace(/[^0-9 ]/g, ''))} inputMode="numeric" placeholder={form.aadhaar_last4 ? 'Saved: ••••' + form.aadhaar_last4 + ' (type to change)' : '12 digits'} maxLength={14} /></label>
+              <label>Aadhaar File (photo / PDF)
+                <input type="file" accept="image/jpeg,image/png,application/pdf" onChange={e => setAadhaarFile(e.target.files[0] || null)} />
+                {form.aadhaar_file_key && <button type="button" className="btn secondary" onClick={async () => { const u = (await api.guardAadhaarUrl(form.ROWID)).data.url; if (u) window.open(u, '_blank', 'noopener'); }}>👁 View saved file</button>}
+              </label>
               <label>Photo (optional)
                 <input id="g-photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setPhotoFile(e.target.files[0] || null)} />
               </label>
@@ -272,8 +356,12 @@ export default function GuardMaster() {
             {confirmLeft && (
               <div className="master-confirm">
                 Switch off <b>{form.guard_name}</b>? Their link and phone stop working. Old swipes stay.
+                <div className="master-grid">
+                  <label>Relieved Date<input type="date" value={left.date} onChange={e => setLeft({ ...left, date: e.target.value })} /></label>
+                  <label>Relieved Reason<input value={left.reason} onChange={e => setLeft({ ...left, reason: e.target.value })} placeholder="Resigned / transferred / …" maxLength={255} /></label>
+                </div>
                 <div className="link-actions">
-                  <button className="btn master-danger-solid" type="button" disabled={saving} onClick={() => setActive(form, false)}>Yes, switch off</button>
+                  <button className="btn master-danger-solid" type="button" disabled={saving} onClick={() => setActive(form, false, { relieved_date: left.date, relieved_reason: left.reason })}>Yes, switch off</button>
                   <button className="btn secondary" type="button" onClick={() => setConfirmLeft(false)}>No</button>
                 </div>
               </div>
@@ -339,7 +427,7 @@ export default function GuardMaster() {
             <div className="dash-scroll">
               <table className="dash-table adm-table">
                 <thead>
-                  <tr><th>S.No</th><th>ID</th><th>Card</th><th>Guard name</th><th>Agency</th><th>Branch</th><th>Phone</th><th>Created by</th><th>Modified by</th><th>Status</th><th></th></tr>
+                  <tr><th>S.No</th><th>ID</th><th>Card</th><th>Guard name</th><th>Designation</th><th>Agency</th><th>Branch</th><th>Phone</th><th>Created by</th><th>Modified by</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody>
                   {shown.map((g, i) => {
@@ -351,6 +439,7 @@ export default function GuardMaster() {
                         <td>{g.id_number}</td>
                         <td>{g.card_number || '—'}</td>
                         <td className="left">{g.photo_key ? '📷 ' : ''}{g.guard_name}{incharges.has(String(g.ROWID)) && <span className="gm-incharge" title="Shift incharge (Admin → Agencies)">⭐ Shift Incharge</span>}{tagList(g.tags).map(t => <span key={t} className="gm-tag-badge">{t}</span>)}</td>
+                        <td>{g.designation || '—'}{g.date_of_joining ? <div className="master-sub">Since {day10(g.date_of_joining)}</div> : null}</td>
                         <td>{g.agency}</td>
                         <td className="left">{b ? branchLabel(b) : '—'}<div className="master-sub">{b ? b.city + ', ' + b.state : ''}</div></td>
                         <td>{g.phone || '—'}</td>
@@ -365,7 +454,7 @@ export default function GuardMaster() {
                       </tr>
                     );
                   })}
-                  {shown.length === 0 && <tr><td colSpan="12">No guards match these filters.</td></tr>}
+                  {shown.length === 0 && <tr><td colSpan="13">No guards match these filters.</td></tr>}
                 </tbody>
               </table>
             </div>

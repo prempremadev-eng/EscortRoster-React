@@ -134,7 +134,15 @@ export const api = {
   getFreeEscorts: keep => apiCall('GET', '/getFreeEscorts' + (keep ? '?keep=' + q(keep) : '')),
   addGuard: guard => apiCall('POST', '/addGuard', guard),
   updateGuard: guard => apiCall('PUT', '/updateGuard', guard),
-  setGuardActive: (ROWID, active) => apiCall('PUT', '/setGuardActive', { ROWID, active }),
+  setGuardActive: (ROWID, active, more) => apiCall('PUT', '/setGuardActive', { ROWID, active, ...(more || {}) }),
+  guardImport: rows => apiCall('POST', '/guardImport', { rows }),
+  guardAadhaarUrl: guard => apiCall('GET', '/guardAadhaarUrl?guard=' + q(guard)),
+  guardAadhaarFile: async (guard, file) => {
+    const res = await fetch(API_BASE + '/guardAadhaarFile?guard=' + q(guard), { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.status !== 'success') throw new Error(json.error || 'Aadhaar file upload failed (' + res.status + ')');
+    return json;
+  },
   guardPhotoUrl: guard => apiCall('GET', '/guardPhotoUrl?guard=' + q(guard)),
   guardPhoto: async (guard, file) => {
     const res = await fetch(API_BASE + '/guardPhoto?guard=' + q(guard), { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });

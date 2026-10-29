@@ -1471,7 +1471,7 @@ app.get('/getMaster', async (req, res) => {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const [guards, branches] = await Promise.all([
-      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, card_number, guard_name, agency, agency_id, branch_id, area, tags, escort_id, phone, photo_key, created_by, modified_by, CREATEDTIME, MODIFIEDTIME, is_active FROM Guards ORDER BY id_number ASC').then(g => auth.inArea(req, g)),
+      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, card_number, guard_name, agency, agency_id, branch_id, area, tags, escort_id, phone, photo_key, gender, designation, date_of_joining, date_of_birth, emergency_contact, aadhaar_last4, aadhaar_file_key, relieved_date, relieved_reason, created_by, modified_by, CREATEDTIME, MODIFIEDTIME, is_active FROM Guards ORDER BY id_number ASC').then(g => auth.inArea(req, g)),
       activeBranches(req, zcql)
     ]);
     const [agencies, escortPosts] = await Promise.all([
@@ -1533,8 +1533,36 @@ function guardFromBody(b) {
     escort_id: b.escort_id ? requireRowId(b.escort_id) : null,
     phone: phone || null,
     // Tags (Prem, 28 Oct): Lady, Document, Driver … for lists in the roster and schedule. Sent only by the form.
-    ...(b.tags !== undefined ? { tags: cleanTags(b.tags) } : {})
+    ...(b.tags !== undefined ? { tags: cleanTags(b.tags) } : {}),
+    // The agency's "All Security Details" columns (Prem, 29 Oct: one format for every branch). Sent only by the form
+    // and the Excel import, so older screens do not clear them.
+    ...personalFromBody(b)
   };
+}
+const DATE_ONLY = /^\d{4}-\d{2}-\d{2}$/;
+function personalFromBody(b) {
+  const out = {};
+  const date = (k, label) => { if (b[k] === undefined) return; const v = String(b[k] || '').trim(); if (v && !DATE_ONLY.test(v)) throw new Error(label + ': pick a date'); out[k] = v || null; };
+  if (b.gender !== undefined) { const g = String(b.gender || '').trim(); if (g && !['Male', 'Female', 'Other'].includes(g)) throw new Error('Gender: Male, Female or Other'); out.gender = g || null; }
+  if (b.designation !== undefined) out.designation = String(b.designation || '').trim().slice(0, 40) || null;
+  date('date_of_joining', 'Date of joining');
+  date('date_of_birth', 'Date of birth');
+  if (b.emergency_contact !== undefined) { const e = String(b.emergency_contact || '').trim(); if (e && !/^[0-9+ ]{6,15}$/.test(e)) throw new Error('Emergency contact: numbers only (6 to 15)'); out.emergency_contact = e || null; }
+  return out;
+}
+// Aadhaar number: kept encrypted (AES-256-GCM, key in Settings 'aadhaar_key'); screens see only the last 4 digits.
+async function aadhaarFields(catalystApp, value) {
+  if (value === undefined) return {};
+  const n = String(value || '').replace(/\s/g, '');
+  if (!n) return { aadhaar_enc: null, aadhaar_last4: null };
+  if (!/^\d{12}$/.test(n)) throw new Error('Aadhaar No: 12 digits');
+  const zcql = catalystApp.zcql();
+  let key = await getSetting(zcql, 'aadhaar_key');
+  if (!key || !key.setting_value) { await saveSetting(catalystApp, 'aadhaar_key', crypto.randomBytes(32).toString('hex')); key = await getSetting(zcql, 'aadhaar_key'); }
+  const iv = crypto.randomBytes(12);
+  const c = crypto.createCipheriv('aes-256-gcm', Buffer.from(key.setting_value, 'hex'), iv);
+  const enc = Buffer.concat([c.update(n, 'utf8'), c.final()]);
+  return { aadhaar_enc: [iv, c.getAuthTag(), enc].map(x => x.toString('base64')).join('.'), aadhaar_last4: n.slice(-4) };
 }
 // "Lady, document ,Lady" → "Lady,Document": words only, first letter capital, no repeats, at most 10.
 function cleanTags(v) {
@@ -1606,7 +1634,7 @@ async function setIncharge(catalystApp, zcql, guardId, agencyId, on) {
 app.post('/addGuard', async (req, res) => {
   try {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
-    const row = guardFromBody(req.body || {});
+    const row = { ...guardFromBody(req.body || {}), ...(await aadhaarFields(catalystApp, (req.body || {}).aadhaar_no)) };
     await checkGuard(req, catalystApp.zcql(), row, null);
     const result = await catalystApp.datastore().table('Guards').insertRow({ ...row, created_by: req.user.name, modified_by: req.user.name });
     await setIncharge(catalystApp, catalystApp.zcql(), result.ROWID, row.agency_id, req.body.incharge);
@@ -1621,7 +1649,7 @@ app.put('/updateGuard', async (req, res) => {
     const catalystApp = catalyst.initialize(req, { scope: 'admin' });
     const zcql = catalystApp.zcql();
     const current = auth.requireRow(req, await guardById(zcql, req.body && req.body.ROWID), 'guard');
-    const row = guardFromBody(req.body);
+    const row = { ...guardFromBody(req.body), ...(await aadhaarFields(catalystApp, req.body.aadhaar_no)) };
     await checkGuard(req, zcql, row, current.ROWID);
     const result = await catalystApp.datastore().table('Guards').updateRow({ ROWID: current.ROWID, ...row, modified_by: req.user.name });
     await setIncharge(catalystApp, zcql, current.ROWID, row.agency_id || current.agency_id, req.body.incharge);
@@ -1643,7 +1671,12 @@ app.put('/setGuardActive', async (req, res) => {
       const taken = await zcql.executeZCQLQuery(`SELECT ROWID FROM Guards WHERE escort_id = ${guard.escort_id} AND is_active = 'true'`);
       if (taken.length) throw new Error('Another active guard is linked to this escort now. Edit one of them first.');
     }
-    const result = await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, is_active: active ? 'true' : 'false', modified_by: req.user.name });
+    // Switched off = relieved (Prem, 29 Oct): the date (today if not given) and the reason are kept; back on clears them.
+    const today = new Date(Date.now() + IST_OFFSET_MIN * 60000).toISOString().slice(0, 10);
+    const rd = String(req.body.relieved_date || '').trim();
+    if (rd && !DATE_ONLY.test(rd)) throw new Error('Relieved date: pick a date');
+    const relieved = active ? { relieved_date: null, relieved_reason: null } : { relieved_date: rd || today, relieved_reason: String(req.body.relieved_reason || '').trim().slice(0, 255) || null };
+    const result = await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, is_active: active ? 'true' : 'false', ...relieved, modified_by: req.user.name });
     res.status(200).json({ status: 'success', data: publicGuard(result) });
   } catch (err) {
     fail(res, err);
@@ -1707,6 +1740,93 @@ app.post('/faceTest', async (req, res) => {
     fail(res, err);
   } finally {
     files.forEach(f => { try { require('fs').unlinkSync(f); } catch (e) { /* gone */ } });
+  }
+});
+
+// Aadhaar file (photo or PDF) of a guard, private in the media bucket; opened with a 10-minute link.
+const AADHAAR_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'application/pdf': 'pdf' };
+app.post('/guardAadhaarFile', express.raw({ type: () => true, limit: '6mb' }), async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const guard = auth.requireRow(req, await guardById(catalystApp.zcql(), req.query.guard), 'guard');
+    const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+    const ext = AADHAAR_TYPES[type];
+    if (!ext) throw new Error('Aadhaar file: JPG, PNG or PDF.');
+    if (!Buffer.isBuffer(req.body) || !req.body.length || req.body.length > GUARD_PHOTO_MAX) throw new Error('Aadhaar file: up to 5 MB.');
+    const bucket = catalystApp.stratus().bucket('escortcardaccess-media');
+    const key = 'aadhaar/' + guard.ROWID + '-' + crypto.randomBytes(8).toString('hex') + '.' + ext;
+    await bucket.putObject(key, req.body, { contentType: type });
+    const old = (await catalystApp.zcql().executeZCQLQuery(`SELECT aadhaar_file_key FROM Guards WHERE ROWID = ${guard.ROWID}`))[0].Guards.aadhaar_file_key;
+    await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, aadhaar_file_key: key, modified_by: req.user.name });
+    if (old) { try { await bucket.deleteObject(old); } catch (err) { console.error('Old Aadhaar file not removed:', err.message || err); } }
+    res.status(200).json({ status: 'success', data: { aadhaar_file_key: key } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+app.get('/guardAadhaarUrl', async (req, res) => {
+  try {
+    auth.need(req, 'supervisor');
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const rows = await catalystApp.zcql().executeZCQLQuery(`SELECT aadhaar_file_key, branch_id, agency_id FROM Guards WHERE ROWID = ${requireRowId(req.query.guard)}`);
+    if (!rows.length) throw new Error('Guard not found');
+    const key = auth.requireRow(req, rows[0].Guards, 'guard').aadhaar_file_key;
+    if (!key) return res.status(200).json({ status: 'success', data: { url: null } });
+    const r = await catalystApp.stratus().bucket('escortcardaccess-media').generatePreSignedUrl(key, 'GET', { expiryIn: '600' });
+    res.status(200).json({ status: 'success', data: { url: r.signature } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// 📥 Guards from the agency's "All Security Details" Excel (Prem, 29 Oct): one row per guard; Clock NO is the
+// ID. A Clock NO already in the app updates that guard, a new one adds a guard. Agency and Branch by name.
+app.post('/guardImport', async (req, res) => {
+  try {
+    auth.need(req, 'supervisor');
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const zcql = catalystApp.zcql();
+    const rows = Array.isArray(req.body.rows) ? req.body.rows.slice(0, 1000) : [];
+    if (!rows.length) throw new Error('No rows in the file.');
+    const [agencies, branches, guards] = await Promise.all([
+      admin.agencyList(zcql),
+      activeBranches(req, zcql),
+      selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, branch_id, agency_id FROM Guards ORDER BY ROWID ASC').then(g => auth.inArea(req, g))
+    ]);
+    const norm = v => String(v || '').trim().toUpperCase().replace(/^0+(?=\d)/, '');
+    const byId = new Map(guards.map(g => [norm(g.id_number), g]));
+    // "Cumbum - ISI" → ISI: the longest agency name inside the text.
+    const agencyOf = t => agencies.filter(a => String(t || '').toUpperCase().includes(String(a.agency_name).toUpperCase())).sort((x, y) => y.agency_name.length - x.agency_name.length)[0];
+    const branchOf = t => branches.find(b => String(b.branch_name).trim().toUpperCase() === String(t || '').trim().toUpperCase());
+    const table = catalystApp.datastore().table('Guards');
+    let added = 0, updated = 0;
+    const skipped = [];
+    for (const [i, r] of rows.entries()) {
+      const line = 'Row ' + (i + 2);
+      try {
+        const id = String(r.clock || '').trim();
+        if (!id) throw new Error('no Clock NO');
+        const ag = agencyOf(r.agency), br = branchOf(r.branch);
+        if (!ag) throw new Error('agency "' + r.agency + '" not found');
+        if (!br) throw new Error('branch "' + r.branch + '" not found');
+        const body = {
+          id_number: id, card_number: r.vendor || '', guard_name: r.name, agency_id: ag.ROWID, branch_id: br.ROWID, phone: String(r.mobile || '').replace(/[^0-9+ ]/g, '').slice(-15),
+          gender: r.gender || '', designation: r.designation || '', date_of_joining: r.doj || '', date_of_birth: r.dob || '', emergency_contact: String(r.emergency || '').replace(/[^0-9+ ]/g, '')
+        };
+        const row = { ...guardFromBody(body), ...(r.aadhaar ? await aadhaarFields(catalystApp, r.aadhaar) : {}) };
+        const old = byId.get(norm(id));
+        await checkGuard(req, zcql, row, old ? old.ROWID : null);
+        const relieved = /relie|inactive|left/i.test(String(r.status || ''));
+        const state = relieved ? { is_active: 'false', relieved_date: DATE_ONLY.test(String(r.relievedDate || '')) ? r.relievedDate : null, relieved_reason: String(r.relievedReason || '').slice(0, 255) || null } : {};
+        if (old) { await table.updateRow({ ROWID: old.ROWID, ...row, ...state, modified_by: req.user.name }); updated++; }
+        else { const ins = await table.insertRow({ ...row, ...state, created_by: req.user.name, modified_by: req.user.name }); byId.set(norm(id), ins); added++; }
+      } catch (err) {
+        skipped.push(line + ': ' + (err.message || err));
+      }
+    }
+    res.status(200).json({ status: 'success', data: { added, updated, skipped } });
+  } catch (err) {
+    fail(res, err);
   }
 });
 
