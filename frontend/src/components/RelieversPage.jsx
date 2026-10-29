@@ -8,10 +8,16 @@ export default function RelieversPage() {
   const [branch, setBranch] = useState('');
   const [list, setList] = useState(null);
   const [error, setError] = useState('');
+  const [note, setNote] = useState('');
   useEffect(() => {
     api.getPosts().then(r => { const b = r.data.branches; setBranches(b); if (b[0]) setBranch(String(b[0].ROWID)); }).catch(err => setError(err.message));
   }, []);
   useEffect(() => { if (branch) { setList(null); api.qrRelievers(branch).then(r => setList(r.data)).catch(err => setError(err.message)); } }, [branch]);
+  // Remove fully: the reliever, their shifts and every photo (29 Oct: "she left, remove her details").
+  async function remove(p) {
+    if (!window.confirm('Remove ' + p.name + ' fully? Their photo, phone and all their relief shifts are deleted. This cannot be undone.')) return;
+    try { const r = (await api.qrRelieverRemove(p.id)).data; setNote('🗑 ' + r.removed + ' removed (' + r.shifts + ' shift(s), ' + r.photos + ' photo(s)).'); setList(l => l.filter(x => x.id !== p.id)); } catch (err) { setError(err.message); }
+  }
   return (
     <>
       <div className="titlebar"><h1>🔁 Relievers</h1></div>
@@ -25,6 +31,7 @@ export default function RelieversPage() {
       </div>
       <div className="dash">
         {error && <div className="trip-error">{error}</div>}
+        {note && <div className="sim-push">{note}</div>}
         <div className="sim-note">Added by the guard on duty at the gate QR. The first IN saves the face; later the face finds them.</div>
         {!list && !error && <div className="loading-message">Loading...</div>}
         {list && list.length === 0 && <div className="sim-note">No relievers at this branch yet.</div>}
@@ -39,6 +46,7 @@ export default function RelieversPage() {
                   <span>Came {p.visits}×{p.last ? ' · last ' + p.last : ''}</span>
                   {p.addedBy && <span>Added by {p.addedBy}</span>}
                   {!p.photo && <span>No face yet (not come yet)</span>}
+                  <button className="btn secondary master-danger" onClick={() => remove(p)}>🗑 Remove</button>
                 </div>
               </div>
             ))}

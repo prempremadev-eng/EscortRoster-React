@@ -77,6 +77,7 @@ function GateNow({ branch }) {
               <span>Reliever · Shift {r.shift}</span>
               <span>{r.in ? '✅ IN ' + r.in : '⏳ waiting'}{r.addedBy ? ' · by ' + r.addedBy : ''}</span>
               {!r.in && <span className="pd-muted">{r.registered ? 'Photo: from an earlier visit' : 'First time: no photo yet'}</span>}
+              {!r.in && <button className="pd-chip" onClick={async () => { if (!window.confirm('Cancel ' + r.name + ' for Shift ' + r.shift + '?')) return; try { await api.qrReliefCancel(r.rs); setMsg('✕ ' + r.name + ' cancelled for Shift ' + r.shift + '.'); load(); } catch (err) { setMsg(err.message); } }}>✕ Cancel</button>}
             </div>
           </div>
         ))}

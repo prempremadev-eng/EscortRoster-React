@@ -126,6 +126,8 @@ export const api = {
   qrOnDuty: branch => apiCall('GET', '/qrOnDuty?branch=' + encodeURIComponent(branch)),
   qrAllowOut: guard_id => apiCall('POST', '/qrAllowOut', { guard_id }),
   qrRelievers: branch => apiCall('GET', '/qrRelievers?branch=' + encodeURIComponent(branch)),
+  qrReliefCancel: rs => apiCall('POST', '/qrReliefCancel', { rs }),
+  qrRelieverRemove: id => apiCall('POST', '/qrRelieverRemove', { id }),
   qrAdmin: branch => apiCall('GET', '/qrAdmin?branch=' + encodeURIComponent(branch)),
   qrAdminSave: body => apiCall('POST', '/qrAdmin', body),
   getChart: (week, branch) => apiCall('GET', '/getChart?week=' + q(week || '') + (branch ? '&branch=' + q(branch) : '')),

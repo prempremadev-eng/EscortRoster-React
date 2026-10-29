@@ -508,6 +508,46 @@ module.exports = function qrRoutes(app, h) {
     }
   });
 
+  // Office clean-up (Prem, 29 Oct: "she left, remove her fully"). Cancel: one waiting (not IN) relief of a shift.
+  // Remove: the reliever, all their relief rows and every photo of them.
+  async function reliefBranchCheck(req, zcql, branchId) {
+    auth.need(req, 'supervisor');
+    auth.requireBranch(req, requireRowId(branchId));
+  }
+  app.post('/qrReliefCancel', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const r = (await zcql.executeZCQLQuery(`SELECT ROWID, branch_id, in_at FROM ReliefShifts WHERE ROWID = ${requireRowId(req.body.rs)}`))[0];
+      if (!r) throw new Error('Not found.');
+      await reliefBranchCheck(req, zcql, r.ReliefShifts.branch_id);
+      if (r.ReliefShifts.in_at) throw new Error('Already IN: they must go OUT, not be cancelled.');
+      await catalystApp.datastore().table('ReliefShifts').deleteRow(r.ReliefShifts.ROWID);
+      ok(res, { cancelled: true });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+  app.post('/qrRelieverRemove', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const p = (await zcql.executeZCQLQuery(`SELECT ROWID, branch_id, name, photo_key FROM Relievers WHERE ROWID = ${requireRowId(req.body.id)}`))[0];
+      if (!p) throw new Error('Not found.');
+      const rel = p.Relievers;
+      await reliefBranchCheck(req, zcql, rel.branch_id);
+      const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, in_selfie, out_selfie FROM ReliefShifts WHERE reliever_id = ${rel.ROWID}`)).map(r => r.ReliefShifts);
+      const bucket = catalystApp.stratus().bucket(BUCKET);
+      const keys = [rel.photo_key, ...rows.flatMap(r => [r.in_selfie, r.out_selfie])].filter(Boolean);
+      for (const k of [...new Set(keys)]) { try { await bucket.deleteObject(k); } catch (err) { console.error('Reliever photo not removed:', err.message || err); } }
+      if (rows.length) await catalystApp.datastore().table('ReliefShifts').deleteRows(rows.map(r => r.ROWID));
+      await catalystApp.datastore().table('Relievers').deleteRow(rel.ROWID);
+      ok(res, { removed: rel.name, shifts: rows.length, photos: keys.length });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   // The office lets a guard go OUT when nobody came (Prem, 29 Oct: "office Allow OUT"); recorded with who allowed.
   app.post('/qrAllowOut', async (req, res) => {
     try {
