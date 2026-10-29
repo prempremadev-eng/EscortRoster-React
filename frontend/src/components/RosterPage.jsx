@@ -65,7 +65,8 @@ function readRoster(XLSX, wb, guards, days, month) {
       // is a known ID or card wins, then the longest name-like cell.
       const pid = before.find(c => c && byId.has(idKey(c)));
       const ven = before.find(c => c && byCard.has(idKey(c)));
-      const person = before.filter(c => /[A-Za-z]{2}/.test(c) && c !== pid && c !== ven && !/^VEN/i.test(c)).sort((a, b) => b.length - a.length)[0] || '';
+      // "VEN-IP-…" is a vendor ID; VENKATESAN is a name (30 Oct: /^VEN/ dropped him).
+      const person = before.filter(c => /[A-Za-z]{2}/.test(c) && c !== pid && c !== ven && !/^VEN-/i.test(c)).sort((a, b) => b.length - a.length)[0] || '';
       const byNo = (pid && byId.get(idKey(pid))) || (ven && byCard.get(idKey(ven)));
       // ID and name agree → that guard. They disagree → the name, if it names one guard; a name the app does
       // not know at all is a spelling (SURESH / SURES) → the ID. A name like two guards waits.
