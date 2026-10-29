@@ -45,7 +45,7 @@ const GUARD_ROUTES = new Set([
   '/pinMessage', '/forwardMessage', '/addWork', '/finishWork', '/safety', '/addSafety', '/sendAlert', '/cancelAlert',
   '/postHistory', '/postWorks', '/pastShift', '/groupChat', '/groupSend', '/groupMedia',
   '/coverCandidates', '/startBreak', '/cancelBreak', '/respondCover', '/pingBack', '/replyPing', '/backOnDuty',
-  '/coverReturned', '/leaveCover', '/qrSite', '/qrChallenge', '/qrCheck', '/qrPunch', '/qrReliever', '/vehicles', '/vehicleIn', '/vehicleOut', '/vehiclePhoto', '/vehiclePhotoLink', '/vehiclePlate', '/vehicleVoice', '/vehicleKnown'
+  '/coverReturned', '/leaveCover', '/qrSite', '/qrChallenge', '/qrCheck', '/qrPunch', '/qrReliever', '/qrLateCheck', '/vehicles', '/vehicleIn', '/vehicleOut', '/vehiclePhoto', '/vehiclePhotoLink', '/vehiclePlate', '/vehicleVoice', '/vehicleKnown'
 ]);
 
 const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;

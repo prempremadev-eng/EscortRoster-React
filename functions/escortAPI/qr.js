@@ -17,7 +17,7 @@ const TICKET_MS = 3 * 60000; // the photo check is valid for 3 minutes before IN
 const OPEN_IN_HOURS = 16; // an IN older than this is not closed by the next scan (forgotten OUT)
 
 module.exports = function qrRoutes(app, h) {
-  const { catalyst, fail, requireRowId, auth, istNow, getShifts, getVapidKeys, onCardIn, onPostOut, rosterShiftOf, notify } = h;
+  const { catalyst, fail, requireRowId, auth, istNow, getShifts, getVapidKeys, onCardIn, onPostOut, rosterShiftOf, notify, getSetting } = h;
   const admin = req => catalyst.initialize(req, { scope: 'admin' });
   const ok = (res, data) => res.status(200).json({ status: 'success', data });
 
@@ -437,6 +437,46 @@ module.exports = function qrRoutes(app, h) {
         relievers.push({ rs: String(r.ROWID), name: p.name || '?', phone: masked(p.phone), shift: r.shift_code, day: r.duty_date, in: r.in_at ? String(r.in_at).slice(11, 16) : '', addedBy: r.added_by || '', selfie: await signed(bucket, sel) });
       }
       ok(res, { gate: true, on, relievers });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // 🔔 Late (step 5): a Catalyst cron calls this at each shift start + 15 min (Cumbum: 06:15, 09:15, 14:15, 22:15)
+  // with the secret from Settings 'qr_cron_key'. For every QR branch, the shift that started 10–30 min ago: if
+  // none of its rostered guards nor its reliever is IN, the branch's notification phones hear it.
+  app.get('/qrLateCheck', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const key = await getSetting(zcql, 'qr_cron_key');
+      if (!key || !key.setting_value || String(req.query.key || '') !== key.setting_value) throw new Error('Not allowed.');
+      const day = qrDay();
+      const nowMin = (() => { const d = new Date(Date.now() + 330 * 60000); return d.getUTCHours() * 60 + d.getUTCMinutes(); })();
+      const branches = (await zcql.executeZCQLQuery("SELECT ROWID, branch_name FROM Branches WHERE qr_key IS NOT NULL AND is_active = 'true'")).map(r => r.Branches);
+      const told = [];
+      for (const b of branches) {
+        for (const sh of await getShifts(zcql, b.ROWID)) {
+          if (!sh.start) continue;
+          const since = (nowMin - (+sh.start.slice(0, 2) * 60 + +sh.start.slice(3, 5)) + 1440) % 1440;
+          if (since < 10 || since > 30) continue;
+          const guards = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE branch_id = ${b.ROWID} AND is_active = 'true'`)).map(r => r.Guards);
+          const expected = [];
+          let inNow = false;
+          for (const g of guards) {
+            if ((await rosterShiftOf(zcql, g.ROWID, day)) !== sh.code) continue;
+            expected.push(g.guard_name);
+            if ((await zcql.executeZCQLQuery(`SELECT ROWID FROM AccessLog WHERE guard_id = ${g.ROWID} AND duty_date = '${day}' AND direction = 'IN' LIMIT 1`)).length) inNow = true;
+          }
+          const rel = (await reliefRows(zcql, b.ROWID, [day])).find(r => r.shift_code === sh.code);
+          if (rel && rel.in_at) inNow = true;
+          if (inNow || (!expected.length && !rel)) continue; // someone is IN, or nobody is planned (e.g. G on Sunday)
+          const relName = rel ? ((await relieversOf(zcql, b.ROWID)).find(p => String(p.ROWID) === String(rel.reliever_id)) || {}).name : '';
+          await tellOffice(catalystApp, b.ROWID, '🚨 ' + b.branch_name + ' Shift ' + sh.code + ': nobody IN', 'Started ' + sh.start + '. Expected: ' + [...expected, relName ? 'reliever ' + relName : ''].filter(Boolean).join(', ') + '.');
+          told.push(b.branch_name + ' ' + sh.code);
+        }
+      }
+      ok(res, { told });
     } catch (err) {
       fail(res, err);
     }
