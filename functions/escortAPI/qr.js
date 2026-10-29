@@ -473,8 +473,9 @@ module.exports = function qrRoutes(app, h) {
             expected.push(g.guard_name);
             if ((await zcql.executeZCQLQuery(`SELECT ROWID FROM AccessLog WHERE guard_id = ${g.ROWID} AND duty_date = '${day}' AND direction = 'IN' LIMIT 1`)).length) inNow = true;
           }
-          const rel = (await reliefRows(zcql, b.ROWID, [day])).find(r => r.shift_code === sh.code);
-          if (rel && rel.in_at) inNow = true;
+          const relRows = (await reliefRows(zcql, b.ROWID, [day])).filter(r => r.shift_code === sh.code);
+          if (relRows.some(r => r.in_at)) inNow = true;
+          const rel = activeRow(relRows, sh.code);
           if (inNow || (!expected.length && !rel)) continue; // someone is IN, or nobody is planned (e.g. G on Sunday)
           const relName = rel ? ((await relieversOf(zcql, b.ROWID)).find(p => String(p.ROWID) === String(rel.reliever_id)) || {}).name : '';
           await tellOffice(catalystApp, b.ROWID, '🚨 ' + b.branch_name + ' Shift ' + sh.code + ': nobody IN', 'Started ' + sh.start + '. Expected: ' + [...expected, relName ? 'reliever ' + relName : ''].filter(Boolean).join(', ') + '.');
