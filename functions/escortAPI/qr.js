@@ -269,7 +269,8 @@ module.exports = function qrRoutes(app, h) {
       // IN now comes first (likely OUT), then those whose roster says a shift today.
       const guards = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number, photo_key, tags, branch_id, agency_id, escort_id, guard_token, is_active FROM Guards WHERE branch_id = ${b.ROWID} AND is_active = 'true'`))
         .map(r => r.Guards).filter(g => g.photo_key);
-      const typed = String(req.body.id || '').trim().replace(/^0+/, '').toUpperCase();
+      const typed = req.body.purpose === 'REG' ? '' // REG: the typed ID is for registering, not a face filter (29 Oct)
+        : String(req.body.id || '').trim().replace(/^0+/, '').toUpperCase();
       let list = typed ? guards.filter(g => String(g.id_number).replace(/^0+/, '').toUpperCase() === typed) : guards;
       if (typed && !list.length) throw new Error('ID ' + req.body.id + ' has no registered face here. Ask the office.');
       const rank = {};
