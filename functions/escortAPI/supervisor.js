@@ -533,9 +533,10 @@ module.exports = function supervisorRoutes(app, h) {
       const [posts, shifts, guards, roster, slots] = await Promise.all([
         branchPosts(req, zcql, branch), getShifts(zcql, branch),
         all(`SELECT ROWID, id_number, guard_name, area, agency FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
-        all(`SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${date.slice(0, 7)}' ORDER BY ROWID ASC`, 'MonthRoster'),
+        all(`SELECT guard_id, codes, team FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${date.slice(0, 7)}' ORDER BY ROWID ASC`, 'MonthRoster'),
         all(`SELECT post_id, shift_code, guard_id FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${date}' AND published = true ORDER BY ROWID ASC`, 'Schedule')
       ]);
+      withMonthTeam(guards, roster);
       // Swipes by real time (a morning A IN is saved under the night's duty day): the day and the next morning.
       const ids = new Set(guards.map(g => String(g.ROWID)));
       const swipes = (await all(`SELECT guard_id, direction, punch_time, CREATEDTIME FROM AccessLog WHERE CREATEDTIME >= '${date} 00:00:00' AND CREATEDTIME < '${nextDay} 12:00:00' ORDER BY CREATEDTIME ASC`, 'AccessLog'))
@@ -586,6 +587,19 @@ module.exports = function supervisorRoutes(app, h) {
   // Changes are drafts until "Publish to guards"; a published slot is what the guard's card IN uses
   // (otherwise the weekly Duty Chart). About 3 reads per load.
   const SHIFT_ORDER = ['A', 'G', 'B', 'C'];
+  // This month's team from the roster file (MonthRoster.team, Prem 30 Oct: IPF teams change every month)
+  // replaces Guards.area for the day's work: who is an escort, who fills MLCP … The fixed PKL groups
+  // (Lady Guards, Medical Mine, Ninnakarai …) keep their area when the file says PKL.
+  const MONTH_TEAMS = ['PKL', 'MLCP', 'Escort', 'Hospital'];
+  function withMonthTeam(guards, roster) {
+    const teamOf = {};
+    roster.forEach(r => { if (r.team) teamOf[String(r.guard_id)] = r.team; });
+    guards.forEach(g => {
+      const t = teamOf[String(g.ROWID)];
+      if (t && !(t === 'PKL' && g.area && !MONTH_TEAMS.includes(g.area))) g.area = t;
+    });
+    return guards;
+  }
   const SECTION_ORDER = ['PKL / Main', 'Hospital Block', 'MLCP'];
   // A post's shifts ("ABC", "G" …); empty = every shift.
   const postShifts = p => String((p && p.shift_codes) || '').toUpperCase();
@@ -651,8 +665,9 @@ module.exports = function supervisorRoutes(app, h) {
         pages(zcql, `SELECT ROWID, id_number, guard_name, area, tags FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`, 'Guards'),
         // The month roster's letter for this date (A / B / C / G / O / L), so the page offers the
         // guards of the picked shift first and keeps those on week off or leave apart.
-        pages(zcql, `SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${date.slice(0, 7)}'`, 'MonthRoster')
+        pages(zcql, `SELECT guard_id, codes, team FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${date.slice(0, 7)}'`, 'MonthRoster')
       ]);
+      withMonthTeam(guards, roster);
       const dayIndex = Number(date.slice(8, 10)) - 1;
       const rosterOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[dayIndex]; if (c && c !== '-') rosterOf[String(r.guard_id)] = c; });
@@ -931,9 +946,10 @@ module.exports = function supervisorRoutes(app, h) {
       const [posts, guards, roster, sups] = await Promise.all([
         branchPosts(req, zcql, branch),
         pages(zcql, `SELECT ROWID, guard_name, area, agency_id FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
-        pages(zcql, `SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${date.slice(0, 7)}' ORDER BY ROWID ASC`, 'MonthRoster'),
+        pages(zcql, `SELECT guard_id, codes, team FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${date.slice(0, 7)}' ORDER BY ROWID ASC`, 'MonthRoster'),
         inchargeIds(zcql, branch)
       ]);
+      withMonthTeam(guards, roster);
       const supSet = new Set(sups);
       // A post gets only guards of its own agency (Prem, 25 Oct: no agency mixes with another). Rule 1 checks
       // it directly; every later rule checks restDay, so the check lives there too ("not for this post").
