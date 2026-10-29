@@ -369,6 +369,8 @@ export default function SupervisorInbox({ initialPost }) {
   // Team group of the agency in view: a shift incharge's own; Branch Admin and above the picked one.
   const user = useUser();
   const groupAgencyName = pickAgency ? ((branchAgencies.find(a => String(a.ROWID) === String(ag)) || {}).agency_name || '') : ((user && user.agencyName) || '');
+  // "Cumbum ISI" (Prem, 29 Oct): ISI works in more than one branch.
+  const groupBranchName = (branches.find(x => String(x.ROWID) === String(branch)) || {}).branch_name || '';
   const groupAgency = pickAgency ? ag : '';
   const groupApi = useMemo(() => ({
     load: () => api.supGroup(branch, groupAgency),
@@ -423,8 +425,8 @@ export default function SupervisorInbox({ initialPost }) {
             <button className={'sup-item sup-item-group' + (openId === 'group' ? ' sup-item-on' : '')} onClick={() => openPost('group')}>
               <span className="pd-avatar pd-avatar-sm sup-group-avatar">👥</span>
               <span className="pd-grow sup-item-main">
-                <b>{groupAgencyName} Schedule</b>
-                <span className="pd-small pd-muted">Team group · all {groupAgencyName} guards and the office</span>
+                <b>{groupBranchName} {groupAgencyName} Schedule</b>
+                <span className="pd-small pd-muted">Team group · all {groupBranchName} {groupAgencyName} guards and the office</span>
               </span>
             </button>
           )}

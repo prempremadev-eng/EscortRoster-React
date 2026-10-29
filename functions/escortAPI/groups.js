@@ -18,6 +18,11 @@ module.exports = function groupRoutes(app, h) {
     const rows = await zcql.executeZCQLQuery(`SELECT agency_name FROM Agencies WHERE ROWID = ${requireRowId(agencyId)}`);
     return rows.length ? rows[0].Agencies.agency_name : 'Team';
   }
+  // "Cumbum ISI Schedule", not "ISI Schedule" (Prem, 29 Oct): ISI works in more than one branch.
+  async function groupName(zcql, branchId, agencyId) {
+    const [ag, br] = await Promise.all([agencyName(zcql, agencyId), zcql.executeZCQLQuery(`SELECT branch_name FROM Branches WHERE ROWID = ${requireRowId(branchId)}`)]);
+    return (br.length ? br[0].Branches.branch_name + ' ' : '') + ag;
+  }
 
   // Who is asking: a guard by his link, or the office by login (a shift incharge only for his agency).
   async function whoIs(req, zcql) {
@@ -51,7 +56,7 @@ module.exports = function groupRoutes(app, h) {
     const [names, links, agName] = await Promise.all([
       namesOf(zcql, rows.map(m => m.guard_id).filter(Boolean)),
       mediaLinks(req, rows.filter(m => m.media_key).map(m => m.media_key)),
-      agencyName(zcql, who.agency)
+      groupName(zcql, who.branch, who.agency)
     ]);
     const byId = {};
     rows.forEach(m => { byId[String(m.ROWID)] = m; });
@@ -69,7 +74,7 @@ module.exports = function groupRoutes(app, h) {
   // Office → every phone of the team's guards; guard → the office browsers of that branch and agency.
   async function tell(catalystApp, zcql, who, body) {
     try {
-      const title = '👥 ' + await agencyName(zcql, who.agency) + ' Schedule';
+      const title = '👥 ' + await groupName(zcql, who.branch, who.agency) + ' Schedule';
       const text = (who.guard ? who.guard.guard_name : who.name.split(' · ')[0]) + ': ' + body;
       if (who.guard) {
         const subs = (await zcql.executeZCQLQuery(`SELECT ROWID, subscription_json, device, agency_id FROM SupervisorSubs WHERE branch_id = ${who.branch}`))
