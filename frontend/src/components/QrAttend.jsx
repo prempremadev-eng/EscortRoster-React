@@ -19,6 +19,19 @@ function getFix() {
   });
 }
 
+// A short beep + buzz: the guard looks at the camera, not at the words (29 Oct).
+function beep(freq) {
+  try {
+    const A = window.AudioContext || window.webkitAudioContext;
+    const ctx = beep.ctx || (beep.ctx = new A());
+    const o = ctx.createOscillator(), g = ctx.createGain();
+    o.frequency.value = freq; g.gain.value = 0.25;
+    o.connect(g); g.connect(ctx.destination);
+    o.start(); o.stop(ctx.currentTime + 0.25);
+  } catch { /* no sound */ }
+  try { navigator.vibrate && navigator.vibrate(200); } catch { /* no buzz */ }
+}
+
 export default function QrAttend({ qrKey }) {
   const [site, setSite] = useState(null);
   const [step, setStep] = useState('start'); // start · gps · camera · checking · found · nomatch · done
@@ -52,6 +65,7 @@ export default function QrAttend({ qrKey }) {
   // Start → location → camera → 3 · 2 · 1 → photo → server face check.
   async function start(p, reg) {
     setMsg(''); setCheck(null); setPurpose(p);
+    try { const A = window.AudioContext || window.webkitAudioContext; if (A && !beep.ctx) beep.ctx = new A(); if (beep.ctx) beep.ctx.resume(); } catch { /* no sound */ } // sound needs the tap
     try {
       setStep('gps');
       fix.current = await getFix();
@@ -74,14 +88,16 @@ export default function QrAttend({ qrKey }) {
       // Live check (29 Oct): close the eyes for the second photo; a photo or a screen cannot.
       setHint('😌 Close your eyes · கண்ணை மூடுங்கள்');
       setCount('😌');
-      await new Promise(r => setTimeout(r, 1300));
-      const c2 = snap();
+      beep(880);
+      const shut = [];
+      for (const ms of [1000, 600, 600]) { await new Promise(r => setTimeout(r, ms)); shut.push(snap()); }
+      beep(523);
       setHint('✅ Open your eyes · கண்ணைத் திறங்கள்');
       setCount('👀');
       await new Promise(r => setTimeout(r, 500));
       stopCam();
       setStep('checking');
-      last.current = { k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), photo2: c2.toDataURL('image/jpeg', 0.8), c: ch.c, w: c.width };
+      last.current = { k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), photo2: shut[0].toDataURL('image/jpeg', 0.75), photo3: shut[1].toDataURL('image/jpeg', 0.75), photo4: shut[2].toDataURL('image/jpeg', 0.75), c: ch.c, w: c.width };
       const r = (await api.qrCheck({ ...last.current, purpose: p, ...(reg || {}) })).data;
       setCheck(r);
       if (r.pass) savePass(r.pass);
@@ -145,7 +161,7 @@ export default function QrAttend({ qrKey }) {
           <ol>
             <li>Stand at the gate, Location ON · கேட்டில் நில்லுங்கள், Location ON</li>
             <li>Look straight at the camera: 3 · 2 · 1 · கேமராவை நேராகப் பாருங்கள்</li>
-            <li>😌 "Close your eyes": close them for 2 seconds · "கண்ணை மூடுங்கள்" வந்ததும் 2 வினாடி மூடுங்கள்</li>
+            <li>🔔 Beep → close your eyes for 2 seconds, open at the second beep · முதல் பீப் → 2 வினாடி கண்ணை மூடுங்கள், இரண்டாவது பீப் → திறங்கள்</li>
             <li>✅ IN / 🏁 OUT</li>
           </ol>
         </div>

@@ -284,14 +284,21 @@ module.exports = function qrRoutes(app, h) {
       await readTicket(catalystApp, req.body.c); // a fresh check started from this page
       // Live person (Prem, 29 Oct: the head turn confused the guards): the second photo has the eyes closed. A
       // photo or a screen cannot close its eyes. Both photos must be the same person.
-      const m2 = String(req.body.photo2 || '').match(/^data:image\/jpeg;base64,(.+)$/);
-      if (!m2) { cleanTmp(); throw new Error('😌 Close your eyes when asked and try again.'); }
-      const turnFile = tmpFile(Buffer.from(m2[1], 'base64'), 'jpg');
+      // Up to 3 eyes-closed photos (29 Oct: a guard closed late after the beep); the first one with the eyes shut counts.
+      const shots = [req.body.photo2, req.body.photo3, req.body.photo4].map(x => String(x || '').match(/^data:image\/jpeg;base64,(.+)$/)).filter(Boolean);
+      if (!shots.length) { cleanTmp(); throw new Error('😌 Close your eyes when asked and try again.'); }
       const first = await measureFace(catalystApp, selfieFile, 0);
-      const shut = await measureFace(catalystApp, turnFile, 0);
       // 29 Oct tests: real blink 0.18–0.23 against 0.32 open (0.55–0.70); a photo stays ≈ 1.0. Limit 0.75.
-      console.log('qr blink', JSON.stringify({ open: first.eyes, closed: shut.eyes }));
-      if (!first.eyes || shut.eyes === null || shut.eyes === undefined || !(shut.eyes < first.eyes * 0.75)) { cleanTmp(); throw new Error('😌 Close your eyes when asked (2 seconds) and try again.'); }
+      let turnFile = null;
+      const seen = [];
+      for (const m2 of first.eyes ? shots : []) {
+        const f = tmpFile(Buffer.from(m2[1], 'base64'), 'jpg');
+        const shut = await measureFace(catalystApp, f, 0);
+        seen.push(shut.eyes);
+        if (shut.eyes !== null && shut.eyes !== undefined && shut.eyes < first.eyes * 0.75) { turnFile = f; break; }
+      }
+      console.log('qr blink', JSON.stringify({ open: first.eyes, closed: seen }));
+      if (!turnFile) { cleanTmp(); throw new Error('😌 Close your eyes when you hear the beep (2 seconds) and try again. First time here? Press 🆕 New Registration.'); }
       const same = await catalystApp.zia().compareFace(fs.createReadStream(selfieFile), fs.createReadStream(turnFile));
       if (!yes(same && same.matched)) { cleanTmp(); throw new Error('The two photos are not the same person. Try again.'); }
       const purpose = ['IN', 'OUT', 'REG'].includes(req.body.purpose) ? req.body.purpose : '';
