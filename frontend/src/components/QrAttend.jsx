@@ -124,6 +124,17 @@ export default function QrAttend({ qrKey }) {
     start('OUT');
   }
 
+  // 🆕 Details first (Prem, 29 Oct): wrong ID / name / phone → say so here, no camera.
+  const [regBusy, setRegBusy] = useState(false);
+  async function regContinue() {
+    if (regBusy) return;
+    const body = reg.type === 'regular' ? { reg: 'regular', id: reg.id, name: reg.name, phone4: reg.phone4 } : { reg: 'reliever', name: reg.name, phone: reg.phone };
+    setMsg(''); setRegBusy(true);
+    try { await api.qrRegCheck({ k: qrKey, ...body }); } catch (err) { setMsg('❌ ' + err.message); setRegBusy(false); return; }
+    setRegBusy(false);
+    start('REG', body);
+  }
+
   async function addReliever() {
     setRelMsg('');
     try {
@@ -188,7 +199,7 @@ export default function QrAttend({ qrKey }) {
               ? <input value={reg.phone4} onChange={e => setReg({ ...reg, phone4: e.target.value.replace(/\D/g, '').slice(0, 4) })} inputMode="numeric" placeholder="Last 4 digits of your phone" />
               : <input value={reg.phone} onChange={e => setReg({ ...reg, phone: e.target.value })} inputMode="tel" placeholder="Your phone (10 digits)" />}
             <button disabled={reg.type === 'regular' ? !(reg.id.trim() && reg.name.trim() && reg.phone4.length === 4) : !(reg.name.trim() && reg.phone.replace(/\D/g, '').length >= 10)}
-              onClick={() => start('REG', reg.type === 'regular' ? { reg: 'regular', id: reg.id, name: reg.name, phone4: reg.phone4 } : { reg: 'reliever', name: reg.name, phone: reg.phone })}>📷 Continue: take my photo</button>
+              onClick={regContinue}>{regBusy ? '🔎 Checking…' : '📷 Continue: take my photo'}</button>
           </div>
           <button className="qr-link" onClick={() => setStep('start')}>Back</button>
         </div>

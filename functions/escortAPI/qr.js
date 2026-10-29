@@ -247,6 +247,46 @@ module.exports = function qrRoutes(app, h) {
     return { ok: regulars.some(g => g.in) || !!(reliever && reliever.in), code: next, day, regulars, reliever };
   }
 
+  // 🆕 Who is registering: checked before the camera (Prem, 29 Oct: wrong phone / name → no photo) and again with
+  // the photo. Regular: ID + name + last 4 of the phone. Reliever: phone + name the guard on duty added.
+  const firstWord = n => String(n || '').trim().toUpperCase().split(/\s+/)[0] || '';
+  async function regWho(catalystApp, zcql, b, body, day, tell) {
+    if (body.reg === 'reliever') {
+      const phone = phoneOf(body.phone);
+      const p = (await relieversOf(zcql, b.ROWID)).find(x => String(x.phone) === phone);
+      const row = p && (await reliefRows(zcql, b.ROWID, [plusDay(day, -1), day, plusDay(day, 1)])).filter(r => String(r.reliever_id) === String(p.ROWID) && !r.in_at && !r.out_at)[0];
+      if (!p || !row) {
+        if (tell) await tellOffice(catalystApp, b.ROWID, '⚠️ Unknown reliever at the gate', 'Phone ••••' + phone.slice(-4) + ' tried to register but was not added by the guard on duty.');
+        throw new Error('This phone number is not added today. Check the number, or ask the guard on duty to add your name and phone.');
+      }
+      const first = firstWord(body.name);
+      if (first.length < 2 || !String(p.name).toUpperCase().includes(first)) throw new Error('Name does not match this phone number. Give the name the guard on duty added.');
+      if (p.photo_key) throw new Error('Already registered. Press ✅ IN.');
+      return { p, row };
+    }
+    const idT = String(body.id || '').trim().replace(/^0+/, '').toUpperCase();
+    const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number, phone, photo_key, tags FROM Guards WHERE branch_id = ${b.ROWID} AND is_active = 'true'`)).map(r => r.Guards)
+      .find(x => String(x.id_number).replace(/^0+/, '').toUpperCase() === idT);
+    if (!g) throw new Error('ID ' + (body.id || '') + ' is not a guard of this site. Check the ID, or ask the office.');
+    if (g.photo_key) throw new Error('Already registered. Press ✅ IN.');
+    const first = firstWord(body.name);
+    if (first.length < 2 || !String(g.guard_name).toUpperCase().includes(first)) throw new Error('Name does not match ID ' + body.id + '. Give your correct name.');
+    if (g.phone && String(body.phone4 || '').replace(/\D/g, '') !== String(g.phone).replace(/\D/g, '').slice(-4)) throw new Error('Phone (last 4 digits) does not match. Give your correct phone number.');
+    if (await openIn(zcql, g.ROWID)) throw new Error('Already IN.');
+    return { g };
+  }
+  app.post('/qrRegCheck', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const b = await branchByKey(zcql, req.body.k);
+      const who = await regWho(catalystApp, zcql, b, req.body, qrDay(), true);
+      ok(res, { name: who.p ? who.p.name : who.g.guard_name });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   // GPS + live photo → which guard (face), IN or OUT next. Nothing is saved yet except the photo.
   app.post('/qrCheck', async (req, res) => {
     try {
@@ -311,31 +351,15 @@ module.exports = function qrRoutes(app, h) {
       // name + last 4 of his phone, and no face yet. Reliever: the name + phone the guard on duty added.
       if (purpose === 'REG') {
         cleanTmp();
-        const today3 = [plusDay(day, -1), day, plusDay(day, 1)];
-        if (req.body.reg === 'reliever') {
-          const phone = phoneOf(req.body.phone);
-          const people = await relieversOf(zcql, b.ROWID);
-          const p = people.find(x => String(x.phone) === phone);
-          const row = p && (await reliefRows(zcql, b.ROWID, today3)).filter(r => String(r.reliever_id) === String(p.ROWID) && !r.in_at && !r.out_at)[0];
-          if (!p || !row) {
-            await tellOffice(catalystApp, b.ROWID, '⚠️ Unknown reliever at the gate', 'Phone ••••' + phone.slice(-4) + ' tried to register but was not added by the guard on duty.');
-            throw new Error('Not added as a reliever today. Ask the guard on duty to add your name and phone.');
-          }
-          if (p.photo_key) throw new Error('Already registered. Press ✅ IN.');
+        const who = await regWho(catalystApp, zcql, b, req.body, day, false);
+        if (who.p) {
+          const { p, row } = who;
           const key = keyFor('rel-' + p.ROWID);
           await catalystApp.stratus().bucket(BUCKET).putObject(key, photo, { contentType: 'image/jpeg' });
           const ticket = await makeTicket(catalystApp, { rs: String(row.ROWID), rel: String(p.ROWID), b: String(b.ROWID), a: 'RIN', s: key, d: distance, reg: true });
           return ok(res, { matched: true, reliever: true, registering: true, ticket, action: 'IN', distance, guard: { name: p.name + ' 🔁 reliever', id: masked(p.phone) }, shift: shiftOf(row.shift_code), addedBy: row.added_by || '' });
         }
-        const idT = String(req.body.id || '').trim().replace(/^0+/, '').toUpperCase();
-        const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number, phone, photo_key, tags FROM Guards WHERE branch_id = ${b.ROWID} AND is_active = 'true'`)).map(r => r.Guards)
-          .find(x => String(x.id_number).replace(/^0+/, '').toUpperCase() === idT);
-        if (!g) throw new Error('ID ' + (req.body.id || '') + ' is not a guard of this site. Ask the office.');
-        if (g.photo_key) throw new Error('Already registered. Press ✅ IN.');
-        const first = String(req.body.name || '').trim().toUpperCase().split(/\s+/)[0] || '';
-        if (first.length < 2 || !String(g.guard_name).toUpperCase().includes(first)) throw new Error('Name does not match ID ' + req.body.id + '.');
-        if (g.phone && String(req.body.phone4 || '').replace(/\D/g, '') !== String(g.phone).replace(/\D/g, '').slice(-4)) throw new Error('Phone (last 4 digits) does not match.');
-        if (await openIn(zcql, g.ROWID)) throw new Error('Already IN.');
+        const g = who.g;
         const key = keyFor(g.ROWID);
         await catalystApp.stratus().bucket(BUCKET).putObject(key, photo, { contentType: 'image/jpeg' });
         const code = await rosterShiftOf(zcql, g.ROWID, day);
