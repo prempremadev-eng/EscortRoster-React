@@ -47,7 +47,7 @@ module.exports = function qrRoutes(app, h) {
     const [body, mac] = String(ticket || '').split('.');
     if (!body || mac !== sign(await secret(catalystApp), body)) throw new Error('Scan again.');
     const data = JSON.parse(Buffer.from(body, 'base64url').toString());
-    if (Date.now() - data.t > TICKET_MS) throw new Error('Too slow: scan again.');
+    if (Date.now() - data.t > (data.x || TICKET_MS)) throw new Error(data.x ? 'Scan again.' : 'Too slow: scan again.');
     return data;
   }
 
@@ -389,6 +389,7 @@ module.exports = function qrRoutes(app, h) {
       const hand = open ? await handover(zcql, b.ROWID, found.ROWID, open) : null;
       ok(res, {
         matched: true, ticket, action, distance, relief, handover: hand,
+        pass: hand && !hand.ok && hand.reliever ? await waitPass(catalystApp, found.ROWID, b.ROWID) : '',
         guard: { name: found.guard_name, id: found.id_number },
         shift: sh,
         since: open ? String(open.CREATEDTIME).slice(11, 16) : ''
@@ -429,7 +430,30 @@ module.exports = function qrRoutes(app, h) {
       if (row) await table.updateRow({ ROWID: row.ROWID, reliever_id: relId, added_by: g.guard_name });
       else await table.insertRow({ branch_id: b.ROWID, duty_date: slot.day, shift_code: slot.code, reliever_id: relId, added_by: g.guard_name });
       const who = (await relieversOf(zcql, b.ROWID)).find(p => String(p.ROWID) === relId);
-      ok(res, { code: slot.code, day: slot.day, name: who ? who.name : '' });
+      ok(res, { code: slot.code, day: slot.day, name: who ? who.name : '', pass: await waitPass(catalystApp, g.ROWID, b.ROWID) });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // Wait pass (Prem, 29 Oct): once the guard on duty has added the reliever, pressing 🏁 OUT again while the reliever
+  // is not IN shows the lock straight away, with no photo: only looking, nothing is saved. The OUT itself still
+  // needs the face. Kept on that phone, valid 16 hours.
+  const waitPass = (catalystApp, guardId, branchId) => makeTicket(catalystApp, { w: 1, g: String(guardId), b: String(branchId), x: 16 * 3600000 });
+  app.post('/qrWait', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const b = await branchByKey(zcql, req.body.k);
+      const t = await readTicket(catalystApp, req.body.pass);
+      if (!t.w || t.b !== String(b.ROWID)) throw new Error('Scan again.');
+      const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number FROM Guards WHERE ROWID = ${requireRowId(t.g)}`))[0].Guards;
+      const open = await openIn(zcql, g.ROWID);
+      if (!open) return ok(res, { locked: false, out: true, name: g.guard_name }); // already OUT (e.g. the office allowed it)
+      const hand = await handover(zcql, b.ROWID, g.ROWID, open);
+      // Unlocked, or the reliever was cancelled: the normal photo check.
+      if (hand.ok || !hand.reliever) return ok(res, { locked: false });
+      ok(res, { locked: true, guard: { name: g.guard_name, id: g.id_number }, since: String(open.CREATEDTIME).slice(11, 16), handover: hand });
     } catch (err) {
       fail(res, err);
     }

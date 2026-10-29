@@ -40,6 +40,10 @@ export default function QrAttend({ qrKey }) {
   const [reg, setReg] = useState({ type: 'regular', id: '', name: '', phone4: '', phone: '' });
   const [relForm, setRelForm] = useState(null); // { pick, name, phone } — the duty guard adds a reliever
   const [relMsg, setRelMsg] = useState('');
+  // Wait pass (29 Oct): reliever added but not IN → 🏁 OUT shows the lock with no photo. Kept on this phone.
+  const passKey = 'qr-wait-' + qrKey;
+  const savePass = p => { try { p ? localStorage.setItem(passKey, p) : localStorage.removeItem(passKey); } catch { /* private mode */ } };
+  const readPass = () => { try { return localStorage.getItem(passKey) || ''; } catch { return ''; } };
 
   useEffect(() => { api.qrSite(qrKey).then(r => setSite(r.data)).catch(err => setMsg(err.message)); }, [qrKey]);
   const stopCam = () => { if (stream.current) stream.current.getTracks().forEach(t => t.stop()); stream.current = null; };
@@ -80,6 +84,7 @@ export default function QrAttend({ qrKey }) {
       last.current = { k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), photo2: c2.toDataURL('image/jpeg', 0.8), c: ch.c, w: c.width };
       const r = (await api.qrCheck({ ...last.current, purpose: p, ...(reg || {}) })).data;
       setCheck(r);
+      if (r.pass) savePass(r.pass);
       setStep(r.matched ? 'found' : 'nomatch');
     } catch (err) {
       stopCam();
@@ -88,12 +93,28 @@ export default function QrAttend({ qrKey }) {
     }
   }
 
+  // 🏁 OUT: with a wait pass, ask first; still locked → the lock page without the camera.
+  async function pressOut() {
+    const pass = readPass();
+    if (pass) {
+      setMsg(''); setStep('checking');
+      try {
+        const r = (await api.qrWait(qrKey, pass)).data;
+        if (r.locked) { setPurpose('OUT'); setCheck({ ...r, waitOnly: true }); setStep('found'); return; }
+        savePass('');
+        if (r.out) { setMsg('🏁 ' + r.name + ' is already OUT.'); setStep('start'); return; }
+      } catch { savePass(''); }
+    }
+    start('OUT');
+  }
+
   async function addReliever() {
     setRelMsg('');
     try {
       const r = (await api.qrReliever({ k: qrKey, ticket: check.ticket, ...(relForm.pick ? { reliever_id: relForm.pick } : { name: relForm.name, phone: relForm.phone }) })).data;
       setRelMsg('✅ ' + r.name + ' added for Shift ' + r.code + '. He scans this QR when he comes.');
       setCheck(c => ({ ...c, relief: { ...c.relief, added: r.name } }));
+      if (r.pass) savePass(r.pass);
       setRelForm(null);
     } catch (err) { setRelMsg(err.message); }
   }
@@ -101,7 +122,9 @@ export default function QrAttend({ qrKey }) {
   async function punch() {
     setMsg('');
     try {
-      setDone((await api.qrPunch({ k: qrKey, ticket: check.ticket })).data);
+      const d = (await api.qrPunch({ k: qrKey, ticket: check.ticket })).data;
+      if (check.action === 'OUT') savePass('');
+      setDone(d);
       setStep('done');
       resetTimer.current = setTimeout(() => { setStep('start'); setDone(null); setCheck(null); }, 30000);
     } catch (err) {
@@ -130,7 +153,7 @@ export default function QrAttend({ qrKey }) {
       {step === 'start' && site && site.ready && (
         <div className="qr-three">
           <button className="qr-big qr-in" onClick={() => { seenHelp(); start('IN'); }}>✅ IN<small>Duty start · பணி தொடக்கம்</small></button>
-          <button className="qr-big qr-out" onClick={() => { seenHelp(); start('OUT'); }}>🏁 OUT<small>Duty end · பணி முடிவு</small></button>
+          <button className="qr-big qr-out" onClick={() => { seenHelp(); pressOut(); }}>🏁 OUT<small>Duty end · பணி முடிவு</small></button>
           <button className="qr-big qr-reg" onClick={() => { seenHelp(); setStep('reg'); }}>🆕 New Registration<small>First time here · முதல் முறை</small></button>
         </div>
       )}
@@ -166,9 +189,10 @@ export default function QrAttend({ qrKey }) {
       {step === 'found' && check && (
         <div className="qr-card">
           {check.registering && <div className="qr-sub">🆕 Registering your face (first time)</div>}
+          {check.waitOnly && <div className="qr-sub">⏳ Waiting for your reliever (no photo needed to check)</div>}
           <div className="qr-name">{check.guard.name}</div>
           <div className="qr-sub">ID {check.guard.id}{check.shift ? ' · Shift ' + check.shift.code + (check.shift.start ? ' ' + check.shift.start + '–' + check.shift.end : '') : ''}{check.since ? ' · IN since ' + check.since : ''}</div>
-          <div className="qr-sub">📍 {check.distance} m from the gate</div>
+          {!check.waitOnly && <div className="qr-sub">📍 {check.distance} m from the gate</div>}
           {/* Handover (step 3): who of the next shift is IN; OUT only when someone is. */}
           {check.handover && check.handover.code && (
             <div className="qr-hand">
@@ -201,7 +225,8 @@ export default function QrAttend({ qrKey }) {
               {relMsg && <div className="qr-sub">{relMsg}</div>}
             </div>
           )}
-          <button className="qr-link" onClick={() => { setStep('start'); setCheck(null); }}>Not me</button>
+          {check.waitOnly && <button className="qr-link" onClick={() => start('OUT')}>📷 Check again with photo</button>}
+          <button className="qr-link" onClick={() => { if (check.waitOnly) savePass(''); setStep('start'); setCheck(null); }}>Not me</button>
         </div>
       )}
 
