@@ -106,6 +106,7 @@ export default function GuardPage({ token, testDate }) {
             <div className="setup-card">
               <div className="setup-hello">Hi <b className="guard-name">{data.name}</b> 👋</div>
               <div className="guard-lock">🔒</div>
+              {data.reliever && <span className="pd-no-group" hidden />}
               {data.outTime
                 ? <p>Your card is <b>OUT</b> since {data.outTime}. Your page opens again after you swipe <b>IN</b>.</p>
                 : <p>Your duty page opens after your access card shows <b>IN</b> for today's duty.</p>}

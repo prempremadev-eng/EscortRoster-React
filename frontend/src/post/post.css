@@ -603,3 +603,6 @@ body:has(.gsheet-bar) .pd-group-fab,body:has(.pd-chat) .pd-group-fab{display:non
 
 /* ⋯ More menu: a risky item (schedule Clear day) in red, last. */
 .pd-more-menu .pd-more-danger{color:#DC2626;border-top:1px solid var(--pd-border);}
+
+/* A reliever's page after OUT: no 👥 Group (Prem, 30 Oct). */
+body:has(.pd-no-group) .pd-group-fab{display:none;}

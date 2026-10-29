@@ -730,7 +730,8 @@ app.get('/guardDay', async (req, res) => {
       name: me.guard_name, dutyDate,
       dutyType: myRow ? 'ESCORT' : duty ? duty.post.post_type : null,
       postName: myRow ? 'Escort · ' + myRow.batch : duty ? duty.post.post_name : null,
-      shift: myRow ? shiftC : duty ? duty.shift : null
+      shift: myRow ? shiftC : duty ? duty.shift : null,
+      reliever: String(me.tags || '').split(',').includes('Reliever') // no team group once OUT (Prem, 30 Oct)
     };
     const myEscortRow = myRow ? String(myRow.guard.escort_id) : me.escort_id;
     if (!inTime[myId]) {
@@ -1029,7 +1030,7 @@ async function getVapidKeys(catalystApp) {
 }
 
 // Access lives on the Guards master only. Escorts is read (seat list) but never written here.
-const GUARD_COLS = 'ROWID, guard_name, agency, agency_id, branch_id, escort_id, guard_token, is_active';
+const GUARD_COLS = 'ROWID, guard_name, agency, agency_id, branch_id, escort_id, guard_token, is_active, tags';
 
 async function guardById(zcql, guardId) {
   const rows = await zcql.executeZCQLQuery(`SELECT ${GUARD_COLS} FROM Guards WHERE ROWID = ${requireRowId(guardId)}`);

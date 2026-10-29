@@ -30,6 +30,12 @@ module.exports = function groupRoutes(app, h) {
     if (q.t) {
       const me = await guardByToken(zcql, q.t);
       if (!me.branch_id || !me.agency_id) throw new Error('Your branch or agency is not set. Ask your supervisor.');
+      // A reliever is in the team group only while IN (Prem, 30 Oct).
+      if (String(me.tags || '').split(',').includes('Reliever')) {
+        const last = await zcql.executeZCQLQuery(`SELECT direction, CREATEDTIME FROM AccessLog WHERE guard_id = ${me.ROWID} ORDER BY CREATEDTIME DESC LIMIT 1`);
+        const l = last.length ? last[0].AccessLog : null;
+        if (!l || l.direction !== 'IN' || Date.now() + 330 * 60000 - Date.parse(String(l.CREATEDTIME).slice(0, 19).replace(' ', 'T') + 'Z') > 16 * 3600000) throw new Error('The team group is open only while you are on duty.');
+      }
       return { guard: me, branch: String(me.branch_id), agency: String(me.agency_id), name: me.guard_name };
     }
     if (!req.user) throw new Error('Please sign in.');
