@@ -78,13 +78,6 @@ module.exports = function qrRoutes(app, h) {
 
   // Front face only (Prem, 29 Oct: side and tilted faces matched too). Zia face analysis gives the eyes and the
   // nose: the nose must sit between the eyes, the eyes level, one face, big enough. Returns '' or the reason.
-  const centre = v => {
-    const flat = []; (function walk(x) { if (Array.isArray(x)) x.forEach(walk); else if (Number.isFinite(Number(x))) flat.push(Number(x)); })(v);
-    if (flat.length < 2) return null;
-    let sx = 0, sy = 0, n = 0;
-    for (let i = 0; i + 1 < flat.length; i += 2) { sx += flat[i]; sy += flat[i + 1]; n++; }
-    return { x: sx / n, y: sy / n };
-  };
   async function frontFace(catalystApp, file, imgWidth) {
     let r;
     try { r = await catalystApp.zia().analyseFace(fs.createReadStream(file), { mode: 'advanced' }); } catch (err) { console.error('analyseFace failed:', err.message || err); return ''; }
@@ -92,16 +85,24 @@ module.exports = function qrRoutes(app, h) {
     if (!faces.length) return '🙂 No face found. Face the camera in good light.';
     if (faces.length > 1) return '🙂 Only one person in the photo, please.';
     const f = faces[0], lm = f.landmarks || {};
-    const k = name => Object.keys(lm).find(x => x.toLowerCase().replace(/[^a-z]/g, '').includes(name));
-    const le = centre(lm[k('lefteye')]), re = centre(lm[k('righteye')]), no = centre(lm[k('nose')]);
-    console.log('qr front check', JSON.stringify({ keys: Object.keys(lm), le, re, no, box: f.co_ordinates }));
-    if (!le || !re || !no) return ''; // no landmarks: the face match alone decides
-    const eye = Math.hypot(re.x - le.x, re.y - le.y);
-    if (!eye) return '';
+    const k = name => Object.keys(lm).find(x => x.toLowerCase().replace(/[^a-z]/g, '') === name);
+    // Points as [x, y] pairs. Nose: the last 5 points are the tip and nostrils (the bridge stays centred when
+    // the head turns, 29 Oct log); jaw: its two ends are the sides of the face.
+    const pts = v => { const flat = []; (function walk(x) { if (Array.isArray(x)) x.forEach(walk); else if (Number.isFinite(Number(x))) flat.push(Number(x)); })(v); const out = []; for (let i = 0; i + 1 < flat.length; i += 2) out.push({ x: flat[i], y: flat[i + 1] }); return out; };
+    const mid = list => list.length ? { x: list.reduce((a, p) => a + p.x, 0) / list.length, y: list.reduce((a, p) => a + p.y, 0) / list.length } : null;
+    const le = mid(pts(lm[k('lefteye')])), re = mid(pts(lm[k('righteye')]));
+    const nose = pts(lm[k('nose')]), jaw = pts(lm[k('jaw')]);
+    const tip = mid(nose.length >= 5 ? nose.slice(-5) : nose);
     const box = f.co_ordinates || [];
+    const facts = { le, re, tip, jawL: jaw[0], jawR: jaw[jaw.length - 1] };
+    if (!le || !re || !tip) { console.log('qr front check: no landmarks', Object.keys(lm)); return ''; }
+    const eye = Math.hypot(re.x - le.x, re.y - le.y);
+    const byEyes = (tip.x - Math.min(le.x, re.x)) / Math.abs(le.x - re.x); // 0.5 = nose tip between the eyes
+    const byJaw = jaw.length >= 2 ? (tip.x - Math.min(jaw[0].x, jaw[jaw.length - 1].x)) / Math.abs(jaw[jaw.length - 1].x - jaw[0].x) : 0.5;
+    console.log('qr front check', JSON.stringify({ ...facts, eye, byEyes, byJaw, tilt: Math.abs(re.y - le.y) / eye, box }));
     if (imgWidth && box.length >= 4 && Math.abs(box[2] - box[0]) < imgWidth * 0.2) return '🙂 Come closer to the camera.';
-    if (Math.abs(re.y - le.y) / eye > 0.25) return '🙂 Keep your head straight (not tilted).';
-    if (Math.abs(no.x - (le.x + re.x) / 2) / eye > 0.18) return '🙂 Look straight at the camera (not to the side).';
+    if (Math.abs(re.y - le.y) / eye > 0.2) return '🙂 Keep your head straight (not tilted).';
+    if (Math.abs(byEyes - 0.5) > 0.12 || Math.abs(byJaw - 0.5) > 0.1) return '🙂 Look straight at the camera (not to the side).';
     return '';
   }
 
