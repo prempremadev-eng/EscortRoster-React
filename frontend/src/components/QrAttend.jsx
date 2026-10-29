@@ -283,7 +283,9 @@ export default function QrAttend({ qrKey }) {
         <div className="qr-card qr-ok">
           <div className="qr-name">{done.action === 'IN' ? '✅ IN' : '🏁 OUT'} {done.time}</div>
           <div className="qr-sub">{done.name}</div>
-          {done.token && <a className="qr-big qr-in" href={'#guard/' + done.token} onClick={() => clearTimeout(resetTimer.current)}>📋 Open my duty page<small>Post · take over · chat · break</small></a>}
+          {/* replace, not a new page (Prem, 29 Oct): ← back from the duty page must not land on IN / OUT again; only a new scan opens it. */}
+          {done.token && <a className="qr-big qr-in" href={'#guard/' + done.token}
+            onClick={e => { e.preventDefault(); clearTimeout(resetTimer.current); window.location.replace('#guard/' + done.token); }}>📋 Open my duty page<small>Post · take over · chat · break</small></a>}
         </div>
       )}
     </div>
