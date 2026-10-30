@@ -1,7 +1,7 @@
 {
-  "name": "GuardDesk",
-  "short_name": "GuardDesk",
-  "description": "Every post, every shift, one desk: guards, shift incharges and managers",
+  "name": "NightOwl",
+  "short_name": "NightOwl",
+  "description": "Shifts, duty and team chat in one place",
   "scope": "./",
   "display": "standalone",
   "background_color": "#FFFFFF",

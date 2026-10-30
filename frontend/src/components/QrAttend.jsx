@@ -173,7 +173,7 @@ export default function QrAttend({ qrKey }) {
 
   return (
     <div className="qr">
-      <div className="qr-head"><b>{site ? site.branch : 'GuardDesk'}</b><span>Attendance</span></div>
+      <div className="qr-head"><b>{site ? site.branch : 'NightOwl'}</b><span>Attendance</span></div>
       {msg && <div className="qr-msg">{msg}</div>}
       {site && !site.ready && <div className="qr-msg">The gate location is not set yet. Ask the office.</div>}
 

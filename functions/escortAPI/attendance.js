@@ -92,7 +92,7 @@ module.exports = function attendanceRoutes(app, h) {
           id: firstIn ? String(firstIn.ROWID) : '',
           office: [b.city, b.branch_name].filter(Boolean).join(' - '),
           branchId: String(g.branch_id), agencyId: String(g.agency_id || ''), state: b.state || '', city: b.city || '',
-          addedUser2: 'GuardDesk'
+          addedUser2: 'NightOwl'
         });
       }
       rows.sort((p, q) => q.sortDay.localeCompare(p.sortDay) || p.name.localeCompare(q.name));
