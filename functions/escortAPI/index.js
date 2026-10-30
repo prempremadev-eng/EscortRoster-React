@@ -2008,6 +2008,7 @@ const admin = require('./admin.js')(app, { catalyst, selectAll, requireRowId, re
 
 // Month roster (roster.js): the agency's monthly shift chart.
 const roster = require('./roster.js')(app, { catalyst, selectAll, requireRowId, fail, auth });
+require('./setupMove.js')(app, { catalyst, selectAll, fail, auth });
 require('./attendance.js')(app, { catalyst, selectAll, requireRowId, fail, auth, getShifts });
 
 // Switched-on branches of my area (from the warm cache, so usually no read).

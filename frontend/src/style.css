@@ -1251,3 +1251,8 @@ td.in-late{color:#b91c1c;}
 .at-vendor{color:#dc2626;}
 .at-present{color:#15803d;font-weight:600;}
 .at-absent{color:#dc2626;font-weight:600;}
+/* Admin → 📦 Move setup (30 Oct) */
+.move-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:12px;}
+.move-card{display:flex;flex-direction:column;gap:10px;padding:14px;border:1px solid var(--border);border-radius:10px;background:#fff;}
+.move-card span{font-size:13px;color:#475569;}
+.move-preview{display:flex;flex-direction:column;gap:8px;font-size:13px;}

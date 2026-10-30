@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useAppQr } from '../components/AppQr.jsx';
 import { api } from '../api.js';
 import { useUser, atLeast } from '../auth/user.js';
+import SetupMove from './SetupMove.jsx';
 import { agencyBranches, worksIn } from '../agency.js';
 import { Toggle, IconBtn } from '../components/RowControls.jsx';
 
@@ -181,6 +182,7 @@ export default function AdminPage() {
         {canCity && tabBtn('branches', (canAll ? '3 ' : '') + '🏢 Branches')}
         {canCity && tabBtn('agencies', (canAll ? '4 ' : '') + '🛡️ Agencies')}
         {tabBtn('users', (canAll ? '5 ' : '') + '👤 Users')}
+        {atLeast(me, 'super_admin') && tabBtn('move', '📦 Move setup')}
         <div className="spacer"></div>
         {tab === 'states' && <button className="btn secondary" onClick={() => open('state', { state_name: '', country: 'India' })}>➕ Add state</button>}
         {tab === 'cities' && <button className="btn secondary" onClick={() => open('city', { city_name: '', state_id: '' })} disabled={!data || !data.states.length}>➕ Add city</button>}
@@ -331,6 +333,7 @@ export default function AdminPage() {
           </form>
         )}
 
+        {tab === 'move' && <SetupMove />}
         {data && tab === 'states' && (
           <div className="dash-scroll">
             <table className="dash-table adm-table">
