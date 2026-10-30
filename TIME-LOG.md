@@ -151,3 +151,6 @@ Note: after the day-end files (00:21) work went on till about 01:00 (copy-from-y
 | Time | Event |
 |---|---|
 | 09:29 | ▶️ Start ("good morning") |
+| 02:37 (30 Oct) | ⏹️ Still working past midnight; "good morning" said at 02:37 |
+
+**Total:** 09:29 → 02:37 next day (about 17 h, breaks not logged)
