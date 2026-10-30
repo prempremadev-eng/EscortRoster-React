@@ -613,3 +613,6 @@ a.setup-flow-title{text-decoration:none;}
 .sb-day{display:inline-flex;align-items:center;gap:8px;margin-top:6px;padding:4px 10px;border-radius:999px;background:#eff6ff;color:#1e3a8a;font-size:14px;}
 .sb-day input{border:1px solid #bfdbfe;border-radius:6px;padding:2px 6px;font-family:inherit;font-size:13px;}
 .sb-escort-head{margin:18px 0 8px;}
+/* A reliever in a slot (30 Oct): amber, with 🔁 */
+.sh-slot.sh-reliever{background:#fef3c7;color:#92400e;border-color:#f59e0b;}
+.sh-rel-tag{font-size:12px;}

@@ -200,6 +200,7 @@ export default function SupervisorSchedule() {
     sec.posts.push(p);
   });
   const nameOf = id => ((data && data.guards.find(g => g.ROWID === id)) || {}).name || 'Guard';
+  const isReliever = id => String(((data && data.guards.find(g => g.ROWID === id)) || {}).tags || '').split(',').map(x => x.trim()).includes('Reliever');
   // "→ Escort": a free guard goes to the end of tonight's 9 to 6 for this day (any team). Saved as his
   // support point, so his card IN gives him a seat and his own row on the escort page.
   const EXTRA = 'Extra 9 to 6';
@@ -319,8 +320,10 @@ export default function SupervisorSchedule() {
             <tr key={p.ROWID} className={picked ? 'sh-picked' : ''}>
               <td className="sh-no">{i + 1}</td>
               <td className="sh-name">
-                <button className={'sh-slot' + (slot ? (slot.published ? ' sh-pub' : ' sh-draft') : ' sh-open')} onClick={() => tapCell(p.ROWID, code)} disabled={busy}
-                  title={slot ? 'Tap to change or remove' : 'Tap, then pick a guard'}>
+                <button className={'sh-slot' + (slot ? (slot.published ? ' sh-pub' : ' sh-draft') : ' sh-open') + (slot && isReliever(slot.guard) ? ' sh-reliever' : '')} onClick={() => tapCell(p.ROWID, code)} disabled={busy}
+                  title={slot ? (isReliever(slot.guard) ? 'Reliever (QR gate) · tap to change or remove' : 'Tap to change or remove') : 'Tap, then pick a guard'}>
+                  {/* A reliever in a slot (Prem, 30 Oct): 🔁 and amber, so nobody takes them for a regular guard. */}
+                  {slot && isReliever(slot.guard) && <span className="sh-rel-tag">🔁 </span>}
                   {slot ? guardName(slot.guard) : '+'}
                   {slot && rosterSays(slot, p) && <span className="sh-warn" title={'Month roster says ' + ({ O: 'week off', L: 'leave' }[rosterSays(slot, p)] || 'Shift ' + rosterSays(slot, p)) + ' today'}> ⚠️ {({ O: 'OFF', L: 'LEAVE' }[rosterSays(slot, p)] || rosterSays(slot, p))}</span>}
                 </button>
