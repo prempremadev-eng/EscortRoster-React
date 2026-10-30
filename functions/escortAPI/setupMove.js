@@ -33,6 +33,10 @@ module.exports = function setupMoveRoutes(app, h) {
       const [states, cities, branches, shifts, agencies, guards, posts, users] = await Promise.all(
         ['States', 'Cities', 'Branches', 'Shifts', 'Agencies', 'Guards', 'Posts', 'UserRoles'].map(all));
       const active = r => r.is_active === undefined || r.is_active === null || yes(r.is_active);
+      // A switched-off branch or agency (BSS test, 30 Oct) leaves its guards and posts behind too.
+      const brOk = new Set(branches.filter(active).map(r => String(r.ROWID)));
+      const agOk = new Set(agencies.filter(active).map(r => String(r.ROWID)));
+      const placed = r => brOk.has(String(r.branch_id)) && (!r.agency_id || agOk.has(String(r.agency_id)));
       const data = {
         version: VERSION, at: new Date().toISOString(),
         States: states.filter(active).map(r => pick(r, COLS.States)),
@@ -40,8 +44,8 @@ module.exports = function setupMoveRoutes(app, h) {
         Branches: branches.filter(active).map(r => pick(r, COLS.Branches)),
         Shifts: shifts.map(r => pick(r, COLS.Shifts)),
         Agencies: agencies.filter(active).map(r => pick(r, COLS.Agencies)),
-        Guards: guards.filter(g => active(g) && !String(g.tags || '').split(',').includes('Reliever')).map(r => pick(r, COLS.Guards)),
-        Posts: posts.filter(active).map(r => pick(r, COLS.Posts)),
+        Guards: guards.filter(g => active(g) && placed(g) && !String(g.tags || '').split(',').includes('Reliever')).map(r => pick(r, COLS.Guards)),
+        Posts: posts.filter(p => active(p) && placed(p)).map(r => pick(r, COLS.Posts)),
         UserRoles: users.filter(active).map(r => pick(r, COLS.UserRoles))
       };
       res.status(200).json({ status: 'success', data });
