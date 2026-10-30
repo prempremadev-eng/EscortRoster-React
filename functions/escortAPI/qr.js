@@ -466,6 +466,43 @@ module.exports = function qrRoutes(app, h) {
     }
   });
 
+  // The office adds the reliever (Prem, 30 Oct: no regular on duty to hand over, e.g. a roster "Off Reliever"
+  // shift): Schedule page → 🔁 RELIEVERS → ➕ Add reliever, for a day and a shift. Then the reliever registers
+  // and INs at the QR exactly as if the guard on duty had added them.
+  app.post('/qrRelieverOffice', async (req, res) => {
+    try {
+      auth.need(req, 'supervisor');
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const branch = String(auth.requireBranch(req, requireRowId(req.body.branch)));
+      const day = String(req.body.date || '');
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(day)) throw new Error('Pick the day.');
+      const code = String(req.body.shift || '').toUpperCase();
+      if (!['A', 'B', 'C', 'G'].includes(code)) throw new Error('Pick the shift.');
+      const people = await relieversOf(zcql, branch);
+      let relId = req.body.reliever_id ? String(requireRowId(req.body.reliever_id)) : '';
+      if (relId && !people.some(p => String(p.ROWID) === relId)) throw new Error('Reliever not found.');
+      if (!relId) {
+        const name = String(req.body.name || '').replace(/[^A-Za-z .]/g, '').trim().slice(0, 60);
+        if (name.length < 2) throw new Error('Reliever name, please.');
+        const phone = phoneOf(req.body.phone);
+        const same = people.find(p => String(p.phone) === phone);
+        if (same) relId = String(same.ROWID);
+        else relId = String((await catalystApp.datastore().table('Relievers').insertRow({ branch_id: branch, name: name.toUpperCase(), phone, visits: 0, created_by: req.user.name })).ROWID);
+      }
+      const by = 'Office · ' + req.user.name;
+      const table = catalystApp.datastore().table('ReliefShifts');
+      const row = activeRow(await reliefRows(zcql, branch, [day]), code);
+      if (row && row.in_at) throw new Error('The reliever of shift ' + code + ' is already IN.');
+      if (row) await table.updateRow({ ROWID: row.ROWID, reliever_id: relId, added_by: by });
+      else await table.insertRow({ branch_id: branch, duty_date: day, shift_code: code, reliever_id: relId, added_by: by });
+      const who = (await relieversOf(zcql, branch)).find(p => String(p.ROWID) === relId);
+      ok(res, { name: who ? who.name : '', code, day });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   // Wait pass (Prem, 29 Oct): once the guard on duty has added the reliever, pressing 🏁 OUT again while the reliever
   // is not IN shows the lock straight away, with no photo: only looking, nothing is saved. The OUT itself still
   // needs the face. Kept on that phone, valid 16 hours.

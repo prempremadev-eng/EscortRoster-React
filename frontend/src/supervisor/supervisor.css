@@ -616,3 +616,5 @@ a.setup-flow-title{text-decoration:none;}
 /* A reliever in a slot (30 Oct): amber, with 🔁 */
 .sh-slot.sh-reliever{background:#fef3c7;color:#92400e;border-color:#f59e0b;}
 .sh-rel-tag{font-size:12px;}
+.sh-reladd{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px;}
+.sh-reladd input,.sh-reladd select{padding:4px 6px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;}

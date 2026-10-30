@@ -109,6 +109,17 @@ export default function SupervisorSchedule() {
   useEffect(() => { if (pick) setAdding(null); }, [pick]);
   const [search, setSearch] = useState('');
   const [pointDraft, setPointDraft] = useState({});
+  // ➕ Add reliever from the office (Prem, 30 Oct): { shift, pick, name, phone } and the branch's known relievers.
+  const [relAdd, setRelAdd] = useState(null);
+  const [relKnown, setRelKnown] = useState([]);
+  function openRelAdd() {
+    setRelAdd({ shift: 'A', pick: '', name: '', phone: '' });
+    api.qrRelievers(branch).then(r => setRelKnown(r.data || [])).catch(() => setRelKnown([]));
+  }
+  function saveRelAdd() {
+    const body = { branch, date, shift: relAdd.shift, ...(relAdd.pick ? { reliever_id: relAdd.pick } : { name: relAdd.name, phone: relAdd.phone }) };
+    run(() => api.qrRelieverOffice(body), r => { setRelAdd(null); setNote('🔁 ' + r.data.name + ' added for Shift ' + r.data.code + '. They scan the gate QR: 🆕 New Registration (first time) or ✅ IN.'); });
+  }
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [note, setNote] = useState('');
@@ -506,7 +517,7 @@ export default function SupervisorSchedule() {
                     </tbody>
                   </table>
                   {/* Relievers at a QR gate (Cumbum, 29 Oct): added by the guard on duty; not guards. */}
-                  {data.relief && data.relief.length > 0 && <table className="sh-t">
+                  {((data.relief && data.relief.length > 0) || data.qrGate) && <table className="sh-t">
                     <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code" /><col className="w-point" /></colgroup>
                     <thead>
                       <tr className="sh-head sh-head-off"><th colSpan={4}>🔁 RELIEVERS · {sheetDate}</th></tr>
@@ -517,7 +528,29 @@ export default function SupervisorSchedule() {
                         <tr key={i}><td className="sh-no">{i + 1}</td><td className="sh-name">{r.name} <span className="sh-rel-ph">{r.phone}</span></td><td className="sh-code">{r.shift}</td>
                           <td className="sh-point">{r.out ? '🏁 OUT ' + r.out : r.in ? '✅ IN ' + r.in : '⏳ waiting'}{r.addedBy ? ' · added by ' + r.addedBy : ''}</td></tr>
                       ))}
+                      {data.relief.length === 0 && <tr><td colSpan={4} className="sh-empty">No reliever this day</td></tr>}
                     </tbody>
+                    {/* The office adds a reliever when no guard on duty can (Prem, 30 Oct). */}
+                    {data.qrGate && <tfoot className="no-print"><tr><td colSpan={4}>
+                      {!relAdd && <button className="sh-add" onClick={openRelAdd} disabled={busy}>➕ Add reliever</button>}
+                      {relAdd && (
+                        <div className="sh-reladd">
+                          <select value={relAdd.shift} onChange={e => setRelAdd({ ...relAdd, shift: e.target.value })} aria-label="Shift">
+                            {['A', 'B', 'C', 'G'].map(c => <option key={c} value={c}>Shift {c}</option>)}
+                          </select>
+                          {relKnown.length > 0 && (
+                            <select value={relAdd.pick} onChange={e => setRelAdd({ ...relAdd, pick: e.target.value })} aria-label="Known reliever">
+                              <option value="">New reliever…</option>
+                              {relKnown.map(p => <option key={p.id} value={p.id}>{p.name}{p.visits ? ' · came ' + p.visits + '×' : ''}</option>)}
+                            </select>
+                          )}
+                          {!relAdd.pick && <input value={relAdd.name} onChange={e => setRelAdd({ ...relAdd, name: e.target.value })} placeholder="Reliever name" />}
+                          {!relAdd.pick && <input value={relAdd.phone} onChange={e => setRelAdd({ ...relAdd, phone: e.target.value })} inputMode="tel" placeholder="Phone (10 digits)" />}
+                          <button className="pd-chip pd-chip-primary" onClick={saveRelAdd} disabled={busy || (!relAdd.pick && (relAdd.name.trim().length < 2 || relAdd.phone.replace(/\D/g, '').length < 10))}>Add</button>
+                          <button className="pd-chip" onClick={() => setRelAdd(null)}>Cancel</button>
+                        </div>
+                      )}
+                    </td></tr></tfoot>}
                   </table>}
                   {data.escort.show && <table className="sh-t">
                     <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code2" /><col className="w-point" /></colgroup>

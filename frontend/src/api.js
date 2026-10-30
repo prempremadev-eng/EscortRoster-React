@@ -130,6 +130,7 @@ export const api = {
   qrWait: (k, pass) => apiCall('POST', '/qrWait', { k, pass }),
   qrOnDuty: branch => apiCall('GET', '/qrOnDuty?branch=' + encodeURIComponent(branch)),
   qrAllowOut: guard_id => apiCall('POST', '/qrAllowOut', { guard_id }),
+  qrRelieverOffice: body => apiCall('POST', '/qrRelieverOffice', body),
   qrRelievers: branch => apiCall('GET', '/qrRelievers?branch=' + encodeURIComponent(branch)),
   qrReliefCancel: rs => apiCall('POST', '/qrReliefCancel', { rs }),
   qrRelieverRemove: id => apiCall('POST', '/qrRelieverRemove', { id }),
