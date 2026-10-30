@@ -612,6 +612,53 @@ module.exports = function supervisorRoutes(app, h) {
   // "W" in the same part: Mon–Fri only (Kidos School, Prem 21 Oct): no row on Sat / Sun.
   const weekdayOnly = p => String(String((p && p.relief_guards) || '').split(';')[3] || '').includes('W');
   const isWeekend = date => [0, 6].includes(new Date(date + 'T00:00:00Z').getUTCDay());
+
+  // 📅 Daily schedule from the month roster (Prem, 30 Oct: Cumbum; a branch ticks Admin → Branches →
+  // "auto_schedule"). Once per day, only when that day has no slot yet: each post's regular guards go to
+  // the shift their roster says that day, published. A shift none of them works stays empty (⚠️ on the
+  // page; the relief comes by QR). The office can change it afterwards: it is not filled again.
+  async function rosterDayFill(catalystApp, zcql, branch, date) {
+    const b = await zcql.executeZCQLQuery(`SELECT auto_schedule FROM Branches WHERE ROWID = ${branch}`);
+    if (!b.length || !(b[0].Branches.auto_schedule === true || b[0].Branches.auto_schedule === 'true')) return 0;
+    const have = await zcql.executeZCQLQuery(`SELECT ROWID FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${date}' LIMIT 1`);
+    if (have.length) return 0;
+    const [posts, roster] = await Promise.all([
+      zcql.executeZCQLQuery(`SELECT ROWID, shift_codes, regular_guards, relief_guards, sort_order FROM Posts WHERE branch_id = ${branch} AND post_type = 'POST' AND is_active = 'true'`).then(r => r.map(x => x.Posts)),
+      pages(zcql, `SELECT guard_id, codes FROM MonthRoster WHERE branch_id = ${branch} AND roster_month = '${date.slice(0, 7)}'`, 'MonthRoster')
+    ]);
+    const day = Number(date.slice(8, 10)) - 1;
+    const codeOf = {};
+    roster.forEach(r => { codeOf[String(r.guard_id)] = String(r.codes || '')[day] || ''; });
+    const busy = new Set(), rows = [];
+    for (const p of posts.sort((x, y) => (Number(x.sort_order) || 999) - (Number(y.sort_order) || 999))) {
+      if (weekdayOnly(p) && isWeekend(date)) continue;
+      const regs = String(p.regular_guards || '').split(',').map(x => x.trim()).filter(x => /^\d+$/.test(x));
+      for (const c of (postShifts(p) || 'ABCG').split('')) {
+        const g = regs.find(id => codeOf[id] === c && !busy.has(id));
+        if (!g) continue;
+        busy.add(g);
+        rows.push({ branch_id: branch, sched_date: date, post_id: p.ROWID, shift_code: c, guard_id: g, published: true });
+      }
+    }
+    if (rows.length) await catalystApp.datastore().table('Schedule').insertRows(rows);
+    return rows.length;
+  }
+  // Cron 00:05 IST (the same secret key as the QR late check): today's sheet for every auto branch.
+  app.get('/scheduleAutoDay', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const key = await zcql.executeZCQLQuery("SELECT setting_value FROM Settings WHERE setting_key = 'qr_cron_key'");
+      if (!key.length || !key[0].Settings.setting_value || String(req.query.key || '') !== key[0].Settings.setting_value) throw new Error('Not allowed.');
+      const date = /^\d{4}-\d{2}-\d{2}$/.test(String(req.query.date || '')) ? req.query.date : new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
+      const branches = (await zcql.executeZCQLQuery("SELECT ROWID FROM Branches WHERE auto_schedule = true AND is_active = 'true'")).map(r => String(r.Branches.ROWID));
+      const filled = {};
+      for (const b of branches) filled[b] = await rosterDayFill(catalystApp, zcql, b, date);
+      res.status(200).json({ status: 'success', data: { date, filled } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
   // "F" in the same part: never leave it empty (filled from any free man right after its own list).
   const mustFill = p => String(String((p && p.relief_guards) || '').split(';')[3] || '').includes('F');
   const isIncharge = p => String(p.post_name || '').toLowerCase().endsWith('shift incharge');
@@ -660,6 +707,10 @@ module.exports = function supervisorRoutes(app, h) {
       const zcql = catalystApp.zcql();
       const branch = auth.requireBranch(req, requireRowId(req.query.branch));
       const date = requireDate(req.query.date);
+      // An auto branch's day that nobody opened before the 00:05 run (or a day ahead): fill it now.
+      if (date >= new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10)) {
+        try { await rosterDayFill(catalystApp, zcql, branch, date); } catch (err) { console.error('Roster day fill failed:', err.message || err); }
+      }
       const [posts, shifts, guards, roster] = await Promise.all([
         branchPosts(req, zcql, branch), getShifts(zcql, branch),
         pages(zcql, `SELECT ROWID, id_number, guard_name, area, tags FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`, 'Guards'),

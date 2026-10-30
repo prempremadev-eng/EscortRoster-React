@@ -89,14 +89,15 @@ module.exports = function adminRoutes(app, h) {
         placeList(zcql),
         selectAll(zcql, 'UserRoles', 'SELECT ROWID, email, name, role, city, state, branch_id, agency_id, is_active, created_by, CREATEDTIME FROM UserRoles ORDER BY name ASC'),
         // Each branch's own shift times (29 Oct); read apart so the page still opens before the column exists.
-        selectAll(zcql, 'Branches', 'SELECT ROWID, shift_times FROM Branches ORDER BY ROWID ASC').catch(() => [])
+        selectAll(zcql, 'Branches', 'SELECT ROWID, shift_times, auto_schedule FROM Branches ORDER BY ROWID ASC').catch(() => [])
       ]);
       const timesOf = {};
-      times.forEach(t => { timesOf[String(t.ROWID)] = t.shift_times || ''; });
+      const autoOf = {};
+      times.forEach(t => { timesOf[String(t.ROWID)] = t.shift_times || ''; autoOf[String(t.ROWID)] = t.auto_schedule === true || t.auto_schedule === 'true'; });
       ok(res, {
         me: { email: req.user.email, role: req.user.role, city: req.user.city, state: req.user.state, branch_id: req.user.branch_id },
         roles: ROLES.filter(r => RANK[r] < req.user.rank || req.user.role === 'super_admin').reverse().map(r => ({ code: r, name: ROLE_NAME[r] })),
-        branches: branches.filter(b => branchOk(req, b.ROWID)).map(b => ({ ...b, shift_times: timesOf[String(b.ROWID)] || '' })),
+        branches: branches.filter(b => branchOk(req, b.ROWID)).map(b => ({ ...b, shift_times: timesOf[String(b.ROWID)] || '', auto_schedule: !!autoOf[String(b.ROWID)] })),
         agencies,
         states: places.states,
         // A city admin sees only their own city.
@@ -293,6 +294,8 @@ module.exports = function adminRoutes(app, h) {
         if (String(b.shift_times).trim() && !Object.keys(t).length) throw new Error('Shift times: like A 06:00-14:00, B 14:00-22:00');
         row.shift_times = ['A', 'B', 'C', 'G'].filter(c => t[c]).map(c => c + ' ' + t[c].start + '-' + t[c].end).join(', ') || null;
       }
+      // 📅 Daily schedule from the month roster (30 Oct). Sent only by the form.
+      if (b.auto_schedule !== undefined) row.auto_schedule = b.auto_schedule === true || b.auto_schedule === 'true';
       if (!req.scope.all && row.city.toLowerCase() !== req.user.city.toLowerCase()) throw new Error('You can add branches only in ' + req.user.city + '.');
       const self = b.ROWID ? String(requireRowId(b.ROWID)) : '';
       if (self) requireBranch(req, self);

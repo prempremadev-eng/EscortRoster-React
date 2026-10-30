@@ -1259,3 +1259,4 @@ td.in-late{color:#b91c1c;}
 .pp-rules summary,.pp-more summary{cursor:pointer;}
 .pp-more{margin-top:12px;}
 .pp-more summary{font-size:13px;color:#475569;}
+.adm-auto{margin:10px 0;display:flex;gap:8px;align-items:flex-start;font-size:13px;}

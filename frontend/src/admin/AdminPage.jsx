@@ -292,6 +292,11 @@ export default function AdminPage() {
                 );
               })}
             </div>
+            {/* 📅 Daily schedule from the month roster (Prem, 30 Oct): small branches like Cumbum. */}
+            <label className="master-check adm-auto">
+              <input type="checkbox" checked={!!form.auto_schedule} onChange={e => set('auto_schedule', e.target.checked)} />
+              📅 Daily schedule from the month roster (automatic): every day the post's regular guards go to their roster shift and it is published. Leave off where the supervisor fills the sheet (⚡ Auto fill).
+            </label>
             {form.ROWID && <GateQr branchId={form.ROWID} branchName={form.branch_name} />}
             <div className="link-actions">
               <button className="btn" type="submit" disabled={busy}>{busy ? 'Saving...' : 'Save branch'}</button>
