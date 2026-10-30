@@ -266,41 +266,47 @@ export default function PostsPage() {
 
             </div>
 
-            {/* Auto fill is taken out of Post setup (Prem, 25 Oct): its rules were made for IPF · Estancia only;
-                each agency and branch has its own. The posts set up before keep working; this block stays for later. */}
-            {false && isOn(form.auto_fill) && form.rules && (
-              <div className="pp-rules">
-                <div className="master-form-title">8 · ⚡ Auto fill details</div>
+            {/* ▸ Regulars & rules (Prem, 30 Oct: back in the form, folded, for every branch; before only the console
+                could set them, e.g. Cumbum Gate's regulars and "G only when a regular works G"). The auto fill
+                lists (relief, priority, F / D / W) sit one fold deeper. */}
+            {form.rules && (
+              <details className="pp-rules">
+                <summary className="master-form-title">⚙️ Regulars &amp; rules</summary>
                 {!form.agency_id ? <div className="master-sub">Pick the agency first: the lists take that agency's guards.</div> : <>
                   {(() => {
                     const pool = (guards || []).filter(g => String(g.agency_id) === String(form.agency_id) && String(g.branch_id) === String(form.branch_id || branch));
                     const setRule = (k, v) => setForm(f => ({ ...f, rules: { ...f.rules, [k]: v } }));
                     return <>
                       {!guards && <div className="master-sub">Loading guards...</div>}
-                      <GuardPick label="Regular guards" help="They stand here first, on their roster shift (first = first choice)." all={pool} value={form.rules.regular} onChange={v => setRule('regular', v)} />
-                      <GuardPick label="Relief guards" help="When a regular is off: these, in this order (5 or more also lets free guards fill it)." all={pool} value={form.rules.relief} onChange={v => setRule('relief', v)} />
+                      <GuardPick label="Regular guards" help="The guards of this post (first = first choice)." all={pool} value={form.rules.regular} onChange={v => setRule('regular', v)} />
                       <div className="pp-flags">
-                        <label>Priority
-                          <select value={form.rules.priority} onChange={e => setRule('priority', e.target.value)}>
-                            <option value="">Normal</option>
-                            {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(d => <option key={d} value={d}>{d}{d === '1' ? ' (filled first)' : ''}</option>)}
-                          </select>
-                        </label>
-                        <label className="master-check"><input type="checkbox" checked={form.rules.never_empty} onChange={e => setRule('never_empty', e.target.checked)} /> F · Never empty (any free guard of the team if the lists have nobody)</label>
-                        <label className="master-check"><input type="checkbox" checked={form.rules.daily} onChange={e => setRule('daily', e.target.checked)} /> D · Daily rotation (never yesterday's guard)</label>
-                        <label className="master-check"><input type="checkbox" checked={form.rules.weekdays} onChange={e => setRule('weekdays', e.target.checked)} /> W · Weekdays only (no row on Sat / Sun)</label>
-                        <label className="master-check"><input type="checkbox" checked={!!form.rules.regular_only} onChange={e => setRule('regular_only', e.target.checked ? 'ABCG' : '')} /> R · Row only when a regular works that shift</label>
+                        <label className="master-check"><input type="checkbox" checked={!!form.rules.regular_only} onChange={e => setRule('regular_only', e.target.checked ? 'G' : '')} /> Row only on the days a regular works that shift (e.g. no G row on Sunday)</label>
                         {!!form.rules.regular_only && (
-                          <div className="pp-rshifts">R for {['A', 'B', 'C', 'G'].map(c => (
+                          <div className="pp-rshifts">For shift {['A', 'B', 'C', 'G'].map(c => (
                             <label key={c} className="master-check"><input type="checkbox" checked={form.rules.regular_only.includes(c)}
                               onChange={e => setRule('regular_only', ['A', 'B', 'C', 'G'].filter(x => x === c ? e.target.checked : form.rules.regular_only.includes(x)).join('') || 'ABCG')} /> {c}</label>
                           ))}</div>
                         )}
                       </div>
+                      <details className="pp-more">
+                        <summary>⚡ Auto fill lists (relief, priority …)</summary>
+                        <GuardPick label="Relief guards" help="When a regular is off: these, in this order (5 or more also lets free guards fill it)." all={pool} value={form.rules.relief} onChange={v => setRule('relief', v)} />
+                        <div className="pp-flags">
+                          <label>Priority
+                            <select value={form.rules.priority} onChange={e => setRule('priority', e.target.value)}>
+                              <option value="">Normal</option>
+                              {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(d => <option key={d} value={d}>{d}{d === '1' ? ' (filled first)' : ''}</option>)}
+                            </select>
+                          </label>
+                          <label className="master-check"><input type="checkbox" checked={form.rules.never_empty} onChange={e => setRule('never_empty', e.target.checked)} /> F · Never empty (any free guard of the team if the lists have nobody)</label>
+                          <label className="master-check"><input type="checkbox" checked={form.rules.daily} onChange={e => setRule('daily', e.target.checked)} /> D · Daily rotation (never yesterday's guard)</label>
+                          <label className="master-check"><input type="checkbox" checked={form.rules.weekdays} onChange={e => setRule('weekdays', e.target.checked)} /> W · Weekdays only (no row on Sat / Sun)</label>
+                        </div>
+                      </details>
                     </>;
                   })()}
                 </>}
-              </div>
+              </details>
             )}
             <div className="link-actions">
               <button className="btn" type="submit" disabled={saving}>{saving ? 'Saving...' : 'Save post'}</button>
