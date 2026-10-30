@@ -34,19 +34,27 @@ module.exports = function setupMoveRoutes(app, h) {
         ['States', 'Cities', 'Branches', 'Shifts', 'Agencies', 'Guards', 'Posts', 'UserRoles'].map(all));
       const active = r => r.is_active === undefined || r.is_active === null || yes(r.is_active);
       // A switched-off branch or agency (BSS test, 30 Oct) leaves its guards and posts behind too.
-      const brOk = new Set(branches.filter(active).map(r => String(r.ROWID)));
+      // ?branch=<ROWID>: one branch only (Prem, 30 Oct: Cumbum goes live first), with its city, state,
+      // agencies (their other branches drop out on import) and the office logins of that branch.
+      const one = /^\d+$/.test(String(req.query.branch || '')) ? String(req.query.branch) : '';
+      const inOne = b => !one || String(b.ROWID) === one;
+      const brList = branches.filter(b => active(b) && inOne(b));
+      const brOk = new Set(brList.map(r => String(r.ROWID)));
+      const cityIds = new Set(brList.map(b => String(b.city_id)));
+      const cityList = cities.filter(c => active(c) && (!one || cityIds.has(String(c.ROWID))));
+      const stateIds = new Set(cityList.map(c => String(c.state_id)));
       const agOk = new Set(agencies.filter(active).map(r => String(r.ROWID)));
       const placed = r => brOk.has(String(r.branch_id)) && (!r.agency_id || agOk.has(String(r.agency_id)));
       const data = {
         version: VERSION, at: new Date().toISOString(),
-        States: states.filter(active).map(r => pick(r, COLS.States)),
-        Cities: cities.filter(active).map(r => pick(r, COLS.Cities)),
-        Branches: branches.filter(active).map(r => pick(r, COLS.Branches)),
+        States: states.filter(r => active(r) && (!one || stateIds.has(String(r.ROWID)))).map(r => pick(r, COLS.States)),
+        Cities: cityList.map(r => pick(r, COLS.Cities)),
+        Branches: brList.map(r => pick(r, COLS.Branches)),
         Shifts: shifts.map(r => pick(r, COLS.Shifts)),
-        Agencies: agencies.filter(active).map(r => pick(r, COLS.Agencies)),
+        Agencies: agencies.filter(a => active(a) && (!one || String(a.branch_ids || '').split(',').map(x => x.trim()).includes(one))).map(r => pick(r, COLS.Agencies)),
         Guards: guards.filter(g => active(g) && placed(g) && !String(g.tags || '').split(',').includes('Reliever')).map(r => pick(r, COLS.Guards)),
         Posts: posts.filter(p => active(p) && placed(p)).map(r => pick(r, COLS.Posts)),
-        UserRoles: users.filter(active).map(r => pick(r, COLS.UserRoles))
+        UserRoles: users.filter(u => active(u) && (!one || !u.branch_id || brOk.has(String(u.branch_id)))).map(r => pick(r, COLS.UserRoles))
       };
       res.status(200).json({ status: 'success', data });
     } catch (err) {
