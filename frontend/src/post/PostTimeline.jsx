@@ -586,6 +586,8 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
           <input id="pd-msg" value={text} onChange={e => setText(e.target.value)} placeholder={replyTo ? 'Write a reply' : 'Write a note'} maxLength={255} autoComplete="off" />
           <button type="button" className="pd-in-btn" onClick={() => galleryInput.current.click()} disabled={busy} aria-label="Attach photo or video from gallery">{Icon.clip}</button>
           <button type="button" className="pd-in-btn" onPointerDown={cameraDown} onPointerUp={cameraUp} onPointerLeave={() => { clearTimeout(holdTimer.current); holdTimer.current = null; }} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Take photo, hold for video">{Icon.camera}</button>
+          {/* 🎥 Video next to the photo (Prem, 2 Nov: holding the camera for video was not found, WhatsApp-like). */}
+          <button type="button" className="pd-in-btn" onClick={() => setCamera(true)} disabled={busy} aria-label="Record a video">{Icon.video}</button>
         </div>
         {text.trim()
           ? <button className="pd-send" type="submit" disabled={busy} aria-label="Send">{Icon.send}</button>
