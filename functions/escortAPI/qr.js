@@ -659,7 +659,30 @@ module.exports = function qrRoutes(app, h) {
         for (const sh of await getShifts(zcql, b.ROWID)) {
           if (!sh.start) continue;
           const since = (nowMin - (+sh.start.slice(0, 2) * 60 + +sh.start.slice(3, 5)) + 1440) % 1440;
-          if (since > 20) continue; // the cron runs at the shift start (Prem, 2 Nov: at start, not +15)
+          // 🏁 10 min after the end: still IN → the guard and the office hear it (Prem, 2 Nov). Not when the
+          // next shift is not IN yet: then he must stay (the OUT lock), and the start alert already told the office.
+          const sinceEnd = sh.end ? (nowMin - hm(sh.end) + 1440) % 1440 : 9999;
+          if (sinceEnd >= 10 && sinceEnd <= 15) {
+            const stay = [];
+            for (const g of (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, tags FROM Guards WHERE branch_id = ${b.ROWID} AND is_active = 'true'`)).map(r => r.Guards)) {
+              const open = await openIn(zcql, g.ROWID);
+              if (!open) continue;
+              const rel = String(g.tags || '').split(',').includes('Reliever');
+              const relRow = rel ? (await reliefRows(zcql, b.ROWID, [open.duty_date, plusDay(open.duty_date, -1)])).find(r => r.in_at && !r.out_at && r.shift_code === sh.code) : null;
+              const code = rel ? (relRow ? sh.code : '') : await shiftNow(zcql, b.ROWID, g.ROWID, open);
+              if (code !== sh.code) continue;
+              const hand = await handover(zcql, b.ROWID, g.ROWID, open, code);
+              if (!hand.ok) continue;
+              stay.push(g.guard_name);
+              try { await sendPushToGuard(catalystApp, g.ROWID, { title: '🏁 Shift ' + sh.code + ' முடிந்தது', body: 'Shift ' + sh.code + ' ' + taWhen(hm(sh.end)) + 'க்கு முடிந்தது. இன்னும் OUT செய்யவில்லை. Gate QR-ல் OUT செய்யவும்.', url: '/' }); } catch (err) { console.error('OUT push failed:', err.message || err); }
+            }
+            if (stay.length) {
+              await tellOffice(catalystApp, b.ROWID, '🏁 ' + b.branch_name + ' Shift ' + sh.code + ': not OUT', 'Ended ' + sh.end + '. Still IN: ' + stay.join(', ') + '.');
+              told.push(b.branch_name + ' ' + sh.code + ' OUT');
+            }
+            continue;
+          }
+          if (since > 5) continue; // the start alert: the cron runs at the shift start (Prem, 2 Nov)
           const guards = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE branch_id = ${b.ROWID} AND is_active = 'true'`)).map(r => r.Guards);
           const expected = [], missing = [];
           let inNow = false;
