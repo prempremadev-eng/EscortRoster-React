@@ -48,6 +48,14 @@ function GateNow({ branch }) {
   const [msg, setMsg] = useState('');
   const load = useCallback(() => { api.qrOnDuty(branch).then(r => setG(r.data)).catch(() => setG(null)); }, [branch]);
   useEffect(() => { if (branch) load(); }, [branch, load]);
+  // A push (swap ask, OUT lock, …) or coming back to the page reloads the gate (Prem, 2 Nov: the swap ask showed only after a refresh).
+  useEffect(() => {
+    const onPush = () => { if (branch) load(); };
+    const onShow = () => { if (document.visibilityState === 'visible') onPush(); };
+    window.addEventListener('guard-push', onPush);
+    document.addEventListener('visibilitychange', onShow);
+    return () => { window.removeEventListener('guard-push', onPush); document.removeEventListener('visibilitychange', onShow); };
+  }, [branch, load]);
   if (!g || !g.gate) return null;
   const allow = async x => {
     if (!window.confirm('Let ' + x.name + ' go OUT now? (Shift ' + x.next + ' is not IN.) It is recorded with your name.')) return;
