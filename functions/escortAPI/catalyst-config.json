@@ -4,7 +4,8 @@
 		"stack": "node22",
 		"type": "advancedio",
 		"env_variables": {
-			"MEDIA_BUCKET": "nightowl-app-media"
+			"MEDIA_BUCKET": "nightowl-app-media",
+			"APP_URL": "https://nightowl-pebhkgse.onslate.in/"
 		}
 	},
 	"execution": {

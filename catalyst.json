@@ -8,5 +8,11 @@
   },
   "client": {
     "source": "client"
-  }
+  },
+  "slate": [
+    {
+      "name": "nightowl",
+      "source": "/home/prem/Desktop/NightOwl/frontend/dist"
+    }
+  ]
 }

@@ -7,7 +7,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "build:slate": "vite build --mode slate"
+    "build:slate": "vite build --mode slate",
+    "build:slate-prod": "vite build --mode slate-prod"
   },
   "dependencies": {
     "exceljs": "^4.4.0",
