@@ -231,6 +231,9 @@ button.sb-kpi:hover{border-color:#94a3b8;}
   .sb-head .pd-quick{width:100%;flex-wrap:nowrap;overflow-x:auto;padding-bottom:2px;}
   .sb-head .pd-quick .pd-chip{flex-shrink:0;}
   .sb-body{padding:12px;gap:12px;}
+  /* The whole page scrolls on a phone (Prem, 2 Nov): the head + 📍 Gate now left the sheet a thin strip that scrolled out of sight. */
+  .sb{overflow-y:auto;}
+  .sb-body{flex:0 0 auto;overflow:visible;}
   .sb-side{order:-1;}
   .sb-kpis{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;}
   .sb-kpi{padding:8px 10px;font-size:12px;line-height:1.2;}
