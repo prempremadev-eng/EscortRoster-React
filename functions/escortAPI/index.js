@@ -1720,6 +1720,24 @@ app.post('/guardPhoto', express.raw({ type: () => true, limit: '6mb' }), async (
   }
 });
 
+// 🗑 Remove photo (Prem, 2 Nov: a test face before the manager demo; a guard re-registers at the QR gate).
+app.post('/guardPhotoRemove', async (req, res) => {
+  try {
+    auth.need(req, 'supervisor');
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const rows = await catalystApp.zcql().executeZCQLQuery(`SELECT ROWID, photo_key, branch_id, agency_id FROM Guards WHERE ROWID = ${requireRowId(req.body.guard)}`);
+    if (!rows.length) throw new Error('Guard not found');
+    const g = auth.requireRow(req, rows[0].Guards, 'guard');
+    await catalystApp.datastore().table('Guards').updateRow({ ROWID: g.ROWID, photo_key: null, modified_by: req.user.name });
+    if (g.photo_key) {
+      try { await catalystApp.stratus().bucket((process.env.MEDIA_BUCKET || 'escortcardaccess-media')).deleteObject(g.photo_key); } catch (err) { console.error('Guard photo not removed:', err.message || err); }
+    }
+    res.status(200).json({ status: 'success', data: { ROWID: String(g.ROWID) } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
 // 🧪 Face match test (Prem, 29 Oct, before the Cumbum QR attendance): two photos → Zia facial comparison
 // (IN data centre). Admin only; nothing is saved. Photos come as data URLs, written to /tmp because the SDK
 // sends file streams.

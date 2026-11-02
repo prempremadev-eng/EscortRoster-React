@@ -177,6 +177,18 @@ export default function GuardMaster() {
     });
   }
 
+  async function removePhoto() {
+    if (!window.confirm('Remove the photo of ' + form.guard_name + '? QR attendance needs a New Registration again.')) return;
+    setError(''); setNote('');
+    try {
+      await api.guardPhotoRemove(form.ROWID);
+      putRow({ ROWID: form.ROWID, photo_key: '' });
+      setForm(f => ({ ...f, photo_key: '' }));
+      setPhotoUrl(null);
+      setNote('🗑 Photo of ' + form.guard_name + ' removed.');
+    } catch (err) { setError(err.message); }
+  }
+
   async function save(e) {
     e.preventDefault();
     setSaving(true);
@@ -408,6 +420,8 @@ export default function GuardMaster() {
                 <input id="g-photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setPhotoFile(e.target.files[0] || null)} />
               </label>
               {(photoFile || photoUrl) && <img className="guard-photo" src={photoFile ? URL.createObjectURL(photoFile) : photoUrl} alt={form.guard_name} />}
+              {/* 🗑 Remove photo (Prem, 2 Nov): the face goes; the guard registers again at the QR gate. */}
+              {!photoFile && form.ROWID && form.photo_key && <button type="button" className="btn secondary" onClick={removePhoto}>🗑 Remove photo</button>}
               {(String(form.escort_id || '') || (data.escortBranches || []).includes(String(form.branch_id))) && <label>Escort duty sheet name (only for escort duty)
                 <select id="g-escort" value={form.escort_id} onFocus={() => loadFreeEscorts(form.escort_id)} onChange={e => setFormField('escort_id', e.target.value)}>
                   <option value="">— Not on the escort sheet —</option>

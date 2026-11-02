@@ -168,6 +168,7 @@ export const api = {
     if (!res.ok || json.status !== 'success') throw new Error(json.error || 'Aadhaar file upload failed (' + res.status + ')');
     return json;
   },
+  guardPhotoRemove: guard => apiCall('POST', '/guardPhotoRemove', { guard }),
   guardPhotoUrl: guard => apiCall('GET', '/guardPhotoUrl?guard=' + q(guard)),
   guardPhoto: async (guard, file) => {
     const res = await fetch(API_BASE + '/guardPhoto?guard=' + q(guard), { method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': file.type || 'application/octet-stream' }, body: file });
