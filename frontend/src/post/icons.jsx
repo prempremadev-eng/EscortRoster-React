@@ -22,7 +22,6 @@ export const Icon = {
   forward: svg(18, 2, <><path d="M15 14l5-5-5-5"></path><path d="M4 20v-7a4 4 0 0 1 4-4h12"></path></>),
   clip: svg(22, 1.8, <path d="M21.4 11.1l-9.2 9.2a6 6 0 0 1-8.5-8.5l9.2-9.2a4 4 0 0 1 5.7 5.7l-9.2 9.2a2 2 0 0 1-2.8-2.8l8.5-8.5"></path>),
   camera: svg(24, 1.8, <><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path><circle cx="12" cy="13" r="3.5"></circle></>),
-  video: svg(24, 1.8, <><rect x="1" y="6" width="15" height="12" rx="2"></rect><path d="M16 10.5l7-4v11l-7-4z"></path></>),
   mic: svg(22, 2, <><rect x="9" y="3" width="6" height="11" rx="3"></rect><path d="M5 11a7 7 0 0 0 14 0"></path><path d="M12 18v3"></path></>),
   history: svg(20, 1.8, <><path d="M3 12a9 9 0 1 0 3-6.7L3 8"></path><path d="M3 3v5h5"></path><path d="M12 7v5l3 2"></path></>),
   pause: svg(22, 1.8, <><circle cx="12" cy="12" r="9"></circle><path d="M10 9v6"></path><path d="M14 9v6"></path></>),

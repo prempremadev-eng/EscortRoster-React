@@ -190,9 +190,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   const autoOpened = useRef({});
   const seen = useRef(null); // what needed attention at the last load, to ring only for new things
   const endRef = useRef(null);
-  const photoInput = useRef(null);
   const galleryInput = useRef(null);
-  const holdTimer = useRef(null);
 
   const load = useCallback(async () => {
     setError('');
@@ -299,17 +297,6 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
     run(() => api.uploadMedia(token, blob, { kind, source, duration, reply_to: replying, post: viewPost }), () => setReplyTo(null));
   }
 
-  async function onPhotoTaken(e) {
-    const file = e.target.files[0];
-    e.target.value = '';
-    if (!file) return;
-    try {
-      upload(await compressImage(file), 'photo', 'camera', 0);
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
   async function onGalleryPick(e) {
     const file = e.target.files[0];
     e.target.value = '';
@@ -326,17 +313,6 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
     }
   }
 
-  // Camera button: tap = photo, hold = video.
-  function cameraDown() {
-    holdTimer.current = setTimeout(() => { holdTimer.current = null; setCamera(true); }, 450);
-  }
-  function cameraUp() {
-    if (holdTimer.current) {
-      clearTimeout(holdTimer.current);
-      holdTimer.current = null;
-      photoInput.current.click();
-    }
-  }
 
 
   function finishWork(w) {
@@ -397,7 +373,8 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   if (camera) {
     return (
       <div className="pd">
-        <VideoRecorder onClose={() => setCamera(false)} onSend={(blob, secs) => { setCamera(false); upload(blob, 'video', 'camera', secs); }} />
+        <VideoRecorder onClose={() => setCamera(false)} onSend={(blob, secs) => { setCamera(false); upload(blob, 'video', 'camera', secs); }}
+          onPhoto={async blob => { setCamera(false); upload(await compressImage(blob), 'photo', 'camera', 0); }} />
       </div>
     );
   }
@@ -585,14 +562,12 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
         <div className="pd-input" hidden={rec.recording}>
           <input id="pd-msg" value={text} onChange={e => setText(e.target.value)} placeholder={replyTo ? 'Write a reply' : 'Write a note'} maxLength={255} autoComplete="off" />
           <button type="button" className="pd-in-btn" onClick={() => galleryInput.current.click()} disabled={busy} aria-label="Attach photo or video from gallery">{Icon.clip}</button>
-          <button type="button" className="pd-in-btn" onPointerDown={cameraDown} onPointerUp={cameraUp} onPointerLeave={() => { clearTimeout(holdTimer.current); holdTimer.current = null; }} onContextMenu={e => e.preventDefault()} disabled={busy} aria-label="Take photo, hold for video">{Icon.camera}</button>
-          {/* 🎥 Video next to the photo (Prem, 2 Nov: holding the camera for video was not found, WhatsApp-like). */}
-          <button type="button" className="pd-in-btn" onClick={() => setCamera(true)} disabled={busy} aria-label="Record a video">{Icon.video}</button>
+          {/* One camera: Photo / Video inside (Prem, 2 Nov, like WhatsApp). */}
+          <button type="button" className="pd-in-btn" onClick={() => setCamera(true)} disabled={busy} aria-label="Camera: photo or video">{Icon.camera}</button>
         </div>
         {text.trim()
           ? <button className="pd-send" type="submit" disabled={busy} aria-label="Send">{Icon.send}</button>
           : !rec.locked && <button type="button" className={'pd-mic' + (rec.recording ? ' pd-mic-on' : '')} {...rec.micProps} disabled={busy} aria-label="Touch or hold to record a voice note">{Icon.mic}</button>}
-        <input ref={photoInput} type="file" accept="image/*" capture="environment" className="pd-file" onChange={onPhotoTaken} />
         <input ref={galleryInput} type="file" accept="image/*,video/*" className="pd-file" onChange={onGalleryPick} />
       </form>}
 
