@@ -1250,6 +1250,9 @@ td.in-late{color:#b91c1c;}
 .at-table td:nth-child(4),.at-table th:nth-child(4){left:350px;min-width:160px;box-shadow:2px 0 0 #cbd5e1;}
 .at-vendor{color:#dc2626;}
 .at-present{color:#15803d;font-weight:600;}
+/* 🔄 Swap OK'd by the office (Prem, 2 Nov): amber like a reliever on the schedule. */
+.at-swap{background:#FEF3C7 !important;color:#92400E;font-weight:700;white-space:nowrap;}
+.at-swap-shift{background:#FEF3C7 !important;color:#92400E;font-weight:700;}
 .at-absent{color:#dc2626;font-weight:600;}
 /* Admin → 📦 Move setup (30 Oct) */
 .move-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-top:12px;}

@@ -119,7 +119,7 @@ export default function AttendancePage() {
                 {rows.map(r => (
                   <tr key={r.sortDay + r.clock + r.name + r.id}>
                     {COLUMNS.map(([, k], i) => (
-                      <td key={i} className={k === 'vendorId' ? 'at-vendor' : k === 'status' ? (r.status === 'Present' ? 'at-present' : 'at-absent') : ''}>{r[k]}</td>
+                      <td key={i} className={k === 'vendorId' ? 'at-vendor' : k === 'swap' ? (r.swap ? 'at-swap' : '') : k === 'shift' && r.swap ? 'at-swap-shift' : k === 'status' ? (r.status === 'Present' ? 'at-present' : 'at-absent') : ''}>{r[k]}</td>
                     ))}
                   </tr>
                 ))}
