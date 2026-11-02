@@ -20,6 +20,11 @@ module.exports = function adminRoutes(app, h) {
   const ok = (res, data) => res.status(200).json({ status: 'success', data });
 
   // Who is signed in. Answers even without a role, so the page can say "ask your admin".
+  // 👤 Link to an office login's profile photo (Prem, 2 Nov), one hour.
+  async function profileLink(req, key) {
+    try { return (await catalyst.initialize(req, { scope: 'admin' }).stratus().bucket(process.env.MEDIA_BUCKET || 'escortcardaccess-media').generatePreSignedUrl(key, 'GET', { expiryIn: '3600' })).signature; } catch (err) { return ''; }
+  }
+
   app.get('/me', async (req, res) => {
     try {
       if (!req.user) return ok(res, { email: req.login.email, name: req.login.name, role: null });
@@ -38,7 +43,8 @@ module.exports = function adminRoutes(app, h) {
         /^[0-9]+$/.test(String(u.agency_id || '')) ? z.executeZCQLQuery(`SELECT agency_name FROM Agencies WHERE ROWID = ${u.agency_id}`) : []
       ]);
       ok(res, { email: u.email, name: u.name, role: u.role, roleName: ROLE_NAME[u.role], city: u.city, branch_id: u.branch_id, agency_id: u.agency_id, escortEdit: escorts,
-        branchName: br.length ? br[0].Branches.branch_name : '', agencyName: ag.length ? ag[0].Agencies.agency_name : '' });
+        branchName: br.length ? br[0].Branches.branch_name : '', agencyName: ag.length ? ag[0].Agencies.agency_name : '',
+        photo: u.profile_key ? await profileLink(req, u.profile_key) : '' });
     } catch (err) {
       fail(res, err);
     }

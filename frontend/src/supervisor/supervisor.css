@@ -623,3 +623,6 @@ a.setup-flow-title{text-decoration:none;}
 .sh-rel-tag{font-size:12px;}
 .sh-reladd{display:flex;flex-wrap:wrap;gap:6px;align-items:center;padding:6px;}
 .sh-reladd input,.sh-reladd select{padding:4px 6px;border:1px solid #cbd5e1;border-radius:6px;font-family:inherit;font-size:13px;}
+.sup-me-menu{display:flex;flex-direction:column;gap:4px;background:#2A3245;border-radius:10px;padding:6px;margin:4px 0;}
+.sup-me-item{all:unset;cursor:pointer;color:#fff;font-size:13px;padding:6px 8px;border-radius:8px;white-space:nowrap;}
+.sup-me-item:hover{background:#3A4560;}

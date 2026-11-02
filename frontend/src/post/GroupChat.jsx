@@ -14,7 +14,7 @@ function Bubble({ m, onReply }) {
   return (
     <div className={'pd-bubble ' + (m.mine ? 'pd-bubble-me' : 'pd-bubble-other') + (m.office ? ' pd-bubble-sup' : '')} {...swipe.handlers} style={swipe.style}>
       {swipe.icon}
-      {!m.mine && <div className={'pd-author' + (m.office ? ' pd-author-sup' : '')}>{m.author}</div>}
+      {!m.mine && <div className={'pd-author' + (m.office ? ' pd-author-sup' : '')}>{m.avatar && <img className="pd-author-pic" src={m.avatar} alt="" />}{m.author}</div>}
       {m.reply && (
         <div className="pd-quote pd-quote-tap" onClick={e => { e.stopPropagation(); jumpTo(m.reply.id); }}>
           <div className="pd-quote-name">{m.reply.author}</div><div className="pd-quote-text">{m.reply.text}</div>

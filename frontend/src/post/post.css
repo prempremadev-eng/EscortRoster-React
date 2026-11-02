@@ -610,3 +610,9 @@ body:has(.gsheet-bar) .pd-group-fab,body:has(.pd-chat) .pd-group-fab{display:non
 
 /* A reliever's page after OUT: no 👥 Group (Prem, 30 Oct). */
 body:has(.pd-no-group) .pd-group-fab{display:none;}
+
+/* 👤 Profile photos (Prem, 2 Nov): the avatar circle shows the picture; a tiny one beside the author in the chats. */
+.pd-avatar-photo{padding:0;overflow:hidden;}
+.pd-avatar-photo img{width:100%;height:100%;object-fit:cover;border-radius:50%;display:block;}
+button.pd-avatar{border:none;cursor:pointer;}
+.pd-author-pic{width:20px;height:20px;border-radius:50%;object-fit:cover;vertical-align:middle;margin-right:6px;}

@@ -35,7 +35,7 @@ const ESCORT_WRITES = new Set(['/addDutyRecord', '/updateDutyRecord', '/deleteDu
 
 // Guard screens the office opens too, read only (Prem, 25 Oct: what the guard sees at the post, the admin
 // sees): without a guard link they need a login and the post must be in the area.
-const OFFICE_VIEWS = new Set(['/safety', '/postHistory', '/postWorks', '/pastShift']);
+const OFFICE_VIEWS = new Set(['/myProfile', '/safety', '/postHistory', '/postWorks', '/pastShift']);
 
 // Routes a guard's phone calls with its secret link. Everything else needs a login.
 const GUARD_ROUTES = new Set([
@@ -45,7 +45,7 @@ const GUARD_ROUTES = new Set([
   '/pinMessage', '/forwardMessage', '/addWork', '/finishWork', '/safety', '/addSafety', '/sendAlert', '/cancelAlert',
   '/postHistory', '/postWorks', '/pastShift', '/groupChat', '/groupSend', '/groupMedia',
   '/coverCandidates', '/startBreak', '/cancelBreak', '/respondCover', '/pingBack', '/replyPing', '/backOnDuty',
-  '/coverReturned', '/leaveCover', '/qrSite', '/qrChallenge', '/qrCheck', '/qrPunch', '/qrReliever', '/qrSwapAsk', '/qrSwapStatus', '/qrWait', '/qrRegCheck', '/qrLateCheck', '/scheduleAutoDay', '/vehicles', '/vehicleIn', '/vehicleOut', '/vehiclePhoto', '/vehiclePhotoLink', '/vehiclePlate', '/vehicleVoice', '/vehicleKnown'
+  '/coverReturned', '/leaveCover', '/qrSite', '/qrChallenge', '/qrCheck', '/qrPunch', '/qrReliever', '/myProfile', '/qrSwapAsk', '/qrSwapStatus', '/qrWait', '/qrRegCheck', '/qrLateCheck', '/scheduleAutoDay', '/vehicles', '/vehicleIn', '/vehicleOut', '/vehiclePhoto', '/vehiclePhotoLink', '/vehiclePlate', '/vehicleVoice', '/vehicleKnown'
 ]);
 
 const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;

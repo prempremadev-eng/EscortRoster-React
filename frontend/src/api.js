@@ -173,6 +173,13 @@ export const api = {
   },
   guardPhotoRemove: guard => apiCall('POST', '/guardPhotoRemove', { guard }),
   guardPhotoUrl: guard => apiCall('GET', '/guardPhotoUrl?guard=' + q(guard)),
+  // 👤 My profile photo (not the face photo): a guard by his link, or the office login.
+  myProfile: async (token, blob) => {
+    const res = await fetch(API_BASE + '/myProfile' + (token ? '?t=' + q(token) : ''), { method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': blob.type || 'image/jpeg' }, body: blob });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok || json.status !== 'success') throw new Error(json.error || 'Photo upload failed (' + res.status + ')');
+    return json;
+  },
   guardPhoto: async (guard, file) => {
     const res = await fetch(API_BASE + '/guardPhoto?guard=' + q(guard), { method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': file.type || 'application/octet-stream' }, body: file });
     const json = await res.json().catch(() => ({}));

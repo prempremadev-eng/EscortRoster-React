@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
-import { Icon, initials } from './icons.jsx';
+import { Icon, initials, Avatar } from './icons.jsx';
 import AddWork from './AddWork.jsx';
 import SafetySheet from './SafetySheet.jsx';
 import VehicleEntry from './VehicleEntry.jsx';
@@ -49,7 +49,7 @@ function Bubble({ m, onMenu, onReply }) {
       onContextMenu={e => { e.preventDefault(); onMenu(m); }}
     >
       {swipe.icon}
-      {!m.mine && <div className={'pd-author' + (m.kind === 'supervisor' || m.office ? ' pd-author-sup' : '')}>{m.author}{m.kind === 'supervisor' && !m.author.includes(' · ') ? ' · Supervisor' : ''}</div>}
+      {!m.mine && <div className={'pd-author' + (m.kind === 'supervisor' || m.office ? ' pd-author-sup' : '')}>{m.avatar && <img className="pd-author-pic" src={m.avatar} alt="" />}{m.author}{m.kind === 'supervisor' && !m.author.includes(' · ') ? ' · Supervisor' : ''}</div>}
       {m.reply && (
         <div className="pd-quote pd-quote-tap" onClick={e => { e.stopPropagation(); jumpTo(m.reply.id); }}>
           <div className="pd-quote-name">{m.reply.author}</div>
@@ -191,6 +191,14 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   const seen = useRef(null); // what needed attention at the last load, to ring only for new things
   const endRef = useRef(null);
   const galleryInput = useRef(null);
+  const picInput = useRef(null);
+  const [myPic, setMyPic] = useState(duty.photo || '');
+  async function onPic(e) {
+    const file = e.target.files[0];
+    e.target.value = '';
+    if (!file) return;
+    try { setMyPic((await api.myProfile(token, await compressImage(file, 480, 0.8))).data.photo); load(); } catch (err) { setError(err.message); }
+  }
 
   const load = useCallback(async () => {
     setError('');
@@ -402,7 +410,9 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
     <div className="pd pd-chat">
       <div className="pd-chat-top">
         <div className="pd-chat-head">
-          <div className={'pd-avatar ' + (onBreak ? 'pd-avatar-off' : 'pd-avatar-on')}>{initials(duty.name)}</div>
+          {/* 👤 Tap: my profile photo (Prem, 2 Nov). Only for the chat; the QR face photo is another one. */}
+          <Avatar name={duty.name} photo={myPic} className={'pd-avatar ' + (onBreak ? 'pd-avatar-off' : 'pd-avatar-on')} title="Profile photo" onClick={() => picInput.current.click()} />
+          <input ref={picInput} type="file" accept="image/*" className="pd-file" onChange={onPic} />
           <div className="pd-chat-title">
             <div className="pd-title pd-title-sm">{postTitle}</div>
             {/* Two short lines instead of one that wraps (Prem, 25 Oct): who, then which shift. */}

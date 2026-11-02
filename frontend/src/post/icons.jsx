@@ -36,4 +36,9 @@ export const Icon = {
   copy: svg(18, 2, <><rect x="9" y="9" width="12" height="12" rx="2"></rect><path d="M5 15V5a2 2 0 0 1 2-2h10"></path></>)
 };
 
+// 👤 A round picture when the person set a profile photo (Prem, 2 Nov), else the initials.
+export function Avatar({ name, photo, className = 'pd-avatar', onClick, title }) {
+  const Tag = onClick ? 'button' : 'span';
+  return <Tag type={onClick ? 'button' : undefined} className={className + (photo ? ' pd-avatar-photo' : '')} onClick={onClick} title={title}>{photo ? <img src={photo} alt={name} /> : initials(name)}</Tag>;
+}
 export const initials = name => String(name || '').split(/\s+/).filter(Boolean).slice(0, 2).map(w => w[0].toUpperCase()).join('');

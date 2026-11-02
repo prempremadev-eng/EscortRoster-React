@@ -1,5 +1,7 @@
 import { useState } from 'react';
-import { Icon, initials } from '../post/icons.jsx';
+import { Icon, Avatar } from '../post/icons.jsx';
+import { compressImage } from '../post/media.js';
+import { api } from '../api.js';
 import { useUser, atLeast, signOut } from '../auth/user.js';
 import { setupSteps } from '../components/SetupSteps.jsx';
 
@@ -13,6 +15,7 @@ import { setupSteps } from '../components/SetupSteps.jsx';
 // so the page gets the whole width; tapping ☰ slides the menu in.
 export default function Rail({ active }) {
   const user = useUser();
+  const [me, setMe] = useState(false);
   const [open, setOpen] = useState(false);
   // More opens a list of small buttons under it (Prem, 27 Oct: like the old menu); a second tap closes it.
   // Every page draws its own rail, so open / closed is kept in sessionStorage.
@@ -80,7 +83,18 @@ export default function Rail({ active }) {
       <nav className={'sup-rail' + (open ? ' sup-rail-open' : '')}>
         {groups.map(([head, items]) => [<div key={head} className="sup-rail-head">{head}</div>, ...items.map(item)])}
         <div className="pd-grow"></div>
-        {user && <button className="sup-rail-btn sup-rail-me" title={user.name + ' · ' + user.roleName + ' · tap to sign out'} onClick={() => { if (window.confirm('Sign out ' + user.name + '?')) signOut(); }}>{initials(user.name)}</button>}
+        {/* 👤 Tap: profile photo or sign out (Prem, 2 Nov). */}
+        {user && <Avatar name={user.name} photo={user.photo} className="sup-rail-btn sup-rail-me" title={user.name + ' · ' + user.roleName} onClick={() => setMe(!me)} />}
+        {user && me && (
+          <div className="sup-me-menu">
+            <label className="sup-me-item">📷 Profile photo<input type="file" accept="image/*" hidden onChange={async e => {
+              const f = e.target.files[0]; e.target.value = '';
+              if (!f) return;
+              try { await api.myProfile('', await compressImage(f, 480, 0.8)); window.location.reload(); } catch (err) { window.alert(err.message); }
+            }} /></label>
+            <button className="sup-me-item" onClick={() => { if (window.confirm('Sign out ' + user.name + '?')) signOut(); }}>🚪 Sign out</button>
+          </div>
+        )}
         {/* Who is signed in, on every page (Prem, 28 Oct: "IS" alone did not say which login). */}
         {user && <div className="sup-rail-who" title={user.name + ' · ' + user.roleName}><b>{user.name}</b><span>{user.roleName}</span></div>}
       </nav>

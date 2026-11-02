@@ -65,7 +65,7 @@ module.exports = function postRoutes(app, h) {
   async function namesOf(zcql, guardIds) {
     const ids = [...new Set(guardIds.filter(Boolean).map(String))].map(requireRowId);
     if (!ids.length) return {};
-    const rows = await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, guard_token FROM Guards WHERE ROWID IN (${ids.join(', ')})`);
+    const rows = await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, guard_token, profile_key FROM Guards WHERE ROWID IN (${ids.join(', ')})`);
     const map = {};
     rows.forEach(r => { map[String(r.Guards.ROWID)] = r.Guards; });
     return map;
@@ -154,6 +154,13 @@ module.exports = function postRoutes(app, h) {
   }
 
   // Screens 1 and 2: my post, my shift, who I take over from, and their pinned notes.
+  // 👤 The guard's own profile photo link for his duty page header ('' when none).
+  async function myPhoto(req, zcql, guardId) {
+    const r = await zcql.executeZCQLQuery(`SELECT profile_key FROM Guards WHERE ROWID = ${requireRowId(guardId)}`);
+    const k = r.length && r[0].Guards.profile_key;
+    return k ? (await mediaLinks(req, [k]))[k] || '' : '';
+  }
+
   app.get('/postDuty', async (req, res) => {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
@@ -207,7 +214,7 @@ module.exports = function postRoutes(app, h) {
       res.status(200).json({
         status: 'success',
         data: {
-          name: me.guard_name, locked: false, status: log.status,
+          name: me.guard_name, locked: false, status: log.status, photo: await myPhoto(req, zcql, me.ROWID),
           inAt: (log.in_at || '').slice(11, 16), takenOverAt: (log.taken_over_at || '').slice(11, 16),
           handedOverAt: (log.handed_over_at || '').slice(11, 16),
           post: post.post_name, branch: [branch.branch_name, branch.area].filter(Boolean).join(' · '),
@@ -422,6 +429,52 @@ module.exports = function postRoutes(app, h) {
 
   // One-hour download links for the photos / videos / voice notes on screen. Making a link needs
   // the admin scope. A missing object only loses its own link, not the whole timeline.
+  // 👤 Profile photos in the chats (Prem, 2 Nov): a guard's own picture (Guards.profile_key) or an office
+  // login's (UserRoles.profile_key). Never the face photo used for the QR IN (Guards.photo_key).
+  // → { message ROWID: link } for the messages whose author has one.
+  async function avatarLinks(req, zcql, rows, names) {
+    const keyOf = {};
+    const offices = rows.filter(m => !m.guard_id && m.author_name);
+    let people = [];
+    if (offices.length) people = (await zcql.executeZCQLQuery('SELECT name, profile_key FROM UserRoles WHERE profile_key IS NOT NULL')).map(r => r.UserRoles);
+    const byName = {};
+    people.forEach(u => { byName[String(u.name || '').trim().toLowerCase()] = u.profile_key; });
+    rows.forEach(m => {
+      const k = m.guard_id ? (names[String(m.guard_id)] || {}).profile_key : byName[String(m.author_name || '').split(' · ')[0].trim().toLowerCase()];
+      if (k) keyOf[String(m.ROWID)] = k;
+    });
+    const links = await mediaLinks(req, Object.values(keyOf));
+    const out = {};
+    Object.keys(keyOf).forEach(id => { if (links[keyOf[id]]) out[id] = links[keyOf[id]]; });
+    return out;
+  }
+
+  // 👤 Set my profile photo: a guard by his link (?t=), else the office login. One JPEG/PNG/WEBP, 3 MB.
+  const PROFILE_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+  app.post('/myProfile', express.raw({ type: () => true, limit: '4mb' }), async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const type = String(req.headers['content-type'] || '').split(';')[0].trim().toLowerCase();
+      if (!PROFILE_TYPES[type]) throw new Error('Photo must be JPG, PNG or WEBP.');
+      if (!Buffer.isBuffer(req.body) || !req.body.length || req.body.length > 3 * 1048576) throw new Error('Photo is empty or too big (max 3 MB).');
+      let table, row;
+      if (req.query.t) { table = 'Guards'; row = await guardByToken(zcql, req.query.t); row = { ROWID: row.ROWID, old: (await zcql.executeZCQLQuery(`SELECT profile_key FROM Guards WHERE ROWID = ${requireRowId(row.ROWID)}`))[0].Guards.profile_key }; }
+      else if (req.user) { table = 'UserRoles'; row = { ROWID: req.user.ROWID, old: req.user.profile_key }; }
+      else throw new Error('Please sign in.');
+      const bucket = catalystApp.stratus().bucket(MEDIA_BUCKET);
+      const key = 'profiles/' + (table === 'Guards' ? 'g' : 'u') + row.ROWID + '-' + crypto.randomBytes(5).toString('hex') + '.' + PROFILE_TYPES[type];
+      await bucket.putObject(key, req.body, { contentType: type });
+      await catalystApp.datastore().table(table).updateRow({ ROWID: row.ROWID, profile_key: key });
+      if (table === 'UserRoles' && auth.forgetUser) auth.forgetUser(req.user.email);
+      if (row.old) { try { await bucket.deleteObject(row.old); } catch (err) { console.error('Old profile photo not removed:', err.message || err); } }
+      const links = await mediaLinks(req, [key]);
+      res.status(200).json({ status: 'success', data: { photo: links[key] || '' } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   async function mediaLinks(req, keys) {
     const links = {};
     if (!keys.length) return links;
@@ -451,6 +504,7 @@ module.exports = function postRoutes(app, h) {
       rowsByIds(zcql, 'Alerts', rows.filter(m => m.kind === 'alert').map(m => m.ref_id)),
       mediaLinks(req, rows.filter(m => m.media_key).map(m => m.media_key))
     ]);
+    const avatars = await avatarLinks(req, zcql, rows, names);
     const byId = {};
     rows.forEach(m => { byId[String(m.ROWID)] = m; });
     const authorOf = m => (office(m) ? m.author_name || 'Supervisor' : (names[String(m.guard_id)] || {}).guard_name || '');
@@ -465,7 +519,7 @@ module.exports = function postRoutes(app, h) {
         mine: viewer.supervisor ? office(m) : String(m.guard_id) === String(viewer.guardId), office: office(m),
         // Only the guard's own shift's notes can be pinned / unpinned.
         myShift: !viewer.supervisor && String(m.duty_log_id) === String(viewer.logId),
-        author: authorOf(m), seenBy: m.seen_by || '', seen: hhmm(m.seen_at),
+        author: authorOf(m), avatar: avatars[String(m.ROWID)] || '', seenBy: m.seen_by || '', seen: hhmm(m.seen_at),
         stamp: String(m.CREATEDTIME).slice(0, 19),
         date: String(m.CREATEDTIME).slice(0, 10), time: String(m.CREATEDTIME).slice(11, 16),
         reply: q ? { id: String(q.ROWID), author: authorOf(q), text: q.kind === 'work' ? 'Work update · ' + q.text : q.text || mediaLabel(q.kind) } : null,
@@ -754,7 +808,7 @@ module.exports = function postRoutes(app, h) {
   // Agency group chat (groups.js): "IPF Schedule" for guards and the office.
   require('./groups.js')(app, {
     catalyst, fail, requireRowId, guardByToken, sendPushToRows, nowStamp, cleanText, MAX_TEXT, auth,
-    express, crypto, MEDIA, MEDIA_BUCKET, MEDIA_SOURCES, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, mediaLabel, mediaLinks, namesOf
+    express, crypto, MEDIA, MEDIA_BUCKET, MEDIA_SOURCES, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, mediaLabel, mediaLinks, namesOf, avatarLinks
   });
 
   // Post history (history.js): read only.

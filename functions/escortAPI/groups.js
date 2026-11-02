@@ -12,7 +12,7 @@ const LIMIT = 100;
 
 module.exports = function groupRoutes(app, h) {
   const { catalyst, fail, requireRowId, guardByToken, sendPushToRows, nowStamp, cleanText, MAX_TEXT, auth,
-    express, crypto, MEDIA, MEDIA_BUCKET, MEDIA_SOURCES, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, mediaLabel, mediaLinks, namesOf } = h;
+    express, crypto, MEDIA, MEDIA_BUCKET, MEDIA_SOURCES, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, mediaLabel, mediaLinks, namesOf, avatarLinks } = h;
 
   async function agencyName(zcql, agencyId) {
     const rows = await zcql.executeZCQLQuery(`SELECT agency_name FROM Agencies WHERE ROWID = ${requireRowId(agencyId)}`);
@@ -44,11 +44,11 @@ module.exports = function groupRoutes(app, h) {
     return { guard: null, branch, agency, name: (req.user.name + ' · ' + auth.ROLE_NAME[req.user.role]).slice(0, 100) };
   }
 
-  const view = (m, names, links, byId, who) => {
+  const view = (m, names, links, byId, who, avatars = {}) => {
     const author = r => (r.guard_id ? (names[String(r.guard_id)] || {}).guard_name || 'Guard' : r.author_name || 'Office');
     const q = m.reply_to_id ? byId[String(m.reply_to_id)] : null;
     return {
-      ROWID: String(m.ROWID), kind: m.kind || 'text', text: m.text || '', author: author(m), office: !m.guard_id,
+      ROWID: String(m.ROWID), kind: m.kind || 'text', text: m.text || '', author: author(m), avatar: avatars[String(m.ROWID)] || '', office: !m.guard_id,
       mine: who.guard ? String(m.guard_id) === String(who.guard.ROWID) : !m.guard_id && m.author_name === who.name,
       date: String(m.CREATEDTIME).slice(0, 10), time: String(m.CREATEDTIME).slice(11, 16),
       reply: q ? { id: String(q.ROWID), author: author(q), text: q.text || mediaLabel(q.kind) } : null,
@@ -64,9 +64,10 @@ module.exports = function groupRoutes(app, h) {
       mediaLinks(req, rows.filter(m => m.media_key).map(m => m.media_key)),
       groupName(zcql, who.branch, who.agency)
     ]);
+    const avatars = await avatarLinks(req, zcql, rows, names);
     const byId = {};
     rows.forEach(m => { byId[String(m.ROWID)] = m; });
-    return { title: agName + ' Schedule', messages: rows.map(m => view(m, names, links, byId, who)) };
+    return { title: agName + ' Schedule', messages: rows.map(m => view(m, names, links, byId, who, avatars)) };
   }
 
   async function replyOf(zcql, who, rowid) {
