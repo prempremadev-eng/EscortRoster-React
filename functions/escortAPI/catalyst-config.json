@@ -3,7 +3,9 @@
 		"name": "escortAPI",
 		"stack": "node22",
 		"type": "advancedio",
-		"env_variables": {}
+		"env_variables": {
+			"MEDIA_BUCKET": "nightowl-app-media"
+		}
 	},
 	"execution": {
 		"main": "index.js"
