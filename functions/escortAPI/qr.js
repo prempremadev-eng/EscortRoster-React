@@ -465,7 +465,10 @@ module.exports = function qrRoutes(app, h) {
           if (mine && mine.status === 'pending') throw new Error('⏳ Shift ' + mine.to + ' மாற்றம் ' + mine.at + '-க்கு கேட்கப்பட்டது. அலுவலக அனுமதி வந்ததும் மீண்டும் ஸ்கேன் செய்யவும்.');
           // Said no before: he may ask again (Prem, 2 Nov: the office pressed No by mistake).
           const refused = !!(mine && mine.status === 'no');
-          const swapTicket = await makeTicket(catalystApp, { g: String(found.ROWID), b: String(b.ROWID), a: 'SWAP', from: code || '', to: late.swapTo, day });
+          // The face check is done now: its photo and place become his IN when the office says OK (Prem, 2 Nov: no second scan).
+          const swapSelfie = keyFor(found.ROWID);
+          await bucket.putObject(swapSelfie, photo, { contentType: 'image/jpeg' });
+          const swapTicket = await makeTicket(catalystApp, { g: String(found.ROWID), b: String(b.ROWID), a: 'SWAP', from: code || '', to: late.swapTo, day, s: swapSelfie, la: lat, ln: lng, d: distance, x: 30 * 60000 });
           return ok(res, { matched: true, swap: { from: code || '', to: late.swapTo, why: late.why, ticket: swapTicket, refused }, guard: { name: found.guard_name, id: found.id_number }, distance });
         }
       }
@@ -751,11 +754,29 @@ module.exports = function qrRoutes(app, h) {
       const list = await swapsOf(catalystApp, b.ROWID);
       const at = new Date(Date.now() + 330 * 60000).toISOString().slice(11, 16);
       if (!list.some(x => x.g === t.g && x.day === t.day && x.to === t.to && x.status === 'pending')) {
-        list.push({ id: crypto.randomBytes(4).toString('hex'), g: t.g, name: g.guard_name, idNo: g.id_number, from: t.from, to: t.to, day: t.day, at, t: Date.now(), status: 'pending' });
+        list.push({ id: crypto.randomBytes(4).toString('hex'), g: t.g, name: g.guard_name, idNo: g.id_number, from: t.from, to: t.to, day: t.day, at, t: Date.now(), status: 'pending', s: t.s, la: t.la, ln: t.ln, d: t.d });
         await saveSwaps(catalystApp, b.ROWID, list);
         await tellOffice(catalystApp, b.ROWID, '🔄 Swap request: ' + g.guard_name, (t.from ? 'Roster Shift ' + t.from : 'No shift today') + ' → wants Shift ' + t.to + ' today (' + at + '). OK it on Schedule → 📍 Gate now.');
       }
       ok(res, { asked: true, to: t.to });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // The waiting phone asks every few seconds: OK → his duty page link (Prem, 2 Nov: open it by itself).
+  app.post('/qrSwapStatus', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const b = await branchByKey(zcql, req.body.k);
+      const t = await readTicket(catalystApp, req.body.ticket);
+      if (t.a !== 'SWAP' || t.b !== String(b.ROWID)) throw new Error('Scan again.');
+      const x = (await swapsOf(catalystApp, b.ROWID)).filter(r => r.g === t.g && r.day === t.day && r.to === t.to).pop();
+      if (!x || x.status === 'pending') return ok(res, { status: 'pending' });
+      if (x.status === 'no') return ok(res, { status: 'no' });
+      const g = (await zcql.executeZCQLQuery(`SELECT guard_token FROM Guards WHERE ROWID = ${requireRowId(t.g)}`))[0].Guards;
+      ok(res, { status: 'ok', token: g.guard_token || '', at: x.inAt || x.at });
     } catch (err) {
       fail(res, err);
     }
@@ -793,6 +814,19 @@ module.exports = function qrRoutes(app, h) {
         else if (posts.length) await table.insertRow({ branch_id: branch, sched_date: x.day, post_id: posts[0].ROWID, shift_code: x.to, guard_id: x.g, published: true, swap_note: note(x.from, x.to) });
         else throw new Error('No post for this guard.');
       }
+      if (req.body.ok && !(await openIn(zcql, x.g))) {
+        // IN at the time he asked at the gate, with that photo (the face and GPS were checked then).
+        const guard = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number, branch_id, agency_id, escort_id, guard_token, is_active FROM Guards WHERE ROWID = ${requireRowId(x.g)}`))[0].Guards;
+        await catalystApp.datastore().table('AccessLog').insertRow({
+          guard_id: guard.ROWID, direction: 'IN', punch_time: x.at, duty_date: x.day, source: 'QR',
+          lat: x.la, lng: x.ln, distance_m: x.d, selfie_key: x.s || null, allowed_by: String(req.user.name || '').slice(0, 100)
+        });
+        try {
+          await onCardIn(catalystApp, guard, x.at, x.day);
+          if (!guard.guard_token) await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, guard_token: crypto.randomBytes(16).toString('hex') });
+        } catch (err) { console.error('Swap IN follow-up failed:', err.message || err); }
+        x.inAt = x.at;
+      }
       x.status = req.body.ok ? 'ok' : 'no';
       x.by = req.user.name;
       await saveSwaps(catalystApp, branch, list);
@@ -801,7 +835,7 @@ module.exports = function qrRoutes(app, h) {
       const starts = await getShifts(zcql, branch);
       const at = code => { const sh = starts.find(z => z.code === code); return sh && sh.start ? taWhen(hm(sh.start)) + 'க்கு ' : ''; };
       await tell(x.g, req.body.ok ? '✅ Shift மாற்றம் OK: Shift ' + x.to : '❌ Shift மாற்றம் இல்லை',
-        req.body.ok ? 'இன்று நீங்கள் ' + at(x.to) + 'Shift ' + x.to + '-ல் பணிபுரிய வேண்டும். IN செய்ய gate QR-ஐ மீண்டும் ஸ்கேன் செய்யவும்.'
+        req.body.ok ? 'இன்று நீங்கள் ' + at(x.to) + 'Shift ' + x.to + '-ல் பணிபுரிய வேண்டும். IN ' + x.at + ' பதிவானது.'
           : 'இன்று உங்கள் shift: ' + (x.from ? 'Shift ' + x.from : 'ரோஸ்டர்படி') + ' (மாற்றம் இல்லை).');
       if (req.body.ok && req.swapped) await tell(req.swapped.gid, '🔄 இன்று உங்கள் shift: Shift ' + req.swapped.to,
         x.name + ' உங்கள் Shift ' + x.to + '-ஐ எடுத்துக்கொண்டார் (அலுவலக அனுமதி). இன்று நீங்கள் ' + at(req.swapped.to) + 'Shift ' + req.swapped.to + '-ல் பணிபுரிய வேண்டும்.');

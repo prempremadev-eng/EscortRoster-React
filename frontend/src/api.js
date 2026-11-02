@@ -138,6 +138,7 @@ export const api = {
   qrCheck: body => apiCall('POST', '/qrCheck', body),
   qrPunch: body => apiCall('POST', '/qrPunch', body),
   qrSwapAsk: body => apiCall('POST', '/qrSwapAsk', body),
+  qrSwapStatus: body => apiCall('POST', '/qrSwapStatus', body),
   qrSwapDecide: (branch, id, ok) => apiCall('POST', '/qrSwapDecide', { branch, id, ok }),
   qrReliever: body => apiCall('POST', '/qrReliever', body),
   qrRegCheck: body => apiCall('POST', '/qrRegCheck', body),

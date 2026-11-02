@@ -157,6 +157,23 @@ export default function QrAttend({ qrKey }) {
     } catch (err) { setRelMsg(err.message); }
   }
 
+  // 🔄 Waiting for the office (Prem, 2 Nov): every 8 s; OK → he is IN already and his duty page opens.
+  const swapWait = check && check.swap && check.swap.asked && !check.swap.status ? check.swap.ticket : '';
+  useEffect(() => {
+    if (!swapWait) return undefined;
+    let stop = false;
+    const id = setInterval(async () => {
+      try {
+        const r = (await api.qrSwapStatus({ k: qrKey, ticket: swapWait })).data;
+        if (stop || r.status === 'pending') return;
+        clearInterval(id);
+        if (r.status === 'ok' && r.token) window.location.replace('#guard/' + r.token);
+        else setCheck(c => (c && c.swap ? { ...c, swap: { ...c.swap, status: r.status } } : c));
+      } catch (err) { clearInterval(id); setMsg(err.message); }
+    }, 8000);
+    return () => { stop = true; clearInterval(id); };
+  }, [swapWait, qrKey]);
+
   async function punch() {
     setMsg('');
     try {
@@ -236,7 +253,7 @@ export default function QrAttend({ qrKey }) {
           <div className="qr-sub">{check.swap.why}</div>
           {check.swap.refused && !check.swap.asked && <div className="qr-sub">❌ முன்பு கேட்டதை அலுவலகம் ஏற்கவில்லை. மீண்டும் கேட்கலாம்.</div>}
           {check.swap.asked
-            ? <div className="qr-lock">⏳ Shift {check.swap.to}-க்கு அலுவலகத்திடம் கேட்கப்பட்டது. அனுமதி வந்ததும் மீண்டும் ஸ்கேன் செய்யவும்.</div>
+            ? <div className="qr-lock">{check.swap.status === 'no' ? '❌ அலுவலகம் ஏற்கவில்லை. மீண்டும் கேட்க QR-ஐ ஸ்கேன் செய்யவும்.' : '⏳ Shift ' + check.swap.to + '-க்கு அலுவலகத்திடம் கேட்கப்பட்டது. அனுமதி வந்ததும் உங்கள் duty page தானாக திறக்கும். இந்த page-ஐ மூட வேண்டாம்.'}</div>
             : <button className="qr-big qr-in" onClick={async () => {
                 setMsg('');
                 try { await api.qrSwapAsk({ k: qrKey, ticket: check.swap.ticket }); setCheck({ ...check, swap: { ...check.swap, asked: true } }); } catch (err) { setMsg(err.message); }
