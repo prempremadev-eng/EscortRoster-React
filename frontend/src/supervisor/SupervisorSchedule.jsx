@@ -53,6 +53,11 @@ function GateNow({ branch }) {
     if (!window.confirm('Let ' + x.name + ' go OUT now? (Shift ' + x.next + ' is not IN.) It is recorded with your name.')) return;
     try { const r = (await api.qrAllowOut(x.id, x.rs)).data; setMsg('🏁 ' + r.name + ' OUT ' + r.time + ' (allowed by you).'); load(); } catch (err) { setMsg(err.message); }
   };
+  // 🔄 Swap asked at the gate (Prem, 2 Nov): OK moves him on today's sheet; no keeps the roster.
+  const decide = async (s, yes) => {
+    if (yes && !window.confirm('OK: ' + s.name + ' works Shift ' + s.to + ' today' + (s.from ? ' (not ' + s.from + ')' : '') + '?')) return;
+    try { await api.qrSwapDecide(branch, s.id, yes); setMsg(yes ? '✅ ' + s.name + ' → Shift ' + s.to + '. Tell him to scan again.' : '✕ Swap refused for ' + s.name + '.'); load(); } catch (err) { setMsg(err.message); }
+  };
   return (
     <div className="gn no-print">
       <div className="gn-head"><b>📍 Gate now</b><button className="pd-chip" onClick={load}>↻</button></div>
@@ -66,6 +71,19 @@ function GateNow({ branch }) {
               <span>IN {x.in}{x.distance != null && x.distance !== '' ? ' · ' + x.distance + ' m' : ''}</span>
               {x.next && <span>{x.nextOk ? '✅ Shift ' + x.next + ' is IN' : '🔒 Shift ' + x.next + ' not IN'}</span>}
               {x.next && !x.nextOk && <button className="pd-chip gn-allow" onClick={() => allow(x)}>Allow OUT</button>}
+            </div>
+          </div>
+        ))}
+        {(g.swaps || []).map(s => (
+          <div key={s.id} className="gn-card gn-swap">
+            <div className="gn-noimg">🔄</div>
+            <div className="gn-info">
+              <b>{s.name}</b>
+              <span>Swap ask {s.at}: {s.from ? 'Shift ' + s.from : 'no shift'} → <b>Shift {s.to}</b> today</span>
+              <span style={{ display: 'flex', gap: 6 }}>
+                <button className="pd-chip gn-ok" onClick={() => decide(s, true)}>✅ OK</button>
+                <button className="pd-chip" onClick={() => decide(s, false)}>✕ No</button>
+              </span>
             </div>
           </div>
         ))}
@@ -83,7 +101,7 @@ function GateNow({ branch }) {
             </div>
           </div>
         ))}
-        {g.on.length === 0 && g.relievers.length === 0 && <div className="pd-muted pd-small">Nobody IN at the gate now.</div>}
+        {g.on.length === 0 && g.relievers.length === 0 && !(g.swaps || []).length && <div className="pd-muted pd-small">Nobody IN at the gate now.</div>}
       </div>
     </div>
   );

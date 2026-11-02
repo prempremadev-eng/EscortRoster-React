@@ -195,6 +195,46 @@ module.exports = function qrRoutes(app, h) {
   // his live photo becomes his registered face; later the face finds him like a regular guard.
   const NEXT = { A: 'B', B: 'C', C: 'A' };
   const plusDay = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
+  // ⏰ Shift times (Prem, 2 Nov): IN from 40 min before the start (A 06:00 → 05:20); OUT only after the end
+  // (A → 14:00). Another shift today: a 🔄 swap, asked at the gate from 40 min before its start till 15 min
+  // after, and the office OK makes it (the day sheet changes; the month roster stays).
+  const EARLY_MIN = 40, SWAP_LATE_MIN = 15;
+  const hm = t => +String(t).slice(0, 2) * 60 + +String(t).slice(3, 5);
+  const clock = m => String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart(2, '0') + ':' + String(((m % 60) + 60) % 60).padStart(2, '0');
+  const spanOf = sh => { const st = hm(sh.start); let en = hm(sh.end); if (en <= st) en += 1440; return { st, en }; };
+  const minsInto = day => Math.floor((Date.now() + 330 * 60000 - Date.parse(day + 'T00:00:00Z')) / 60000);
+  // His shift on a day: the published day sheet first (a swap the office OK'd), else the month roster.
+  async function dutyCode(zcql, guardId, day) {
+    const codes = (await zcql.executeZCQLQuery(`SELECT shift_code FROM Schedule WHERE guard_id = ${requireRowId(guardId)} AND sched_date = '${day}' AND published = true`)).map(r => r.Schedule.shift_code);
+    return codes.find(c => 'ABC'.includes(c || '-')) || codes[0] || await rosterShiftOf(zcql, guardId, day);
+  }
+  // null when an IN fits now; else { why, swapTo } (swapTo: the shift starting now, for a 🔄 swap).
+  function inCheck(shifts, code, day) {
+    const now = minsInto(day);
+    const sh = shifts.find(x => x.code === code && x.start && x.end);
+    if (sh) { const { st, en } = spanOf(sh); if (now >= st - EARLY_MIN && now < en) return null; }
+    const to = shifts.find(x => x.code !== code && 'ABCG'.includes(x.code) && x.start && now >= hm(x.start) - EARLY_MIN && now <= hm(x.start) + SWAP_LATE_MIN);
+    if (to) return { swapTo: to.code, why: '🔄 Your shift today is ' + (sh ? 'Shift ' + code + ' (' + sh.start + ')' : 'not a duty') + '. Shift ' + to.code + ' needs the office OK.' };
+    if (!sh) return { why: '📅 No duty for you today in the roster. Ask the office.' };
+    const { st, en } = spanOf(sh);
+    return { why: now < st - EARLY_MIN ? '⏰ Shift ' + code + ' starts ' + sh.start + '. IN from ' + clock(st - EARLY_MIN) + '.' : '⏰ Shift ' + code + ' ended at ' + clock(en) + '.' };
+  }
+  // '' when an OUT fits now (the shift is over); else why not.
+  function outCheck(shifts, code, day) {
+    const sh = shifts.find(x => x.code === code && x.start && x.end);
+    if (!sh) return '';
+    const { en } = spanOf(sh);
+    return minsInto(day) < en ? '⏰ Shift ' + code + ' ends ' + clock(en) + '. OUT after that (or ask the office).' : '';
+  }
+  // 🔄 Swap asks live in the Catalyst cache for a few hours (one list per branch): { id, g, name, from, to, day, at, status }.
+  const swapKey = branchId => 'swap_' + branchId;
+  async function swapsOf(catalystApp, branchId) {
+    try { const v = await catalystApp.cache().segment().getValue(swapKey(branchId)); return v ? JSON.parse(v) : []; } catch (e) { return []; }
+  }
+  async function saveSwaps(catalystApp, branchId, list) {
+    const keep = list.filter(x => Date.now() - x.t < 12 * 3600000);
+    await catalystApp.cache().segment().put(swapKey(branchId), JSON.stringify(keep), 12);
+  }
   const phoneOf = v => { const d = String(v || '').replace(/\D/g, '').slice(-10); if (d.length !== 10) throw new Error('Phone: 10 digits.'); return d; };
   const masked = p => (p ? '••••' + String(p).slice(-4) : '');
   // The shift after the one this guard is on, and its duty day (C → next day's A).
@@ -217,7 +257,7 @@ module.exports = function qrRoutes(app, h) {
   // The shift a guard is on: his roster; with no roster (29 Oct test), the A/B/C shift whose start is nearest his
   // IN time.
   async function shiftNow(zcql, branchId, guardId, open) {
-    const code = await rosterShiftOf(zcql, guardId, open.duty_date);
+    const code = await dutyCode(zcql, guardId, open.duty_date);
     if ('ABC'.includes(code || '-') || code === 'G') return code;
     const at = String(open.CREATEDTIME).slice(11, 16);
     const mins = t => +t.slice(0, 2) * 60 + +t.slice(3, 5);
@@ -235,7 +275,7 @@ module.exports = function qrRoutes(app, h) {
       .filter(g => String(g.ROWID) !== String(guardId));
     const regulars = [];
     for (const g of guards) {
-      if ((await rosterShiftOf(zcql, g.ROWID, day)) !== next) continue;
+      if ((await dutyCode(zcql, g.ROWID, day)) !== next) continue;
       const ins = await zcql.executeZCQLQuery(`SELECT punch_time FROM AccessLog WHERE guard_id = ${g.ROWID} AND duty_date = '${day}' AND direction = 'IN' LIMIT 1`);
       regulars.push({ name: g.guard_name, in: ins.length ? ins[0].AccessLog.punch_time : '' });
     }
@@ -354,15 +394,19 @@ module.exports = function qrRoutes(app, h) {
         const who = await regWho(catalystApp, zcql, b, req.body, day, false);
         if (who.p) {
           const { p, row } = who;
+          const late = inCheck(shifts, row.shift_code, row.duty_date);
+          if (late) throw new Error(late.swapTo ? '⏰ Your reliever duty is Shift ' + row.shift_code + '. Come at that time.' : late.why);
           const key = keyFor('rel-' + p.ROWID);
           await catalystApp.stratus().bucket(BUCKET).putObject(key, photo, { contentType: 'image/jpeg' });
           const ticket = await makeTicket(catalystApp, { rs: String(row.ROWID), rel: String(p.ROWID), b: String(b.ROWID), a: 'RIN', s: key, d: distance, reg: true });
           return ok(res, { matched: true, reliever: true, registering: true, ticket, action: 'IN', distance, guard: { name: p.name + ' 🔁 reliever', id: masked(p.phone) }, shift: shiftOf(row.shift_code), addedBy: row.added_by || '' });
         }
         const g = who.g;
+        const code = await dutyCode(zcql, g.ROWID, day);
+        const late = inCheck(shifts, code, day);
+        if (late) throw new Error(late.why + (late.swapTo ? ' Register at your own shift time.' : ''));
         const key = keyFor(g.ROWID);
         await catalystApp.stratus().bucket(BUCKET).putObject(key, photo, { contentType: 'image/jpeg' });
-        const code = await rosterShiftOf(zcql, g.ROWID, day);
         const ticket = await makeTicket(catalystApp, { g: String(g.ROWID), b: String(b.ROWID), a: 'IN', s: key, la: lat, ln: lng, d: distance, m: null, dd: '', reg: true });
         return ok(res, { matched: true, registering: true, ticket, action: 'IN', distance, guard: { name: g.guard_name, id: g.id_number }, shift: shiftOf(code) });
       }
@@ -390,6 +434,8 @@ module.exports = function qrRoutes(app, h) {
           if (act === 'IN') await tellOffice(catalystApp, b.ROWID, '⚠️ Reliever without duty at the gate', found.guard_name + ' scanned IN but no guard added him today.');
           throw new Error(act === 'IN' ? '🔁 ' + found.guard_name + ': no duty allotted today. Ask the guard on duty to add you.' : 'You are not IN. Press ✅ IN.');
         }
+        if (act === 'IN') { const late = inCheck(shifts, row.shift_code, row.duty_date); if (late) throw new Error(late.swapTo ? '⏰ Your reliever duty is Shift ' + row.shift_code + '. Come at that time.' : late.why); }
+        else { const early = outCheck(shifts, row.shift_code, row.duty_date); if (early) throw new Error(early); }
         // A reliever waits for the next shift too (Prem, 2 Nov), like a regular guard.
         const hand = act === 'OUT' ? await handover(zcql, b.ROWID, found.ROWID, { duty_date: row.duty_date }, row.shift_code) : null;
         const key = keyFor('rel-' + p.ROWID);
@@ -398,14 +444,27 @@ module.exports = function qrRoutes(app, h) {
         return ok(res, { matched: true, reliever: true, ticket, action: act, distance, handover: hand, guard: { name: found.guard_name + ' 🔁 reliever', id: masked(p.phone) }, shift: shiftOf(row.shift_code), since: row.in_at ? String(row.in_at).slice(11, 16) : '', addedBy: row.added_by || '' });
       }
 
-      // Keep the selfie (90 days) and say what the next press does.
-      const selfie_key = keyFor(found.ROWID);
-      await bucket.putObject(selfie_key, photo, { contentType: 'image/jpeg' });
       const open = await openIn(zcql, found.ROWID);
       if (purpose === 'IN' && open) throw new Error('Already IN since ' + String(open.CREATEDTIME).slice(11, 16) + '. Press 🏁 OUT to go.');
       if (purpose === 'OUT' && !open) throw new Error('You are not IN. Press ✅ IN.');
       const action = open ? 'OUT' : 'IN';
-      const code = open ? '' : await rosterShiftOf(zcql, found.ROWID, day);
+      const code = open ? '' : await dutyCode(zcql, found.ROWID, day);
+      if (open) { const early = outCheck(shifts, await shiftNow(zcql, b.ROWID, found.ROWID, open), open.duty_date); if (early) throw new Error(early); }
+      else {
+        const late = inCheck(shifts, code, day);
+        if (late && !late.swapTo) throw new Error(late.why);
+        if (late) {
+          // 🔄 Another shift now: ask the office (once); after its OK the day sheet has him there and this passes.
+          const mine = (await swapsOf(catalystApp, b.ROWID)).filter(x => x.g === String(found.ROWID) && x.day === day && x.to === late.swapTo).pop();
+          if (mine && mine.status === 'pending') throw new Error('⏳ Swap to Shift ' + mine.to + ' asked at ' + mine.at + '. Wait for the office OK, then scan again.');
+          if (mine && mine.status === 'no') throw new Error('❌ The office said no to Shift ' + mine.to + '. Your shift today: ' + (code || 'none') + '.');
+          const swapTicket = await makeTicket(catalystApp, { g: String(found.ROWID), b: String(b.ROWID), a: 'SWAP', from: code || '', to: late.swapTo, day });
+          return ok(res, { matched: true, swap: { from: code || '', to: late.swapTo, why: late.why, ticket: swapTicket }, guard: { name: found.guard_name, id: found.id_number }, distance });
+        }
+      }
+      // Keep the selfie (90 days) and say what the next press does.
+      const selfie_key = keyFor(found.ROWID);
+      await bucket.putObject(selfie_key, photo, { contentType: 'image/jpeg' });
       const sh = shiftOf(code);
       const ticket = await makeTicket(catalystApp, { g: String(found.ROWID), b: String(b.ROWID), a: action, s: selfie_key, la: lat, ln: lng, d: distance, m: score, dd: open ? open.duty_date : '' });
       // On duty now: he may add the reliever for the next shift.
@@ -562,7 +621,9 @@ module.exports = function qrRoutes(app, h) {
         const hand = r.in_at && p.guard_id ? await handover(zcql, branch, p.guard_id, { duty_date: r.duty_date }, r.shift_code) : null;
         relievers.push({ rs: String(r.ROWID), name: p.name || '?', phone: masked(p.phone), shift: r.shift_code, day: r.duty_date, in: r.in_at ? String(r.in_at).slice(11, 16) : '', addedBy: r.added_by || '', selfie: await signed(bucket, sel || p.photo_key), registered: !!p.photo_key, next: hand ? hand.code : '', nextOk: hand ? hand.ok : true });
       }
-      ok(res, { gate: true, on, relievers });
+      const swaps = (await swapsOf(catalystApp, branch)).filter(x => x.status === 'pending' && x.day === today)
+        .map(x => ({ id: x.id, name: x.name, idNo: x.idNo, from: x.from, to: x.to, at: x.at }));
+      ok(res, { gate: true, on, relievers, swaps });
     } catch (err) {
       fail(res, err);
     }
@@ -671,6 +732,65 @@ module.exports = function qrRoutes(app, h) {
   });
 
   // The office lets a guard go OUT when nobody came (Prem, 29 Oct: "office Allow OUT"); recorded with who allowed.
+  // 🔄 Swap ask from the gate (after the face check): the office hears it and OKs it on Schedule → Gate now.
+  app.post('/qrSwapAsk', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const b = await branchByKey(zcql, req.body.k);
+      const t = await readTicket(catalystApp, req.body.ticket);
+      if (t.a !== 'SWAP' || t.b !== String(b.ROWID)) throw new Error('Scan again.');
+      const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number FROM Guards WHERE ROWID = ${requireRowId(t.g)}`))[0].Guards;
+      const list = await swapsOf(catalystApp, b.ROWID);
+      const at = new Date(Date.now() + 330 * 60000).toISOString().slice(11, 16);
+      if (!list.some(x => x.g === t.g && x.day === t.day && x.to === t.to && x.status === 'pending')) {
+        list.push({ id: crypto.randomBytes(4).toString('hex'), g: t.g, name: g.guard_name, idNo: g.id_number, from: t.from, to: t.to, day: t.day, at, t: Date.now(), status: 'pending' });
+        await saveSwaps(catalystApp, b.ROWID, list);
+        await tellOffice(catalystApp, b.ROWID, '🔄 Swap request: ' + g.guard_name, (t.from ? 'Roster Shift ' + t.from : 'No shift today') + ' → wants Shift ' + t.to + ' today (' + at + '). OK it on Schedule → 📍 Gate now.');
+      }
+      ok(res, { asked: true, to: t.to });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // Office OK / no. OK: the day sheet changes — he takes the Shift <to> slot; the guard who had it gets his old
+  // slot (a real swap), else just leaves that slot. Only till 15 min after the shift start.
+  app.post('/qrSwapDecide', async (req, res) => {
+    try {
+      auth.need(req, 'supervisor');
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const branch = auth.requireBranch(req, requireRowId(req.body.branch));
+      const list = await swapsOf(catalystApp, branch);
+      const x = list.find(r => r.id === String(req.body.id || ''));
+      if (!x || x.status !== 'pending') throw new Error('This request is gone. Refresh.');
+      if (req.body.ok) {
+        const sh = (await getShifts(zcql, branch)).find(s => s.code === x.to);
+        if (sh && minsInto(x.day) > hm(sh.start) + SWAP_LATE_MIN) throw new Error('Too late: Shift ' + x.to + ' started at ' + sh.start + ' (OK only till 15 min after).');
+        const g = (await zcql.executeZCQLQuery(`SELECT ROWID, branch_id, agency_id FROM Guards WHERE ROWID = ${requireRowId(x.g)}`))[0].Guards;
+        const posts = (await zcql.executeZCQLQuery(`SELECT ROWID FROM Posts WHERE branch_id = ${branch} AND agency_id = ${requireRowId(g.agency_id)} AND post_type = 'POST' AND is_active = 'true'`)).map(r => r.Posts);
+        const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, post_id, shift_code, guard_id FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${x.day}'`)).map(r => r.Schedule);
+        const mine = rows.find(r => String(r.guard_id) === x.g && r.shift_code !== x.to);
+        const theirs = rows.find(r => r.shift_code === x.to && (!mine || String(r.post_id) === String(mine.post_id)));
+        if (theirs && theirs.guard_id && String(theirs.guard_id) !== x.g && (await openIn(zcql, theirs.guard_id))) throw new Error('The Shift ' + x.to + ' guard is already IN.');
+        const table = catalystApp.datastore().table('Schedule');
+        if (theirs) {
+          await table.updateRow({ ROWID: theirs.ROWID, guard_id: x.g, published: true });
+          if (mine) await table.updateRow({ ROWID: mine.ROWID, guard_id: theirs.guard_id || null, published: true });
+        } else if (mine) await table.updateRow({ ROWID: mine.ROWID, shift_code: x.to, published: true });
+        else if (posts.length) await table.insertRow({ branch_id: branch, sched_date: x.day, post_id: posts[0].ROWID, shift_code: x.to, guard_id: x.g, published: true });
+        else throw new Error('No post for this guard.');
+      }
+      x.status = req.body.ok ? 'ok' : 'no';
+      x.by = req.user.name;
+      await saveSwaps(catalystApp, branch, list);
+      ok(res, { name: x.name, to: x.to, status: x.status });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   app.post('/qrAllowOut', async (req, res) => {
     try {
       auth.need(req, 'supervisor');

@@ -229,7 +229,22 @@ export default function QrAttend({ qrKey }) {
       </div>
       {step === 'checking' && <div className="qr-wait">🔎 Checking your face…</div>}
 
-      {step === 'found' && check && (
+      {/* 🔄 Another shift now (Prem, 2 Nov): ask the office; after its OK he scans again and the IN goes through. */}
+      {step === 'found' && check && check.swap && (
+        <div className="qr-card">
+          <div className="qr-name">{check.guard.name}</div>
+          <div className="qr-sub">{check.swap.why}</div>
+          {check.swap.asked
+            ? <div className="qr-lock">⏳ Asked the office for Shift {check.swap.to}. When they say OK, scan again.</div>
+            : <button className="qr-big qr-in" onClick={async () => {
+                setMsg('');
+                try { await api.qrSwapAsk({ k: qrKey, ticket: check.swap.ticket }); setCheck({ ...check, swap: { ...check.swap, asked: true } }); } catch (err) { setMsg(err.message); }
+              }}>🔄 Ask office: Shift {check.swap.to} today<small>{check.swap.from ? 'Instead of Shift ' + check.swap.from : 'Extra duty'}</small></button>}
+          <button className="qr-link" onClick={() => { setStep('start'); setCheck(null); }}>Back</button>
+        </div>
+      )}
+
+      {step === 'found' && check && !check.swap && (
         <div className="qr-card">
           {check.registering && <div className="qr-sub">🆕 Registering your face (first time)</div>}
           {check.waitOnly && <div className="qr-sub">⏳ Waiting for your reliever (no photo needed to check)</div>}

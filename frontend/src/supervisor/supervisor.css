@@ -610,6 +610,8 @@ a.setup-flow-title{text-decoration:none;}
 .gn-info{display:flex;flex-direction:column;gap:2px;font-size:13px;}
 .gn-info b{font-size:14px;}
 .gn-rel{background:#FAF5FF;}
+.gn-swap{background:#FFFBEB;border-color:#FCD34D;}
+.gn-ok{background:#16A34A !important;color:#fff !important;border-color:#16A34A !important;}
 .gn-allow{background:#DC2626 !important;color:#fff !important;border-color:#DC2626 !important;align-self:flex-start;}
 
 /* Live board: the duty day with a picker (30 Oct) */

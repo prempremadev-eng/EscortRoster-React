@@ -137,6 +137,8 @@ export const api = {
   qrChallenge: k => apiCall('GET', '/qrChallenge?k=' + encodeURIComponent(k)),
   qrCheck: body => apiCall('POST', '/qrCheck', body),
   qrPunch: body => apiCall('POST', '/qrPunch', body),
+  qrSwapAsk: body => apiCall('POST', '/qrSwapAsk', body),
+  qrSwapDecide: (branch, id, ok) => apiCall('POST', '/qrSwapDecide', { branch, id, ok }),
   qrReliever: body => apiCall('POST', '/qrReliever', body),
   qrRegCheck: body => apiCall('POST', '/qrRegCheck', body),
   setupExport: branch => apiCall('GET', '/setupExport' + (branch ? '?branch=' + encodeURIComponent(branch) : '')),
