@@ -10,7 +10,7 @@ async function authHeaders() {
   try {
     const t = await window.catalyst.auth.generateAuthToken();
     const token = typeof t === 'string' ? t : t && t.access_token;
-    return token ? { Authorization: 'Zoho-oauthtoken ' + token } : {};
+    return token ? { Authorization: token } : {}; // the raw token, no prefix (Catalyst Web SDK, Slate → function)
   } catch {
     return {}; // a guard's page: no login, no token
   }
