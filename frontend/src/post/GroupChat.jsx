@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from './icons.jsx';
 import { compressImage, videoSeconds, MAX_VIDEO_SECONDS, MAX_VIDEO_MB } from './media.js';
+import VideoRecorder from './VideoRecorder.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from './VoiceNote.jsx';
 import { useSwipeReply, jumpTo } from './swipe.jsx';
 
@@ -35,7 +36,7 @@ export default function GroupChat({ api, onBack, fill }) {
   const [replyTo, setReplyTo] = useState(null);
   const [busy, setBusy] = useState(false);
   const endRef = useRef(null);
-  const photoInput = useRef(null);
+  const [camera, setCamera] = useState(false); // 📷 Photo / Video like the post chat (Prem, 2 Nov)
   const galleryInput = useRef(null);
 
   const load = useCallback(async () => {
@@ -78,11 +79,6 @@ export default function GroupChat({ api, onBack, fill }) {
     if (!body) return;
     run(async () => { await api.send(body, replyTo ? replyTo.ROWID : null); setText(''); });
   }
-  async function onPhoto(e) {
-    const file = e.target.files[0];
-    e.target.value = '';
-    if (file) upload(await compressImage(file), 'photo', 'camera', 0);
-  }
   async function onGallery(e) {
     const file = e.target.files[0];
     e.target.value = '';
@@ -93,6 +89,15 @@ export default function GroupChat({ api, onBack, fill }) {
     if (secs > MAX_VIDEO_SECONDS + 1) return setError('Video must be ' + MAX_VIDEO_SECONDS + ' seconds or less.');
     if (file.size > MAX_VIDEO_MB * 1048576) return setError('Video is too big (max ' + MAX_VIDEO_MB + ' MB).');
     upload(file, 'video', 'gallery', Math.round(secs));
+  }
+
+  if (camera) {
+    return (
+      <div className="pd">
+        <VideoRecorder onClose={() => setCamera(false)} onSend={(blob, secs) => { setCamera(false); upload(blob, 'video', 'camera', secs); }}
+          onPhoto={async blob => { setCamera(false); upload(await compressImage(blob), 'photo', 'camera', 0); }} />
+      </div>
+    );
   }
 
   let lastDate = '';
@@ -141,12 +146,11 @@ export default function GroupChat({ api, onBack, fill }) {
         <div className="pd-input" hidden={rec.recording}>
           <input id="grp-msg" value={text} onChange={e => setText(e.target.value)} placeholder={replyTo ? 'Write a reply' : 'Message the team'} maxLength={255} autoComplete="off" />
           <button type="button" className="pd-in-btn" onClick={() => galleryInput.current.click()} disabled={busy} aria-label="Attach photo or video">{Icon.clip}</button>
-          <button type="button" className="pd-in-btn" onClick={() => photoInput.current.click()} disabled={busy} aria-label="Take a photo">{Icon.camera}</button>
+          <button type="button" className="pd-in-btn" onClick={() => setCamera(true)} disabled={busy} aria-label="Camera: photo or video">{Icon.camera}</button>
         </div>
         {text.trim()
           ? <button className="pd-send" type="submit" disabled={busy} aria-label="Send">{Icon.send}</button>
           : !rec.locked && <button type="button" className={'pd-mic' + (rec.recording ? ' pd-mic-on' : '')} {...rec.micProps} disabled={busy} aria-label="Touch or hold to record a voice note">{Icon.mic}</button>}
-        <input ref={photoInput} type="file" accept="image/*" capture="environment" className="pd-file" onChange={onPhoto} />
         <input ref={galleryInput} type="file" accept="image/*,video/*" className="pd-file" onChange={onGallery} />
       </form>
     </div>
