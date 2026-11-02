@@ -17,7 +17,7 @@ module.exports = function setupMoveRoutes(app, h) {
   const COLS = {
     States: ['ROWID', 'state_name', 'country', 'is_active'],
     Cities: ['ROWID', 'city_name', 'state_id', 'is_active'],
-    Branches: ['ROWID', 'branch_code', 'branch_name', 'company', 'country', 'state', 'city', 'city_id', 'area', 'address', 'supervisor_phone', 'shift_times', 'lat', 'lng', 'radius_m', 'is_active'],
+    Branches: ['ROWID', 'branch_code', 'branch_name', 'company', 'country', 'state', 'city', 'city_id', 'area', 'address', 'supervisor_phone', 'shift_times', 'lat', 'lng', 'radius_m', 'auto_schedule', 'is_active'],
     Shifts: ['ROWID', 'shift_code', 'start_time', 'end_time'],
     Agencies: ['ROWID', 'agency_name', 'contact_name', 'contact_phone', 'contact_email', 'address', 'license_no', 'license_till', 'branch_ids', 'incharge_ids', 'is_active'],
     Guards: ['ROWID', 'id_number', 'card_number', 'guard_name', 'agency', 'agency_id', 'branch_id', 'area', 'phone', 'tags', 'gender', 'designation', 'date_of_joining', 'date_of_birth', 'emergency_contact', 'created_by', 'is_active'],

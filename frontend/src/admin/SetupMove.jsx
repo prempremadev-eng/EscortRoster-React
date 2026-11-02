@@ -11,7 +11,8 @@ export default function SetupMove() {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState('');
   const [error, setError] = useState('');
-  const here = /\.development\./.test(window.location.hostname) ? 'Development' : 'Production';
+  // On Slate the page's address says nothing; the function's address does (….development.catalystserverless…).
+  const here = /\.development\./.test(window.location.hostname + ' ' + (import.meta.env.VITE_API_BASE || '')) ? 'Development' : 'Production';
   // One branch or all (Prem, 30 Oct: Cumbum goes live first).
   const [branches, setBranches] = useState([]);
   const [branch, setBranch] = useState('');
