@@ -235,11 +235,11 @@ export default function QrAttend({ qrKey }) {
           <div className="qr-name">{check.guard.name}</div>
           <div className="qr-sub">{check.swap.why}</div>
           {check.swap.asked
-            ? <div className="qr-lock">⏳ Asked the office for Shift {check.swap.to}. When they say OK, scan again.</div>
+            ? <div className="qr-lock">⏳ Shift {check.swap.to}-க்கு அலுவலகத்திடம் கேட்கப்பட்டது. அனுமதி வந்ததும் மீண்டும் ஸ்கேன் செய்யவும்.</div>
             : <button className="qr-big qr-in" onClick={async () => {
                 setMsg('');
                 try { await api.qrSwapAsk({ k: qrKey, ticket: check.swap.ticket }); setCheck({ ...check, swap: { ...check.swap, asked: true } }); } catch (err) { setMsg(err.message); }
-              }}>🔄 Ask office: Shift {check.swap.to} today<small>{check.swap.from ? 'Instead of Shift ' + check.swap.from : 'Extra duty'}</small></button>}
+              }}>🔄 அலுவலகத்திடம் கேளுங்கள்: இன்று Shift {check.swap.to}<small>{check.swap.from ? 'Shift ' + check.swap.from + '-க்கு பதிலாக' : 'கூடுதல் பணி'}</small></button>}
           <button className="qr-link" onClick={() => { setStep('start'); setCheck(null); }}>Back</button>
         </div>
       )}

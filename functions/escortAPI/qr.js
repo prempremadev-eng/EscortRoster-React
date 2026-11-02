@@ -202,6 +202,12 @@ module.exports = function qrRoutes(app, h) {
   const hm = t => +String(t).slice(0, 2) * 60 + +String(t).slice(3, 5);
   const clock = m => String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart(2, '0') + ':' + String(((m % 60) + 60) % 60).padStart(2, '0');
   const spanOf = sh => { const st = hm(sh.start); let en = hm(sh.end); if (en <= st) en += 1440; return { st, en }; };
+  // Guard messages in Tamil (Prem, 2 Nov): 22:00 → "இரவு 10 மணி", 05:20 → "காலை 5:20 மணி".
+  function taWhen(m) {
+    const t = ((m % 1440) + 1440) % 1440, h = Math.floor(t / 60), mm = t % 60;
+    const part = h >= 4 && h < 12 ? 'காலை' : h >= 12 && h < 16 ? 'மதியம்' : h >= 16 && h < 19 ? 'மாலை' : 'இரவு';
+    return part + ' ' + ((h % 12) || 12) + (mm ? ':' + String(mm).padStart(2, '0') : '') + ' மணி';
+  }
   const minsInto = day => Math.floor((Date.now() + 330 * 60000 - Date.parse(day + 'T00:00:00Z')) / 60000);
   // His shift on a day: the published day sheet first (a swap the office OK'd), else the month roster.
   async function dutyCode(zcql, guardId, day) {
@@ -214,17 +220,17 @@ module.exports = function qrRoutes(app, h) {
     const sh = shifts.find(x => x.code === code && x.start && x.end);
     if (sh) { const { st, en } = spanOf(sh); if (now >= st - EARLY_MIN && now < en) return null; }
     const to = shifts.find(x => x.code !== code && 'ABCG'.includes(x.code) && x.start && now >= hm(x.start) - EARLY_MIN && now <= hm(x.start) + SWAP_LATE_MIN);
-    if (to) return { swapTo: to.code, why: '🔄 Your shift today is ' + (sh ? 'Shift ' + code + ' (' + sh.start + ')' : 'not a duty') + '. Shift ' + to.code + ' needs the office OK.' };
-    if (!sh) return { why: '📅 No duty for you today in the roster. Ask the office.' };
+    if (to) return { swapTo: to.code, why: (sh ? 'இன்று நீங்கள் ' + taWhen(hm(sh.start)) + 'க்கு Shift ' + code + '-ல் பணிபுரிய வேண்டும்.' : 'இன்று உங்களுக்கு பணி இல்லை.') + ' Shift ' + to.code + ' வேண்டுமென்றால் அலுவலகத்தின் அனுமதி பெற வேண்டும்.' };
+    if (!sh) return { why: '📅 இன்று ரோஸ்டரில் உங்களுக்கு பணி இல்லை. அலுவலகத்தைக் கேளுங்கள்.' };
     const { st, en } = spanOf(sh);
-    return { why: now < st - EARLY_MIN ? '⏰ Shift ' + code + ' starts ' + sh.start + '. IN from ' + clock(st - EARLY_MIN) + '.' : '⏰ Shift ' + code + ' ended at ' + clock(en) + '.' };
+    return { why: now < st - EARLY_MIN ? '⏰ Shift ' + code + ' ' + taWhen(st) + 'க்கு தொடங்கும். ' + taWhen(st - EARLY_MIN) + ' முதல் IN செய்யலாம்.' : '⏰ Shift ' + code + ' ' + taWhen(en) + 'க்கு முடிந்தது.' };
   }
   // '' when an OUT fits now (the shift is over); else why not.
   function outCheck(shifts, code, day) {
     const sh = shifts.find(x => x.code === code && x.start && x.end);
     if (!sh) return '';
     const { en } = spanOf(sh);
-    return minsInto(day) < en ? '⏰ Shift ' + code + ' ends ' + clock(en) + '. OUT after that (or ask the office).' : '';
+    return minsInto(day) < en ? '⏰ Shift ' + code + ' ' + taWhen(en) + 'க்கு முடியும். அதன் பிறகு OUT செய்யவும் (அல்லது அலுவலகத்தைக் கேளுங்கள்).' : '';
   }
   // 🔄 Swap asks live in the Catalyst cache for a few hours (one list per branch): { id, g, name, from, to, day, at, status }.
   const swapKey = branchId => 'swap_' + branchId;
@@ -395,7 +401,7 @@ module.exports = function qrRoutes(app, h) {
         if (who.p) {
           const { p, row } = who;
           const late = inCheck(shifts, row.shift_code, row.duty_date);
-          if (late) throw new Error(late.swapTo ? '⏰ Your reliever duty is Shift ' + row.shift_code + '. Come at that time.' : late.why);
+          if (late) throw new Error(late.swapTo ? '⏰ உங்கள் reliever பணி Shift ' + row.shift_code + '. அந்த நேரத்தில் வாருங்கள்.' : late.why);
           const key = keyFor('rel-' + p.ROWID);
           await catalystApp.stratus().bucket(BUCKET).putObject(key, photo, { contentType: 'image/jpeg' });
           const ticket = await makeTicket(catalystApp, { rs: String(row.ROWID), rel: String(p.ROWID), b: String(b.ROWID), a: 'RIN', s: key, d: distance, reg: true });
@@ -404,7 +410,7 @@ module.exports = function qrRoutes(app, h) {
         const g = who.g;
         const code = await dutyCode(zcql, g.ROWID, day);
         const late = inCheck(shifts, code, day);
-        if (late) throw new Error(late.why + (late.swapTo ? ' Register at your own shift time.' : ''));
+        if (late) throw new Error(late.why + (late.swapTo ? ' உங்கள் shift நேரத்தில் பதிவு செய்யவும்.' : ''));
         const key = keyFor(g.ROWID);
         await catalystApp.stratus().bucket(BUCKET).putObject(key, photo, { contentType: 'image/jpeg' });
         const ticket = await makeTicket(catalystApp, { g: String(g.ROWID), b: String(b.ROWID), a: 'IN', s: key, la: lat, ln: lng, d: distance, m: null, dd: '', reg: true });
@@ -434,7 +440,7 @@ module.exports = function qrRoutes(app, h) {
           if (act === 'IN') await tellOffice(catalystApp, b.ROWID, '⚠️ Reliever without duty at the gate', found.guard_name + ' scanned IN but no guard added him today.');
           throw new Error(act === 'IN' ? '🔁 ' + found.guard_name + ': no duty allotted today. Ask the guard on duty to add you.' : 'You are not IN. Press ✅ IN.');
         }
-        if (act === 'IN') { const late = inCheck(shifts, row.shift_code, row.duty_date); if (late) throw new Error(late.swapTo ? '⏰ Your reliever duty is Shift ' + row.shift_code + '. Come at that time.' : late.why); }
+        if (act === 'IN') { const late = inCheck(shifts, row.shift_code, row.duty_date); if (late) throw new Error(late.swapTo ? '⏰ உங்கள் reliever பணி Shift ' + row.shift_code + '. அந்த நேரத்தில் வாருங்கள்.' : late.why); }
         else { const early = outCheck(shifts, row.shift_code, row.duty_date); if (early) throw new Error(early); }
         // A reliever waits for the next shift too (Prem, 2 Nov), like a regular guard.
         const hand = act === 'OUT' ? await handover(zcql, b.ROWID, found.ROWID, { duty_date: row.duty_date }, row.shift_code) : null;
@@ -456,8 +462,8 @@ module.exports = function qrRoutes(app, h) {
         if (late) {
           // 🔄 Another shift now: ask the office (once); after its OK the day sheet has him there and this passes.
           const mine = (await swapsOf(catalystApp, b.ROWID)).filter(x => x.g === String(found.ROWID) && x.day === day && x.to === late.swapTo).pop();
-          if (mine && mine.status === 'pending') throw new Error('⏳ Swap to Shift ' + mine.to + ' asked at ' + mine.at + '. Wait for the office OK, then scan again.');
-          if (mine && mine.status === 'no') throw new Error('❌ The office said no to Shift ' + mine.to + '. Your shift today: ' + (code || 'none') + '.');
+          if (mine && mine.status === 'pending') throw new Error('⏳ Shift ' + mine.to + ' மாற்றம் ' + mine.at + '-க்கு கேட்கப்பட்டது. அலுவலக அனுமதி வந்ததும் மீண்டும் ஸ்கேன் செய்யவும்.');
+          if (mine && mine.status === 'no') throw new Error('❌ அலுவலகம் Shift ' + mine.to + ' மாற்றத்தை ஏற்கவில்லை. இன்று உங்கள் shift: ' + (code || 'இல்லை') + '.');
           const swapTicket = await makeTicket(catalystApp, { g: String(found.ROWID), b: String(b.ROWID), a: 'SWAP', from: code || '', to: late.swapTo, day });
           return ok(res, { matched: true, swap: { from: code || '', to: late.swapTo, why: late.why, ticket: swapTicket }, guard: { name: found.guard_name, id: found.id_number }, distance });
         }
@@ -791,8 +797,13 @@ module.exports = function qrRoutes(app, h) {
       await saveSwaps(catalystApp, branch, list);
       // Both guards hear it (Prem, 2 Nov): the one who asked, and the one whose shift moved because of it.
       const tell = async (gid, title, body) => { try { await sendPushToGuard(catalystApp, gid, { title, body, url: '/' }); } catch (err) { console.error('Swap push failed:', err.message || err); } };
-      await tell(x.g, req.body.ok ? '✅ Swap OK: Shift ' + x.to : '❌ Swap not OK', req.body.ok ? 'Today you work Shift ' + x.to + '. Scan the gate QR again for IN.' : 'Today your shift stays ' + (x.from ? 'Shift ' + x.from : 'as in the roster') + '.');
-      if (req.body.ok && req.swapped) await tell(req.swapped.gid, '🔄 Your shift today: Shift ' + req.swapped.to, x.name + ' took your Shift ' + x.to + ' (office OK). You work Shift ' + req.swapped.to + ' today.');
+      const starts = await getShifts(zcql, branch);
+      const at = code => { const sh = starts.find(z => z.code === code); return sh && sh.start ? taWhen(hm(sh.start)) + 'க்கு ' : ''; };
+      await tell(x.g, req.body.ok ? '✅ Shift மாற்றம் OK: Shift ' + x.to : '❌ Shift மாற்றம் இல்லை',
+        req.body.ok ? 'இன்று நீங்கள் ' + at(x.to) + 'Shift ' + x.to + '-ல் பணிபுரிய வேண்டும். IN செய்ய gate QR-ஐ மீண்டும் ஸ்கேன் செய்யவும்.'
+          : 'இன்று உங்கள் shift: ' + (x.from ? 'Shift ' + x.from : 'ரோஸ்டர்படி') + ' (மாற்றம் இல்லை).');
+      if (req.body.ok && req.swapped) await tell(req.swapped.gid, '🔄 இன்று உங்கள் shift: Shift ' + req.swapped.to,
+        x.name + ' உங்கள் Shift ' + x.to + '-ஐ எடுத்துக்கொண்டார் (அலுவலக அனுமதி). இன்று நீங்கள் ' + at(req.swapped.to) + 'Shift ' + req.swapped.to + '-ல் பணிபுரிய வேண்டும்.');
       ok(res, { name: x.name, to: x.to, status: x.status });
     } catch (err) {
       fail(res, err);
