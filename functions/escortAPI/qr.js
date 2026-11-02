@@ -455,8 +455,10 @@ module.exports = function qrRoutes(app, h) {
       if (purpose === 'OUT' && !open) throw new Error('You are not IN. Press ✅ IN.');
       const action = open ? 'OUT' : 'IN';
       const code = open ? '' : await dutyCode(zcql, found.ROWID, day);
-      if (open) { const early = outCheck(shifts, await shiftNow(zcql, b.ROWID, found.ROWID, open), open.duty_date); if (early) throw new Error(early); }
-      else {
+      // Too early for OUT: the screen still opens (Prem, 2 Nov night: the C guard adds the A reliever before 06:00),
+      // only without the OUT button.
+      const early = open ? outCheck(shifts, await shiftNow(zcql, b.ROWID, found.ROWID, open), open.duty_date) : '';
+      if (!open) {
         const late = inCheck(shifts, code, day);
         if (late && !late.swapTo) throw new Error(late.why);
         if (late) {
@@ -495,6 +497,7 @@ module.exports = function qrRoutes(app, h) {
       ok(res, {
         matched: true, ticket, action, distance, relief, handover: hand,
         pass: hand && !hand.ok && hand.reliever ? await waitPass(catalystApp, found.ROWID, b.ROWID) : '',
+        early,
         guard: { name: found.guard_name, id: found.id_number },
         shift: sh,
         since: open ? String(open.CREATEDTIME).slice(11, 16) : ''
@@ -999,6 +1002,8 @@ module.exports = function qrRoutes(app, h) {
       const open = await openIn(zcql, guard.ROWID);
       if ((t.a === 'IN') !== !open) throw new Error('Already ' + (open ? 'IN' : 'OUT') + '. Scan again.');
       if (t.a === 'OUT') {
+        const early = outCheck(await getShifts(zcql, b.ROWID), await shiftNow(zcql, b.ROWID, guard.ROWID, open), open.duty_date);
+        if (early) throw new Error(early);
         const hand = await handover(zcql, b.ROWID, guard.ROWID, open);
         if (!hand.ok) {
           await tellOffice(catalystApp, b.ROWID, '🔒 ' + guard.guard_name + ' wants to go OUT', 'Shift ' + hand.code + (hand.reliever ? ': reliever ' + hand.reliever.name + ' not IN' : ': nobody IN, no reliever added') + '. Allow OUT on the Schedule page if needed.');

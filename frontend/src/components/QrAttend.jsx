@@ -277,7 +277,8 @@ export default function QrAttend({ qrKey }) {
               <div className="qr-hand-row">🔁 Reliever: {check.handover.reliever ? <>{check.handover.reliever.name} {check.handover.reliever.phone} <b>{check.handover.reliever.in ? '✅ IN ' + check.handover.reliever.in : '⏳ not IN yet'}</b></> : <b>not added</b>}</div>
             </div>
           )}
-          {check.handover && !check.handover.ok
+          {check.early ? <div className="qr-lock">{check.early}</div>
+            : check.handover && !check.handover.ok
             ? <div className="qr-lock">🔒 OUT locked: wait for the Shift {check.handover.code} guard{check.handover.reliever ? ' / ' + check.handover.reliever.name : ''}</div>
             : <button className={'qr-big ' + (check.action === 'IN' ? 'qr-in' : 'qr-out')} onClick={punch}>{check.action === 'IN' ? (check.registering ? '✅ Register & IN' : '✅ IN') : '🏁 OUT'}</button>}
           {check.addedBy && <div className="qr-sub">Added by {check.addedBy}</div>}
