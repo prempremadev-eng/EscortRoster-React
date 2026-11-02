@@ -1698,7 +1698,7 @@ app.post('/guardPhoto', express.raw({ type: () => true, limit: '6mb' }), async (
     if (!ext) throw new Error('Photo must be JPG, PNG or WEBP.');
     if (!Buffer.isBuffer(req.body) || !req.body.length) throw new Error('The photo is empty.');
     if (req.body.length > GUARD_PHOTO_MAX) throw new Error('Photo is too big (max 5 MB).');
-    const bucket = catalystApp.stratus().bucket('escortcardaccess-media');
+    const bucket = catalystApp.stratus().bucket((process.env.MEDIA_BUCKET || 'escortcardaccess-media'));
     const key = 'guards/' + guard.ROWID + '-' + crypto.randomBytes(6).toString('hex') + '.' + ext;
     await bucket.putObject(key, req.body, { contentType: type });
     const old = (await catalystApp.zcql().executeZCQLQuery(`SELECT photo_key FROM Guards WHERE ROWID = ${guard.ROWID}`))[0].Guards.photo_key;
@@ -1754,7 +1754,7 @@ app.post('/guardAadhaarFile', express.raw({ type: () => true, limit: '6mb' }), a
     const ext = AADHAAR_TYPES[type];
     if (!ext) throw new Error('Aadhaar file: JPG, PNG or PDF.');
     if (!Buffer.isBuffer(req.body) || !req.body.length || req.body.length > GUARD_PHOTO_MAX) throw new Error('Aadhaar file: up to 5 MB.');
-    const bucket = catalystApp.stratus().bucket('escortcardaccess-media');
+    const bucket = catalystApp.stratus().bucket((process.env.MEDIA_BUCKET || 'escortcardaccess-media'));
     const key = 'aadhaar/' + guard.ROWID + '-' + crypto.randomBytes(8).toString('hex') + '.' + ext;
     await bucket.putObject(key, req.body, { contentType: type });
     const old = (await catalystApp.zcql().executeZCQLQuery(`SELECT aadhaar_file_key FROM Guards WHERE ROWID = ${guard.ROWID}`))[0].Guards.aadhaar_file_key;
@@ -1773,7 +1773,7 @@ app.get('/guardAadhaarUrl', async (req, res) => {
     if (!rows.length) throw new Error('Guard not found');
     const key = auth.requireRow(req, rows[0].Guards, 'guard').aadhaar_file_key;
     if (!key) return res.status(200).json({ status: 'success', data: { url: null } });
-    const r = await catalystApp.stratus().bucket('escortcardaccess-media').generatePreSignedUrl(key, 'GET', { expiryIn: '600' });
+    const r = await catalystApp.stratus().bucket((process.env.MEDIA_BUCKET || 'escortcardaccess-media')).generatePreSignedUrl(key, 'GET', { expiryIn: '600' });
     res.status(200).json({ status: 'success', data: { url: r.signature } });
   } catch (err) {
     fail(res, err);
@@ -1789,7 +1789,7 @@ app.post('/guardPhotosData', async (req, res) => {
     const ids = (Array.isArray(req.body.ids) ? req.body.ids : []).slice(0, 5).map(requireRowId);
     if (!ids.length) return res.status(200).json({ status: 'success', data: [] });
     const rows = (await catalystApp.zcql().executeZCQLQuery(`SELECT ROWID, photo_key, branch_id, agency_id FROM Guards WHERE ROWID IN (${ids.join(', ')})`)).map(r => r.Guards);
-    const bucket = catalystApp.stratus().bucket('escortcardaccess-media');
+    const bucket = catalystApp.stratus().bucket((process.env.MEDIA_BUCKET || 'escortcardaccess-media'));
     const out = [];
     for (const g of rows) {
       if (!g.photo_key) continue;
@@ -1867,7 +1867,7 @@ app.get('/guardPhotoUrl', async (req, res) => {
     if (!rows.length) throw new Error('Guard not found');
     const key = auth.requireRow(req, rows[0].Guards, 'guard').photo_key;
     if (!key) return res.status(200).json({ status: 'success', data: { url: null } });
-    const r = await catalystApp.stratus().bucket('escortcardaccess-media').generatePreSignedUrl(key, 'GET', { expiryIn: '3600' });
+    const r = await catalystApp.stratus().bucket((process.env.MEDIA_BUCKET || 'escortcardaccess-media')).generatePreSignedUrl(key, 'GET', { expiryIn: '3600' });
     res.status(200).json({ status: 'success', data: { url: r.signature } });
   } catch (err) {
     fail(res, err);
@@ -1882,7 +1882,7 @@ app.post('/guardPhotoUrls', async (req, res) => {
     const ids = (Array.isArray(req.body.ids) ? req.body.ids : []).slice(0, 50).map(requireRowId);
     if (!ids.length) return res.status(200).json({ status: 'success', data: {} });
     const rows = (await catalystApp.zcql().executeZCQLQuery(`SELECT ROWID, photo_key, branch_id, agency_id FROM Guards WHERE ROWID IN (${ids.join(', ')})`)).map(r => r.Guards);
-    const bucket = catalystApp.stratus().bucket('escortcardaccess-media');
+    const bucket = catalystApp.stratus().bucket((process.env.MEDIA_BUCKET || 'escortcardaccess-media'));
     const out = {};
     await Promise.all(rows.filter(g => g.photo_key).map(async g => {
       auth.requireRow(req, g, 'guard');

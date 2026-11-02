@@ -14,7 +14,7 @@ const express = require('express');
 const TYPES = ['employee', 'visitor', 'vendor'];
 // The vehicle photo (one per entry) goes to the private media bucket, like the post timeline photos;
 // the row keeps only its key (photo_key). Links are made when someone taps the photo (one hour).
-const MEDIA_BUCKET = 'escortcardaccess-media';
+const MEDIA_BUCKET = (process.env.MEDIA_BUCKET || 'escortcardaccess-media');
 const PHOTO_TYPES = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
 const PHOTO_MAX = 8 * 1024 * 1024;
 // Number plate scan: Plate Recognizer (same service as the old app), Indian plates. The token is kept in

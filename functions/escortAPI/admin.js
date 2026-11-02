@@ -5,7 +5,8 @@
 // from lists so "Chennai" is never typed two ways) and the security agencies. One post belongs to one agency; a supervisor sees only their
 // agency's posts and guards in their branch.
 
-const APP_URL = 'https://escortcardaccess-60086856508.development.catalystserverless.in/app/index.html';
+// The app's address for the welcome email; each project / environment sets APP_URL (Slate, 30 Oct).
+const APP_URL = process.env.APP_URL || 'https://escortcardaccess-60086856508.development.catalystserverless.in/app/index.html';
 const CODE_RE = /^[A-Z0-9-]{2,20}$/;
 // The first Super Admin (added at setup, created_by = 'setup') is the owner: nobody can change
 // or switch off that login, so the app can never lose its owner.

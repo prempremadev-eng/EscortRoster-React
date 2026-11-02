@@ -18,7 +18,7 @@ const GENERAL = 'G';
 
 // Photos, videos and voice notes live in Stratus (object storage), one folder per post and day.
 // The bucket is private: the timeline hands out links that work for one hour.
-const MEDIA_BUCKET = 'escortcardaccess-media';
+const MEDIA_BUCKET = (process.env.MEDIA_BUCKET || 'escortcardaccess-media');
 const MEDIA_LINK_SECONDS = 3600;
 const MEDIA = {
   photo: { max: 8 * 1024 * 1024, types: { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' } },

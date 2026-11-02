@@ -10,11 +10,12 @@ export const atLeast = (user, role) => !!user && (RANK[user.role] || 0) >= RANK[
 // Escort sheet: everyone may look; a supervisor of an agency without the Escort team only looks (server sends escortEdit).
 export const canEditEscort = user => !user || user.escortEdit !== false;
 
-const APP_PAGE = '/app/index.html';
+// This page's own address (/app/index.html on the old hosting, / on Slate).
+const appPage = () => window.location.origin + window.location.pathname;
 export function signOut() {
   try {
-    window.catalyst.auth.signOut(APP_PAGE);
+    window.catalyst.auth.signOut(appPage());
   } catch {
-    window.location.href = APP_PAGE;
+    window.location.href = appPage();
   }
 }

@@ -4,3 +4,5 @@ catalyst-debug.log
 *.log
 .DS_Store
 client/.catalyst/
+frontend/dist/
+frontend/node_modules

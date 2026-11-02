@@ -28,7 +28,7 @@ function GateQr({ branchId, branchName }) {
   const [qr, setQr] = useState('');
   const [msg, setMsg] = useState('');
   const [busy, setBusy] = useState(false);
-  const link = k => window.location.origin + '/app/index.html#qr/' + k;
+  const link = k => window.location.origin + window.location.pathname + '#qr/' + k;
   const draw = async k => { const QRCode = (await import('qrcode')).default; setQr(k ? await QRCode.toDataURL(link(k), { width: 320, margin: 1 }) : ''); };
   useEffect(() => { api.qrAdmin(branchId).then(r => { setG(r.data); draw(r.data.qr_key); }).catch(err => setMsg(err.message)); }, [branchId]);
   const here = () => {

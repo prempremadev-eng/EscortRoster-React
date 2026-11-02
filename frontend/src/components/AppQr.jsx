@@ -5,7 +5,7 @@ import QRCode from 'qrcode';
 // address, no secret: each person still signs in with their own email. On the Admin page and on Guard
 // links (shift incharges have no Admin page).
 export function useAppQr() {
-  const link = window.location.origin + '/app/index.html';
+  const link = window.location.origin + window.location.pathname;
   const [qr, setQr] = useState('');
   const [copied, setCopied] = useState(false);
   const toggle = async () => setQr(qr ? '' : await QRCode.toDataURL(link, { width: 240, margin: 1 }));

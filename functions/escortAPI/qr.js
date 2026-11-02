@@ -10,7 +10,7 @@ const fs = require('fs');
 const os = require('os');
 const crypto = require('crypto');
 
-const BUCKET = 'escortcardaccess-media';
+const BUCKET = (process.env.MEDIA_BUCKET || 'escortcardaccess-media');
 const KEY_RE = /^[a-f0-9]{24}$/;
 const MAX_ACCURACY_M = 100; // GPS worse than this: ask to step outside and try again
 const TICKET_MS = 3 * 60000; // the photo check is valid for 3 minutes before IN / OUT is pressed

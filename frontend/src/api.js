@@ -1,8 +1,23 @@
 // Every call to the escortAPI function goes through here.
-const API_BASE = '/server/escortAPI';
+// Slate (Prem, 30 Oct: new NightOwl project): the app is on *.onslate.in and the function on
+// *.catalystserverless.in, so the base is the function's full address (VITE_API_BASE, set at build time)
+// and a signed-in office call carries its login token, because cookies do not cross domains. Old hosting
+// under /app/: same domain, the relative path and the cookie, as before.
+const API_BASE = import.meta.env.VITE_API_BASE || '/server/escortAPI';
+const CROSS = /^https?:/.test(API_BASE);
+async function authHeaders() {
+  if (!CROSS || !window.catalyst || !window.catalyst.auth) return {};
+  try {
+    const t = await window.catalyst.auth.generateAuthToken();
+    const token = typeof t === 'string' ? t : t && t.access_token;
+    return token ? { Authorization: 'Zoho-oauthtoken ' + token } : {};
+  } catch {
+    return {}; // a guard's page: no login, no token
+  }
+}
 
 async function apiCall(method, endpoint, body) {
-  const options = { method, headers: { 'Content-Type': 'application/json' } };
+  const options = { method, headers: { 'Content-Type': 'application/json', ...(await authHeaders()) } };
   if (body) options.body = JSON.stringify(body);
   const res = await fetch(API_BASE + endpoint, options);
   let json;
@@ -25,7 +40,7 @@ const q = encodeURIComponent;
 // Photo / video / voice: the file itself is the request body, the details go in the address.
 async function uploadMedia(t, blob, { kind, source, duration, reply_to, post }) {
   const qs = 't=' + q(t) + '&kind=' + q(kind) + '&source=' + q(source) + '&duration=' + q(duration || 0) + (reply_to ? '&reply_to=' + q(reply_to) : '') + (post ? '&post=' + q(post) : '');
-  const res = await fetch(API_BASE + '/uploadMedia?' + qs, { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
+  const res = await fetch(API_BASE + '/uploadMedia?' + qs, { method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
   let json;
   try {
     json = await res.json();
@@ -39,7 +54,7 @@ async function uploadMedia(t, blob, { kind, source, duration, reply_to, post }) 
 // Office photo / video / voice to a post (signed-in; same rules as the guard's uploadMedia).
 async function supMedia(post, blob, { kind, source, duration, reply_to }) {
   const qs = 'post=' + q(post) + '&kind=' + q(kind) + '&source=' + q(source) + '&duration=' + q(duration || 0) + (reply_to ? '&reply_to=' + q(reply_to) : '');
-  const res = await fetch(API_BASE + '/supMedia?' + qs, { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
+  const res = await fetch(API_BASE + '/supMedia?' + qs, { method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
   let json;
   try {
     json = await res.json();
@@ -54,7 +69,7 @@ async function supMedia(post, blob, { kind, source, duration, reply_to }) {
 async function groupMediaTo(path, params, blob, { kind, source, duration, reply_to }) {
   const qs = Object.entries({ ...params, kind, source, duration: duration || 0, reply_to: reply_to || '' })
     .filter(([, v]) => v !== '' && v !== null && v !== undefined).map(([k, v]) => k + '=' + q(v)).join('&');
-  const res = await fetch(API_BASE + path + '?' + qs, { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
+  const res = await fetch(API_BASE + path + '?' + qs, { method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
   let json;
   try {
     json = await res.json();
@@ -67,7 +82,7 @@ async function groupMediaTo(path, params, blob, { kind, source, duration, reply_
 
 // Vehicle photo of one entry, or a photo to read the number plate from: the photo is the body.
 async function vehiclePhoto(path, blob) {
-  const res = await fetch(API_BASE + path, { method: 'POST', headers: { 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
+  const res = await fetch(API_BASE + path, { method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': blob.type || 'application/octet-stream' }, body: blob });
   let json;
   try {
     json = await res.json();
@@ -148,14 +163,14 @@ export const api = {
   guardPhotoUrls: ids => apiCall('POST', '/guardPhotoUrls', { ids }),
   guardAadhaarUrl: guard => apiCall('GET', '/guardAadhaarUrl?guard=' + q(guard)),
   guardAadhaarFile: async (guard, file) => {
-    const res = await fetch(API_BASE + '/guardAadhaarFile?guard=' + q(guard), { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
+    const res = await fetch(API_BASE + '/guardAadhaarFile?guard=' + q(guard), { method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': file.type || 'application/octet-stream' }, body: file });
     const json = await res.json().catch(() => ({}));
     if (!res.ok || json.status !== 'success') throw new Error(json.error || 'Aadhaar file upload failed (' + res.status + ')');
     return json;
   },
   guardPhotoUrl: guard => apiCall('GET', '/guardPhotoUrl?guard=' + q(guard)),
   guardPhoto: async (guard, file) => {
-    const res = await fetch(API_BASE + '/guardPhoto?guard=' + q(guard), { method: 'POST', headers: { 'Content-Type': file.type || 'application/octet-stream' }, body: file });
+    const res = await fetch(API_BASE + '/guardPhoto?guard=' + q(guard), { method: 'POST', headers: { ...(await authHeaders()), 'Content-Type': file.type || 'application/octet-stream' }, body: file });
     const json = await res.json().catch(() => ({}));
     if (!res.ok || json.status !== 'success') throw new Error(json.error || 'Photo upload failed (' + res.status + ')');
     return json;
