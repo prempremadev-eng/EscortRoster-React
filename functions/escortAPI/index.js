@@ -1162,7 +1162,9 @@ function forgetShiftTimes() { branchTimes = null; }
 async function getShifts(zcql, branchId) {
   if (!shiftCache) {
     const rows = await selectAll(zcql, 'Shifts', 'SELECT shift_code, start_time, end_time FROM Shifts ORDER BY shift_code ASC');
-    shiftCache = rows.map(r => ({ code: r.shift_code, start: r.start_time, end: r.end_time }));
+    const list = rows.map(r => ({ code: r.shift_code, start: r.start_time, end: r.end_time }));
+    if (!list.length) return list; // a new project before its shifts are added: not cached, so they show once added
+    shiftCache = list;
   }
   if (!branchId) return shiftCache;
   const own = (await branchShiftTimes(zcql))[String(branchId)];
