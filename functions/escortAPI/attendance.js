@@ -33,7 +33,7 @@ module.exports = function attendanceRoutes(app, h) {
         auth.branchList(zcql),
         selectAll(zcql, 'Guards', 'SELECT ROWID, guard_name, id_number, card_number, designation, agency, agency_id, branch_id, is_active, tags FROM Guards ORDER BY ROWID ASC'),
         selectAll(zcql, 'AccessLog', `SELECT ROWID, guard_id, direction, duty_date, source, allowed_by, CREATEDTIME FROM AccessLog WHERE duty_date >= '${from}' AND duty_date <= '${to}' ORDER BY CREATEDTIME ASC`),
-        selectAll(zcql, 'Schedule', `SELECT guard_id, sched_date, shift_code, post_id FROM Schedule WHERE sched_date >= '${from}' AND sched_date <= '${to}' AND published = true ORDER BY ROWID ASC`),
+        selectAll(zcql, 'Schedule', `SELECT guard_id, sched_date, shift_code, post_id, swap_note FROM Schedule WHERE sched_date >= '${from}' AND sched_date <= '${to}' AND published = true ORDER BY ROWID ASC`),
         selectAll(zcql, 'Posts', 'SELECT ROWID, post_name FROM Posts ORDER BY ROWID ASC')
       ]);
       const branchById = {};
@@ -76,6 +76,7 @@ module.exports = function attendanceRoutes(app, h) {
           status: firstIn ? 'Present' : 'Absent',
           approvalStatus: lastOut && lastOut.allowed_by ? 'Approved' : '',
           shift: x.duty ? x.duty.shift_code : '',
+          swap: x.duty && x.duty.swap_note ? x.duty.swap_note : '', // 🔄 a shift swap the office OK'd at the gate (2 Nov)
           post: x.duty ? g.agency + ' - ' + (postName[String(x.duty.post_id)] || '') : '',
           entry: firstIn ? niceTime(firstIn.CREATEDTIME) : '',
           exit: lastOut ? niceTime(lastOut.CREATEDTIME) : '',

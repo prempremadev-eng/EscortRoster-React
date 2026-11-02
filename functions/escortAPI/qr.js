@@ -775,11 +775,14 @@ module.exports = function qrRoutes(app, h) {
         const theirs = rows.find(r => r.shift_code === x.to && (!mine || String(r.post_id) === String(mine.post_id)));
         if (theirs && theirs.guard_id && String(theirs.guard_id) !== x.g && (await openIn(zcql, theirs.guard_id))) throw new Error('The Shift ' + x.to + ' guard is already IN.');
         const table = catalystApp.datastore().table('Schedule');
+        // Kept on the day sheet for the attendance (Prem, 2 Nov): "🔄 C → G · OK <name> 15:40".
+        const okBy = ' · OK ' + String(req.user.name || '').slice(0, 30) + ' ' + new Date(Date.now() + 330 * 60000).toISOString().slice(11, 16);
+        const note = (from, to) => ('🔄 ' + (from || 'off') + ' → ' + to + okBy).slice(0, 100);
         if (theirs) {
-          await table.updateRow({ ROWID: theirs.ROWID, guard_id: x.g, published: true });
-          if (mine) await table.updateRow({ ROWID: mine.ROWID, guard_id: theirs.guard_id || null, published: true });
-        } else if (mine) await table.updateRow({ ROWID: mine.ROWID, shift_code: x.to, published: true });
-        else if (posts.length) await table.insertRow({ branch_id: branch, sched_date: x.day, post_id: posts[0].ROWID, shift_code: x.to, guard_id: x.g, published: true });
+          await table.updateRow({ ROWID: theirs.ROWID, guard_id: x.g, published: true, swap_note: note(x.from, x.to) });
+          if (mine) await table.updateRow({ ROWID: mine.ROWID, guard_id: theirs.guard_id || null, published: true, swap_note: theirs.guard_id ? note(x.to, mine.shift_code) : null });
+        } else if (mine) await table.updateRow({ ROWID: mine.ROWID, shift_code: x.to, published: true, swap_note: note(x.from, x.to) });
+        else if (posts.length) await table.insertRow({ branch_id: branch, sched_date: x.day, post_id: posts[0].ROWID, shift_code: x.to, guard_id: x.g, published: true, swap_note: note(x.from, x.to) });
         else throw new Error('No post for this guard.');
       }
       x.status = req.body.ok ? 'ok' : 'no';
