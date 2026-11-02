@@ -238,7 +238,7 @@ export default function PostsPage() {
               <label>3 · Post name<input id="p-name" value={form.post_name} onChange={e => setForm(f => ({ ...f, post_name: e.target.value }))} placeholder="Gate 3" required /></label>
               {/* Type, section and row are not asked any more (Prem, 25 Oct: an admin does not know them). New posts
                   are POSTs; a post saved before keeps its section and row (the daily sheet order). */}
-              <div className="p-shifts">4 · Which shifts does this post need? · இந்த போஸ்ட்டுக்கு எந்த ஷிஃப்ட்களில் ஆள் வேண்டும்? (G தினமும் வேண்டுமென்றால் மட்டும் டிக் செய்யவும்; ஒரு நாள் மட்டும் என்றால் Schedule-ல் "G today")
+              <div className="p-shifts">4 · Which shifts does this post need? · எந்த ஷிஃப்ட்டில் ஆள் வேண்டும்? (ஒரு நாள் G மட்டும் → Schedule-ல் "G today")
                 {/* G box unticked by default (Prem, 25 Oct): tick it only when the post needs G every day (Kidos School);
                     G on some days only → the Schedule's "G today". */}
                 <div>{['A', 'B', 'C', 'G'].map(c => (
@@ -271,16 +271,16 @@ export default function PostsPage() {
                 lists (relief, priority, F / D / W) sit one fold deeper. */}
             {form.rules && (
               <details className="pp-rules">
-                <summary className="master-form-title">⚙️ Regulars &amp; rules · வழக்கமான காவலர்கள் &amp; விதிகள்</summary>
+                <summary className="master-form-title">⚙️ Regulars &amp; rules · ரெகுலர் ஆட்கள் &amp; விதிகள்</summary>
                 {!form.agency_id ? <div className="master-sub">Pick the agency first: the lists take that agency's guards.</div> : <>
                   {(() => {
                     const pool = (guards || []).filter(g => String(g.agency_id) === String(form.agency_id) && String(g.branch_id) === String(form.branch_id || branch));
                     const setRule = (k, v) => setForm(f => ({ ...f, rules: { ...f.rules, [k]: v } }));
                     return <>
                       {!guards && <div className="master-sub">Loading guards...</div>}
-                      <GuardPick label="Regular guards · வழக்கமான காவலர்கள்" help="The guards of this post (first = first choice) · இந்த போஸ்ட்டின் காவலர்கள் (முதலில் உள்ளவர் = முதல் தேர்வு)." all={pool} value={form.rules.regular} onChange={v => setRule('regular', v)} />
+                      <GuardPick label="Regular guards · ரெகுலர் ஆட்கள்" help="The guards of this post (first = first choice) · முதல் பெயர் = முதல் தேர்வு." all={pool} value={form.rules.regular} onChange={v => setRule('regular', v)} />
                       <div className="pp-flags">
-                        <label className="master-check"><input type="checkbox" checked={!!form.rules.regular_only} onChange={e => setRule('regular_only', e.target.checked ? 'G' : '')} /> Show this shift only on days someone has it in the month roster · மாத ரோஸ்டரில் யாருக்காவது அந்த ஷிஃப்ட் இருக்கும் நாளில் மட்டும் காட்டு (எ.கா. ஞாயிறு யாருக்கும் G இல்லை → G வரிசை வராது)</label>
+                        <label className="master-check"><input type="checkbox" checked={!!form.rules.regular_only} onChange={e => setRule('regular_only', e.target.checked ? 'G' : '')} /> Show this shift only on days someone has it in the month roster · ரோஸ்டரில் அந்த ஷிஃப்ட் உள்ள நாளில் மட்டும்</label>
                         {!!form.rules.regular_only && (
                           <div className="pp-rshifts">For shift · ஷிஃப்ட் {['A', 'B', 'C', 'G'].map(c => (
                             <label key={c} className="master-check"><input type="checkbox" checked={form.rules.regular_only.includes(c)}
