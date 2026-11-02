@@ -40,7 +40,7 @@ function GuardPick({ label, help, all, value, onChange }) {
         ))}
         {value.length === 0 && <span className="master-sub">Nobody yet</span>}
       </div>
-      <input type="search" value={find} onChange={e => setFind(e.target.value)} placeholder="🔍 Add: type a name or ID" />
+      <input type="search" value={find} onChange={e => setFind(e.target.value)} placeholder="🔍 Add · சேர்க்க: பெயர் அல்லது ID" />
       {hits.length > 0 && (
         <div className="pp-hits">
           {hits.map(g => <button type="button" key={g.ROWID} onClick={() => { onChange([...value, String(g.ROWID)]); setFind(''); }}>+ {g.guard_name} · {g.id_number}</button>)}
@@ -238,7 +238,7 @@ export default function PostsPage() {
               <label>3 · Post name<input id="p-name" value={form.post_name} onChange={e => setForm(f => ({ ...f, post_name: e.target.value }))} placeholder="Gate 3" required /></label>
               {/* Type, section and row are not asked any more (Prem, 25 Oct: an admin does not know them). New posts
                   are POSTs; a post saved before keeps its section and row (the daily sheet order). */}
-              <div className="p-shifts">4 · Shifts (G only if needed every day; G for one day → Schedule "G today")
+              <div className="p-shifts">4 · Shifts (G only if needed every day; G for one day → Schedule "G today") · ஷிஃப்ட்கள் (G தினமும் தேவைப்பட்டால் மட்டும்; ஒரு நாளுக்கு மட்டும் G → Schedule-ல் "G today")
                 {/* G box unticked by default (Prem, 25 Oct): tick it only when the post needs G every day (Kidos School);
                     G on some days only → the Schedule's "G today". */}
                 <div>{['A', 'B', 'C', 'G'].map(c => (
@@ -271,18 +271,18 @@ export default function PostsPage() {
                 lists (relief, priority, F / D / W) sit one fold deeper. */}
             {form.rules && (
               <details className="pp-rules">
-                <summary className="master-form-title">⚙️ Regulars &amp; rules</summary>
+                <summary className="master-form-title">⚙️ Regulars &amp; rules · வழக்கமான காவலர்கள் &amp; விதிகள்</summary>
                 {!form.agency_id ? <div className="master-sub">Pick the agency first: the lists take that agency's guards.</div> : <>
                   {(() => {
                     const pool = (guards || []).filter(g => String(g.agency_id) === String(form.agency_id) && String(g.branch_id) === String(form.branch_id || branch));
                     const setRule = (k, v) => setForm(f => ({ ...f, rules: { ...f.rules, [k]: v } }));
                     return <>
                       {!guards && <div className="master-sub">Loading guards...</div>}
-                      <GuardPick label="Regular guards" help="The guards of this post (first = first choice)." all={pool} value={form.rules.regular} onChange={v => setRule('regular', v)} />
+                      <GuardPick label="Regular guards · வழக்கமான காவலர்கள்" help="The guards of this post (first = first choice) · இந்த போஸ்ட்டின் காவலர்கள் (முதலில் உள்ளவர் = முதல் தேர்வு)." all={pool} value={form.rules.regular} onChange={v => setRule('regular', v)} />
                       <div className="pp-flags">
-                        <label className="master-check"><input type="checkbox" checked={!!form.rules.regular_only} onChange={e => setRule('regular_only', e.target.checked ? 'G' : '')} /> Row only on the days a regular works that shift (e.g. no G row on Sunday)</label>
+                        <label className="master-check"><input type="checkbox" checked={!!form.rules.regular_only} onChange={e => setRule('regular_only', e.target.checked ? 'G' : '')} /> Row only on the days a regular works that shift (e.g. no G row on Sunday) · வழக்கமான காவலருக்கு அந்த நாள் அந்த ஷிஃப்ட் இருந்தால் மட்டும் வரிசை (எ.கா. ஞாயிறு G வரிசை இல்லை)</label>
                         {!!form.rules.regular_only && (
-                          <div className="pp-rshifts">For shift {['A', 'B', 'C', 'G'].map(c => (
+                          <div className="pp-rshifts">For shift · ஷிஃப்ட் {['A', 'B', 'C', 'G'].map(c => (
                             <label key={c} className="master-check"><input type="checkbox" checked={form.rules.regular_only.includes(c)}
                               onChange={e => setRule('regular_only', ['A', 'B', 'C', 'G'].filter(x => x === c ? e.target.checked : form.rules.regular_only.includes(x)).join('') || 'ABCG')} /> {c}</label>
                           ))}</div>
