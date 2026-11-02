@@ -164,7 +164,11 @@ export default function QrAttend({ qrKey }) {
       if (check.action === 'OUT') savePass('');
       setDone(d);
       setStep('done');
-      resetTimer.current = setTimeout(() => { setStep('start'); setDone(null); setCheck(null); }, 30000);
+      // After an IN the duty page opens by itself, in place of this page (Prem, 2 Nov: a reliever must not get
+      // back to IN / OUT; only a new scan opens it).
+      resetTimer.current = d.token
+        ? setTimeout(() => window.location.replace('#guard/' + d.token), 1500)
+        : setTimeout(() => { setStep('start'); setDone(null); setCheck(null); }, 30000);
     } catch (err) {
       setMsg(err.message);
       setStep('start');
