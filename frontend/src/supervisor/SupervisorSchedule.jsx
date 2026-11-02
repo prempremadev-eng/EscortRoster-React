@@ -51,7 +51,7 @@ function GateNow({ branch }) {
   if (!g || !g.gate) return null;
   const allow = async x => {
     if (!window.confirm('Let ' + x.name + ' go OUT now? (Shift ' + x.next + ' is not IN.) It is recorded with your name.')) return;
-    try { const r = (await api.qrAllowOut(x.id)).data; setMsg('🏁 ' + r.name + ' OUT ' + r.time + ' (allowed by you).'); load(); } catch (err) { setMsg(err.message); }
+    try { const r = (await api.qrAllowOut(x.id, x.rs)).data; setMsg('🏁 ' + r.name + ' OUT ' + r.time + ' (allowed by you).'); load(); } catch (err) { setMsg(err.message); }
   };
   return (
     <div className="gn no-print">
@@ -76,6 +76,8 @@ function GateNow({ branch }) {
               <b>🔁 {r.name} {r.phone}</b>
               <span>Reliever · Shift {r.shift}</span>
               <span>{r.in ? '✅ IN ' + r.in : '⏳ waiting'}{r.addedBy ? ' · by ' + r.addedBy : ''}</span>
+              {r.in && r.next && <span>{r.nextOk ? '✅ Shift ' + r.next + ' is IN' : '🔒 Shift ' + r.next + ' not IN'}</span>}
+              {r.in && r.next && !r.nextOk && <button className="pd-chip gn-allow" onClick={() => allow(r)}>Allow OUT</button>}
               {!r.in && <span className="pd-muted">{r.registered ? 'Photo: from an earlier visit' : 'First time: no photo yet'}</span>}
               {!r.in && <button className="pd-chip" onClick={async () => { if (!window.confirm('Cancel ' + r.name + ' for Shift ' + r.shift + '?')) return; try { await api.qrReliefCancel(r.rs); setMsg('✕ ' + r.name + ' cancelled for Shift ' + r.shift + '.'); load(); } catch (err) { setMsg(err.message); } }}>✕ Cancel</button>}
             </div>

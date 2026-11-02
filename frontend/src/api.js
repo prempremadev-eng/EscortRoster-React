@@ -144,7 +144,7 @@ export const api = {
   attendance: (branch, agency, from, to) => apiCall('GET', '/attendance?branch=' + q(branch) + '&agency=' + q(agency || '') + '&from=' + q(from) + '&to=' + q(to)),
   qrWait: (k, pass) => apiCall('POST', '/qrWait', { k, pass }),
   qrOnDuty: branch => apiCall('GET', '/qrOnDuty?branch=' + encodeURIComponent(branch)),
-  qrAllowOut: guard_id => apiCall('POST', '/qrAllowOut', { guard_id }),
+  qrAllowOut: (guard_id, rs) => apiCall('POST', '/qrAllowOut', rs ? { rs } : { guard_id }),
   qrRelieverOffice: body => apiCall('POST', '/qrRelieverOffice', body),
   qrRelievers: branch => apiCall('GET', '/qrRelievers?branch=' + encodeURIComponent(branch)),
   qrReliefCancel: rs => apiCall('POST', '/qrReliefCancel', { rs }),
