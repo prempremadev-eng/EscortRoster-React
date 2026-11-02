@@ -4,7 +4,7 @@
     "env": 1
   },
   "actives": {
-    "project": 1,
+    "project": 2,
     "env": 1
   },
   "projects": [
@@ -15,6 +15,24 @@
       "domain": {
         "id": "50046771222",
         "name": "escortcardaccess-60086856508.development"
+      },
+      "timezone": "Asia/Kolkata",
+      "env": [
+        {
+          "idx": 1,
+          "id": "60086856508",
+          "name": "Development",
+          "type": 3
+        }
+      ]
+    },
+    {
+      "idx": 2,
+      "id": "50225000000127703",
+      "name": "NightOwl",
+      "domain": {
+        "id": "50047349134",
+        "name": "nightowl-60086856508.development"
       },
       "timezone": "Asia/Kolkata",
       "env": [
