@@ -13,11 +13,17 @@ const VAPID_SUBJECT = 'https://escortcardaccess-60086856508.development.catalyst
 const app = express();
 app.use(express.json({ limit: '2mb' }));
 
+// CORS: the Catalyst gateway adds the headers for the Authorized Domains (Slate, 2 Nov). Setting them here too
+// sent a second Access-Control-Allow-Origin ("*") and the browser refused every call ("Failed to fetch").
+// Only a local dev page (localhost) gets them from here.
 app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-  res.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS");
-  if (req.method === 'OPTIONS') return res.sendStatus(200);
+  const origin = String(req.headers.origin || '');
+  if (/^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origin)) {
+    res.header('Access-Control-Allow-Origin', origin);
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
+  }
   next();
 });
 
