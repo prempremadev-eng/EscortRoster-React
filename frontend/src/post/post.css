@@ -621,3 +621,6 @@ button.pd-avatar{border:none;cursor:pointer;}
 .pd-photo-view-top button{background:none;border:none;color:#fff;font-size:24px;cursor:pointer;}
 .pd-photo-view img{max-width:100%;max-height:80vh;object-fit:contain;}
 .pd-author-pic{cursor:pointer;}
+.pd-pick-row{display:flex;gap:28px;justify-content:center;padding:12px 0 8px;}
+.pd-pick{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:30px;cursor:pointer;}
+.pd-pick span{font-size:14px;font-weight:600;color:var(--pd-ink);}

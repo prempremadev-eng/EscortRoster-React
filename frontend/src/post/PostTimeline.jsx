@@ -5,7 +5,7 @@ import AddWork from './AddWork.jsx';
 import SafetySheet from './SafetySheet.jsx';
 import VehicleEntry from './VehicleEntry.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
-import PhotoView from './PhotoView.jsx';
+import PhotoView, { PhotoPick } from './PhotoView.jsx';
 import BreakSheet from './BreakSheet.jsx';
 import PostHistory, { forgetHistory } from './PostHistory.jsx';
 import MoreMenu from './MoreMenu.jsx';
@@ -192,13 +192,10 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   const seen = useRef(null); // what needed attention at the last load, to ring only for new things
   const endRef = useRef(null);
   const galleryInput = useRef(null);
-  const picInput = useRef(null);
   const [myPic, setMyPic] = useState(duty.photo || '');
   const [view, setView] = useState(null); // { photo, name } shown full screen
-  async function onPic(e) {
-    const file = e.target.files[0];
-    e.target.value = '';
-    if (!file) return;
+  const [picking, setPicking] = useState(false); // 📷 Camera / 🖼 Gallery sheet
+  async function onPic(file) {
     try { setMyPic((await api.myProfile(token, await compressImage(file, 480, 0.8))).data.photo); load(); } catch (err) { setError(err.message); }
   }
 
@@ -411,11 +408,11 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   return (
     <div className="pd pd-chat">
       {view && <PhotoView {...view} onClose={() => setView(null)} />}
+      {picking && <PhotoPick onFile={onPic} onClose={() => setPicking(false)} />}
       <div className="pd-chat-top">
         <div className="pd-chat-head">
           {/* 👤 Tap: see my profile photo; ⋮ → Profile photo changes it (Prem, 2 Nov). Not the QR face photo. */}
           <Avatar name={duty.name} photo={myPic} className={'pd-avatar ' + (onBreak ? 'pd-avatar-off' : 'pd-avatar-on')} title="Profile photo" onClick={() => myPic && setView({ photo: myPic, name: duty.name })} />
-          <input ref={picInput} type="file" accept="image/*" className="pd-file" onChange={onPic} />
           <div className="pd-chat-title">
             <div className="pd-title pd-title-sm">{postTitle}</div>
             {/* Two short lines instead of one that wraps (Prem, 25 Oct): who, then which shift. */}
@@ -436,7 +433,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
           {/* 📞 like WhatsApp's call icon (Prem, 26 Oct): Safety today with call buttons, instead of a bar. */}
           <button className="pd-icon-btn" onClick={() => setSheet('safety')} aria-label="Safety today: who to call">{Icon.phone}</button>
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
-          <MoreMenu items={[['👥 Team group', () => { window.location.hash = '#group/' + token; }], ['🕘 Duty history', () => setPage('history')], ['📷 Profile photo', () => picInput.current.click()]]} />
+          <MoreMenu items={[['👥 Team group', () => { window.location.hash = '#group/' + token; }], ['🕘 Duty history', () => setPage('history')], ['📷 Profile photo', () => setPicking(true)]]} />
         </div>
         {here && here.mode === 'go' && (
           <div className="pd-strip pd-strip-red pd-strip-col">

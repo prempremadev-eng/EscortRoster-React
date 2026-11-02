@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Icon, Avatar } from '../post/icons.jsx';
 import { compressImage } from '../post/media.js';
 import { api } from '../api.js';
-import PhotoView from '../post/PhotoView.jsx';
+import PhotoView, { PhotoPick } from '../post/PhotoView.jsx';
 import { useUser, atLeast, signOut } from '../auth/user.js';
 import { setupSteps } from '../components/SetupSteps.jsx';
 
@@ -18,6 +18,10 @@ export default function Rail({ active }) {
   const user = useUser();
   const [me, setMe] = useState(false);
   const [view, setView] = useState(false);
+  const [picking, setPicking] = useState(false);
+  async function newPhoto(f) {
+    try { await api.myProfile('', await compressImage(f, 480, 0.8)); window.location.reload(); } catch (err) { window.alert(err.message); }
+  }
   const [open, setOpen] = useState(false);
   // More opens a list of small buttons under it (Prem, 27 Oct: like the old menu); a second tap closes it.
   // Every page draws its own rail, so open / closed is kept in sessionStorage.
@@ -82,6 +86,7 @@ export default function Rail({ active }) {
         {user && <span className="sup-mbar-who">{user.name}</span>}
       </div>
       {open && <div className="sup-rail-dim" onClick={() => setOpen(false)}></div>}
+      {picking && <PhotoPick onFile={newPhoto} onClose={() => setPicking(false)} />}
       {view && user && <PhotoView photo={user.photo} name={user.name} onClose={() => setView(false)} />}
       <nav className={'sup-rail' + (open ? ' sup-rail-open' : '')}>
         {groups.map(([head, items]) => [<div key={head} className="sup-rail-head">{head}</div>, ...items.map(item)])}
@@ -91,11 +96,7 @@ export default function Rail({ active }) {
         {user && me && (
           <div className="sup-me-menu">
             {user.photo && <button className="sup-me-item" onClick={() => { setView(true); setMe(false); }}>👁 My photo</button>}
-            <label className="sup-me-item">📷 {user.photo ? 'Change photo' : 'Profile photo'}<input type="file" accept="image/*" hidden onChange={async e => {
-              const f = e.target.files[0]; e.target.value = '';
-              if (!f) return;
-              try { await api.myProfile('', await compressImage(f, 480, 0.8)); window.location.reload(); } catch (err) { window.alert(err.message); }
-            }} /></label>
+            <button className="sup-me-item" onClick={() => { setPicking(true); setMe(false); }}>📷 {user.photo ? 'Change photo' : 'Profile photo'}</button>
             <button className="sup-me-item" onClick={() => { if (window.confirm('Sign out ' + user.name + '?')) signOut(); }}>🚪 Sign out</button>
           </div>
         )}
