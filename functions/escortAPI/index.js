@@ -2053,7 +2053,7 @@ const post = require('./post.js')(app, {
 require('./qr.js')(app, {
   catalyst, fail, requireRowId, auth, istNow, getShifts, getVapidKeys, onCardIn,
   onPostOut: (...a) => post.onPostOut(...a), rosterShiftOf: (...a) => roster.shiftOf(...a),
-  notify: (...a) => post.notify(...a), getSetting
+  notify: (...a) => post.notify(...a), getSetting, sendPushToGuard
 });
 
 module.exports = app;

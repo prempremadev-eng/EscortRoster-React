@@ -17,7 +17,7 @@ const TICKET_MS = 3 * 60000; // the photo check is valid for 3 minutes before IN
 const OPEN_IN_HOURS = 16; // an IN older than this is not closed by the next scan (forgotten OUT)
 
 module.exports = function qrRoutes(app, h) {
-  const { catalyst, fail, requireRowId, auth, istNow, getShifts, getVapidKeys, onCardIn, onPostOut, rosterShiftOf, notify, getSetting } = h;
+  const { catalyst, fail, requireRowId, auth, istNow, getShifts, getVapidKeys, onCardIn, onPostOut, rosterShiftOf, notify, getSetting, sendPushToGuard } = h;
   const admin = req => catalyst.initialize(req, { scope: 'admin' });
   const ok = (res, data) => res.status(200).json({ status: 'success', data });
 
@@ -781,6 +781,7 @@ module.exports = function qrRoutes(app, h) {
         if (theirs) {
           await table.updateRow({ ROWID: theirs.ROWID, guard_id: x.g, published: true, swap_note: note(x.from, x.to) });
           if (mine) await table.updateRow({ ROWID: mine.ROWID, guard_id: theirs.guard_id || null, published: true, swap_note: theirs.guard_id ? note(x.to, mine.shift_code) : null });
+          if (theirs.guard_id && String(theirs.guard_id) !== x.g) req.swapped = { gid: String(theirs.guard_id), to: mine ? mine.shift_code : 'off' };
         } else if (mine) await table.updateRow({ ROWID: mine.ROWID, shift_code: x.to, published: true, swap_note: note(x.from, x.to) });
         else if (posts.length) await table.insertRow({ branch_id: branch, sched_date: x.day, post_id: posts[0].ROWID, shift_code: x.to, guard_id: x.g, published: true, swap_note: note(x.from, x.to) });
         else throw new Error('No post for this guard.');
@@ -788,6 +789,10 @@ module.exports = function qrRoutes(app, h) {
       x.status = req.body.ok ? 'ok' : 'no';
       x.by = req.user.name;
       await saveSwaps(catalystApp, branch, list);
+      // Both guards hear it (Prem, 2 Nov): the one who asked, and the one whose shift moved because of it.
+      const tell = async (gid, title, body) => { try { await sendPushToGuard(catalystApp, gid, { title, body, url: '/' }); } catch (err) { console.error('Swap push failed:', err.message || err); } };
+      await tell(x.g, req.body.ok ? '✅ Swap OK: Shift ' + x.to : '❌ Swap not OK', req.body.ok ? 'Today you work Shift ' + x.to + '. Scan the gate QR again for IN.' : 'Today your shift stays ' + (x.from ? 'Shift ' + x.from : 'as in the roster') + '.');
+      if (req.body.ok && req.swapped) await tell(req.swapped.gid, '🔄 Your shift today: Shift ' + req.swapped.to, x.name + ' took your Shift ' + x.to + ' (office OK). You work Shift ' + req.swapped.to + ' today.');
       ok(res, { name: x.name, to: x.to, status: x.status });
     } catch (err) {
       fail(res, err);
