@@ -5,6 +5,7 @@ import AddWork from './AddWork.jsx';
 import SafetySheet from './SafetySheet.jsx';
 import VehicleEntry from './VehicleEntry.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
+import PhotoView from './PhotoView.jsx';
 import BreakSheet from './BreakSheet.jsx';
 import PostHistory, { forgetHistory } from './PostHistory.jsx';
 import MoreMenu from './MoreMenu.jsx';
@@ -39,7 +40,7 @@ function ring() {
 }
 
 // A text bubble: hold it (or right-click) for the menu, swipe it right to reply (WhatsApp style).
-function Bubble({ m, onMenu, onReply }) {
+function Bubble({ m, onMenu, onReply, onPhoto }) {
   const swipe = useSwipeReply(() => onReply(m), () => onMenu(m));
 
   return (
@@ -49,7 +50,7 @@ function Bubble({ m, onMenu, onReply }) {
       onContextMenu={e => { e.preventDefault(); onMenu(m); }}
     >
       {swipe.icon}
-      {!m.mine && <div className={'pd-author' + (m.kind === 'supervisor' || m.office ? ' pd-author-sup' : '')}>{m.avatar && <img className="pd-author-pic" src={m.avatar} alt="" />}{m.author}{m.kind === 'supervisor' && !m.author.includes(' · ') ? ' · Supervisor' : ''}</div>}
+      {!m.mine && <div className={'pd-author' + (m.kind === 'supervisor' || m.office ? ' pd-author-sup' : '')}>{m.avatar && <img className="pd-author-pic" src={m.avatar} alt="" onClick={e => { e.stopPropagation(); onPhoto({ photo: m.avatar, name: m.author }); }} />}{m.author}{m.kind === 'supervisor' && !m.author.includes(' · ') ? ' · Supervisor' : ''}</div>}
       {m.reply && (
         <div className="pd-quote pd-quote-tap" onClick={e => { e.stopPropagation(); jumpTo(m.reply.id); }}>
           <div className="pd-quote-name">{m.reply.author}</div>
@@ -193,6 +194,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   const galleryInput = useRef(null);
   const picInput = useRef(null);
   const [myPic, setMyPic] = useState(duty.photo || '');
+  const [view, setView] = useState(null); // { photo, name } shown full screen
   async function onPic(e) {
     const file = e.target.files[0];
     e.target.value = '';
@@ -408,10 +410,11 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
 
   return (
     <div className="pd pd-chat">
+      {view && <PhotoView {...view} onClose={() => setView(null)} />}
       <div className="pd-chat-top">
         <div className="pd-chat-head">
-          {/* 👤 Tap: my profile photo (Prem, 2 Nov). Only for the chat; the QR face photo is another one. */}
-          <Avatar name={duty.name} photo={myPic} className={'pd-avatar ' + (onBreak ? 'pd-avatar-off' : 'pd-avatar-on')} title="Profile photo" onClick={() => picInput.current.click()} />
+          {/* 👤 Tap: see my profile photo; ⋮ → Profile photo changes it (Prem, 2 Nov). Not the QR face photo. */}
+          <Avatar name={duty.name} photo={myPic} className={'pd-avatar ' + (onBreak ? 'pd-avatar-off' : 'pd-avatar-on')} title="Profile photo" onClick={() => myPic && setView({ photo: myPic, name: duty.name })} />
           <input ref={picInput} type="file" accept="image/*" className="pd-file" onChange={onPic} />
           <div className="pd-chat-title">
             <div className="pd-title pd-title-sm">{postTitle}</div>
@@ -433,7 +436,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
           {/* 📞 like WhatsApp's call icon (Prem, 26 Oct): Safety today with call buttons, instead of a bar. */}
           <button className="pd-icon-btn" onClick={() => setSheet('safety')} aria-label="Safety today: who to call">{Icon.phone}</button>
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
-          <MoreMenu items={[['👥 Team group', () => { window.location.hash = '#group/' + token; }], ['🕘 Duty history', () => setPage('history')]]} />
+          <MoreMenu items={[['👥 Team group', () => { window.location.hash = '#group/' + token; }], ['🕘 Duty history', () => setPage('history')], ['📷 Profile photo', () => picInput.current.click()]]} />
         </div>
         {here && here.mode === 'go' && (
           <div className="pd-strip pd-strip-red pd-strip-col">
@@ -533,7 +536,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
               {m.kind === 'system_red' && <div className="pd-sys pd-sys-red">{m.text}</div>}
               {m.kind === 'work' && <WorkCard m={m} onFinish={finishWork} busy={busy} onReply={x => setReplyTo(x)} />}
               {m.kind === 'alert' && <AlertCard m={m} duty={duty} onCancel={cancelAlert} />}
-              {BUBBLE_KINDS.includes(m.kind) && <Bubble m={m} onMenu={x => setSheet(x)} onReply={x => setReplyTo(x)} />}
+              {BUBBLE_KINDS.includes(m.kind) && <Bubble m={m} onMenu={x => setSheet(x)} onReply={x => setReplyTo(x)} onPhoto={setView} />}
             </div>
           );
         })}

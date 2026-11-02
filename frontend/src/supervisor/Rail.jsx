@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Icon, Avatar } from '../post/icons.jsx';
 import { compressImage } from '../post/media.js';
 import { api } from '../api.js';
+import PhotoView from '../post/PhotoView.jsx';
 import { useUser, atLeast, signOut } from '../auth/user.js';
 import { setupSteps } from '../components/SetupSteps.jsx';
 
@@ -16,6 +17,7 @@ import { setupSteps } from '../components/SetupSteps.jsx';
 export default function Rail({ active }) {
   const user = useUser();
   const [me, setMe] = useState(false);
+  const [view, setView] = useState(false);
   const [open, setOpen] = useState(false);
   // More opens a list of small buttons under it (Prem, 27 Oct: like the old menu); a second tap closes it.
   // Every page draws its own rail, so open / closed is kept in sessionStorage.
@@ -80,6 +82,7 @@ export default function Rail({ active }) {
         {user && <span className="sup-mbar-who">{user.name}</span>}
       </div>
       {open && <div className="sup-rail-dim" onClick={() => setOpen(false)}></div>}
+      {view && user && <PhotoView photo={user.photo} name={user.name} onClose={() => setView(false)} />}
       <nav className={'sup-rail' + (open ? ' sup-rail-open' : '')}>
         {groups.map(([head, items]) => [<div key={head} className="sup-rail-head">{head}</div>, ...items.map(item)])}
         <div className="pd-grow"></div>
@@ -87,7 +90,8 @@ export default function Rail({ active }) {
         {user && <Avatar name={user.name} photo={user.photo} className="sup-rail-btn sup-rail-me" title={user.name + ' · ' + user.roleName} onClick={() => setMe(!me)} />}
         {user && me && (
           <div className="sup-me-menu">
-            <label className="sup-me-item">📷 Profile photo<input type="file" accept="image/*" hidden onChange={async e => {
+            {user.photo && <button className="sup-me-item" onClick={() => { setView(true); setMe(false); }}>👁 My photo</button>}
+            <label className="sup-me-item">📷 {user.photo ? 'Change photo' : 'Profile photo'}<input type="file" accept="image/*" hidden onChange={async e => {
               const f = e.target.files[0]; e.target.value = '';
               if (!f) return;
               try { await api.myProfile('', await compressImage(f, 480, 0.8)); window.location.reload(); } catch (err) { window.alert(err.message); }
