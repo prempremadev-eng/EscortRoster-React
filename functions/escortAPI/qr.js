@@ -198,7 +198,7 @@ module.exports = function qrRoutes(app, h) {
   // ⏰ Shift times (Prem, 2 Nov): IN from 40 min before the start (A 06:00 → 05:20); OUT only after the end
   // (A → 14:00). Another shift today: a 🔄 swap, asked at the gate from 40 min before its start till 15 min
   // after, and the office OK makes it (the day sheet changes; the month roster stays).
-  const EARLY_MIN = 40, SWAP_LATE_MIN = 15, SWAP_MAX_ASKS = 2;
+  const EARLY_MIN = 40, SWAP_LATE_MIN = 15, SWAP_MAX_ASKS = 2, IN_AFTER_END_MIN = 10; // IN till 10 min after the end (A → 14:10, Prem 2 Nov)
   const hm = t => +String(t).slice(0, 2) * 60 + +String(t).slice(3, 5);
   const clock = m => String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart(2, '0') + ':' + String(((m % 60) + 60) % 60).padStart(2, '0');
   const spanOf = sh => { const st = hm(sh.start); let en = hm(sh.end); if (en <= st) en += 1440; return { st, en }; };
@@ -218,12 +218,12 @@ module.exports = function qrRoutes(app, h) {
   function inCheck(shifts, code, day) {
     const now = minsInto(day);
     const sh = shifts.find(x => x.code === code && x.start && x.end);
-    if (sh) { const { st, en } = spanOf(sh); if (now >= st - EARLY_MIN && now < en) return null; }
+    if (sh) { const { st, en } = spanOf(sh); if (now >= st - EARLY_MIN && now < en + IN_AFTER_END_MIN) return null; }
     const to = shifts.find(x => x.code !== code && 'ABCG'.includes(x.code) && x.start && now >= hm(x.start) - EARLY_MIN && now <= hm(x.start) + SWAP_LATE_MIN);
     if (to) return { swapTo: to.code, why: (sh ? 'இன்று நீங்கள் ' + taWhen(hm(sh.start)) + 'க்கு Shift ' + code + '-ல் பணிபுரிய வேண்டும்.' : 'இன்று உங்களுக்கு பணி இல்லை.') + ' Shift ' + to.code + ' வேண்டுமென்றால் அலுவலகத்தின் அனுமதி பெற வேண்டும்.' };
     if (!sh) return { why: '📅 இன்று ரோஸ்டரில் உங்களுக்கு பணி இல்லை. அலுவலகத்தைக் கேளுங்கள்.' };
     const { st, en } = spanOf(sh);
-    return { why: now < st - EARLY_MIN ? '⏰ Shift ' + code + ' ' + taWhen(st) + 'க்கு தொடங்கும். ' + taWhen(st - EARLY_MIN) + ' முதல் IN செய்யலாம்.' : '⏰ Shift ' + code + ' ' + taWhen(en) + 'க்கு முடிந்தது.' };
+    return { why: now < st - EARLY_MIN ? '⏰ Shift ' + code + ' ' + taWhen(st) + 'க்கு தொடங்கும். ' + taWhen(st - EARLY_MIN) + ' முதல் IN செய்யலாம்.' : '⏰ Shift ' + code + ' ' + taWhen(en) + 'க்கு முடிந்தது. IN ' + taWhen(en + IN_AFTER_END_MIN) + ' வரை மட்டும்.' };
   }
   // '' when an OUT fits now (the shift is over); else why not.
   function outCheck(shifts, code, day) {
