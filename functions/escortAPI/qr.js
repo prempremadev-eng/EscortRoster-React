@@ -659,21 +659,26 @@ module.exports = function qrRoutes(app, h) {
         for (const sh of await getShifts(zcql, b.ROWID)) {
           if (!sh.start) continue;
           const since = (nowMin - (+sh.start.slice(0, 2) * 60 + +sh.start.slice(3, 5)) + 1440) % 1440;
-          if (since < 10 || since > 30) continue;
+          if (since > 20) continue; // the cron runs at the shift start (Prem, 2 Nov: at start, not +15)
           const guards = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE branch_id = ${b.ROWID} AND is_active = 'true'`)).map(r => r.Guards);
-          const expected = [];
+          const expected = [], missing = [];
           let inNow = false;
           for (const g of guards) {
-            if ((await rosterShiftOf(zcql, g.ROWID, day)) !== sh.code) continue;
+            if ((await dutyCode(zcql, g.ROWID, day)) !== sh.code) continue; // the day sheet (a swap) first, else the roster
             expected.push(g.guard_name);
             if ((await zcql.executeZCQLQuery(`SELECT ROWID FROM AccessLog WHERE guard_id = ${g.ROWID} AND duty_date = '${day}' AND direction = 'IN' LIMIT 1`)).length) inNow = true;
+            else missing.push(g);
+          }
+          // The guard who has not come hears it too (Prem, 2 Nov), in Tamil.
+          for (const g of missing) {
+            try { await sendPushToGuard(catalystApp, g.ROWID, { title: '⏰ Shift ' + sh.code + ' தொடங்கிவிட்டது', body: 'Shift ' + sh.code + ' ' + taWhen(hm(sh.start)) + 'க்கு தொடங்கியது. நீங்கள் இன்னும் IN செய்யவில்லை. உடனே gate QR-ல் IN செய்யவும்.', url: '/' }); } catch (err) { console.error('Late push failed:', err.message || err); }
           }
           const relRows = (await reliefRows(zcql, b.ROWID, [day])).filter(r => r.shift_code === sh.code);
           if (relRows.some(r => r.in_at)) inNow = true;
           const rel = activeRow(relRows, sh.code);
-          if (inNow || (!expected.length && !rel)) continue; // someone is IN, or nobody is planned (e.g. G on Sunday)
+          if ((inNow && !missing.length) || (!expected.length && !rel)) continue; // all IN, or nobody is planned (e.g. G on Sunday)
           const relName = rel ? ((await relieversOf(zcql, b.ROWID)).find(p => String(p.ROWID) === String(rel.reliever_id)) || {}).name : '';
-          await tellOffice(catalystApp, b.ROWID, '🚨 ' + b.branch_name + ' Shift ' + sh.code + ': nobody IN', 'Started ' + sh.start + '. Expected: ' + [...expected, relName ? 'reliever ' + relName : ''].filter(Boolean).join(', ') + '.');
+          await tellOffice(catalystApp, b.ROWID, '🚨 ' + b.branch_name + ' Shift ' + sh.code + ': ' + (inNow ? 'not all IN' : 'nobody IN'), 'Started ' + sh.start + '. Not IN: ' + [...missing.map(g => g.guard_name), rel && !rel.in_at && relName ? 'reliever ' + relName : ''].filter(Boolean).join(', ') + '.');
           told.push(b.branch_name + ' ' + sh.code);
         }
       }
