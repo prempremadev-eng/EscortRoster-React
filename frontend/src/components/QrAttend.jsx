@@ -234,6 +234,7 @@ export default function QrAttend({ qrKey }) {
         <div className="qr-card">
           <div className="qr-name">{check.guard.name}</div>
           <div className="qr-sub">{check.swap.why}</div>
+          {check.swap.refused && !check.swap.asked && <div className="qr-sub">❌ முன்பு கேட்டதை அலுவலகம் ஏற்கவில்லை. மீண்டும் கேட்கலாம்.</div>}
           {check.swap.asked
             ? <div className="qr-lock">⏳ Shift {check.swap.to}-க்கு அலுவலகத்திடம் கேட்கப்பட்டது. அனுமதி வந்ததும் மீண்டும் ஸ்கேன் செய்யவும்.</div>
             : <button className="qr-big qr-in" onClick={async () => {

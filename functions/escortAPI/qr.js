@@ -463,9 +463,10 @@ module.exports = function qrRoutes(app, h) {
           // 🔄 Another shift now: ask the office (once); after its OK the day sheet has him there and this passes.
           const mine = (await swapsOf(catalystApp, b.ROWID)).filter(x => x.g === String(found.ROWID) && x.day === day && x.to === late.swapTo).pop();
           if (mine && mine.status === 'pending') throw new Error('⏳ Shift ' + mine.to + ' மாற்றம் ' + mine.at + '-க்கு கேட்கப்பட்டது. அலுவலக அனுமதி வந்ததும் மீண்டும் ஸ்கேன் செய்யவும்.');
-          if (mine && mine.status === 'no') throw new Error('❌ அலுவலகம் Shift ' + mine.to + ' மாற்றத்தை ஏற்கவில்லை. இன்று உங்கள் shift: ' + (code || 'இல்லை') + '.');
+          // Said no before: he may ask again (Prem, 2 Nov: the office pressed No by mistake).
+          const refused = !!(mine && mine.status === 'no');
           const swapTicket = await makeTicket(catalystApp, { g: String(found.ROWID), b: String(b.ROWID), a: 'SWAP', from: code || '', to: late.swapTo, day });
-          return ok(res, { matched: true, swap: { from: code || '', to: late.swapTo, why: late.why, ticket: swapTicket }, guard: { name: found.guard_name, id: found.id_number }, distance });
+          return ok(res, { matched: true, swap: { from: code || '', to: late.swapTo, why: late.why, ticket: swapTicket, refused }, guard: { name: found.guard_name, id: found.id_number }, distance });
         }
       }
       // Keep the selfie (90 days) and say what the next press does.
