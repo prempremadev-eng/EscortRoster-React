@@ -251,9 +251,9 @@ export default function QrAttend({ qrKey }) {
         <div className="qr-card">
           <div className="qr-name">{check.guard.name}</div>
           <div className="qr-sub">{check.swap.why}</div>
-          {check.swap.refused && !check.swap.asked && <div className="qr-sub">❌ முன்பு கேட்டதை அலுவலகம் ஏற்கவில்லை. மீண்டும் கேட்கலாம்.</div>}
+          {check.swap.refused && !check.swap.asked && <div className="qr-sub">❌ முன்பு கேட்டதை அலுவலகம் ஏற்கவில்லை. இன்னும் ஒரு முறை மட்டும் கேட்கலாம்.</div>}
           {check.swap.asked
-            ? <div className="qr-lock">{check.swap.status === 'no' ? '❌ அலுவலகம் ஏற்கவில்லை. மீண்டும் கேட்க QR-ஐ ஸ்கேன் செய்யவும்.' : '⏳ Shift ' + check.swap.to + '-க்கு அலுவலகத்திடம் கேட்கப்பட்டது. அனுமதி வந்ததும் உங்கள் duty page தானாக திறக்கும். இந்த page-ஐ மூட வேண்டாம்.'}</div>
+            ? <div className="qr-lock">{check.swap.status === 'no' ? '❌ அலுவலகம் ஏற்கவில்லை. மீண்டும் கேட்க QR-ஐ ஸ்கேன் செய்யவும் (மொத்தம் 2 முறை).' : '⏳ Shift ' + check.swap.to + '-க்கு அலுவலகத்திடம் கேட்கப்பட்டது. அனுமதி வந்ததும் உங்கள் duty page தானாக திறக்கும். இந்த page-ஐ மூட வேண்டாம்.'}</div>
             : <button className="qr-big qr-in" onClick={async () => {
                 setMsg('');
                 try { await api.qrSwapAsk({ k: qrKey, ticket: check.swap.ticket }); setCheck({ ...check, swap: { ...check.swap, asked: true } }); } catch (err) { setMsg(err.message); }

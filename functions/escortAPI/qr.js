@@ -198,7 +198,7 @@ module.exports = function qrRoutes(app, h) {
   // ⏰ Shift times (Prem, 2 Nov): IN from 40 min before the start (A 06:00 → 05:20); OUT only after the end
   // (A → 14:00). Another shift today: a 🔄 swap, asked at the gate from 40 min before its start till 15 min
   // after, and the office OK makes it (the day sheet changes; the month roster stays).
-  const EARLY_MIN = 40, SWAP_LATE_MIN = 15;
+  const EARLY_MIN = 40, SWAP_LATE_MIN = 15, SWAP_MAX_ASKS = 2;
   const hm = t => +String(t).slice(0, 2) * 60 + +String(t).slice(3, 5);
   const clock = m => String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart(2, '0') + ':' + String(((m % 60) + 60) % 60).padStart(2, '0');
   const spanOf = sh => { const st = hm(sh.start); let en = hm(sh.end); if (en <= st) en += 1440; return { st, en }; };
@@ -461,7 +461,10 @@ module.exports = function qrRoutes(app, h) {
         if (late && !late.swapTo) throw new Error(late.why);
         if (late) {
           // 🔄 Another shift now: ask the office (once); after its OK the day sheet has him there and this passes.
-          const mine = (await swapsOf(catalystApp, b.ROWID)).filter(x => x.g === String(found.ROWID) && x.day === day && x.to === late.swapTo).pop();
+          const asks = (await swapsOf(catalystApp, b.ROWID)).filter(x => x.g === String(found.ROWID) && x.day === day && x.to === late.swapTo);
+          const mine = asks[asks.length - 1];
+          // Two asks at most (Prem, 2 Nov): after two "no" he calls the office.
+          if (asks.filter(x => x.status === 'no').length >= SWAP_MAX_ASKS) throw new Error('❌ அலுவலகம் ' + SWAP_MAX_ASKS + ' முறை ஏற்கவில்லை. இன்று உங்கள் shift: ' + (code ? 'Shift ' + code : 'இல்லை') + '. அலுவலகத்தை phone-ல் தொடர்பு கொள்ளுங்கள்.');
           if (mine && mine.status === 'pending') throw new Error('⏳ Shift ' + mine.to + ' மாற்றம் ' + mine.at + '-க்கு கேட்கப்பட்டது. அலுவலக அனுமதி வந்ததும் மீண்டும் ஸ்கேன் செய்யவும்.');
           // Said no before: he may ask again (Prem, 2 Nov: the office pressed No by mistake).
           const refused = !!(mine && mine.status === 'no');
@@ -753,7 +756,9 @@ module.exports = function qrRoutes(app, h) {
       const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number FROM Guards WHERE ROWID = ${requireRowId(t.g)}`))[0].Guards;
       const list = await swapsOf(catalystApp, b.ROWID);
       const at = new Date(Date.now() + 330 * 60000).toISOString().slice(11, 16);
-      if (!list.some(x => x.g === t.g && x.day === t.day && x.to === t.to && x.status === 'pending')) {
+      const same = list.filter(x => x.g === t.g && x.day === t.day && x.to === t.to);
+      if (same.filter(x => x.status === 'no').length >= SWAP_MAX_ASKS) throw new Error('❌ அலுவலகம் ' + SWAP_MAX_ASKS + ' முறை ஏற்கவில்லை. அலுவலகத்தை phone-ல் தொடர்பு கொள்ளுங்கள்.');
+      if (!same.some(x => x.status === 'pending')) {
         list.push({ id: crypto.randomBytes(4).toString('hex'), g: t.g, name: g.guard_name, idNo: g.id_number, from: t.from, to: t.to, day: t.day, at, t: Date.now(), status: 'pending', s: t.s, la: t.la, ln: t.ln, d: t.d });
         await saveSwaps(catalystApp, b.ROWID, list);
         await tellOffice(catalystApp, b.ROWID, '🔄 Swap request: ' + g.guard_name, (t.from ? 'Roster Shift ' + t.from : 'No shift today') + ' → wants Shift ' + t.to + ' today (' + at + '). OK it on Schedule → 📍 Gate now.');
