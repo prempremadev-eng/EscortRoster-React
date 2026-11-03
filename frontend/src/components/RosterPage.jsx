@@ -234,8 +234,9 @@ export default function RosterPage({ initialMonth }) {
   const weekday = d => WD[new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7) - 1, d)).getUTCDay()];
   const areas = data ? [...new Set(data.guards.map(g => g.area).filter(Boolean))].sort() : [];
   const tagsOf = g => String(g.tags || '').split(',').map(x => x.trim()).filter(Boolean);
-  // '@Lady Guards': this month's team (Prem, 3 Nov: the lady guards list next to Incharge).
-  const isKind = (g, k) => !k || (k === '*' ? g.incharge : k[0] === '@' ? g.area === k.slice(1) : tagsOf(g).includes(k));
+  // '@Lady Guards' (Prem, 3 Nov): every lady, any team — Gender Female, or this month's Lady Guards team.
+  const isLady = g => g.gender === 'Female' || g.area === 'Lady Guards';
+  const isKind = (g, k) => !k || (k === '*' ? g.incharge : k === '@Lady Guards' ? isLady(g) : tagsOf(g).includes(k));
   const kinds = data ? [...new Set(data.guards.flatMap(tagsOf))].sort() : [];
   const shown = useMemo(() => !data ? [] : data.guards.filter(g => isKind(g, kind) &&
     (!area || g.area === area) && (!q.trim() || (g.name + ' ' + g.id).toLowerCase().includes(q.trim().toLowerCase()))), [data, area, q, kind]);
@@ -400,7 +401,7 @@ export default function RosterPage({ initialMonth }) {
             </div>
             {/* Lists by kind (Prem, 28 Oct): ⭐ incharges and the guards' tags; Print prints the list shown. */}
             <div className="rs-kinds no-print">
-              {[['', 'All', data.guards.length], ['*', '⭐ Incharge', data.guards.filter(g => g.incharge).length], ['@Lady Guards', '👩 Lady Guards', data.guards.filter(g => g.area === 'Lady Guards').length], ...kinds.map(k => [k, k, data.guards.filter(g => isKind(g, k)).length])]
+              {[['', 'All', data.guards.length], ['*', '⭐ Incharge', data.guards.filter(g => g.incharge).length], ['@Lady Guards', '👩 Lady Guards', data.guards.filter(isLady).length], ...kinds.map(k => [k, k, data.guards.filter(g => isKind(g, k)).length])]
                 .filter(([k, , n]) => !k || n)
                 .map(([k, label, n]) => <button key={k || 'all'} className={'rs-kind' + (kind === k ? ' on' : '')} onClick={() => setKind(k)}>{label} <b>{n}</b></button>)}
             </div>

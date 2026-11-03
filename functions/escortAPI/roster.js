@@ -32,7 +32,7 @@ module.exports = function rosterRoutes(app, h) {
   // Teams of the month (Prem, 3 Nov: everybody but a few core people moves every month, the PKL groups too).
   const TEAMS = ['PKL', 'MLCP', 'Escort', 'Hospital', 'Medical Mine', 'Ninnakarai', 'Lady Guards', 'Kido School'];
   async function branchGuards(req, zcql, branch) {
-    return (await selectAll(zcql, 'Guards', `SELECT ROWID, id_number, card_number, guard_name, area, tags, agency, agency_id, branch_id FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`)).filter(g => !String(g.tags || '').split(',').includes('Reliever'));
+    return (await selectAll(zcql, 'Guards', `SELECT ROWID, id_number, card_number, guard_name, area, tags, gender, agency, agency_id, branch_id FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`)).filter(g => !String(g.tags || '').split(',').includes('Reliever'));
   }
   // A supervisor reads only their agency's rows (Prem, 25 Oct: no agency sees another's details).
   async function monthRows(req, zcql, branch, month) {
@@ -90,7 +90,7 @@ module.exports = function rosterRoutes(app, h) {
       } catch (err) { relievers = []; }
       ok(res, {
         month, days: daysIn(month), updated, relievers,
-        guards: guards.map(g => ({ ROWID: String(g.ROWID), id: g.id_number, card: g.card_number || '', name: g.guard_name, area: areaOf(g, teamOf[String(g.ROWID)]), agency: g.agency || '', tags: g.tags || '', incharge: incharge.has(String(g.ROWID)) })),
+        guards: guards.map(g => ({ ROWID: String(g.ROWID), id: g.id_number, card: g.card_number || '', name: g.guard_name, area: areaOf(g, teamOf[String(g.ROWID)]), agency: g.agency || '', tags: g.tags || '', gender: g.gender || '', incharge: incharge.has(String(g.ROWID)) })),
         codes
       });
     } catch (err) {
