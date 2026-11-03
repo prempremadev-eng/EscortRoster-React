@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 // 👤 A profile photo full screen, like WhatsApp (Prem, 2 Nov): tap the picture; ✕ or a tap closes it.
 export default function PhotoView({ photo, name, onClose }) {
   if (!photo) return null;
@@ -23,5 +25,16 @@ export function PhotoPick({ onFile, onClose }) {
         </div>
       </div>
     </div>
+  );
+}
+
+// 🖼 A photo inside a chat bubble, WhatsApp size; a tap shows it full screen (Prem, 3 Nov: photos were too small).
+export function ChatPhoto({ url, alt, name }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <img src={url} alt={alt} className="pd-media-img" onClick={e => { e.stopPropagation(); setOpen(true); }} />
+      {open && <PhotoView photo={url} name={name || alt} onClose={() => setOpen(false)} />}
+    </>
   );
 }

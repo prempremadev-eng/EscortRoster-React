@@ -5,7 +5,7 @@ import AddWork from './AddWork.jsx';
 import SafetySheet from './SafetySheet.jsx';
 import VehicleEntry from './VehicleEntry.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
-import PhotoView, { PhotoPick } from './PhotoView.jsx';
+import PhotoView, { PhotoPick, ChatPhoto } from './PhotoView.jsx';
 import BreakSheet from './BreakSheet.jsx';
 import PostHistory, { forgetHistory } from './PostHistory.jsx';
 import MoreMenu from './MoreMenu.jsx';
@@ -74,7 +74,7 @@ function Media({ m }) {
   if (!url) return <div className="pd-media-missing">{m.kind === 'voice' ? 'Voice note' : m.kind === 'video' ? 'Video' : 'Photo'} not available</div>;
   return (
     <div className="pd-media">
-      {m.kind === 'photo' && <a href={url} target="_blank" rel="noreferrer"><img src={url} alt="Photo from the post" className="pd-media-img" /></a>}
+      {m.kind === 'photo' && <ChatPhoto url={url} alt="Photo from the post" name={m.author} />}
       {m.kind === 'video' && <video src={url} controls playsInline preload="metadata" className="pd-media-img" />}
       {m.kind === 'voice' && <VoiceNote url={url} duration={duration} />}
       <div className="pd-media-tags">

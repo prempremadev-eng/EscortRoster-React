@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Icon } from './icons.jsx';
 import { compressImage, videoSeconds, MAX_VIDEO_SECONDS, MAX_VIDEO_MB } from './media.js';
 import VideoRecorder from './VideoRecorder.jsx';
-import PhotoView from './PhotoView.jsx';
+import PhotoView, { ChatPhoto } from './PhotoView.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from './VoiceNote.jsx';
 import { useSwipeReply, jumpTo } from './swipe.jsx';
 
@@ -21,7 +21,7 @@ function Bubble({ m, onReply, onPhoto }) {
           <div className="pd-quote-name">{m.reply.author}</div><div className="pd-quote-text">{m.reply.text}</div>
         </div>
       )}
-      {m.media && m.media.url && m.kind === 'photo' && <a href={m.media.url} target="_blank" rel="noreferrer"><img src={m.media.url} alt="Photo" className="pd-media-img" /></a>}
+      {m.media && m.media.url && m.kind === 'photo' && <ChatPhoto url={m.media.url} alt="Photo" name={m.author} />}
       {m.media && m.media.url && m.kind === 'video' && <video src={m.media.url} controls playsInline preload="metadata" className="pd-media-img" />}
       {m.media && m.media.url && m.kind === 'voice' && <VoiceNote url={m.media.url} duration={m.media.duration} />}
       {m.text && <div>{m.text}</div>}

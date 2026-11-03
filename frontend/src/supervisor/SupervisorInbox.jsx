@@ -10,6 +10,7 @@ import AddWork from '../post/AddWork.jsx';
 import GroupChat from '../post/GroupChat.jsx';
 import MoreMenu from '../post/MoreMenu.jsx';
 import SafetySheet from '../post/SafetySheet.jsx';
+import { ChatPhoto } from '../post/PhotoView.jsx';
 import PostHistory, { forgetHistory } from '../post/PostHistory.jsx';
 import { useSwipeReply, jumpTo } from '../post/swipe.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from '../post/VoiceNote.jsx';
@@ -103,7 +104,7 @@ function Message({ m, onReply }) {
       {swipe.icon}
       <div className="pd-author">{m.kind === 'supervisor' || m.office ? supAuthor(m.author, me) : m.author}</div>
       {m.reply && <div className="pd-quote pd-quote-tap" onClick={() => jumpTo(m.reply.id)}><div className="pd-quote-name">{m.reply.author}</div><div className="pd-quote-text">{m.reply.text}</div></div>}
-      {m.media && m.media.url && m.kind === 'photo' && <a href={m.media.url} target="_blank" rel="noreferrer"><img src={m.media.url} alt="Photo from the post" className="pd-media-img" /></a>}
+      {m.media && m.media.url && m.kind === 'photo' && <ChatPhoto url={m.media.url} alt="Photo from the post" name={m.author} />}
       {m.media && m.media.url && m.kind === 'video' && <video src={m.media.url} controls playsInline preload="metadata" className="pd-media-img" />}
       {m.media && m.media.url && m.kind === 'voice' && <VoiceNote url={m.media.url} duration={m.media.duration} />}
       {m.media && (
