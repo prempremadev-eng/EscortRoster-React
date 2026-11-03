@@ -154,3 +154,27 @@ Note: after the day-end files (00:21) work went on till about 01:00 (copy-from-y
 | 02:37 (30 Oct) | ⏹️ Still working past midnight; "good morning" said at 02:37 |
 
 **Total:** 09:29 → 02:37 next day (about 17 h, breaks not logged)
+
+## 2026-10-30 (Friday)
+
+| Time | Event |
+|---|---|
+| ~09:10 | ▶️ Work seen (first commit; no "start" said) |
+| ~16:40 | ⏹️ Last work (last commit 16:38; no "done" said) |
+
+**Total:** about 7 h 30 min (breaks not logged). Production go-live work for Cumbum.
+
+## 2026-11-02 (Monday)
+
+| Time | Event |
+|---|---|
+| 05:25 | ▶️ Start ("good morning") |
+| 14:01 | 🍛 Lunch |
+| 19:09 | ⏸️ Break / leave ("aprom meet pandre") |
+| 23:54 | 🌙 Done (good night) |
+
+## 2026-11-03 (Tuesday)
+
+| Time | Event |
+|---|---|
+| 10:16 | ▶️ Start ("good morning") |
