@@ -398,6 +398,7 @@ export default function SupervisorSchedule() {
     const rows = order.flatMap(c => (c === 'G' ? gPosts : sections.flatMap(sec => sec.posts.filter(p => hasShift(p, c)))).map(p => [p, c]));
     return (
       <table className={'sh-t sh-one' + foldCls('one')}>
+        <colgroup><col className="w-no" /><col className="w-code" /><col className="w-name" /><col className="w-point" /></colgroup>
         <thead>
           <tr className="sh-head"><th colSpan={2}><FoldBtn k="one" />DUTY</th><th colSpan={2}>{sheetDate}</th></tr>
           <tr className="sh-cols"><th>S No</th><th>SHIFT</th><th>NAME</th><th>POINT</th></tr>

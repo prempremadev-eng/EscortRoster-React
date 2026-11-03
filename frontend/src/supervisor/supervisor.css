@@ -670,3 +670,9 @@ a.setup-flow-title{text-decoration:none;}
   .sh-page-one .gn-mid .gn{box-shadow:0 1px 3px rgba(15,23,42,.08);}
 }
 @media screen and (max-width:900px){.sh-page-one{grid-template-columns:minmax(0,1fr);}}
+/* In the boxes the wide columns share the box width instead of fixed pixels (Day summary ran past its box). */
+@media screen{
+  .sh-page-one .sh-t .w-name,.sh-page-one .sh-t .w-point,.sh-page-one .sh-t .w-wide{width:auto;}
+  .sh-page-one .sh-t .w-no{width:48px;}
+  .sh-page-one .sh-t .w-code,.sh-page-one .sh-t .w-code2{width:64px;}
+}
