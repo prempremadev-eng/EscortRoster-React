@@ -38,15 +38,27 @@ export default function SetupMove() {
     e.target.value = '';
     setError(''); setNote('');
     if (!f) return;
-    try { setFile({ name: f.name, data: JSON.parse(await f.text()) }); } catch { setError('"' + f.name + '" is not a setup file.'); }
+    try {
+      const data = JSON.parse(await f.text());
+      setFile({ name: f.name, data });
+      setPick(new Set((data.Agencies || []).map(a => String(a.ROWID)))); // all ticked; untick the ones that stay behind
+    } catch { setError('"' + f.name + '" is not a setup file.'); }
   }
 
+  // 3 Nov: pick the agencies to bring (IPF now, ISI later). Things already here are used again, not made twice.
+  const [pick, setPick] = useState(new Set());
+  const agencies = (file && file.data.Agencies) || [];
+  const keep = r => !agencies.length || (r.agency_id && pick.has(String(r.agency_id)));
+  const toggle = id => setPick(p => { const n = new Set(p); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+
   async function importSetup() {
-    if (!window.confirm('Add everything from ' + file.name + ' to ' + here + '? Do this only once, into an empty place.')) return;
+    if (agencies.length && !pick.size) { setError('Tick at least one agency.'); return; }
+    if (!window.confirm('Add ' + file.name + ' (' + agencies.filter(a => pick.has(String(a.ROWID))).map(a => a.agency_name).join(', ') + ') to ' + here + '? Do this once.')) return;
     setError(''); setBusy(true);
     try {
-      const r = (await api.setupImport(file.data)).data;
-      setNote('📥 Done: ' + PARTS.filter(p => r.counts[p] !== undefined).map(p => r.counts[p] + ' ' + LABEL[p].toLowerCase()).join(' · ') + '. Refresh the page.');
+      const r = (await api.setupImport({ ...file.data, only_agencies: agencies.length ? [...pick] : undefined })).data;
+      const used = PARTS.filter(p => r.reused && r.reused[p]).map(p => r.reused[p] + ' ' + LABEL[p].toLowerCase());
+      setNote('📥 Added: ' + PARTS.filter(p => r.counts[p] !== undefined).map(p => r.counts[p] + ' ' + LABEL[p].toLowerCase()).join(' · ') + (used.length ? '. Already here, used again: ' + used.join(' · ') : '') + '. Refresh the page.');
       setFile(null);
     } catch (err) { setError(err.message); } finally { setBusy(false); }
   }
@@ -68,11 +80,14 @@ export default function SetupMove() {
         </div>
         <div className="move-card">
           <b>2 · 📥 Import setup</b>
-          <span>In an <b>empty Production</b>, once. Office logins also need a Production login (Authentication → Users).</span>
+          <span>Adds the branch in the file. A state, city, shift, agency or guard already here is used again; a branch already here stops it. Office logins also need a login (Authentication → Users).</span>
           <label className="btn secondary">📂 Pick the setup file<input type="file" accept=".json,application/json" hidden onChange={pickFile} /></label>
           {file && (
             <div className="move-preview">
-              <div>{file.name}: {PARTS.map(p => (file.data[p] || []).length + ' ' + LABEL[p].toLowerCase()).join(' · ')}</div>
+              <div>{file.name}</div>
+              {agencies.length > 0 && <div className="move-agencies">{agencies.map(a => (
+                <label key={a.ROWID}><input type="checkbox" checked={pick.has(String(a.ROWID))} onChange={() => toggle(String(a.ROWID))} /> {a.agency_name}</label>))}</div>}
+              <div>{(file.data.Branches || []).length} branch · {file.data.Guards.filter(keep).length} guards · {(file.data.Posts || []).filter(keep).length} posts</div>
               <button className="btn" onClick={importSetup} disabled={busy}>{busy ? 'Importing…' : '📥 Import into ' + here}</button>
             </div>
           )}

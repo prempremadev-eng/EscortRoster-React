@@ -69,44 +69,76 @@ module.exports = function setupMoveRoutes(app, h) {
       const zcql = catalystApp.zcql();
       const d = req.body || {};
       if (d.version !== VERSION || !Array.isArray(d.Guards)) throw new Error('This is not a setup file from 📤 Export setup.');
-      // Only into an empty place: a second import would make every branch and guard twice.
-      const [b, g] = await Promise.all([
-        zcql.executeZCQLQuery('SELECT ROWID FROM Branches LIMIT 1'), zcql.executeZCQLQuery('SELECT ROWID FROM Guards LIMIT 1')]);
-      if (b.length || g.length) throw new Error('This environment already has branches or guards. Import works only into an empty one.');
+      const lc = v => String(v || '').trim().toLowerCase();
+      const ids = v => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
+      // 3 Nov (IPF into NightOwl, where Cumbum already is): adds a branch next to what is here. A state, city,
+      // shift, agency or guard (same ID + agency) already here is used again, not made twice; a branch already
+      // here (same branch code) stops the import. only_agencies: the agencies ticked in the file (IPF, not ISI).
+      const only = Array.isArray(d.only_agencies) && d.only_agencies.length ? new Set(d.only_agencies.map(String)) : null;
+      const agOk = r => !only || (r.agency_id ? only.has(String(r.agency_id)) : false);
+      const fAgencies = (d.Agencies || []).filter(a => !only || only.has(String(a.ROWID)));
+      const fGuards = d.Guards.filter(agOk);
+      const fPosts = (d.Posts || []).filter(agOk);
+      const fUsers = (d.UserRoles || []).filter(u => !only || !u.agency_id || only.has(String(u.agency_id)));
+
+      const [hStates, hCities, hBranches, hShifts, hAgencies, hGuards] = await Promise.all([
+        selectAll(zcql, 'States', 'SELECT ROWID, state_name FROM States ORDER BY ROWID ASC'),
+        selectAll(zcql, 'Cities', 'SELECT ROWID, city_name, state_id FROM Cities ORDER BY ROWID ASC'),
+        selectAll(zcql, 'Branches', 'SELECT ROWID, branch_code, branch_name FROM Branches ORDER BY ROWID ASC'),
+        selectAll(zcql, 'Shifts', 'SELECT ROWID, shift_code FROM Shifts ORDER BY ROWID ASC'),
+        selectAll(zcql, 'Agencies', 'SELECT ROWID, agency_name, branch_ids, incharge_ids FROM Agencies ORDER BY ROWID ASC'),
+        selectAll(zcql, 'Guards', 'SELECT ROWID, id_number, agency FROM Guards ORDER BY ROWID ASC')]);
+      const clash = (d.Branches || []).filter(b => hBranches.some(h => lc(h.branch_code) === lc(b.branch_code)));
+      if (clash.length) throw new Error('Already here: ' + clash.map(b => b.branch_name + ' (' + b.branch_code + ')').join(', ') + '. Nothing was added.');
 
       const newId = {}; // old ROWID → new ROWID, all tables together (ROWIDs never repeat across tables)
       const map = v => (v === undefined || v === null || v === '' ? v : newId[String(v)] || null);
       // "id,id;id;AB;RG" → the same text with the new ids; an id not moved (an inactive guard) drops out.
       const mapList = v => (v ? String(v).split(';').map(part => part.split(',').map(x => x.trim()).filter(Boolean)
         .map(x => (/^\d{10,}$/.test(x) ? newId[x] || '' : x)).filter(Boolean).join(',')).join(';') : v);
-      const counts = {};
-      async function put(table, rows, shape) {
+      const counts = {}, reused = {};
+      // same(r) → the ROWID of the row already here, or nothing (then the row is added).
+      async function put(table, rows, shape, same) {
         const t = catalystApp.datastore().table(table);
-        counts[table] = 0;
-        for (let i = 0; i < rows.length; i += 100) {
-          const part = rows.slice(i, i + 100);
+        counts[table] = 0; reused[table] = 0;
+        const add = [];
+        rows.forEach(r => { const h = same && same(r); if (h) { newId[String(r.ROWID)] = String(h); reused[table]++; } else add.push(r); });
+        for (let i = 0; i < add.length; i += 100) {
+          const part = add.slice(i, i + 100);
           const saved = await t.insertRows(part.map(r => { const o = { ...shape(r) }; delete o.ROWID; return o; }));
           saved.forEach((s, k) => { newId[String(part[k].ROWID)] = String(s.ROWID); });
           counts[table] += saved.length;
         }
       }
-      await put('States', d.States || [], r => r);
-      await put('Cities', d.Cities || [], r => ({ ...r, state_id: map(r.state_id) }));
+      const findId = (list, test) => { const h = list.find(test); return h && h.ROWID; };
+      await put('States', d.States || [], r => r, r => findId(hStates, h => lc(h.state_name) === lc(r.state_name)));
+      await put('Cities', d.Cities || [], r => ({ ...r, state_id: map(r.state_id) }),
+        r => findId(hCities, h => lc(h.city_name) === lc(r.city_name) && String(h.state_id) === String(map(r.state_id))));
       await put('Branches', d.Branches || [], r => ({ ...r, city_id: map(r.city_id) }));
-      const haveShifts = await zcql.executeZCQLQuery('SELECT ROWID FROM Shifts LIMIT 1');
-      if (!haveShifts.length) await put('Shifts', d.Shifts || [], r => r);
-      await put('Agencies', d.Agencies || [], r => ({ ...r, branch_ids: mapList(r.branch_ids), incharge_ids: null }));
-      await put('Guards', d.Guards, r => ({ ...r, branch_id: map(r.branch_id), agency_id: map(r.agency_id), created_by: r.created_by || 'Setup import' }));
-      // Incharges point at guards, so they come after the guards.
-      const inch = (d.Agencies || []).filter(a => a.incharge_ids).map(a => ({ ROWID: newId[String(a.ROWID)], incharge_ids: mapList(a.incharge_ids) })).filter(a => a.ROWID);
-      if (inch.length) await catalystApp.datastore().table('Agencies').updateRows(inch);
-      await put('Posts', d.Posts || [], r => ({ ...r, branch_id: map(r.branch_id), agency_id: map(r.agency_id), regular_guards: mapList(r.regular_guards), relief_guards: mapList(r.relief_guards) }));
+      await put('Shifts', d.Shifts || [], r => r, r => findId(hShifts, h => lc(h.shift_code) === lc(r.shift_code)));
+      const agHere = r => hAgencies.find(h => lc(h.agency_name) === lc(r.agency_name));
+      await put('Agencies', fAgencies, r => ({ ...r, branch_ids: mapList(r.branch_ids), incharge_ids: null }), r => (agHere(r) || {}).ROWID);
+      await put('Guards', fGuards, r => ({ ...r, branch_id: map(r.branch_id), agency_id: map(r.agency_id), created_by: r.created_by || 'Setup import' }),
+        r => r.id_number && findId(hGuards, h => lc(h.id_number) === lc(r.id_number) && lc(h.agency) === lc(r.agency)));
+      // Agencies already here get the new branches and incharges added to theirs; new ones get their incharges
+      // now, because incharges point at guards.
+      const agUpd = fAgencies.map(a => {
+        const h = agHere(a);
+        const br = ids(mapList(a.branch_ids)), inc = ids(mapList(a.incharge_ids));
+        if (h) {
+          const allBr = [...new Set(ids(h.branch_ids).concat(br))], allInc = [...new Set(ids(h.incharge_ids).concat(inc))];
+          return { ROWID: String(h.ROWID), branch_ids: allBr.join(','), incharge_ids: allInc.join(',') || null };
+        }
+        return inc.length ? { ROWID: newId[String(a.ROWID)], incharge_ids: inc.join(',') } : null;
+      }).filter(Boolean);
+      if (agUpd.length) await catalystApp.datastore().table('Agencies').updateRows(agUpd);
+      await put('Posts', fPosts, r => ({ ...r, branch_id: map(r.branch_id), agency_id: map(r.agency_id), regular_guards: mapList(r.regular_guards), relief_guards: mapList(r.relief_guards) }));
       // Office logins: the person importing is already there.
       const have = new Set((await zcql.executeZCQLQuery('SELECT email FROM UserRoles')).map(x => String(x.UserRoles.email || '').trim().toLowerCase()));
-      await put('UserRoles', (d.UserRoles || []).filter(u => !have.has(String(u.email || '').trim().toLowerCase())),
+      await put('UserRoles', fUsers.filter(u => !have.has(String(u.email || '').trim().toLowerCase())),
         r => ({ ...r, branch_id: map(r.branch_id), agency_id: map(r.agency_id) }));
       auth.forgetBranches && auth.forgetBranches();
-      res.status(200).json({ status: 'success', data: { counts } });
+      res.status(200).json({ status: 'success', data: { counts, reused } });
     } catch (err) {
       fail(res, err);
     }
