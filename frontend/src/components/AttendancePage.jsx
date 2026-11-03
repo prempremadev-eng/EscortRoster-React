@@ -5,12 +5,11 @@ import { worksIn } from '../agency.js';
 // #attendance (Prem, 30 Oct): every guard's attendance in the agency's "Attendances" headings, for every branch
 // (card swipes and QR selfies alike). Server: functions/escortAPI/attendance.js. 📤 Export gives the same columns.
 const COLUMNS = [
+  // Approval Status / Approved By / Approved Time, the empty Status, Added Time and ID dropped (Prem, 3 Nov).
   ['Date', 'date'], ['Employee Name', 'vendorId'], ['Clock NO', 'clock'], ['Name', 'name'], ['Status', 'status'],
-  ['Approval Status', 'approvalStatus'], ['Shift', 'shift'], ['Swap', 'swap'], ['Post Details', 'post'], ['Entry Time', 'entry'],
-  ['Exit Time', 'exit'], ['Work Hours', 'inTime'], ['Approved By', 'approvedBy'], ['Agency', 'agency'],
-  ['Approved Time', 'approvedTime'], ['Designation', 'designation'],
-  ['Added User', 'addedUser'], ['Status', 'status2'], ['Status', 'active'], ['Added Time', 'addedTime'], ['ID', 'id'],
-  ['Officelocation', 'office'], ['Added User', 'addedUser2']
+  ['Shift', 'shift'], ['Swap', 'swap'], ['Post Details', 'post'], ['Entry Time', 'entry'],
+  ['Exit Time', 'exit'], ['Work Hours', 'inTime'], ['Agency', 'agency'], ['Designation', 'designation'],
+  ['Added User', 'addedUser'], ['Status', 'active'], ['Officelocation', 'office'], ['Added User', 'addedUser2']
 ];
 const today = () => new Date(Date.now() + 330 * 60000).toISOString().slice(0, 10);
 
