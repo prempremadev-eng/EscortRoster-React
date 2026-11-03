@@ -638,3 +638,13 @@ a.setup-flow-title{text-decoration:none;}
 .sc-day-fold{display:flex;align-items:center;gap:4px;margin:6px 0;color:#475569;font-size:13px;font-weight:600;}
 .sc-day-fold .sh-fold{background:#eef2ff;}
 @media print{.sh-fold{display:none;}.sh-folded tbody,.sh-folded .sh-cols{display:table-row-group;}}
+
+/* Cumbum one table (3 Nov): A · G · B · C going down, the shift letter coloured like the shift titles. */
+.sh-one{min-width:0;width:auto;max-width:620px;}
+.sh-one td.sh-code{font-weight:700;text-align:center;width:52px;}
+.sh-one .sh-code-A{background:#FFEDD5;}
+.sh-one .sh-code-G{background:#DCFCE7;}
+.sh-one .sh-code-B{background:#E0E7FF;}
+.sh-one .sh-code-C{background:#EDE9FE;}
+.sh-one td.sh-no{width:44px;}
+.sh-one td.sh-point{min-width:140px;}

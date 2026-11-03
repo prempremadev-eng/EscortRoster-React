@@ -354,20 +354,14 @@ export default function SupervisorSchedule() {
   const b = branches.find(x => String(x.ROWID) === String(branch));
   const sheetDate = date.split('-').reverse().join('-');
   // One shift block of the daily sheet: S.No · NAME · SHIFT · POINT (the order the team writes it).
-  const ShiftTable = ({ code, title, posts, fk }) => (
-    <table className={'sh-t' + foldCls(fk)}>
-      <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code" /><col className="w-point" /></colgroup>
-      <thead>
-        <tr className={'sh-head' + (code === 'G' ? ' sh-head-g' : '')} title={title}><th colSpan={2}><FoldBtn k={fk} />{code} SHIFT</th><th colSpan={2}>{sheetDate}</th></tr>
-        <tr className="sh-cols"><th>S No</th><th>NAME</th><th>SHIFT</th><th>POINT</th></tr>
-      </thead>
-      <tbody>
-        {posts.map((p, i) => {
+  // One slot row (S No · NAME · SHIFT · POINT); oneTable puts the SHIFT first.
+  const slotRow = (p, code, i, oneTable) => {
           const slot = slotOf(p.ROWID, code);
           const picked = pick && pick.post === p.ROWID && pick.shift === code;
           return (
-            <tr key={p.ROWID} className={picked ? 'sh-picked' : ''}>
+            <tr key={p.ROWID + code} className={picked ? 'sh-picked' : ''}>
               <td className="sh-no">{i + 1}</td>
+              {oneTable && <td className={'sh-code sh-code-' + code}>{code}</td>}
               <td className="sh-name">
                 <button className={'sh-slot' + (slot ? (slot.published ? ' sh-pub' : ' sh-draft') : ' sh-open') + (slot && isReliever(slot.guard) ? ' sh-reliever' : '')} onClick={() => tapCell(p.ROWID, code)} disabled={busy}
                   title={slot ? (isReliever(slot.guard) ? 'Reliever (QR gate) · tap to change or remove' : 'Tap to change or remove') : 'Tap, then pick a guard'}>
@@ -377,17 +371,44 @@ export default function SupervisorSchedule() {
                   {slot && rosterSays(slot, p) && <span className="sh-warn" title={'Month roster says ' + ({ O: 'week off', L: 'leave' }[rosterSays(slot, p)] || 'Shift ' + rosterSays(slot, p)) + ' today'}> ⚠️ {({ O: 'OFF', L: 'LEAVE' }[rosterSays(slot, p)] || rosterSays(slot, p))}</span>}
                 </button>
               </td>
-              <td className="sh-code">{code}</td>
+              {!oneTable && <td className="sh-code">{code}</td>}
               <td className="sh-point">{p.name}{p.extraDuty ? ' ⭐' : ''}</td>
             </tr>
           );
-        })}
+  };
+  const ShiftTable = ({ code, title, posts, fk }) => (
+    <table className={'sh-t' + foldCls(fk)}>
+      <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code" /><col className="w-point" /></colgroup>
+      <thead>
+        <tr className={'sh-head' + (code === 'G' ? ' sh-head-g' : '')} title={title}><th colSpan={2}><FoldBtn k={fk} />{code} SHIFT</th><th colSpan={2}>{sheetDate}</th></tr>
+        <tr className="sh-cols"><th>S No</th><th>NAME</th><th>SHIFT</th><th>POINT</th></tr>
+      </thead>
+      <tbody>
+        {posts.map((p, i) => slotRow(p, code, i))}
       </tbody>
       <tfoot className="no-print">
         <tr><td colSpan={4}><button className="sh-add" onClick={() => openAdd(code)} disabled={busy}>➕ Add post</button></td></tr>
       </tfoot>
     </table>
   );
+  // Cumbum (Prem, 3 Nov): 4 guards, one small table, shifts A · G · B · C going down. QR gate branches only.
+  const oneTable = !!(data && data.qrGate);
+  const OneTable = () => {
+    const order = ['A', 'G', 'B', 'C'].filter(c => data.shifts.some(x => x.code === c));
+    const rows = order.flatMap(c => (c === 'G' ? gPosts : sections.flatMap(sec => sec.posts.filter(p => hasShift(p, c)))).map(p => [p, c]));
+    return (
+      <table className={'sh-t sh-one' + foldCls('one')}>
+        <thead>
+          <tr className="sh-head"><th colSpan={2}><FoldBtn k="one" />DUTY</th><th colSpan={2}>{sheetDate}</th></tr>
+          <tr className="sh-cols"><th>S No</th><th>SHIFT</th><th>NAME</th><th>POINT</th></tr>
+        </thead>
+        <tbody>{rows.map(([p, c], i) => slotRow(p, c, i, true))}</tbody>
+        <tfoot className="no-print">
+          <tr><td colSpan={4}><button className="sh-add" onClick={() => openAdd('')} disabled={busy}>➕ Add post</button></td></tr>
+        </tfoot>
+      </table>
+    );
+  };
   // One slot of the sheet: a dash when the post has no such shift.
   const Cell = ({ p, code }) => {
     if (!hasShift(p, code)) return <td className="sc-none">—</td>;
@@ -460,7 +481,7 @@ export default function SupervisorSchedule() {
             filled > 0 && ['🧹 Clear day', () => window.confirm('Empty the whole sheet of ' + niceDate(date) + '? All ' + filled + ' name(s) go, published ones too.') && run(() => api.scheduleClear(branch, date, ag), r => { setPick(null); setNote('🧹 Cleared · ' + r.data.cleared + ' slot(s) emptied.'); }), 'pd-more-danger']
           ]} />
           </>}
-          {data && <button className="pd-chip no-print" onClick={() => saveFold(folded.size ? new Set() : new Set(['day', 'gate', 'off', 'relief', 'escort', 'summary', 'nopost',
+          {data && <button className="pd-chip no-print" onClick={() => saveFold(folded.size ? new Set() : new Set(['day', 'gate', 'one', 'off', 'relief', 'escort', 'summary', 'nopost',
             ...sections.flatMap(sec => ABC.map(x => 't:' + sec.name + ':' + x.code)), ...gSections.map(sec => 't:' + sec.name + ':G')]))}>
             {folded.size ? '⇕ Show all' : '⇕ Hide all'}</button>}
           <button className="pd-icon-btn sc-tools" onClick={toggleTools} aria-label={tools ? 'Hide buttons' : 'Show buttons'} title={tools ? 'Hide buttons (bigger sheet)' : 'Show buttons'}>{tools ? '▴' : '▾'}</button>
@@ -534,7 +555,8 @@ export default function SupervisorSchedule() {
             <div className="sb-main">
               <div className="sh-page">
                 <div className="sc-print-title">{b ? (b.company || 'Nokia') + ' ' + b.branch_name : ''} · Duty schedule · {niceDate(date)}</div>
-                {sections.map(sec => (
+                {oneTable && <div className="sh-row"><OneTable /></div>}
+                {!oneTable && sections.map(sec => (
                   <div className="sh-row" key={sec.name}>
                     {ABC.map(s => (
                       <ShiftTable key={s.code} code={s.code} fk={'t:' + sec.name + ':' + s.code} title={sec.name} posts={sec.posts.filter(p => hasShift(p, s.code))} />
@@ -543,7 +565,7 @@ export default function SupervisorSchedule() {
                 ))}
 
                 <div className="sh-row">
-                  {shiftG && gPosts.length > 0 && <div className="sh-stack">
+                  {!oneTable && shiftG && gPosts.length > 0 && <div className="sh-stack">
                     {gSections.map(sec => <ShiftTable key={sec.name} code="G" fk={'t:' + sec.name + ':G'} title={sec.name + ' · G shift'} posts={sec.posts} />)}
                   </div>}
                   <table className={'sh-t' + foldCls('off')}>
