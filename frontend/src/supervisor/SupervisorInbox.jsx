@@ -119,7 +119,7 @@ function Message({ m, onReply, onMenu }) {
       )}
       {m.text && <div>{m.text}</div>}
       <div className="pd-meta">
-        {m.pinned && <>{Icon.pin}Pinned for next guard · </>}
+        {m.pinned && <>{Icon.pin}{m.kind === 'supervisor' ? 'Pinned for all shifts' : 'Pinned for next guard'} · </>}
         {m.forwarded && <b className="sup-fwd">Sent to you · </b>}
         {m.time}
         {m.kind === 'supervisor' && (m.seenBy ? ' · Seen by ' + m.seenBy : ' · Not seen yet')}
@@ -518,7 +518,11 @@ export default function SupervisorInbox({ initialPost }) {
                 ))}
               </div>
             )}
-            {menu && <MsgMenu m={menu} onReply={x => { setReplyTo(x); const box = document.getElementById('sup-msg'); if (box) box.focus(); }} onClose={() => setMenu(null)} onInfo={setError} />}
+            {menu && <MsgMenu m={menu} onReply={x => { setReplyTo(x); const box = document.getElementById('sup-msg'); if (box) box.focus(); }} onClose={() => setMenu(null)} onInfo={setError}
+              extra={menu.kind === 'supervisor' && menu.mine && !String(menu.text || '').startsWith('🚫') ? [
+                [Icon.pin, menu.pinned ? 'Unpin' : 'Pin for all shifts', menu.pinned ? 'Guards will not see it at take over' : 'Every guard sees it at take over (7 days)', () => api.supPin(menu.ROWID, !menu.pinned).then(() => loadPost(openId)).catch(err => setError(err.message))],
+                ['🗑', 'Delete', 'Shows "This message was deleted"', () => { if (window.confirm('Delete this message?')) api.supDelete(menu.ROWID).then(() => loadPost(openId)).catch(err => setError(err.message)); }, true]
+              ] : []} />}
             <div className="sup-pane-body">
               {!post && <div className="pd-sys">Loading...</div>}
               {post && post.messages.length === 0 && <div className="pd-sys">No notes yet</div>}

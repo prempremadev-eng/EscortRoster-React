@@ -203,10 +203,15 @@ module.exports = function postRoutes(app, h) {
         const last = lastLogs[0];
         const dayAgo = new Date(Date.now() + IST_OFFSET_MIN * 60000 - 86400000).toISOString().slice(0, 16).replace('T', ' ');
         const since = general || !last || !last.taken_over_at ? dayAgo : last.taken_over_at;
-        const pinned = await zcql.executeZCQLQuery(`SELECT ROWID, guard_id, text, CREATEDTIME FROM PostMessages WHERE post_id = ${requireRowId(log.post_id)} AND pinned = true AND CREATEDTIME >= '${since}:00' ORDER BY CREATEDTIME ASC`);
+        const pinnedNow = await zcql.executeZCQLQuery(`SELECT ROWID, guard_id, author_name, text, CREATEDTIME FROM PostMessages WHERE post_id = ${requireRowId(log.post_id)} AND pinned = true AND CREATEDTIME >= '${since}:00' ORDER BY CREATEDTIME ASC`);
+        // 📌 Office pins stay for every shift (Prem, 3 Nov), for a week.
+        const weekAgo = new Date(Date.now() + IST_OFFSET_MIN * 60000 - 7 * 86400000).toISOString().slice(0, 16).replace('T', ' ');
+        const officePins = await zcql.executeZCQLQuery(`SELECT ROWID, guard_id, author_name, text, CREATEDTIME FROM PostMessages WHERE post_id = ${requireRowId(log.post_id)} AND pinned = true AND kind = 'supervisor' AND CREATEDTIME >= '${weekAgo}:00' ORDER BY CREATEDTIME ASC`);
+        const seenPin = new Set(pinnedNow.map(r => String(r.PostMessages.ROWID)));
+        const pinned = officePins.filter(r => !seenPin.has(String(r.PostMessages.ROWID))).concat(pinnedNow);
         const names = await namesOf(zcql, here.map(o => o.guard_id).concat(pinned.map(r => r.PostMessages.guard_id)));
         const nameOf = id => (names[String(id)] || {}).guard_name || 'Guard';
-        notes = pinned.map(r => ({ text: r.PostMessages.text, time: String(r.PostMessages.CREATEDTIME).slice(11, 16), by: nameOf(r.PostMessages.guard_id) }));
+        notes = pinned.map(r => ({ text: r.PostMessages.text, time: String(r.PostMessages.CREATEDTIME).slice(11, 16), by: r.PostMessages.guard_id ? nameOf(r.PostMessages.guard_id) : '📌 ' + (r.PostMessages.author_name || 'Office') }));
         if (prev) from = { name: nameOf(prev.guard_id), shift: prev.shift_code, since: (prev.taken_over_at || '').slice(11, 16) };
         // General shift: who is already standing here (no handover with them).
         if (general) atPost = here.map(o => ({ name: nameOf(o.guard_id), shift: o.shift_code, since: (o.taken_over_at || '').slice(11, 16), onBreak: o.status === 'on_break' }));

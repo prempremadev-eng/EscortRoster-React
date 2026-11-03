@@ -62,7 +62,7 @@ function Bubble({ m, onMenu, onReply, onPhoto }) {
       {m.media && <Media m={m} />}
       {m.text && <div>{m.text}</div>}
       <div className="pd-meta">
-        {m.pinned && <>{Icon.pin}Pinned for next guard · </>}
+        {m.pinned && <>{Icon.pin}{m.kind === 'supervisor' ? 'Pinned by the office' : 'Pinned for next guard'} · </>}
         {m.forwarded && <>Sent to supervisor · </>}
         {m.time}
       </div>

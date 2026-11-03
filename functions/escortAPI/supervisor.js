@@ -1317,6 +1317,42 @@ module.exports = function supervisorRoutes(app, h) {
     }
   });
 
+  // 📌 / 🗑 An office message (Prem, 3 Nov): pin it for every shift (each guard sees it at take over), or delete it
+  // ("This message was deleted", like WhatsApp; the row stays for the record). Only the office's own messages.
+  async function officeMessage(req, zcql, rowid) {
+    const rows = await zcql.executeZCQLQuery(`SELECT ROWID, post_id, kind, author_name, guard_id, media_key FROM PostMessages WHERE ROWID = ${requireRowId(rowid)}`);
+    if (!rows.length) throw new Error('Message not found.');
+    const m = rows[0].PostMessages;
+    await myPost(req, zcql, m.post_id);
+    if (m.guard_id || m.kind !== 'supervisor') throw new Error('Only an office message can be changed here.');
+    if (m.author_name !== supName(req) && req.user.role !== 'super_admin') throw new Error('Only your own message.');
+    return m;
+  }
+  app.post('/supPin', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const m = await officeMessage(req, catalystApp.zcql(), req.body.rowid);
+      const pinned = req.body.pinned === true;
+      await catalystApp.datastore().table('PostMessages').updateRow({ ROWID: m.ROWID, pinned });
+      res.status(200).json({ status: 'success', data: { pinned } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+  app.post('/supDelete', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const m = await officeMessage(req, catalystApp.zcql(), req.body.rowid);
+      await catalystApp.datastore().table('PostMessages').updateRow({ ROWID: m.ROWID, text: '🚫 This message was deleted', media_key: null, media_source: null, duration: null, pinned: false });
+      if (m.media_key) {
+        try { await catalystApp.stratus().bucket(process.env.MEDIA_BUCKET || 'escortcardaccess-media').deleteObject(m.media_key); } catch (err) { console.error('Deleted message media not removed:', err.message || err); }
+      }
+      res.status(200).json({ status: 'success', data: { deleted: true } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   // Swipe-to-reply from the office (Prem, 26 Oct): only a message of the same post can be quoted.
   async function replyOf(zcql, postId, rowid) {
     if (!rowid) return {};

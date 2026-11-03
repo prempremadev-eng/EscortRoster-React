@@ -253,6 +253,8 @@ export const api = {
   scheduleUpload: (branch, date, rows, agency) => apiCall('POST', '/scheduleUpload', { branch, date, rows, agency }),
   scheduleClear: (branch, date, agency) => apiCall('POST', '/scheduleClear', { branch, date, agency }),
   escortPoint: (branch, date, guard_id, point) => apiCall('POST', '/escortPoint', { branch, date, guard_id, point }),
+  supPin: (rowid, pinned) => apiCall('POST', '/supPin', { rowid, pinned }),
+  supDelete: rowid => apiCall('POST', '/supDelete', { rowid }),
   supMessage: (post, text, reply_to) => apiCall('POST', '/supMessage', { post, text, reply_to }),
   supMedia,
   strengthList: (date, list) => apiCall('GET', '/strength?date=' + q(date) + '&list=' + q(list)),
