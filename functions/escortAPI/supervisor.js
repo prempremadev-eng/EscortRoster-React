@@ -575,7 +575,7 @@ module.exports = function supervisorRoutes(app, h) {
           in: inRow ? inRow.punch_time : '', out: outRow ? outRow.punch_time : '', status, order: order[id] ?? 9999
         };
       });
-      const TEAM = ['PKL', 'Lady Guards', 'Medical Mine', 'Kido School', 'Ninnakarai', 'Hospital', 'MLCP', 'Escort'];
+      const TEAM = ['PKL', 'North Plaza', 'Medical Mine', 'Kido School', 'Ninnakarai', 'Hospital', 'MLCP', 'Escort'];
       const teamRank = t => { const i = TEAM.indexOf(t); return i < 0 ? 99 : i; };
       rows.sort((a, b) => teamRank(a.team) - teamRank(b.team) || a.order - b.order || a.name.localeCompare(b.name));
       return rows.map(({ order, ...r }) => r);
@@ -589,7 +589,7 @@ module.exports = function supervisorRoutes(app, h) {
   const SHIFT_ORDER = ['A', 'G', 'B', 'C'];
   // This month's team from the roster file (MonthRoster.team, Prem 30 Oct: IPF teams change every month)
   // replaces Guards.area for the day's work: who is an escort, who fills MLCP … 3 Nov (Prem): the PKL groups
-  // (Lady Guards, Medical Mine, Ninnakarai) move every month too, so the file's section always wins; an old
+  // (North Plaza = the lady guards, called Lady Guards till 3 Nov; Medical Mine, Ninnakarai) move every month too, so the file's section always wins; an old
   // file that only says PKL keeps a guard's PKL group.
   const MONTH_TEAMS = ['PKL', 'MLCP', 'Escort', 'Hospital'];
   function withMonthTeam(guards, roster) {
@@ -1107,7 +1107,7 @@ module.exports = function supervisorRoutes(app, h) {
       const weekendDay = [0, 6].includes(new Date(date + 'T00:00:00Z').getUTCDay());
       const dayList = p => (weekendDay && weekendOf(p).length ? weekendOf(p) : reliefOf(p));
       const ladyShifts = p => String(String(p.relief_guards || '').split(';')[2] || '').replace(/[^ABCG]/g, '');
-      const isLady = id => String(areaOf.get(id) || '').toLowerCase() === 'lady guards';
+      const isLady = id => String(areaOf.get(id) || '').toLowerCase() === 'north plaza';
       const notForLady = (p, shift) => ladyShifts(p) && !ladyShifts(p).includes(shift);
       const rotShifts = p => ['A', 'B', 'C', 'G'].filter(s => allows(p, s) && !notForLady(p, s));
       const teamOf = p => {
@@ -1115,13 +1115,13 @@ module.exports = function supervisorRoutes(app, h) {
         [...String(p.regular_guards || '').split(','), ...reliefOf(p)].map(x => areaOf.get(x.trim())).filter(x => x && x.toLowerCase() !== 'escort').forEach(x => { n[x] = (n[x] || 0) + 1; });
         return Object.keys(n).sort((x, y) => n[y] - n[x])[0] || '';
       };
-      // Rule 5 · Weekly rotation (lady pool posts: team Lady Guards, fewer regulars than shifts).
+      // Rule 5 · Weekly rotation (lady pool posts: team North Plaza, fewer regulars than shifts).
       //   a) Same as yesterday: whoever had this post + shift yesterday stays while her roster shift
       //      is the same (so one post for the whole shift week).
       //   b) New shift week: the free guard of the post's list who was at this post the fewest days
       //      in the last 14 days (then the longest ago, then list order).
       const rotPosts = autoPosts.filter(p => !(weekendDay && weekendOf(p).length && !weekendOf(p).some(isLady)) && (ladyShifts(p) ||
-        (teamOf(p).toLowerCase() === 'lady guards' && String(p.regular_guards || '').split(',').filter(x => nameOf.has(x.trim())).length < ['A', 'B', 'C', 'G'].filter(s => allows(p, s)).length)));
+        (teamOf(p).toLowerCase() === 'north plaza' && String(p.regular_guards || '').split(',').filter(x => nameOf.has(x.trim())).length < ['A', 'B', 'C', 'G'].filter(s => allows(p, s)).length)));
       const relief = (no, title, sameTeam, list) => {
         const r = { no, rule: title, filled: [], empty: [] };
         for (const p of list) {
@@ -1179,11 +1179,11 @@ module.exports = function supervisorRoutes(app, h) {
       // Escort men after PKL / MLCP. Never at Shift Incharge, Documents / CCTV (R), Hospital, Ninnakarai or
       // the lady / Medical Mine posts.
       const sundayPost = x => sunday && !regularOnly(x) && !isIncharge(x) && String(x.section || '').toLowerCase() !== 'hospital block'
-        && !['ninnakarai', 'lady guards', 'medical mine'].includes(teamOf(x).toLowerCase());
+        && !['ninnakarai', 'north plaza', 'medical mine'].includes(teamOf(x).toLowerCase());
       // Every shift (Prem, 21 Oct: G first, then "free aana men empty post la podunga"): a man still free
       // goes to any empty men's post, never left idle.
       const menPost = x => !regularOnly(x) && !isIncharge(x) && String(x.section || '').toLowerCase() !== 'hospital block'
-        && !['ninnakarai', 'lady guards', 'medical mine'].includes(teamOf(x).toLowerCase());
+        && !['ninnakarai', 'north plaza', 'medical mine'].includes(teamOf(x).toLowerCase());
       const r8 = { no: 8, rule: 'Anyone free', filled: [], empty: [] };
       // (MLCP Main Gate-1 and the other "F" posts are filled in Rule 2 already; the rest keep this rule, Prem 25 Oct.)
       for (const p of autoPosts.filter(x => reliefOf(x).length >= 5 || dailyPosts.includes(x) || sundayPost(x) || menPost(x))) {
@@ -1193,7 +1193,7 @@ module.exports = function supervisorRoutes(app, h) {
         for (const shift of ['A', 'B', 'C', 'G'].filter(s => allows(p, s))) {
           if (taken.has(p.ROWID + '|' + shift)) continue;
           const g = guards.map(x => String(x.ROWID))
-            .filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !supSet.has(id) && areaOf.get(id).toLowerCase() !== 'lady guards' && !restDay(p, id))
+            .filter(id => codeOf[id] === shift && !busyGuard.has(id) && canPost(id) && !supSet.has(id) && areaOf.get(id).toLowerCase() !== 'north plaza' && !restDay(p, id))
             .filter(id => !daily || ['pkl', 'mlcp'].includes(areaOf.get(id).toLowerCase()) || isEscort(id))
             .filter(id => areaOf.get(id).toLowerCase() !== 'ninnakarai' || team.toLowerCase() === 'ninnakarai')
             .sort((a, b) => (areaOf.get(b) === team) - (areaOf.get(a) === team) || isEscort(a) - isEscort(b))[0];

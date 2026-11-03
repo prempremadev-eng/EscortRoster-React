@@ -383,7 +383,7 @@ export default function GuardMaster() {
                 <span>Shift incharge (supervisor)</span>
                 <span><input type="checkbox" checked={!!form.incharge} onChange={e => setFormField('incharge', e.target.checked)} /> ⭐ This guard is a shift incharge</span>
               </label>
-              {/* Area = the guard's team inside the agency (IPF: PKL, MLCP, Escort, Lady Guards…). Auto fill and
+              {/* Area = the guard's team inside the agency (IPF: PKL, MLCP, Escort, North Plaza…). Auto fill and
                   the escort sheet use it; "Escort" puts the guard on the escort sheet. Optional for other agencies. */}
               <label>Team / area (optional: PKL, MLCP, Escort…)<input id="g-area" value={form.area} onChange={e => setFormField('area', e.target.value)} list="g-areas" maxLength={30} /></label>
               <datalist id="g-areas">{uniq(allGuards.map(g => g.area).filter(Boolean)).sort().map(a => <option key={a} value={a} />)}</datalist>

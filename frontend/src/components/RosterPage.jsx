@@ -8,7 +8,8 @@ const CODES = ['A', 'B', 'C', 'G', 'O', 'L', '-'];
 const LABEL = { A: 'Morning', B: 'Afternoon', C: 'Night', G: 'General', O: 'Week off', L: 'Leave', '-': 'Not set' };
 const WD = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const TEAM_HEAD = { PKL: 'PKL', MLCP: 'MLCP', ESCORT: 'Escort', HOSPITAL: 'Hospital', HOSP: 'Hospital',
-  'MEDICAL MINE': 'Medical Mine', NINNAKARAI: 'Ninnakarai', 'LADY GUARDS': 'Lady Guards', 'LADY GAURDS': 'Lady Guards',
+  'MEDICAL MINE': 'Medical Mine', NINNAKARAI: 'Ninnakarai', 'NORTH PLAZA': 'North Plaza', 'LADY GUARDS': 'North Plaza', 'LADY GAURDS': 'North Plaza', // 3 Nov: the lady guards team is called North Plaza
+ 
   'KIDO SCHOOL': 'Kido School', 'KIDOS SCHOOL': 'Kido School', KIDOS: 'Kido School', KIDO: 'Kido School' }; // 3 Nov: PKL groups move monthly too
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
@@ -234,8 +235,8 @@ export default function RosterPage({ initialMonth }) {
   const weekday = d => WD[new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7) - 1, d)).getUTCDay()];
   const areas = data ? [...new Set(data.guards.map(g => g.area).filter(Boolean))].sort() : [];
   const tagsOf = g => String(g.tags || '').split(',').map(x => x.trim()).filter(Boolean);
-  // '@Lady Guards' (Prem, 3 Nov): every lady, any team — Gender Female, or this month's Lady Guards team.
-  const isLady = g => g.gender === 'Female' || g.area === 'Lady Guards';
+  // '@Lady Guards' (Prem, 3 Nov): every lady, any team — Gender Female, or this month's North Plaza team (the lady guards' team).
+  const isLady = g => g.gender === 'Female' || g.area === 'North Plaza';
   const isKind = (g, k) => !k || (k === '*' ? g.incharge : k === '@Lady Guards' ? isLady(g) : tagsOf(g).includes(k));
   const kinds = data ? [...new Set(data.guards.flatMap(tagsOf))].sort() : [];
   const shown = useMemo(() => !data ? [] : data.guards.filter(g => isKind(g, kind) &&
