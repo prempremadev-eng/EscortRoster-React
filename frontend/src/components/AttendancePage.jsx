@@ -7,7 +7,7 @@ import { worksIn } from '../agency.js';
 const COLUMNS = [
   ['Date', 'date'], ['Employee Name', 'vendorId'], ['Clock NO', 'clock'], ['Name', 'name'], ['Status', 'status'],
   ['Approval Status', 'approvalStatus'], ['Shift', 'shift'], ['Swap', 'swap'], ['Post Details', 'post'], ['Entry Time', 'entry'],
-  ['Exit Time', 'exit'], ['IN Time', 'inTime'], ['Approved By', 'approvedBy'], ['Agency', 'agency'],
+  ['Exit Time', 'exit'], ['Work Hours', 'inTime'], ['Approved By', 'approvedBy'], ['Agency', 'agency'],
   ['Approved Time', 'approvedTime'], ['Designation', 'designation'],
   ['Added User', 'addedUser'], ['Status', 'status2'], ['Status', 'active'], ['Added Time', 'addedTime'], ['ID', 'id'],
   ['Officelocation', 'office'], ['Added User', 'addedUser2']
