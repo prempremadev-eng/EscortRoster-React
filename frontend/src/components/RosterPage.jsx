@@ -8,7 +8,8 @@ const CODES = ['A', 'B', 'C', 'G', 'O', 'L', '-'];
 const LABEL = { A: 'Morning', B: 'Afternoon', C: 'Night', G: 'General', O: 'Week off', L: 'Leave', '-': 'Not set' };
 const WD = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 const TEAM_HEAD = { PKL: 'PKL', MLCP: 'MLCP', ESCORT: 'Escort', HOSPITAL: 'Hospital', HOSP: 'Hospital',
-  'MEDICAL MINE': 'Medical Mine', NINNAKARAI: 'Ninnakarai', 'LADY GUARDS': 'Lady Guards', 'LADY GAURDS': 'Lady Guards' }; // 3 Nov: PKL groups move monthly too
+  'MEDICAL MINE': 'Medical Mine', NINNAKARAI: 'Ninnakarai', 'LADY GUARDS': 'Lady Guards', 'LADY GAURDS': 'Lady Guards',
+  'KIDO SCHOOL': 'Kido School', 'KIDOS SCHOOL': 'Kido School', KIDOS: 'Kido School', KIDO: 'Kido School' }; // 3 Nov: PKL groups move monthly too
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 const thisMonth = () => new Date().toISOString().slice(0, 7);

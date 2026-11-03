@@ -575,7 +575,7 @@ module.exports = function supervisorRoutes(app, h) {
           in: inRow ? inRow.punch_time : '', out: outRow ? outRow.punch_time : '', status, order: order[id] ?? 9999
         };
       });
-      const TEAM = ['PKL', 'Lady Guards', 'Medical Mine', 'Ninnakarai', 'Hospital', 'MLCP', 'Escort'];
+      const TEAM = ['PKL', 'Lady Guards', 'Medical Mine', 'Kido School', 'Ninnakarai', 'Hospital', 'MLCP', 'Escort'];
       const teamRank = t => { const i = TEAM.indexOf(t); return i < 0 ? 99 : i; };
       rows.sort((a, b) => teamRank(a.team) - teamRank(b.team) || a.order - b.order || a.name.localeCompare(b.name));
       return rows.map(({ order, ...r }) => r);

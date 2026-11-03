@@ -30,7 +30,7 @@ module.exports = function rosterRoutes(app, h) {
   // Active guards of a branch in my area (a supervisor: only their agency).
   // Reliever profiles (QR gate, tag Reliever) are not roster guards: they show in the Relievers section.
   // Teams of the month (Prem, 3 Nov: everybody but a few core people moves every month, the PKL groups too).
-  const TEAMS = ['PKL', 'MLCP', 'Escort', 'Hospital', 'Medical Mine', 'Ninnakarai', 'Lady Guards'];
+  const TEAMS = ['PKL', 'MLCP', 'Escort', 'Hospital', 'Medical Mine', 'Ninnakarai', 'Lady Guards', 'Kido School'];
   async function branchGuards(req, zcql, branch) {
     return (await selectAll(zcql, 'Guards', `SELECT ROWID, id_number, card_number, guard_name, area, tags, agency, agency_id, branch_id FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`)).filter(g => !String(g.tags || '').split(',').includes('Reliever'));
   }
@@ -137,7 +137,7 @@ module.exports = function rosterRoutes(app, h) {
       let areas = 0;
       if (month === new Date(Date.now() + 330 * 60000).toISOString().slice(0, 7)) {
         const moved = entries.filter(e => TEAMS.includes(e.team) && guardById.has(String(e.guard_id)) && guardById.get(String(e.guard_id)).area !== e.team
-          && !(e.team === 'PKL' && ['Medical Mine', 'Ninnakarai', 'Lady Guards'].includes(guardById.get(String(e.guard_id)).area)))
+          && !(e.team === 'PKL' && ['Medical Mine', 'Ninnakarai', 'Lady Guards', 'Kido School'].includes(guardById.get(String(e.guard_id)).area)))
           .map(e => ({ ROWID: String(e.guard_id), area: e.team }));
         const gt = catalystApp.datastore().table('Guards');
         for (let i = 0; i < moved.length; i += 100) await gt.updateRows(moved.slice(i, i + 100));
