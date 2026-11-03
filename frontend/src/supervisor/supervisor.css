@@ -660,3 +660,13 @@ a.setup-flow-title{text-decoration:none;}
 .sh-page-one .sh-row-one{grid-template-columns:max-content minmax(280px,420px);}
 .gn-mid .gn{margin:0;}
 @media (max-width:850px){.sh-page-one .sh-row-one{grid-template-columns:1fr;}}
+/* Cumbum in tidy boxes (Prem, 3 Nov: "order-aa, manager paakka"): every part the same width, two per row. */
+@media screen{
+  .sh-page-one{display:grid;grid-template-columns:repeat(2,minmax(0,560px));gap:20px;align-items:start;}
+  .sh-page-one > .sh-row{display:contents;}
+  .sh-page-one .sc-print-title{grid-column:1 / -1;}
+  .sh-page-one .sh-t,.sh-page-one .sh-one{width:100%;max-width:none;min-width:0;margin:0;}
+  .sh-page-one .gn-mid{min-width:0;}
+  .sh-page-one .gn-mid .gn{box-shadow:0 1px 3px rgba(15,23,42,.08);}
+}
+@media screen and (max-width:900px){.sh-page-one{grid-template-columns:minmax(0,1fr);}}
