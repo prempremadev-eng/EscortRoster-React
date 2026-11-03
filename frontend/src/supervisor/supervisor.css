@@ -676,3 +676,5 @@ a.setup-flow-title{text-decoration:none;}
   .sh-page-one .sh-t .w-no{width:48px;}
   .sh-page-one .sh-t .w-code,.sh-page-one .sh-t .w-code2{width:64px;}
 }
+/* Space between G / Week off / Relievers / Escort tables (Prem, 3 Nov). Screen only; print keeps the paper look. */
+@media screen{.sh-row-misc{column-gap:16px;row-gap:16px;}}

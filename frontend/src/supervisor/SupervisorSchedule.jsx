@@ -567,7 +567,7 @@ export default function SupervisorSchedule() {
                   </div>
                 ))}
 
-                <div className="sh-row">
+                <div className="sh-row sh-row-misc">
                   {!oneTable && shiftG && gPosts.length > 0 && <div className="sh-stack">
                     {gSections.map(sec => <ShiftTable key={sec.name} code="G" fk={'t:' + sec.name + ':G'} title={sec.name + ' · G shift'} posts={sec.posts} />)}
                   </div>}
