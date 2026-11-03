@@ -656,3 +656,6 @@ a.setup-flow-title{text-decoration:none;}
   .sh-page-one .sh-one td,.sh-page-one .sh-one th{padding-top:7px;padding-bottom:7px;}
   .sh-page-one .sh-one td.sh-name,.sh-page-one .sh-one td.sh-point{padding-left:12px;padding-right:12px;}
 }
+/* Gate now as a side panel (Cumbum, 3 Nov). */
+.gn-aside{position:sticky;top:0;}
+.gn-aside .gn{margin:0;}

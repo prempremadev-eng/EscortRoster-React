@@ -545,7 +545,7 @@ export default function SupervisorSchedule() {
             </div>
           );
         })()}
-        {data && <GateNow branch={branch} fold={{ on: folded.has('gate'), btn: <FoldBtn k="gate" /> }} />}
+        {data && !oneTable && <GateNow branch={branch} fold={{ on: folded.has('gate'), btn: <FoldBtn k="gate" /> }} />}
         {error && <div className="pd-error-bar">{error}</div>}
         {note && tools && <div className="sc-note">{note}</div>}
         {!data && !error && <div className="pd-muted sup-pad">Loading...</div>}
@@ -695,6 +695,8 @@ export default function SupervisorSchedule() {
               <div className="pd-legend"><span className="sc-key sc-cell-pub"></span>Published <span className="sc-key sc-cell-draft"></span>Not published yet <span className="sc-key sc-cell-empty"></span>Empty</div>
             </div>
 
+            {/* Cumbum (Prem, 3 Nov): Gate now on the right, so it does not take half the page. */}
+            {oneTable && !adding && !pick && <aside className="sb-side gn-aside"><GateNow branch={branch} fold={{ on: folded.has('gate'), btn: <FoldBtn k="gate" /> }} /></aside>}
             {adding && <aside className="sb-side sh-drawer">
               <div className="pd-row-between">
                 <div className="pd-label">➕ NEW POST · {b ? b.branch_name : ''}</div>
