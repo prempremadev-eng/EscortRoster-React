@@ -1113,6 +1113,11 @@ td.in-late{color:#b91c1c;}
 .gm-table th:nth-child(2),.gm-table th:nth-child(3){z-index:3;background:var(--blue-header);}
 .gm-table .master-left td:nth-child(2),.gm-table .master-left td:nth-child(3){background:#f8fafc;}
 .gm-table td,.gm-table th{white-space:nowrap;}
+.gm-counts{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 10px;}
+.gm-count{background:#EEF2FF;color:#1e3a8a;border:1px solid #c7d2fe;border-radius:999px;padding:5px 12px;font-size:14px;}
+.gm-count b{margin-left:4px;font-size:15px;}
+.gm-count-all{background:#1e3a8a;color:#fff;border-color:#1e3a8a;}
+.gm-count-off{color:#94a3b8;font-size:12px;}
 .gm-table td:nth-child(3){white-space:normal;}
 /* Escort sheet for shift incharges of other agencies: look only (25 Oct). */
 .esc-view-note{margin:8px 16px;padding:8px 12px;border-radius:8px;background:#eef2ff;color:#3730a3;font-size:14px;}

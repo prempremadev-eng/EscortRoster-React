@@ -510,6 +510,29 @@ export default function GuardMaster() {
                 </label>
               )}
             </div>
+            {/* Count per branch · agency of the guards shown (Prem, 3 Nov). A tap filters to it. */}
+            {(() => {
+              const groups = {};
+              shown.forEach(g => {
+                const k = String(g.branch_id) + '|' + (g.agency || '—');
+                (groups[k] = groups[k] || { branch: g.branch_id, agency: g.agency || '—', on: 0, off: 0 })[g.is_active === 'true' ? 'on' : 'off']++;
+              });
+              const list = Object.values(groups).sort((x, y) => y.on - x.on);
+              if (!list.length) return null;
+              return (
+                <div className="gm-counts">
+                  <span className="gm-count gm-count-all">👥 Total <b>{shown.filter(g => g.is_active === 'true').length}</b></span>
+                  {list.map(c => {
+                    const b = branchById[String(c.branch)];
+                    return (
+                      <span key={c.branch + c.agency} className="gm-count">
+                        🏢 {b ? b.branch_name : '—'} · {c.agency} <b>{c.on}</b>{c.off ? <span className="gm-count-off"> +{c.off} left</span> : null}
+                      </span>
+                    );
+                  })}
+                </div>
+              );
+            })()}
 
             <div className="dash-scroll">
               <table className="dash-table adm-table gm-table">
