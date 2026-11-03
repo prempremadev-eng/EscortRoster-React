@@ -1106,6 +1106,14 @@ td.in-late{color:#b91c1c;}
 .adm-users .master-left td:first-child{background:#f8fafc;}
 .adm-users td,.adm-users th{white-space:nowrap;}
 .adm-tree-label{position:sticky;left:10px;display:inline-block;}
+/* Guards (Prem, 3 Nov): Photo and Guard name stay, S.No slides under them, the rest scrolls sideways. */
+.gm-table td:nth-child(2),.gm-table th:nth-child(2),.gm-table td:nth-child(3),.gm-table th:nth-child(3){position:sticky;z-index:1;background:#fff;box-sizing:border-box;}
+.gm-table td:nth-child(2),.gm-table th:nth-child(2){left:0;width:60px;min-width:60px;max-width:60px;}
+.gm-table td:nth-child(3),.gm-table th:nth-child(3){left:60px;min-width:170px;max-width:220px;box-shadow:2px 0 0 #cbd5e1;}
+.gm-table th:nth-child(2),.gm-table th:nth-child(3){z-index:3;background:var(--blue-header);}
+.gm-table .master-left td:nth-child(2),.gm-table .master-left td:nth-child(3){background:#f8fafc;}
+.gm-table td,.gm-table th{white-space:nowrap;}
+.gm-table td:nth-child(3){white-space:normal;}
 /* Escort sheet for shift incharges of other agencies: look only (25 Oct). */
 .esc-view-note{margin:8px 16px;padding:8px 12px;border-radius:8px;background:#eef2ff;color:#3730a3;font-size:14px;}
 .esc-view-only input, .esc-view-only button, .esc-view-only select, .esc-view-only textarea, .esc-view-only .route-cell{pointer-events:none;}

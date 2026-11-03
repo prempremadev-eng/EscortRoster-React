@@ -512,9 +512,9 @@ export default function GuardMaster() {
             </div>
 
             <div className="dash-scroll">
-              <table className="dash-table adm-table">
+              <table className="dash-table adm-table gm-table">
                 <thead>
-                  <tr><th>S.No</th><th>Photo</th><th>ID</th><th>Card</th><th>Guard name</th><th>Designation</th><th>Agency</th><th>Branch</th><th>Phone</th><th>Created by</th><th>Modified by</th><th>Status</th><th></th></tr>
+                  <tr><th>S.No</th><th>Photo</th><th>Guard name</th><th>ID</th><th>Card</th><th>Designation</th><th>Agency</th><th>Branch</th><th>Phone</th><th>Created by</th><th>Modified by</th><th>Status</th><th></th></tr>
                 </thead>
                 <tbody>
                   {shown.map((g, i) => {
@@ -526,9 +526,9 @@ export default function GuardMaster() {
                         <td>{g.photo_key && thumbs[g.ROWID + ':' + g.photo_key]
                           ? <a href={thumbs[g.ROWID + ':' + g.photo_key]} target="_blank" rel="noreferrer"><img className="gm-thumb" src={thumbs[g.ROWID + ':' + g.photo_key]} alt={g.guard_name} loading="lazy" /></a>
                           : <span className="gm-thumb gm-thumb-none">{g.photo_key ? '…' : '👤'}</span>}</td>
+                        <td className="left">{g.guard_name}{incharges.has(String(g.ROWID)) && <span className="gm-incharge" title="Shift incharge (Admin → Agencies)">⭐ Shift Incharge</span>}{tagList(g.tags).map(t => <span key={t} className="gm-tag-badge">{t}</span>)}</td>
                         <td>{g.id_number}</td>
                         <td>{g.card_number || '—'}</td>
-                        <td className="left">{g.guard_name}{incharges.has(String(g.ROWID)) && <span className="gm-incharge" title="Shift incharge (Admin → Agencies)">⭐ Shift Incharge</span>}{tagList(g.tags).map(t => <span key={t} className="gm-tag-badge">{t}</span>)}</td>
                         <td>{g.designation || '—'}{g.date_of_joining ? <div className="master-sub">Since {day10(g.date_of_joining)}</div> : null}</td>
                         <td>{g.agency}</td>
                         <td className="left">{b ? branchLabel(b) : '—'}<div className="master-sub">{b ? b.city + ', ' + b.state : ''}</div></td>
