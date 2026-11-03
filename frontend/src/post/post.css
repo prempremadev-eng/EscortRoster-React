@@ -478,7 +478,9 @@
 .pd-chat-head .pd-icon-btn svg{width:20px;height:20px;}
 .pd-safety-row{border:none;background:var(--pd-green-bg);color:var(--pd-green);height:42px;font-size:14px;}
 .pd-safety-row svg{color:var(--pd-green);}
-.pd-chat-body{background:var(--pd-bg);padding:16px 14px;}
+/* 🦉 Chat wallpaper (Prem, 3 Nov): like WhatsApp's, in NightOwl's own look: a cool night-blue paper with faint
+   moons, stars, owls and leaves in the app blue. */
+.pd-chat-body,.sup-pane-body{background-color:#E9EDF4;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160' fill='none' stroke='%231E4FB8' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round' stroke-opacity='0.13'%3E%3Cpath d='M30 14a12 12 0 1 0 12 18 10 10 0 1 1-12-18z'/%3E%3Cpath d='M118 22l2 5 5 2-5 2-2 5-2-5-5-2 5-2z'/%3E%3Cpath d='M74 70l1.5 3.5 3.5 1.5-3.5 1.5L74 80l-1.5-3.5L69 75l3.5-1.5z'/%3E%3Cpath d='M22 104c0-8 6-14 13-14s13 6 13 14v10c0 6-6 10-13 10s-13-4-13-10z'/%3E%3Cpath d='M24 92l-2-6 7 4M46 92l2-6-7 4'/%3E%3Ccircle cx='30' cy='103' r='3.5'/%3E%3Ccircle cx='40' cy='103' r='3.5'/%3E%3Cpath d='M35 108l-2 3h4z'/%3E%3Cpath d='M120 110c8-8 18-6 22 2-8 4-16 6-22-2z'/%3E%3Cpath d='M120 110c10 2 16 0 22 2'/%3E%3Ccircle cx='96' cy='140' r='1.6'/%3E%3Ccircle cx='60' cy='30' r='1.2'/%3E%3Ccircle cx='140' cy='70' r='1.4'/%3E%3Ccircle cx='12' cy='60' r='1.2'/%3E%3C/svg%3E");background-size:160px 160px;padding:16px 14px;}
 .pd-day{font-weight:600;box-shadow:0 1px 2px rgba(26,31,43,.08);}
 .pd-chat-body .pd-sys{box-shadow:0 1px 2px rgba(26,31,43,.06);}
 .pd-chat-body .pd-bubble{box-shadow:0 1px 2px rgba(26,31,43,.08);border-radius:14px;}
