@@ -1248,6 +1248,16 @@ td.in-late{color:#b91c1c;}
 .at-table td:nth-child(2),.at-table th:nth-child(2){left:110px;min-width:150px;}
 .at-table td:nth-child(3),.at-table th:nth-child(3){left:260px;min-width:90px;}
 .at-table td:nth-child(4),.at-table th:nth-child(4){left:350px;min-width:160px;box-shadow:2px 0 0 #cbd5e1;}
+/* Phone (Prem, 3 Nov): four sticky columns were wider than the screen, so nothing scrolled. Only Date and
+   Name stay; Employee Name and Clock NO slide under Date with the rest. */
+@media (max-width:700px){
+  .at-table td,.at-table th{font-size:13px;padding:8px 10px;}
+  .at-table td:nth-child(2),.at-table th:nth-child(2),.at-table td:nth-child(3),.at-table th:nth-child(3){position:static;min-width:0;}
+  .at-table th:nth-child(2),.at-table th:nth-child(3){position:sticky;top:0;z-index:2;}
+  .at-table td:nth-child(1),.at-table th:nth-child(1){min-width:92px;max-width:92px;}
+  .at-table td:nth-child(4),.at-table th:nth-child(4){left:92px;min-width:120px;max-width:150px;white-space:normal;}
+  .at-page .dash-scroll{max-height:calc(100dvh - 150px);}
+}
 .at-vendor{color:#dc2626;}
 .at-present{color:#15803d;font-weight:600;}
 /* 🔄 Swap OK'd by the office (Prem, 2 Nov): amber like a reliever on the schedule. */
