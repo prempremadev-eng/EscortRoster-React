@@ -553,7 +553,7 @@ export default function SupervisorSchedule() {
         {data && (
           <div className="sb-body">
             <div className="sb-main">
-              <div className="sh-page">
+              <div className={'sh-page' + (oneTable ? ' sh-page-one' : '')}>
                 <div className="sc-print-title">{b ? (b.company || 'Nokia') + ' ' + b.branch_name : ''} · Duty schedule · {niceDate(date)}</div>
                 {oneTable && <div className="sh-row"><OneTable /></div>}
                 {!oneTable && sections.map(sec => (
