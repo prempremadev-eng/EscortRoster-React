@@ -510,7 +510,7 @@ export default function GuardMaster() {
                 </label>
               )}
             </div>
-            {/* Count per branch · agency of the guards shown (Prem, 3 Nov). A tap filters to it. */}
+            {/* Count per branch · agency of the guards shown (Prem, 3 Nov). */}
             {(() => {
               const groups = {};
               shown.forEach(g => {
