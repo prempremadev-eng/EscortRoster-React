@@ -627,3 +627,9 @@ button.pd-avatar{border:none;cursor:pointer;}
 .pd-pick-row{display:flex;gap:28px;justify-content:center;padding:12px 0 8px;}
 .pd-pick{display:flex;flex-direction:column;align-items:center;gap:6px;font-size:30px;cursor:pointer;}
 .pd-pick span{font-size:14px;font-weight:600;color:var(--pd-ink);}
+
+/* Chat text not dull (Prem, 3 Nov, next to WhatsApp): bigger, darker, a little bolder; bubbles stand off the wallpaper. */
+.pd-chat-body .pd-bubble,.sup-pane-body .pd-bubble{font-size:16px;font-weight:500;color:#111827;line-height:1.35;box-shadow:0 1px 2px rgba(17,24,39,.16);}
+.pd-chat-body .pd-bubble-me,.sup-pane-body .pd-bubble-me{background:#D3E2FB;}
+.pd-chat-body .pd-author,.sup-pane-body .pd-author{font-size:13.5px;font-weight:700;}
+.pd-chat-body .pd-meta,.sup-pane-body .pd-meta{font-weight:400;color:#4B5563;}
