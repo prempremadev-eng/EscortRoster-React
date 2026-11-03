@@ -7,6 +7,7 @@ import VehicleEntry from './VehicleEntry.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
 import PhotoView, { PhotoPick, ChatPhoto } from './PhotoView.jsx';
 import ChatInput from './ChatInput.jsx';
+import { shareMessage } from './share.js';
 import BreakSheet from './BreakSheet.jsx';
 import PostHistory, { forgetHistory } from './PostHistory.jsx';
 import MoreMenu from './MoreMenu.jsx';
@@ -651,6 +652,8 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
                 <button className="pd-option" onClick={() => { setReplyTo(sheet); setSheet(null); }}>{Icon.reply}<span><b>Reply</b><span>OK / Noted / Done or your words</span></span></button>
                 <button className="pd-option" onClick={() => forward(sheet)} disabled={sheet.forwarded}>{Icon.forward}<span><b>Send to supervisor</b><span>{sheet.forwarded ? 'Already sent' : 'Shows in the supervisor inbox'}</span></span></button>
                 {sheet.text && <button className="pd-option" onClick={() => copy(sheet)}>{Icon.copy}<span><b>Copy</b></span></button>}
+                {/* 📤 Share out of the app, like WhatsApp (Prem, 3 Nov). */}
+                {typeof navigator !== 'undefined' && navigator.share && (sheet.text || sheet.media) && <button className="pd-option" onClick={() => { const m = sheet; setSheet(null); shareMessage({ text: m.text, url: m.media && m.media.url, kind: m.kind, author: m.author }).catch(err => say(err.message)); }}>{Icon.share}<span><b>Share</b><span>WhatsApp, mail, Bluetooth …</span></span></button>}
                 <button className="pd-link" onClick={() => setSheet(null)}>Cancel</button>
               </>
             )}

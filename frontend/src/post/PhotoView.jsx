@@ -1,11 +1,17 @@
 import { useState } from 'react';
+import { shareMessage } from './share.js';
 
 // 👤 A profile photo full screen, like WhatsApp (Prem, 2 Nov): tap the picture; ✕ or a tap closes it.
 export default function PhotoView({ photo, name, onClose }) {
   if (!photo) return null;
   return (
     <div className="pd-photo-view" onClick={onClose} role="dialog" aria-label={'Photo of ' + name}>
-      <div className="pd-photo-view-top"><b>{name}</b><button type="button" onClick={onClose} aria-label="Close">✕</button></div>
+      <div className="pd-photo-view-top"><b>{name}</b>
+        <span>
+          {navigator.share && <button type="button" onClick={e => { e.stopPropagation(); shareMessage({ url: photo, kind: 'photo' }).catch(() => {}); }} aria-label="Share">📤</button>}
+          <button type="button" onClick={onClose} aria-label="Close">✕</button>
+        </span>
+      </div>
       <img src={photo} alt={name} onClick={e => e.stopPropagation()} />
     </div>
   );
