@@ -555,7 +555,8 @@ export default function SupervisorSchedule() {
             <div className="sb-main">
               <div className={'sh-page' + (oneTable ? ' sh-page-one' : '')}>
                 <div className="sc-print-title">{b ? (b.company || 'Nokia') + ' ' + b.branch_name : ''} · Duty schedule · {niceDate(date)}</div>
-                {oneTable && <div className="sh-row"><OneTable /></div>}
+                {/* Cumbum (Prem, 3 Nov): Gate now beside the DUTY table, in the middle, so the picker on the right never covers it. */}
+                {oneTable && <div className="sh-row sh-row-one"><OneTable /><div className="gn-mid"><GateNow branch={branch} fold={{ on: folded.has('gate'), btn: <FoldBtn k="gate" /> }} /></div></div>}
                 {!oneTable && sections.map(sec => (
                   <div className="sh-row" key={sec.name}>
                     {ABC.map(s => (
@@ -695,8 +696,6 @@ export default function SupervisorSchedule() {
               <div className="pd-legend"><span className="sc-key sc-cell-pub"></span>Published <span className="sc-key sc-cell-draft"></span>Not published yet <span className="sc-key sc-cell-empty"></span>Empty</div>
             </div>
 
-            {/* Cumbum (Prem, 3 Nov): Gate now on the right, so it does not take half the page. */}
-            {oneTable && !adding && !pick && <aside className="sb-side gn-aside"><GateNow branch={branch} fold={{ on: folded.has('gate'), btn: <FoldBtn k="gate" /> }} /></aside>}
             {adding && <aside className="sb-side sh-drawer">
               <div className="pd-row-between">
                 <div className="pd-label">➕ NEW POST · {b ? b.branch_name : ''}</div>

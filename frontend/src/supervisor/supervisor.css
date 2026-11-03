@@ -656,6 +656,7 @@ a.setup-flow-title{text-decoration:none;}
   .sh-page-one .sh-one td,.sh-page-one .sh-one th{padding-top:7px;padding-bottom:7px;}
   .sh-page-one .sh-one td.sh-name,.sh-page-one .sh-one td.sh-point{padding-left:12px;padding-right:12px;}
 }
-/* Gate now as a side panel (Cumbum, 3 Nov). */
-.gn-aside{position:sticky;top:0;}
-.gn-aside .gn{margin:0;}
+/* Gate now beside the DUTY table (Cumbum, 3 Nov). */
+.sh-page-one .sh-row-one{grid-template-columns:max-content minmax(280px,420px);}
+.gn-mid .gn{margin:0;}
+@media (max-width:850px){.sh-page-one .sh-row-one{grid-template-columns:1fr;}}
