@@ -7,7 +7,8 @@ import { useAgencyPick } from '../agencyPick.js';
 const CODES = ['A', 'B', 'C', 'G', 'O', 'L', '-'];
 const LABEL = { A: 'Morning', B: 'Afternoon', C: 'Night', G: 'General', O: 'Week off', L: 'Leave', '-': 'Not set' };
 const WD = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
-const TEAM_HEAD = { PKL: 'PKL', MLCP: 'MLCP', ESCORT: 'Escort', HOSPITAL: 'Hospital', HOSP: 'Hospital' };
+const TEAM_HEAD = { PKL: 'PKL', MLCP: 'MLCP', ESCORT: 'Escort', HOSPITAL: 'Hospital', HOSP: 'Hospital',
+  'MEDICAL MINE': 'Medical Mine', NINNAKARAI: 'Ninnakarai', 'LADY GUARDS': 'Lady Guards', 'LADY GAURDS': 'Lady Guards' }; // 3 Nov: PKL groups move monthly too
 const MONTHS = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
 
 const thisMonth = () => new Date().toISOString().slice(0, 7);
@@ -62,7 +63,9 @@ function readRoster(XLSX, wb, guards, days, month) {
     let team = '';
     for (const [at, r] of rows.entries()) {
       const head = r.map(c => String(c).trim().toUpperCase()).filter(Boolean);
-      if (head.length === 1 && TEAM_HEAD[head[0]]) { team = TEAM_HEAD[head[0]]; continue; }
+      // A heading like the agency PDF's "IPF-Nov-2026 Schedule- Ninnakarai" counts too.
+      const h1 = head.length === 1 ? head[0].replace(/^.*SCHEDULE-\s*/, '').trim() : '';
+      if (TEAM_HEAD[h1]) { team = TEAM_HEAD[h1]; continue; }
       // Agency files write week off as "W/O", "WO" or "OFF" (ISI, 27 Oct): read it as O.
       const cells = r.slice(start, start + days).map(c => String(c).trim().toUpperCase().replace(/^(W\/?O|OFF)$/, 'O'));
       if (cells.filter(c => CODES.includes(c) && c !== '-').length < Math.min(20, days - 5)) continue;
@@ -269,7 +272,7 @@ export default function RosterPage({ initialMonth }) {
     setError('');
     try {
       const r = (await api.rosterUpload(branch, month, [...upload.matched.values()], ag)).data;
-      setNote('✅ Saved: ' + r.added + ' added, ' + r.replaced + ' replaced.');
+      setNote('✅ Saved: ' + r.added + ' added, ' + r.replaced + ' replaced.' + (r.areas ? ' 🔄 ' + r.areas + ' guard(s) moved to this month\'s team.' : ''));
       setUpload(null);
       await load();
     } catch (err) {

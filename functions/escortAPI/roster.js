@@ -29,7 +29,8 @@ module.exports = function rosterRoutes(app, h) {
 
   // Active guards of a branch in my area (a supervisor: only their agency).
   // Reliever profiles (QR gate, tag Reliever) are not roster guards: they show in the Relievers section.
-  const TEAMS = ['PKL', 'MLCP', 'Escort', 'Hospital'];
+  // Teams of the month (Prem, 3 Nov: everybody but a few core people moves every month, the PKL groups too).
+  const TEAMS = ['PKL', 'MLCP', 'Escort', 'Hospital', 'Medical Mine', 'Ninnakarai', 'Lady Guards'];
   async function branchGuards(req, zcql, branch) {
     return (await selectAll(zcql, 'Guards', `SELECT ROWID, id_number, card_number, guard_name, area, tags, agency, agency_id, branch_id FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY guard_name ASC`)).filter(g => !String(g.tags || '').split(',').includes('Reliever'));
   }
@@ -57,10 +58,11 @@ module.exports = function rosterRoutes(app, h) {
       const incharge = new Set(agencies.flatMap(a => String(a.Agencies.incharge_ids || '').split(',').map(x => x.trim()).filter(Boolean)));
       const codes = {};
       let updated = null;
-      // This month's team from the file wins over Guards.area, except the fixed PKL groups (Lady Guards …).
+      // This month's team from the file wins over Guards.area (3 Nov: the PKL groups move too).
       const teamOf = {};
       rows.forEach(r => { if (r.team) teamOf[String(r.guard_id)] = r.team; });
-      const areaOf = (g, team) => (!team ? g.area || '' : team === 'PKL' && g.area && !TEAMS.includes(g.area) ? g.area : team);
+      // Same rule as the schedule (supervisor.js withMonthTeam): an old file that only says PKL keeps a PKL group.
+      const areaOf = (g, team) => (!team ? g.area || '' : team === 'PKL' && g.area && !['PKL', 'MLCP', 'Escort', 'Hospital'].includes(g.area) ? g.area : team);
       // Guards in the order of the uploaded roster file (Prem, 27 Oct: "the order of the original monthly
       // roster"): MonthRoster.sort_no is the file's row number; a guard filled by hand gets the next number.
       // Rows without a number, then guards without a row, follow by name (ROWIDs are not in insert order).
@@ -131,7 +133,17 @@ module.exports = function rosterRoutes(app, h) {
       const table = catalystApp.datastore().table('MonthRoster');
       for (let i = 0; i < inserts.length; i += 100) await table.insertRows(inserts.slice(i, i + 100));
       for (let i = 0; i < updates.length; i += 100) await table.updateRows(updates.slice(i, i + 100));
-      ok(res, { added: inserts.length, replaced: seen.size - inserts.length, skipped: skipped.length });
+      // The month going on now: Guards.area follows the file, so the Guards page shows this month's team too.
+      let areas = 0;
+      if (month === new Date(Date.now() + 330 * 60000).toISOString().slice(0, 7)) {
+        const moved = entries.filter(e => TEAMS.includes(e.team) && guardById.has(String(e.guard_id)) && guardById.get(String(e.guard_id)).area !== e.team
+          && !(e.team === 'PKL' && ['Medical Mine', 'Ninnakarai', 'Lady Guards'].includes(guardById.get(String(e.guard_id)).area)))
+          .map(e => ({ ROWID: String(e.guard_id), area: e.team }));
+        const gt = catalystApp.datastore().table('Guards');
+        for (let i = 0; i < moved.length; i += 100) await gt.updateRows(moved.slice(i, i + 100));
+        areas = moved.length;
+      }
+      ok(res, { added: inserts.length, replaced: seen.size - inserts.length, skipped: skipped.length, areas });
     } catch (err) {
       fail(res, err);
     }

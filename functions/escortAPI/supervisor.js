@@ -588,8 +588,9 @@ module.exports = function supervisorRoutes(app, h) {
   // (otherwise the weekly Duty Chart). About 3 reads per load.
   const SHIFT_ORDER = ['A', 'G', 'B', 'C'];
   // This month's team from the roster file (MonthRoster.team, Prem 30 Oct: IPF teams change every month)
-  // replaces Guards.area for the day's work: who is an escort, who fills MLCP … The fixed PKL groups
-  // (Lady Guards, Medical Mine, Ninnakarai …) keep their area when the file says PKL.
+  // replaces Guards.area for the day's work: who is an escort, who fills MLCP … 3 Nov (Prem): the PKL groups
+  // (Lady Guards, Medical Mine, Ninnakarai) move every month too, so the file's section always wins; an old
+  // file that only says PKL keeps a guard's PKL group.
   const MONTH_TEAMS = ['PKL', 'MLCP', 'Escort', 'Hospital'];
   function withMonthTeam(guards, roster) {
     const teamOf = {};
