@@ -4,6 +4,7 @@ import { compressImage, videoSeconds, MAX_VIDEO_SECONDS, MAX_VIDEO_MB } from './
 import VideoRecorder from './VideoRecorder.jsx';
 import PhotoView, { ChatPhoto } from './PhotoView.jsx';
 import ChatInput from './ChatInput.jsx';
+import MsgMenu from './MsgMenu.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from './VoiceNote.jsx';
 import { useSwipeReply, jumpTo } from './swipe.jsx';
 
@@ -11,10 +12,11 @@ import { useSwipeReply, jumpTo } from './swipe.jsx';
 // (by login): the whole team and the office talk here, everyone can send and reply.
 // api: { load(), send(text, replyTo), media(blob, opts) }. No timer: it reloads on a notification and
 // when the page comes back to the screen (every load costs reads).
-function Bubble({ m, onReply, onPhoto }) {
-  const swipe = useSwipeReply(() => onReply(m));
+function Bubble({ m, onReply, onPhoto, onMenu }) {
+  const swipe = useSwipeReply(() => onReply(m), () => onMenu(m));
   return (
-    <div className={'pd-bubble ' + (m.mine ? 'pd-bubble-me' : 'pd-bubble-other') + (m.office ? ' pd-bubble-sup' : '')} {...swipe.handlers} style={swipe.style}>
+    <div className={'pd-bubble ' + (m.mine ? 'pd-bubble-me' : 'pd-bubble-other') + (m.office ? ' pd-bubble-sup' : '')} {...swipe.handlers} style={swipe.style}
+      onContextMenu={e => { e.preventDefault(); onMenu(m); }}>
       {swipe.icon}
       {!m.mine && <div className={'pd-author' + (m.office ? ' pd-author-sup' : '')}>{m.avatar && <img className="pd-author-pic" src={m.avatar} alt="" onClick={e => { e.stopPropagation(); onPhoto({ photo: m.avatar, name: m.author }); }} />}{m.author}</div>}
       {m.reply && (
@@ -39,7 +41,8 @@ export default function GroupChat({ api, onBack, fill }) {
   const [busy, setBusy] = useState(false);
   const endRef = useRef(null);
   const [camera, setCamera] = useState(false);
-  const [view, setView] = useState(null); // 👤 a profile photo full screen // 📷 Photo / Video like the post chat (Prem, 2 Nov)
+  const [view, setView] = useState(null); // 👤 a profile photo full screen
+  const [menu, setMenu] = useState(null); // hold a message: Reply · Copy · Share // 📷 Photo / Video like the post chat (Prem, 2 Nov)
   const galleryInput = useRef(null);
 
   const load = useCallback(async () => {
@@ -107,6 +110,7 @@ export default function GroupChat({ api, onBack, fill }) {
   return (
     <div className={'pd pd-chat pd-group' + (fill ? ' pd-group-fill' : '')}>
       {view && <PhotoView {...view} onClose={() => setView(null)} />}
+      {menu && <MsgMenu m={menu} onReply={setReplyTo} onClose={() => setMenu(null)} onInfo={setError} />}
       <div className="pd-chat-top">
         <div className="pd-chat-head">
           {onBack && <button className="pd-icon-btn" onClick={onBack} aria-label="Back">{Icon.back}</button>}
@@ -127,7 +131,7 @@ export default function GroupChat({ api, onBack, fill }) {
           return (
             <div key={m.ROWID} id={'msg-' + m.ROWID} className="pd-msg-wrap">
               {day && <div className="pd-day">{day}</div>}
-              <Bubble m={m} onReply={x => setReplyTo(x)} onPhoto={setView} />
+              <Bubble m={m} onReply={x => setReplyTo(x)} onPhoto={setView} onMenu={setMenu} />
             </div>
           );
         })}

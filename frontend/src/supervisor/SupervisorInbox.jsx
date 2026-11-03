@@ -12,6 +12,7 @@ import MoreMenu from '../post/MoreMenu.jsx';
 import SafetySheet from '../post/SafetySheet.jsx';
 import { ChatPhoto } from '../post/PhotoView.jsx';
 import ChatInput from '../post/ChatInput.jsx';
+import MsgMenu from '../post/MsgMenu.jsx';
 import PostHistory, { forgetHistory } from '../post/PostHistory.jsx';
 import { useSwipeReply, jumpTo } from '../post/swipe.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from '../post/VoiceNote.jsx';
@@ -65,10 +66,10 @@ function keyToBytes(base64url) {
 }
 const deviceType = () => (/iPhone|iPad|iPod/.test(navigator.userAgent) ? 'iphone' : /Android/.test(navigator.userAgent) ? 'android' : 'other');
 
-function Message({ m, onReply }) {
+function Message({ m, onReply, onMenu }) {
   const me = useUser();
-  // Swipe right to reply, like WhatsApp (Prem, 26 Oct).
-  const swipe = useSwipeReply(() => onReply && onReply(m));
+  // Swipe right to reply, like WhatsApp (Prem, 26 Oct); hold for Reply · Copy · Share (3 Nov).
+  const swipe = useSwipeReply(() => onReply && onReply(m), () => onMenu && onMenu(m));
   if (m.kind === 'system') return <div className="pd-sys pd-sys-green">{Icon.check}{m.text}</div>;
   if (m.kind === 'system_red') return <div className="pd-sys pd-sys-red">{m.text}</div>;
   if (m.kind === 'work' && m.work) {
@@ -101,7 +102,8 @@ function Message({ m, onReply }) {
   }
   const mine = (m.kind === 'supervisor' || m.office) && m.mine;
   return (
-    <div className={'pd-bubble ' + (mine ? 'pd-bubble-me sup-bubble-sup' : 'pd-bubble-other')} {...swipe.handlers} style={swipe.style}>
+    <div className={'pd-bubble ' + (mine ? 'pd-bubble-me sup-bubble-sup' : 'pd-bubble-other')} {...swipe.handlers} style={swipe.style}
+      onContextMenu={e => { if (onMenu) { e.preventDefault(); onMenu(m); } }}>
       {swipe.icon}
       <div className="pd-author">{m.kind === 'supervisor' || m.office ? supAuthor(m.author, me) : m.author}</div>
       {m.reply && <div className="pd-quote pd-quote-tap" onClick={() => jumpTo(m.reply.id)}><div className="pd-quote-name">{m.reply.author}</div><div className="pd-quote-text">{m.reply.text}</div></div>}
@@ -281,6 +283,7 @@ export default function SupervisorInbox({ initialPost }) {
   const [sheet, setSheet] = useState(false);
   const [showBreaks, setShowBreaks] = useState(false);
   const [replyTo, setReplyTo] = useState(null);
+  const [menu, setMenu] = useState(null); // hold a message: Reply · Copy · Share (3 Nov)
   useEffect(() => { setReplyTo(null); }, [openId]);
   const [showPick, setShowPick] = useState(false);
   const [showFind, setShowFind] = useState(false);
@@ -515,6 +518,7 @@ export default function SupervisorInbox({ initialPost }) {
                 ))}
               </div>
             )}
+            {menu && <MsgMenu m={menu} onReply={x => { setReplyTo(x); const box = document.getElementById('sup-msg'); if (box) box.focus(); }} onClose={() => setMenu(null)} onInfo={setError} />}
             <div className="sup-pane-body">
               {!post && <div className="pd-sys">Loading...</div>}
               {post && post.messages.length === 0 && <div className="pd-sys">No notes yet</div>}
@@ -524,7 +528,7 @@ export default function SupervisorInbox({ initialPost }) {
                 return (
                   <div key={m.ROWID} id={'msg-' + m.ROWID} className="pd-msg-wrap">
                     {day && <div className="pd-day">{day}</div>}
-                    <Message m={m} onReply={x => { setReplyTo(x); const box = document.getElementById('sup-msg'); if (box) box.focus(); }} />
+                    <Message m={m} onReply={x => { setReplyTo(x); const box = document.getElementById('sup-msg'); if (box) box.focus(); }} onMenu={setMenu} />
                   </div>
                 );
               })}
