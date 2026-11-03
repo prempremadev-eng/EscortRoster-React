@@ -469,10 +469,11 @@ export default function SupervisorSchedule() {
           {data && data.autoFill && <button className="pd-chip pd-chip-primary" onClick={autoFill} disabled={busy}
             title="Fill empty slots by the fill rules (now: Rule 1 Shift Incharge from the month roster)">⚡ Auto fill</button>}
           {/* Daily: Copy and Publish outside; the rest in ⋯ More (Prem, 28 Oct: ten buttons were too many). */}
-          <button className="pd-chip" onClick={() => run(() => api.scheduleCopy(branch, date, ag), r => setNote(r.data.copied ? 'Copied ' + r.data.copied + ' slot(s) from the ' + r.data.from + '.' : 'Nothing to copy (no schedule yesterday, and the weekly chart has no free slots).'))} disabled={busy}>Copy from yesterday</button>
-          <button className="pd-chip pd-chip-primary" onClick={publish} disabled={busy || !drafts}>Publish to guards</button>
           <input ref={uploadInput} type="file" accept=".xlsx,.xls,.csv" hidden onChange={uploadSheet} />
-          <MoreMenu label="⋯ More" items={[
+          {/* Copy from yesterday and Publish live in More (Prem, 3 Nov: the top row stays on one line); step 4 still publishes. */}
+          <MoreMenu label={drafts ? '⋯ More · ' + drafts + ' to publish' : '⋯ More'} items={[
+            drafts > 0 && !busy && ['📢 Publish to guards (' + drafts + ')', publish],
+            !busy && ['📋 Copy from yesterday', () => run(() => api.scheduleCopy(branch, date, ag), r => setNote(r.data.copied ? 'Copied ' + r.data.copied + ' slot(s) from the ' + r.data.from + '.' : 'Nothing to copy (no schedule yesterday, and the weekly chart has no free slots).'))],
             ['➕ Add post', () => openAdd('')],
             data && ['📥 Template (Excel)', downloadTemplate],
             ['📤 Upload Excel', () => uploadInput.current && uploadInput.current.click()],
