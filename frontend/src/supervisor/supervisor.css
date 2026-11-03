@@ -626,3 +626,15 @@ a.setup-flow-title{text-decoration:none;}
 .sup-me-menu{display:flex;flex-direction:column;gap:4px;background:#2A3245;border-radius:10px;padding:6px;margin:4px 0;}
 .sup-me-item{all:unset;cursor:pointer;color:#fff;font-size:13px;padding:6px 8px;border-radius:8px;white-space:nowrap;}
 .sup-me-item:hover{background:#3A4560;}
+
+/* ▾ / ▸ fold on every part of the schedule page (Prem, 3 Nov). A folded table keeps only its title row. */
+.sh-fold{border:0;background:rgba(255,255,255,.55);border-radius:6px;width:22px;height:20px;line-height:18px;padding:0;margin-right:6px;
+  cursor:pointer;font-size:13px;color:#1e293b;vertical-align:middle;}
+.sh-fold:hover{background:#fff;}
+.sh-folded tbody,.sh-folded tfoot,.sh-folded .sh-cols,.sh-folded colgroup + thead tr:not(.sh-head){display:none;}
+.gn-folded > :not(.gn-head){display:none;}
+.gn-head .sh-fold,.sc-day > .sh-fold{background:#eef2ff;}
+.sc-day > .sh-fold{align-self:flex-start;}
+.sc-day-fold{display:flex;align-items:center;gap:4px;margin:6px 0;color:#475569;font-size:13px;font-weight:600;}
+.sc-day-fold .sh-fold{background:#eef2ff;}
+@media print{.sh-fold{display:none;}.sh-folded tbody,.sh-folded .sh-cols{display:table-row-group;}}

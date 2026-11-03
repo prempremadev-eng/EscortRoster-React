@@ -43,7 +43,7 @@ const hours = s => s.start.slice(0, 2).replace(/^0/, '') + '–' + s.end.slice(0
 // empty it. "Publish to guards" makes the day's drafts the guards' duty for their card IN.
 // 📍 Gate now (Prem, 29 Oct, QR branches like Cumbum): who is IN at the gate with the IN selfie, the next shift's
 // handover, the relievers of today; Allow OUT for a guard stuck because nobody came.
-function GateNow({ branch }) {
+function GateNow({ branch, fold }) {
   const [g, setG] = useState(null);
   const [msg, setMsg] = useState('');
   const load = useCallback(() => { api.qrOnDuty(branch).then(r => setG(r.data)).catch(() => setG(null)); }, [branch]);
@@ -67,8 +67,8 @@ function GateNow({ branch }) {
     try { await api.qrSwapDecide(branch, s.id, yes); setMsg(yes ? '✅ ' + s.name + ' → Shift ' + s.to + '. Tell him to scan again.' : '✕ Swap refused for ' + s.name + '.'); load(); } catch (err) { setMsg(err.message); }
   };
   return (
-    <div className="gn no-print">
-      <div className="gn-head"><b>📍 Gate now</b><button className="pd-chip" onClick={load}>↻</button></div>
+    <div className={'gn no-print' + (fold && fold.on ? ' gn-folded' : '')}>
+      <div className="gn-head">{fold && fold.btn}<b>📍 Gate now</b><button className="pd-chip" onClick={load}>↻</button></div>
       {msg && <div className="sc-note">{msg}</div>}
       <div className="gn-list">
         {g.on.map(x => (
@@ -153,6 +153,16 @@ export default function SupervisorSchedule() {
   const [note, setNote] = useState('');
   // ▴ hides the buttons and the Auto fill note so the duty sheet gets the whole screen.
   const [tools, setTools] = useState(() => { try { return localStorage.getItem('sc-tools') !== 'off'; } catch { return true; } });
+  // ▾ / ▸ on every part of the page, and Show all / Hide all (Prem, 3 Nov: half the screen went to parts he
+  // did not need). Remembered on this browser.
+  const [folded, setFolded] = useState(() => { try { return new Set(JSON.parse(localStorage.getItem('sc-folded') || '[]')); } catch { return new Set(); } });
+  const saveFold = f => { setFolded(f); try { localStorage.setItem('sc-folded', JSON.stringify([...f])); } catch { /* private window */ } };
+  const toggleFold = k => { const f = new Set(folded); if (f.has(k)) f.delete(k); else f.add(k); saveFold(f); };
+  const FoldBtn = ({ k }) => (
+    <button type="button" className="sh-fold no-print" onClick={e => { e.stopPropagation(); toggleFold(k); }}
+      aria-label={folded.has(k) ? 'Show' : 'Hide'} title={folded.has(k) ? 'Show' : 'Hide'}>{folded.has(k) ? '▸' : '▾'}</button>
+  );
+  const foldCls = k => (folded.has(k) ? ' sh-folded' : '');
   const toggleTools = () => setTools(v => { try { localStorage.setItem('sc-tools', v ? 'off' : 'on'); } catch { /* private window */ } return !v; });
 
   useEffect(() => {
@@ -344,11 +354,11 @@ export default function SupervisorSchedule() {
   const b = branches.find(x => String(x.ROWID) === String(branch));
   const sheetDate = date.split('-').reverse().join('-');
   // One shift block of the daily sheet: S.No · NAME · SHIFT · POINT (the order the team writes it).
-  const ShiftTable = ({ code, title, posts }) => (
-    <table className="sh-t">
+  const ShiftTable = ({ code, title, posts, fk }) => (
+    <table className={'sh-t' + foldCls(fk)}>
       <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code" /><col className="w-point" /></colgroup>
       <thead>
-        <tr className={'sh-head' + (code === 'G' ? ' sh-head-g' : '')} title={title}><th colSpan={2}>{code} SHIFT</th><th colSpan={2}>{sheetDate}</th></tr>
+        <tr className={'sh-head' + (code === 'G' ? ' sh-head-g' : '')} title={title}><th colSpan={2}><FoldBtn k={fk} />{code} SHIFT</th><th colSpan={2}>{sheetDate}</th></tr>
         <tr className="sh-cols"><th>S No</th><th>NAME</th><th>SHIFT</th><th>POINT</th></tr>
       </thead>
       <tbody>
@@ -450,6 +460,9 @@ export default function SupervisorSchedule() {
             filled > 0 && ['🧹 Clear day', () => window.confirm('Empty the whole sheet of ' + niceDate(date) + '? All ' + filled + ' name(s) go, published ones too.') && run(() => api.scheduleClear(branch, date, ag), r => { setPick(null); setNote('🧹 Cleared · ' + r.data.cleared + ' slot(s) emptied.'); }), 'pd-more-danger']
           ]} />
           </>}
+          {data && <button className="pd-chip no-print" onClick={() => saveFold(folded.size ? new Set() : new Set(['day', 'gate', 'off', 'relief', 'escort', 'summary', 'nopost',
+            ...sections.flatMap(sec => ABC.map(x => 't:' + sec.name + ':' + x.code)), ...gSections.map(sec => 't:' + sec.name + ':G')]))}>
+            {folded.size ? '⇕ Show all' : '⇕ Hide all'}</button>}
           <button className="pd-icon-btn sc-tools" onClick={toggleTools} aria-label={tools ? 'Hide buttons' : 'Show buttons'} title={tools ? 'Hide buttons (bigger sheet)' : 'Show buttons'}>{tools ? '▴' : '▾'}</button>
         </div>
 
@@ -490,8 +503,10 @@ export default function SupervisorSchedule() {
           ];
           const vacantNames = summary.flatMap(x => x.empty.map(n => n + ' (' + x.code + ')'));
           const shown = rows.find(x => x[0] === dayList);
+          if (folded.has('day')) return <div className="sc-day-fold no-print"><FoldBtn k="day" /> Day numbers</div>;
           return (
             <div className="sc-day no-print">
+              <FoldBtn k="day" />
               {rows.map(([k, label, list, hint]) => {
                 const n = k === 'vacant' ? total - filled : list ? list.length : '—';
                 return (
@@ -509,7 +524,7 @@ export default function SupervisorSchedule() {
             </div>
           );
         })()}
-        {data && <GateNow branch={branch} />}
+        {data && <GateNow branch={branch} fold={{ on: folded.has('gate'), btn: <FoldBtn k="gate" /> }} />}
         {error && <div className="pd-error-bar">{error}</div>}
         {note && tools && <div className="sc-note">{note}</div>}
         {!data && !error && <div className="pd-muted sup-pad">Loading...</div>}
@@ -522,19 +537,19 @@ export default function SupervisorSchedule() {
                 {sections.map(sec => (
                   <div className="sh-row" key={sec.name}>
                     {ABC.map(s => (
-                      <ShiftTable key={s.code} code={s.code} title={sec.name} posts={sec.posts.filter(p => hasShift(p, s.code))} />
+                      <ShiftTable key={s.code} code={s.code} fk={'t:' + sec.name + ':' + s.code} title={sec.name} posts={sec.posts.filter(p => hasShift(p, s.code))} />
                     ))}
                   </div>
                 ))}
 
                 <div className="sh-row">
                   {shiftG && gPosts.length > 0 && <div className="sh-stack">
-                    {gSections.map(sec => <ShiftTable key={sec.name} code="G" title={sec.name + ' · G shift'} posts={sec.posts} />)}
+                    {gSections.map(sec => <ShiftTable key={sec.name} code="G" fk={'t:' + sec.name + ':G'} title={sec.name + ' · G shift'} posts={sec.posts} />)}
                   </div>}
-                  <table className="sh-t">
+                  <table className={'sh-t' + foldCls('off')}>
                     <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code2" /></colgroup>
                     <thead>
-                      <tr className="sh-head sh-head-off"><th colSpan={3}>WEEK OFF / LEAVE · {sheetDate}</th></tr>
+                      <tr className="sh-head sh-head-off"><th colSpan={3}><FoldBtn k="off" />WEEK OFF / LEAVE · {sheetDate}</th></tr>
                       <tr className="sh-cols"><th>S No</th><th>NAME</th><th>CODE</th></tr>
                     </thead>
                     <tbody>
@@ -545,10 +560,10 @@ export default function SupervisorSchedule() {
                     </tbody>
                   </table>
                   {/* Relievers at a QR gate (Cumbum, 29 Oct): added by the guard on duty; not guards. */}
-                  {((data.relief && data.relief.length > 0) || data.qrGate) && <table className="sh-t">
+                  {((data.relief && data.relief.length > 0) || data.qrGate) && <table className={'sh-t' + foldCls('relief')}>
                     <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code" /><col className="w-point" /></colgroup>
                     <thead>
-                      <tr className="sh-head sh-head-off"><th colSpan={4}>🔁 RELIEVERS · {sheetDate}</th></tr>
+                      <tr className="sh-head sh-head-off"><th colSpan={4}><FoldBtn k="relief" />🔁 RELIEVERS · {sheetDate}</th></tr>
                       <tr className="sh-cols"><th>S No</th><th>NAME</th><th>SHIFT</th><th>STATUS</th></tr>
                     </thead>
                     <tbody>
@@ -580,10 +595,10 @@ export default function SupervisorSchedule() {
                       )}
                     </td></tr></tfoot>}
                   </table>}
-                  {data.escort.show && <table className="sh-t">
+                  {data.escort.show && <table className={'sh-t' + foldCls('escort')}>
                     <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code2" /><col className="w-point" /></colgroup>
                     <thead>
-                      <tr className="sh-head sh-head-esc"><th colSpan={4}>ESCORT · {sheetDate}</th></tr>
+                      <tr className="sh-head sh-head-esc"><th colSpan={4}><FoldBtn k="escort" />ESCORT · {sheetDate}</th></tr>
                       <tr className="sh-cols"><th>S No</th><th>NAME</th><th>TIME</th><th>POINT</th></tr>
                     </thead>
                     <tbody>
@@ -614,10 +629,10 @@ export default function SupervisorSchedule() {
                 </div>
 
                 <div className="sh-row" id="sc-summary">
-                  <table className="sh-t">
+                  <table className={'sh-t' + foldCls('summary')}>
                     <colgroup><col className="w-code" /><col className="w-code2" /><col className="w-code2" /><col className="w-code2" /><col className="w-wide" /></colgroup>
                     <thead>
-                      <tr className="sh-head"><th colSpan={5}>DAY SUMMARY · {sheetDate}</th></tr>
+                      <tr className="sh-head"><th colSpan={5}><FoldBtn k="summary" />DAY SUMMARY · {sheetDate}</th></tr>
                       <tr className="sh-cols"><th>SHIFT</th><th>TOTAL</th><th>FILLED</th><th>UNFILLED</th><th>UNFILLED POSTS</th></tr>
                     </thead>
                     <tbody>
@@ -631,10 +646,10 @@ export default function SupervisorSchedule() {
                       <tr className="sh-total"><td className="sh-code">TOTAL</td><td className="sh-code">{sum('total')}</td><td className="sh-code">{sum('filled')}</td><td className="sh-code">{sum('total') - sum('filled')}</td><td className="sh-point"></td></tr>
                     </tbody>
                   </table>
-                  <table className="sh-t">
+                  <table className={'sh-t' + foldCls('nopost')}>
                     <colgroup><col className="w-no" /><col className="w-name" /><col className="w-code" /><col className="w-code2" /></colgroup>
                     <thead>
-                      <tr className="sh-head sh-head-off"><th colSpan={(data.escort.canAdd ? 5 : 4) + (hasG ? 1 : 0)}>ON DUTY, NO POST · {sheetDate}</th></tr>
+                      <tr className="sh-head sh-head-off"><th colSpan={(data.escort.canAdd ? 5 : 4) + (hasG ? 1 : 0)}><FoldBtn k="nopost" />ON DUTY, NO POST · {sheetDate}</th></tr>
                       <tr className="sh-cols"><th>S No</th><th>NAME</th><th>SHIFT</th><th>TEAM</th>{data.escort.canAdd && <th className="no-print">ESCORT</th>}{hasG && <th className="no-print">G TODAY</th>}</tr>
                     </thead>
                     <tbody>
