@@ -11,6 +11,7 @@ import GroupChat from '../post/GroupChat.jsx';
 import MoreMenu from '../post/MoreMenu.jsx';
 import SafetySheet from '../post/SafetySheet.jsx';
 import { ChatPhoto } from '../post/PhotoView.jsx';
+import ChatInput from '../post/ChatInput.jsx';
 import PostHistory, { forgetHistory } from '../post/PostHistory.jsx';
 import { useSwipeReply, jumpTo } from '../post/swipe.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from '../post/VoiceNote.jsx';
@@ -545,7 +546,7 @@ export default function SupervisorInbox({ initialPost }) {
               <button type="button" className="pd-plus" onClick={() => setSheet(true)} aria-label="Add work update or vehicle entry" hidden={rec.recording}>{Icon.plus}</button>
               <label htmlFor="sup-msg" className="pd-hidden">Message to this post</label>
               <div className="pd-input" hidden={rec.recording}>
-                <input id="sup-msg" value={text} onChange={e => setText(e.target.value)} placeholder={'Message to ' + (post ? post.post : 'this post')} maxLength={255} autoComplete="off" />
+                <ChatInput id="sup-msg" value={text} onChange={setText} placeholder={'Message to ' + (post ? post.post : 'this post')} />
                 <button type="button" className="pd-in-btn" onClick={() => galleryInput.current.click()} disabled={busy} aria-label="Attach photo or video from gallery">{Icon.clip}</button>
                 <button type="button" className="pd-in-btn" onClick={() => photoInput.current.click()} disabled={busy} aria-label="Take a photo">{Icon.camera}</button>
               </div>

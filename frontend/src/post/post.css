@@ -195,7 +195,7 @@
 .pd-safety-form{flex-grow:1;display:flex;flex-direction:column;gap:8px;}
 
 /* Composer: text box with gallery + camera inside, green mic / blue send */
-.pd-input{flex-grow:1;min-width:0;height:48px;border:1px solid var(--pd-border-input);border-radius:24px;background:#FAF9F5;display:flex;align-items:center;padding:0 2px 0 14px;}
+.pd-input{flex-grow:1;min-width:0;min-height:48px;border:1px solid var(--pd-border-input);border-radius:24px;background:#FAF9F5;display:flex;align-items:center;padding:0 2px 0 14px;}
 .pd-composer .pd-input input{flex-grow:1;min-width:0;height:44px;border:none;outline:none;background:transparent;padding:0;font-size:16px;font-family:inherit;}
 .pd-in-btn{width:40px;height:40px;flex-shrink:0;border:none;border-radius:50%;background:transparent;color:var(--pd-muted);display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none;-webkit-touch-callout:none;user-select:none;}
 .pd-mic{width:48px;height:48px;flex-shrink:0;border:none;border-radius:50%;background:var(--pd-green);color:#fff;display:flex;align-items:center;justify-content:center;cursor:pointer;touch-action:none;-webkit-touch-callout:none;user-select:none;}
@@ -633,3 +633,9 @@ button.pd-avatar{border:none;cursor:pointer;}
 .pd-chat-body .pd-bubble-me,.sup-pane-body .pd-bubble-me{background:#D3E2FB;}
 .pd-chat-body .pd-author,.sup-pane-body .pd-author{font-size:13.5px;font-weight:700;}
 .pd-chat-body .pd-meta,.sup-pane-body .pd-meta{font-weight:400;color:#4B5563;}
+
+/* ✍️ Message box that grows (ChatInput.jsx) and messages that keep their new lines. */
+.pd-input .pd-textarea{flex-grow:1;min-width:0;border:none;outline:none;background:transparent;padding:12px 0;font-size:16px;line-height:22px;font-family:inherit;resize:none;overflow-y:auto;max-height:122px;}
+.pd-input{align-items:flex-end;}
+.pd-input .pd-in-btn{margin-bottom:2px;}
+.pd-bubble > div:not([class]){white-space:pre-wrap;}

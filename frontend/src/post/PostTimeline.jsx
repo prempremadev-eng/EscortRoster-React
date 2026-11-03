@@ -6,6 +6,7 @@ import SafetySheet from './SafetySheet.jsx';
 import VehicleEntry from './VehicleEntry.jsx';
 import VideoRecorder from './VideoRecorder.jsx';
 import PhotoView, { PhotoPick, ChatPhoto } from './PhotoView.jsx';
+import ChatInput from './ChatInput.jsx';
 import BreakSheet from './BreakSheet.jsx';
 import PostHistory, { forgetHistory } from './PostHistory.jsx';
 import MoreMenu from './MoreMenu.jsx';
@@ -570,7 +571,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
         <button type="button" className="pd-plus" onClick={() => setSheet('menu')} aria-label="Add work update or alert" hidden={rec.recording}>{Icon.plus}</button>
         <label htmlFor="pd-msg" className="pd-hidden">Write a note</label>
         <div className="pd-input" hidden={rec.recording}>
-          <input id="pd-msg" value={text} onChange={e => setText(e.target.value)} placeholder={replyTo ? 'Write a reply' : 'Write a note'} maxLength={255} autoComplete="off" />
+          <ChatInput id="pd-msg" value={text} onChange={setText} placeholder={replyTo ? 'Write a reply' : 'Write a note'} />
           <button type="button" className="pd-in-btn" onClick={() => galleryInput.current.click()} disabled={busy} aria-label="Attach photo or video from gallery">{Icon.clip}</button>
           {/* One camera: Photo / Video inside (Prem, 2 Nov, like WhatsApp). */}
           <button type="button" className="pd-in-btn" onClick={() => setCamera(true)} disabled={busy} aria-label="Camera: photo or video">{Icon.camera}</button>

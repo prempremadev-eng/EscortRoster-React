@@ -3,6 +3,7 @@ import { Icon } from './icons.jsx';
 import { compressImage, videoSeconds, MAX_VIDEO_SECONDS, MAX_VIDEO_MB } from './media.js';
 import VideoRecorder from './VideoRecorder.jsx';
 import PhotoView, { ChatPhoto } from './PhotoView.jsx';
+import ChatInput from './ChatInput.jsx';
 import VoiceNote, { RecordingRow, LockedRecorder, useVoiceRecorder } from './VoiceNote.jsx';
 import { useSwipeReply, jumpTo } from './swipe.jsx';
 
@@ -147,7 +148,7 @@ export default function GroupChat({ api, onBack, fill }) {
         {rec.recording && !rec.locked && <RecordingRow secs={rec.secs} slide={rec.slide} />}
         <label htmlFor="grp-msg" className="pd-hidden">Message to the group</label>
         <div className="pd-input" hidden={rec.recording}>
-          <input id="grp-msg" value={text} onChange={e => setText(e.target.value)} placeholder={replyTo ? 'Write a reply' : 'Message the team'} maxLength={255} autoComplete="off" />
+          <ChatInput id="grp-msg" value={text} onChange={setText} placeholder={replyTo ? 'Write a reply' : 'Message the team'} />
           <button type="button" className="pd-in-btn" onClick={() => galleryInput.current.click()} disabled={busy} aria-label="Attach photo or video">{Icon.clip}</button>
           <button type="button" className="pd-in-btn" onClick={() => setCamera(true)} disabled={busy} aria-label="Camera: photo or video">{Icon.camera}</button>
         </div>
