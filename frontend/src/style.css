@@ -1099,6 +1099,13 @@ td.in-late{color:#b91c1c;}
 .adm-tree-0 td{font-size:15px;}
 .adm-tree-arrow{display:inline-block;width:14px;color:#64748b;}
 .adm-tree-count{color:#64748b;font-weight:400;font-size:13px;}
+/* Users (Prem, 3 Nov): Name stays, Email / Role / Status / buttons scroll sideways; the state / city / branch
+   line keeps its label in view too. */
+.adm-users thead th:first-child,.adm-users .adm-tree-user td:first-child{position:sticky;left:0;z-index:1;background:#fff;box-shadow:2px 0 0 #cbd5e1;min-width:170px;max-width:220px;white-space:normal;}
+.adm-users thead th:first-child{z-index:3;background:var(--blue-header);}
+.adm-users .master-left td:first-child{background:#f8fafc;}
+.adm-users td,.adm-users th{white-space:nowrap;}
+.adm-tree-label{position:sticky;left:10px;display:inline-block;}
 /* Escort sheet for shift incharges of other agencies: look only (25 Oct). */
 .esc-view-note{margin:8px 16px;padding:8px 12px;border-radius:8px;background:#eef2ff;color:#3730a3;font-size:14px;}
 .esc-view-only input, .esc-view-only button, .esc-view-only select, .esc-view-only textarea, .esc-view-only .route-cell{pointer-events:none;}

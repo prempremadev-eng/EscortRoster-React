@@ -454,7 +454,7 @@ export default function AdminPage() {
           const head = (key, depth, icon, label, users) => (
             <tr key={'h' + key} className={'adm-tree-head adm-tree-' + depth} onClick={() => setOpenNodes(o => { const n = new Set(o); if (n.has(key)) n.delete(key); else n.add(key); return n; })}>
               <td colSpan="5" className="left" style={{ paddingLeft: 10 + depth * 22 }}>
-                <span className="adm-tree-arrow">{openNodes.has(key) ? '▾' : '▸'}</span> {icon} <b>{label}</b> <span className="adm-tree-count">· {users.length} user{users.length === 1 ? '' : 's'}</span>
+                <span className="adm-tree-label"><span className="adm-tree-arrow">{openNodes.has(key) ? '▾' : '▸'}</span> {icon} <b>{label}</b> <span className="adm-tree-count">· {users.length} user{users.length === 1 ? '' : 's'}</span></span>
               </td>
             </tr>
           );
@@ -501,7 +501,7 @@ export default function AdminPage() {
           }
           return (
             <div className="dash-scroll">
-              <table className="dash-table adm-table adm-tree">
+              <table className="dash-table adm-table adm-tree adm-users">
                 <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th></th></tr></thead>
                 <tbody>
                   {rows}
