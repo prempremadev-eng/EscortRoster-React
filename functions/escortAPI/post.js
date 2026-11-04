@@ -810,7 +810,7 @@ module.exports = function postRoutes(app, h) {
   // Breaks and cover (breaks.js) use the same helpers.
   const breaks = require('./breaks.js')(app, {
     catalyst, fail, requireRowId, guardByToken, sendPushToGuard, shiftDate, nowStamp, hhmm, minutesBetween,
-    myLog, namesOf, addMessage, openPresence, closePresence, onDutyLog, closeEscortTrip: h.closeEscortTrip,
+    myLog, namesOf, addMessage, openPresence, closePresence, onDutyLog,
     notifySupervisors: (...args) => sup.notify(...args)
   });
 

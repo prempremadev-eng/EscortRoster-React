@@ -15,7 +15,7 @@ const ACTIVE = ['asked', 'declined', 'accepted', 'alone'];
 
 module.exports = function breakRoutes(app, h) {
   const { catalyst, fail, requireRowId, guardByToken, sendPushToGuard, shiftDate, nowStamp, hhmm, minutesBetween,
-    myLog, namesOf, addMessage, openPresence, closePresence, onDutyLog, notifySupervisors, closeEscortTrip } = h;
+    myLog, namesOf, addMessage, openPresence, closePresence, onDutyLog, notifySupervisors } = h;
 
   const statusIn = list => '(' + list.map(s => `status = '${s}'`).join(' OR ') + ')';
   const label = type => TYPES[type] || 'Break';
@@ -293,10 +293,6 @@ module.exports = function breakRoutes(app, h) {
       const time = hhmm(now);
       const walking = b && b.status === 'accepted' && b.cover_mode === 'go' && b.cover_guard_id;
       if (b) await catalystApp.datastore().table('Breaks').updateRow({ ROWID: b.ROWID, status: walking ? 'returning' : 'ended', end_at: now });
-      // Back from an urgent escort: the trip still out gets its In time.
-      if (b && b.type === 'escort' && closeEscortTrip) {
-        try { await closeEscortTrip(catalystApp, me.ROWID); } catch (err) { console.error('Escort In time failed:', err); }
-      }
       await catalystApp.datastore().table('DutyLog').updateRow({ ROWID: own.ROWID, status: 'on_duty' });
       await openPresence(catalystApp, own.post_id, me.ROWID, own.ROWID, 'main');
       await addMessage(catalystApp, { post_id: own.post_id, duty_log_id: own.ROWID, guard_id: me.ROWID, kind: 'system', text: me.guard_name + ' back on duty · ' + time });

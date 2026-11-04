@@ -71,15 +71,15 @@ export default function EscortExtra({ token }) {
         <button className="btn" onClick={load}>🔄 Refresh</button>
         <a className="btn secondary" href={'#guard/' + token}>← My post</a>
       </div>
-      {data && !data.onEscort && (
+      {data && !data.canEdit && (
         <div className="setup-card ex-note">No 🚕 Escort break running. On your post page tap <b>Go on break → Escort</b> first.</div>
       )}
       {data && data.onEscort && (
-        <div className="sim-note ex-note">Fill your row like the office sheet: Location → Out → In. After Out, tap the bar under the trip for cab and employees. <b>I'm back</b> on your post page puts the In time.</div>
+        <div className="sim-note ex-note">Fill your row like the office sheet: Location → Out → In for every trip. After Out, tap the bar under the trip for cab and employees. Waiting for the next trip? Fill Trip 2 the same way. Then <b>I'm back</b> on your post page.</div>
       )}
       {error && <div className="trip-error gsheet-error">{error}</div>}
       {data && (
-        <div className={'extra-section page-block tablewrap ex-sheet' + (data.onEscort ? '' : ' ex-locked')}>
+        <div className={'extra-section page-block tablewrap ex-sheet' + (data.canEdit ? '' : ' ex-locked')}>
           <div className="extra-title">Extra Escorts (Today Only)</div>
           <table>
             <TableHeader rotation={ROTATION} />
