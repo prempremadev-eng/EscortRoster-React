@@ -6,7 +6,7 @@ import { worksIn } from '../agency.js';
 // (card swipes and QR selfies alike). Server: functions/escortAPI/attendance.js. 📤 Export gives the same columns.
 const COLUMNS = [
   // Approval Status / Approved By / Approved Time, the empty Status, Added Time and ID dropped (Prem, 3 Nov).
-  ['Date', 'date'], ['Employee Name', 'vendorId'], ['Clock NO', 'clock'], ['Name', 'name'], ['Status', 'status'],
+  ['Date', 'date'], ['Employee No', 'vendorId'], ['Clock NO', 'clock'], ['Name', 'name'], ['Status', 'status'],
   ['Shift', 'shift'], ['Swap', 'swap'], ['Post Details', 'post'], ['Entry Time', 'entry'],
   ['Exit Time', 'exit'], ['Work Hours', 'inTime'], ['Agency', 'agency'], ['Designation', 'designation'],
   ['Added User', 'addedUser'], ['Status', 'active'], ['Officelocation', 'office'], ['Added User', 'addedUser2']

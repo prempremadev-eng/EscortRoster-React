@@ -67,92 +67,114 @@ export default function TripPopup({ escortName, rec, stops, onSaveCab, onSaveSto
     }
   }
 
+  // Redesign (Prem, 4 Nov — manager asked): phone = bottom sheet, laptop = wide card; cab and new
+  // employee as cards, fields two per row on a laptop, Drop / Pickup as a toggle, buttons stay at the bottom.
+  const cabOk = !!(rec.vehicle && rec.driver);
   return (
-    <div className="grid-picker-overlay" onClick={e => { if (e.target === e.currentTarget && !busy) onClose(); }}>
-      <div className="trip-box">
+    <div className="grid-picker-overlay trip-overlay" onClick={e => { if (e.target === e.currentTarget && !busy) onClose(); }}>
+      <div className="trip-box" role="dialog" aria-label="Trip details">
         <div className="trip-header">
           <div>
             <div className="trip-title">{escortName || 'Trip'}</div>
-            <div className="trip-sub">{rec.loc} · Out {rec.out}{rec.in ? ' · In ' + rec.in : ''}</div>
+            <div className="trip-chips">
+              {rec.loc && <span>📍 {rec.loc}</span>}
+              <span>↗ Out {rec.out}</span>
+              {rec.in && <span>↘ In {rec.in}</span>}
+            </div>
           </div>
-          <button type="button" className="trip-close" onClick={onClose} disabled={busy}>&times;</button>
+          <button type="button" className="trip-close" onClick={onClose} disabled={busy} aria-label="Close">&times;</button>
         </div>
 
-        {!complete && (
-          <div className="trip-warn">
-            ⚠️ Entry pending:
-            {!(rec.vehicle && rec.driver) && <span> Vehicle No / Driver Name.</span>}
-            {stops.length === 0 && <span> Employee entry illa.</span>}
+        <div className="trip-body">
+          <div className={'trip-status' + (complete ? ' ok' : '')}>
+            {complete
+              ? <span>✅ Trip complete</span>
+              : <>
+                <b>⚠️ Pending</b>
+                <span className={cabOk ? 'done' : ''}>{cabOk ? '✓' : '✗'} Cab</span>
+                <span className={stops.length ? 'done' : ''}>{stops.length ? '✓' : '✗'} Employees</span>
+              </>}
           </div>
-        )}
 
-        <div className="trip-section">🚕 Cab (trip ku oru thadava)</div>
-        {editCab ? (
-          <div className="trip-fields">
-            <label>Vehicle No
-              <input value={vehicle} onChange={e => setVehicle(e.target.value.toUpperCase())} placeholder="TN09 AB 1234" />
-            </label>
-            <label>Driver Name
-              <input value={driver} onChange={e => setDriver(e.target.value)} placeholder="Driver name" />
-            </label>
-          </div>
-        ) : (
-          <div className="trip-cab-summary">
-            <span>{rec.vehicle} · {rec.driver}</span>
-            <button type="button" className="trip-link" onClick={() => setEditCab(true)}>✏️ Edit</button>
-          </div>
-        )}
+          <section className="trip-card">
+            <div className="trip-card-head">
+              <span>🚕 Cab <small>· once per trip</small></span>
+              {!editCab && <button type="button" className="trip-link" onClick={() => setEditCab(true)}>✏️ Edit</button>}
+            </div>
+            {editCab ? (
+              <div className="trip-fields">
+                <label>Vehicle No
+                  <input className="trip-plate" value={vehicle} onChange={e => setVehicle(e.target.value.toUpperCase())} placeholder="TN09 AB 1234" />
+                </label>
+                <label>Driver Name
+                  <input value={driver} onChange={e => setDriver(e.target.value)} placeholder="Driver name" />
+                </label>
+              </div>
+            ) : (
+              <div className="trip-cab-summary">
+                <span className="trip-plate-view">{rec.vehicle}</span>
+                <span>👤 {rec.driver}</span>
+              </div>
+            )}
+          </section>
 
-        <div className="trip-section">👤 Employees ({stops.length})</div>
-        {stops.length > 0 && (
-          <table className="trip-stops">
-            <tbody>
-              {stops.map((s, i) => (
-                <tr key={s.ROWID} className={stop.ROWID === s.ROWID ? 'editing' : ''}>
-                  <td>{i + 1}</td>
-                  <td>{s.emp}</td>
-                  <td>{s.loc}</td>
-                  <td>{s.type}</td>
-                  <td>{s.time}</td>
-                  <td className="trip-stop-actions">
-                    <button type="button" title="Edit" onClick={() => setStop({ ...s })} disabled={busy}>✏️</button>
-                    {confirmDelete === s.ROWID
-                      ? <button type="button" className="trip-del-confirm" onClick={() => remove(s)} disabled={busy}>Delete?</button>
-                      : <button type="button" title="Delete" onClick={() => remove(s)} disabled={busy}>🗑</button>}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+          <section className="trip-card">
+            <div className="trip-card-head"><span>👥 Employees <span className="trip-count">{stops.length}</span></span></div>
+            {stops.length === 0
+              ? <div className="trip-empty">No employee yet — add below.</div>
+              : (
+                <ul className="trip-stops">
+                  {stops.map((s, i) => (
+                    <li key={s.ROWID} className={stop.ROWID === s.ROWID ? 'editing' : ''}>
+                      <span className="trip-no">{i + 1}</span>
+                      <span className="trip-stop-main">
+                        <b>{s.emp}</b>
+                        <small>📍 {s.loc}</small>
+                      </span>
+                      <span className={'trip-pill ' + (s.type === 'Pickup' ? 'pick' : 'drop')}>{s.type}</span>
+                      <span className="trip-time">{s.time}</span>
+                      <span className="trip-stop-actions">
+                        <button type="button" title="Edit" onClick={() => setStop({ ...s })} disabled={busy}>✏️</button>
+                        {confirmDelete === s.ROWID
+                          ? <button type="button" className="trip-del-confirm" onClick={() => remove(s)} disabled={busy}>Delete?</button>
+                          : <button type="button" title="Delete" onClick={() => remove(s)} disabled={busy}>🗑</button>}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              )}
+          </section>
 
-        <div className="trip-section small">{stop.ROWID ? 'Edit employee' : '+ New employee'}</div>
-        <div className="trip-fields">
-          <label>Emp ID
-            <input value={stop.emp} inputMode="numeric" onChange={e => setStopField('emp', e.target.value)} placeholder="Employee ID" />
-          </label>
-          <label>Location
-            <input value={stop.loc} list="locationSuggestions" onChange={e => setStopField('loc', e.target.value)} placeholder="Location" />
-          </label>
-          <div className="trip-type">
-            {['Drop', 'Pickup'].map(t => (
-              <label key={t}>
-                <input type="radio" name="tripType" checked={stop.type === t} onChange={() => setStopField('type', t)} /> {t}
+          <section className={'trip-card trip-new' + (stop.ROWID ? ' editing' : '')}>
+            <div className="trip-card-head"><span>{stop.ROWID ? '✏️ Edit employee' : '➕ Add employee'}</span></div>
+            <div className="trip-fields">
+              <label>Emp ID
+                <input value={stop.emp} inputMode="numeric" onChange={e => setStopField('emp', e.target.value)} placeholder="Employee ID" />
               </label>
-            ))}
-          </div>
-          <label>Time
-            <input type="time" value={stop.time} onChange={e => setStopField('time', e.target.value)} />
-          </label>
+              <label>Location
+                <input value={stop.loc} list="locationSuggestions" onChange={e => setStopField('loc', e.target.value)} placeholder="Location" />
+              </label>
+              <div className="trip-type" role="radiogroup" aria-label="Type">
+                {['Drop', 'Pickup'].map(t => (
+                  <button type="button" key={t} role="radio" aria-checked={stop.type === t} className={stop.type === t ? 'on' : ''} onClick={() => setStopField('type', t)}>
+                    {t === 'Drop' ? '⬇️ Drop' : '⬆️ Pickup'}
+                  </button>
+                ))}
+              </div>
+              <label>Time
+                <input type="time" value={stop.time} onChange={e => setStopField('time', e.target.value)} />
+              </label>
+            </div>
+          </section>
+
+          {error && <div className="trip-error">{error}</div>}
         </div>
 
-        {error && <div className="trip-error">{error}</div>}
-
-        <div className="grid-picker-footer">
+        <div className="trip-footer">
           {stop.ROWID
             ? <button type="button" onClick={() => setStop(blankStop())} disabled={busy}>Cancel edit</button>
             : <button type="button" onClick={onClose} disabled={busy}>Close</button>}
-          <button type="button" className="gp-ok" onClick={save} disabled={busy}>{busy ? 'Saving...' : '✓ Save'}</button>
+          <button type="button" className="trip-save" onClick={save} disabled={busy}>{busy ? 'Saving…' : '✓ Save'}</button>
         </div>
       </div>
     </div>

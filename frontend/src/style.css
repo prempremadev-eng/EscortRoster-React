@@ -828,55 +828,67 @@ td.routecell .trip-bar{
 td.routecell .trip-bar.done{background:#bbf7d0;color:#166534;}
 td.routecell .trip-bar.pending{background:#fecaca;color:#991b1b;font-weight:bold;}
 
-.trip-box{
-  background:#fff;
-  border-radius:10px;
-  width:420px;
-  max-width:94vw;
-  max-height:92vh;
-  overflow-y:auto;
+/* Trip popup (TripPopup.jsx), redesigned 4 Nov: laptop = centred wide card, phone = bottom sheet. */
+.trip-box{background:#f8fafc;border-radius:16px;width:600px;max-width:96vw;max-height:92vh;display:flex;flex-direction:column;overflow:hidden;
+  box-shadow:0 20px 50px rgba(15,23,42,.35);font-family:'Source Sans 3',system-ui,Arial,sans-serif;}
+.trip-header{background:linear-gradient(135deg,#2563eb,#1e3a8a);color:#fff;padding:14px 18px;display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.trip-title{font-size:18px;font-weight:700;}
+.trip-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;}
+.trip-chips span{background:rgba(255,255,255,.18);border-radius:999px;padding:2px 10px;font-size:13px;}
+.trip-close{background:rgba(255,255,255,.15);border:none;color:#fff;font-size:22px;line-height:1;width:34px;height:34px;border-radius:50%;cursor:pointer;flex:none;}
+.trip-close:hover{background:rgba(255,255,255,.3);}
+.trip-body{padding:14px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
+.trip-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:8px 12px;font-size:13px;}
+.trip-status span{background:#fff;border:1px solid #fecaca;border-radius:999px;padding:1px 10px;}
+.trip-status span.done{color:#166534;border-color:#bbf7d0;}
+.trip-status.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534;font-weight:600;}
+.trip-status.ok span{border:none;background:none;padding:0;}
+.trip-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;}
+.trip-card.editing{border-color:#facc15;box-shadow:0 0 0 3px #fef9c3;}
+.trip-card-head{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;font-size:14px;font-weight:700;color:var(--blue-dark);border-bottom:1px solid #eef2f7;background:#f8fbff;}
+.trip-card-head small{font-weight:400;color:#64748b;}
+.trip-count{display:inline-block;min-width:22px;text-align:center;background:var(--blue-mid);color:#fff;border-radius:999px;font-size:12px;padding:1px 7px;margin-left:4px;}
+.trip-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 14px;}
+.trip-fields label{display:flex;flex-direction:column;font-size:12px;font-weight:600;color:#475569;gap:4px;}
+.trip-fields input{border:1px solid #cbd5e1;border-radius:8px;padding:10px;font-size:15px;background:#fff;width:100%;min-width:0;}
+.trip-fields input:focus{outline:none;border-color:var(--blue-mid);box-shadow:0 0 0 3px var(--blue-light);}
+.trip-plate,.trip-plate-view{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:.06em;font-weight:600;}
+.trip-plate-view{background:#fef9c3;border:1px solid #eab308;border-radius:6px;padding:3px 10px;color:#1f2937;}
+.trip-type{display:flex;align-self:end;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;}
+.trip-type button{flex:1;border:none;background:#fff;padding:10px 6px;font-size:14px;cursor:pointer;color:#334155;}
+.trip-type button + button{border-left:1px solid #cbd5e1;}
+.trip-type button.on{background:var(--blue-mid);color:#fff;font-weight:700;}
+.trip-cab-summary{display:flex;flex-wrap:wrap;gap:12px;align-items:center;padding:12px 14px;font-size:15px;}
+.trip-link{background:none;border:none;color:var(--blue-mid);cursor:pointer;font-size:13px;font-weight:600;}
+.trip-empty{padding:12px 14px;color:#94a3b8;font-size:13px;}
+.trip-stops{list-style:none;margin:0;padding:0;}
+.trip-stops li{display:flex;align-items:center;gap:10px;padding:9px 14px;border-bottom:1px solid #f1f5f9;font-size:14px;}
+.trip-stops li:last-child{border-bottom:none;}
+.trip-stops li.editing{background:#fef9c3;}
+.trip-no{flex:none;width:24px;height:24px;border-radius:50%;background:#e2e8f0;color:#475569;font-size:12px;display:grid;place-items:center;font-weight:700;}
+.trip-stop-main{flex:1;min-width:0;display:flex;flex-direction:column;}
+.trip-stop-main small{color:#64748b;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.trip-pill{border-radius:999px;padding:2px 9px;font-size:12px;font-weight:700;}
+.trip-pill.drop{background:#dbeafe;color:#1e40af;}
+.trip-pill.pick{background:#dcfce7;color:#166534;}
+.trip-time{font-variant-numeric:tabular-nums;color:#334155;}
+.trip-stop-actions{white-space:nowrap;}
+.trip-stop-actions button{background:none;border:none;cursor:pointer;font-size:15px;padding:4px;}
+.trip-error{color:#b91c1c;background:#fef2f2;border-radius:8px;font-size:13px;padding:8px 12px;}
+.trip-stop-actions button.trip-del-confirm{background:#dc2626;color:#fff;border-radius:6px;font-size:12px;padding:4px 9px;}
+.trip-footer{display:flex;gap:10px;padding:12px 16px;border-top:1px solid #e2e8f0;background:#fff;}
+.trip-footer button{flex:1;border:1px solid #cbd5e1;background:#fff;border-radius:10px;padding:12px;font-size:15px;font-weight:600;cursor:pointer;color:#334155;}
+.trip-footer button.trip-save{flex:2;background:var(--blue-mid);border-color:var(--blue-mid);color:#fff;}
+.trip-footer button:disabled{opacity:.6;}
+@media (max-width:600px){
+  .trip-overlay{align-items:flex-end !important;padding:0 !important;}
+  .trip-box{width:100%;max-width:100%;max-height:94vh;border-radius:18px 18px 0 0;animation:trip-up .25s ease;}
+  .trip-fields{grid-template-columns:1fr;}
+  .trip-type{align-self:stretch;}
+  .trip-stops li{flex-wrap:wrap;}
+  .trip-footer{padding-bottom:calc(12px + env(safe-area-inset-bottom));}
 }
-.trip-header{
-  background:linear-gradient(135deg,#2563eb,#1e3a8a);
-  color:#fff;
-  padding:10px 14px;
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-start;
-}
-.trip-title{font-size:14px;font-weight:bold;}
-.trip-sub{font-size:12px;opacity:.9;margin-top:2px;}
-.trip-close{background:none;border:none;color:#fff;font-size:22px;line-height:1;cursor:pointer;}
-.trip-warn{background:#fee2e2;color:#991b1b;font-size:12px;padding:6px 14px;}
-.trip-section{
-  font-size:12px;
-  font-weight:bold;
-  color:var(--blue-dark);
-  background:var(--blue-band);
-  padding:6px 14px;
-  border-top:1px solid var(--border);
-}
-.trip-section.small{font-weight:normal;}
-.trip-fields{display:flex;flex-direction:column;gap:8px;padding:10px 14px;}
-.trip-fields label{display:flex;flex-direction:column;font-size:12px;color:#475569;gap:3px;}
-.trip-fields input:not([type=radio]){
-  border:1px solid var(--border);
-  border-radius:5px;
-  padding:8px;
-  font-size:15px;
-}
-.trip-type{display:flex;gap:18px;font-size:14px;}
-.trip-type label{flex-direction:row;align-items:center;gap:5px;font-size:14px;color:var(--text);}
-.trip-cab-summary{display:flex;justify-content:space-between;align-items:center;padding:8px 14px;font-size:14px;}
-.trip-link{background:none;border:none;color:var(--blue-mid);cursor:pointer;font-size:13px;}
-.trip-stops{width:100%;min-width:0;border-collapse:collapse;font-size:13px;}
-.trip-stops td{border:none;border-bottom:1px solid #e2e8f0;padding:6px 4px;text-align:left;}
-.trip-stops td:first-child{padding-left:14px;color:#64748b;}
-.trip-stops tr.editing{background:#fef9c3;}
-.trip-stop-actions{white-space:nowrap;text-align:right !important;padding-right:10px !important;}
-.trip-stop-actions button{background:none;border:none;cursor:pointer;font-size:14px;padding:2px 4px;}
-.trip-error{color:#b91c1c;font-size:12px;padding:0 14px 8px;}
-.trip-stop-actions button.trip-del-confirm{background:#dc2626;color:#fff;border-radius:4px;font-size:12px;padding:3px 8px;}
+@keyframes trip-up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
 
 /* ---------- dashboard (#dashboard) ---------- */
 a.btn{text-decoration:none;display:inline-block;}
@@ -1260,7 +1272,7 @@ td.in-late{color:#b91c1c;}
 .at-page{max-width:none;}
 .at-page .dash-scroll{overflow:auto;max-height:calc(100vh - 230px);scrollbar-width:auto;scrollbar-color:#94a3b8 #e2e8f0;}
 .at-table td,.at-table th{white-space:nowrap;}
-/* Date, Employee Name, Clock NO, Name stay in view while the rest scrolls sideways; the headings stay on top. */
+/* Date, Employee No, Clock NO, Name stay in view while the rest scrolls sideways; the headings stay on top. */
 .at-table thead th{position:sticky;top:0;z-index:2;}
 .at-table td:nth-child(-n+4),.at-table th:nth-child(-n+4){position:sticky;background:var(--surface,#fff);z-index:1;}
 .at-table th:nth-child(-n+4){z-index:3;background:var(--blue-header);}
@@ -1272,7 +1284,7 @@ td.in-late{color:#b91c1c;}
 .at-table td:nth-child(3),.at-table th:nth-child(3){left:280px;width:100px;min-width:100px;max-width:100px;}
 .at-table td:nth-child(4),.at-table th:nth-child(4){left:380px;width:180px;min-width:180px;max-width:180px;box-shadow:2px 0 0 #cbd5e1;}
 /* Phone (Prem, 3 Nov): four sticky columns were wider than the screen, so nothing scrolled. Only Date and
-   Name stay; Employee Name and Clock NO slide under Date with the rest. */
+   Name stay; Employee No and Clock NO slide under Date with the rest. */
 @media (max-width:700px){
   .at-table td,.at-table th{font-size:13px;padding:8px 10px;}
   .at-table td:nth-child(2),.at-table th:nth-child(2),.at-table td:nth-child(3),.at-table th:nth-child(3){position:static;width:auto;min-width:0;max-width:none;}
