@@ -1364,3 +1364,4 @@ td.in-late{color:#b91c1c;}
 .ex-muted{color:#64748b;font-size:14px;text-align:center;padding:4px 8px;}
 .ex-foot{position:sticky;bottom:0;display:flex;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #e2e8f0;}
 .ex-btn{flex:1;text-align:center;text-decoration:none;border:1px solid #cbd5e1;background:#fff;border-radius:10px;padding:12px;font-size:16px;font-weight:600;color:#334155;cursor:pointer;}
+.dash-post{display:inline-block;margin-left:6px;background:#fef3c7;color:#92400e;border:1px solid #fcd34d;border-radius:999px;padding:0 8px;font-size:12px;font-weight:700;white-space:nowrap;}

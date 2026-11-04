@@ -46,7 +46,10 @@ function summarize({ escorts, trips, stops }) {
     const isOther = t.is_extra === 'true' || t.is_sunday_pickup === 'true';
     const guard = isOther ? (t.extra_name || '(extra)') : (names[String(t.escort_id)] || '(removed escort)');
     const complete = isTripComplete(rec, tripStops);
+    // Post Escort (Prem, 5 Nov): a post guard who helped the escort team — marked on the dashboard.
+    const postGuard = t.is_extra === 'true' && /post escort|urgent escort/i.test(t.remarks || '');
     return {
+      postGuard,
       id: String(t.ROWID),
       date: t.duty_date,
       guard,
@@ -62,7 +65,8 @@ function summarize({ escorts, trips, stops }) {
 
   const guardMap = {};
   rows.forEach(r => {
-    const g = guardMap[r.guard] = guardMap[r.guard] || { guard: r.guard, trips: 0, drop: 0, pickup: 0, pending: 0 };
+    const g = guardMap[r.guard] = guardMap[r.guard] || { guard: r.guard, postGuard: false, trips: 0, drop: 0, pickup: 0, pending: 0 };
+    if (r.postGuard) g.postGuard = true;
     g.trips++;
     g.drop += r.drop;
     g.pickup += r.pickup;
@@ -74,7 +78,8 @@ function summarize({ escorts, trips, stops }) {
     trips: rows.length,
     drop: rows.reduce((n, r) => n + r.drop, 0),
     pickup: rows.reduce((n, r) => n + r.pickup, 0),
-    pending: rows.filter(r => r.pending).length
+    pending: rows.filter(r => r.pending).length,
+    postTrips: rows.filter(r => r.postGuard).length
   };
   return { rows, guards, totals };
 }
@@ -144,6 +149,7 @@ export default function Dashboard() {
               <Card icon="⬇️" label="Drop" value={data.totals.drop} />
               <Card icon="⬆️" label="Pickup" value={data.totals.pickup} />
               <Card icon="🔴" label="Pending" value={data.totals.pending} warn={data.totals.pending > 0} />
+              {data.totals.postTrips > 0 && <Card icon="👮" label="Post guard trips" value={data.totals.postTrips} />}
             </div>
 
             <h2 className="dash-h2">Guard wise</h2>
@@ -159,7 +165,7 @@ export default function Dashboard() {
                     {data.guards.map(g => (
                       <Fragment key={g.guard}>
                         <tr className="dash-trip" onClick={() => setOpenGuard(openGuard === g.guard ? null : g.guard)} title="Tap to see this guard's trips">
-                          <td className="left">{openGuard === g.guard ? '▾' : '▸'} {g.guard}</td>
+                          <td className="left">{openGuard === g.guard ? '▾' : '▸'} {g.guard}{g.postGuard && <span className="dash-post">👮 Post guard</span>}</td>
                           <td>{g.trips}</td>
                           <td>{g.drop}</td>
                           <td>{g.pickup}</td>
@@ -198,7 +204,7 @@ export default function Dashboard() {
                         <tr className="dash-trip" onClick={() => setOpen(open === r.id ? null : r.id)}>
                           <td>{open === r.id ? '▾' : '▸'} {i + 1}</td>
                           {multiDay && <td>{shortDate(r.date)}</td>}
-                          <td className="left">{r.guard}</td>
+                          <td className="left">{r.guard}{r.postGuard && <span className="dash-post">👮 Post guard</span>}</td>
                           <td className="left">{r.rec.loc}</td>
                           <td>{r.rec.out}</td>
                           <td>{r.rec.in}</td>
