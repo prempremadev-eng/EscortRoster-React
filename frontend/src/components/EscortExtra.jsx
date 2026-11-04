@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
-import { ROTATION, routeLocks, shortDate, stopFromDb } from '../utils.js';
-import TableHeader from './TableHeader.jsx';
-import RouteCell from './RouteCell.jsx';
+import { ROTATION, isTripComplete, routeLocks, shortDate, stopFromDb } from '../utils.js';
 import TimePicker from './TimePicker.jsx';
 import TripPopup from './TripPopup.jsx';
 
@@ -61,59 +59,77 @@ export default function EscortExtra({ token }) {
   }
 
   const tripRec = trip !== null ? routes[trip] : null;
+  // Phone layout (Prem, 5 Nov): one card per trip like the trip popup, not the wide office table.
+  // Trips show up to the first one not started (Trip 2 opens after Trip 1 has Out and In).
+  const shown = [];
+  for (let i = 0; i < ROTATION; i++) {
+    shown.push(i);
+    const r = routes[i] || {};
+    if (!(r.out && r.in)) break;
+  }
+  const pick = (i, field) => setPicker({
+    label: (field === 'out' ? 'Out' : 'In') + ' · Trip ' + (i + 1), value: (routesRef.current[i] || {})[field] || '',
+    onOk: v => { setRoute(i, { [field]: v }); saveRoute(i); }
+  });
 
   return (
-    <>
-      <div className="titlebar"><h1>🚕 Post Escort</h1></div>
-      <div className="toolbar no-print ex-bar">
-        {data && <div><b className="guard-name">{data.name}</b> · {data.agency} · {shortDate(data.dutyDate)}</div>}
-        <div className="spacer"></div>
-        <button className="btn" onClick={load}>🔄 Refresh</button>
-        <a className="btn secondary" href={'#guard/' + token}>← My post</a>
+    <div className="ex">
+      <div className="ex-head">
+        <div className="ex-title">🚕 Post Escort</div>
+        {data && <div className="ex-chips"><span>👤 {data.name}</span><span>{data.agency}</span><span>🪪 {data.idNo}</span><span>📅 {shortDate(data.dutyDate)}</span></div>}
       </div>
-      {data && !data.canEdit && (
-        <div className="setup-card ex-note">No 🚕 Escort break running. On your post page tap <b>Go on break → Escort</b> first.</div>
-      )}
-      {data && data.onEscort && (
-        <div className="sim-note ex-note">Fill your row like the office sheet: Location → Out → In for every trip. After Out, tap the bar under the trip for cab and employees. Waiting for the next trip? Fill Trip 2 the same way. Then <b>I'm back</b> on your post page.</div>
-      )}
-      {error && <div className="trip-error gsheet-error">{error}</div>}
-      {data && (
-        <div className={'extra-section page-block tablewrap ex-sheet' + (data.canEdit ? '' : ' ex-locked')}>
-          <div className="extra-title">Extra Escorts (Today Only)</div>
-          <table>
-            <TableHeader rotation={ROTATION} />
-            <tbody>
-              <tr className="extra-row">
-                <td className="rowno col-sno">E</td>
-                <td className="name col-name">⭐ {data.name}</td>
-                <td>{data.agency}</td>
-                <td>—</td>
-                <td>{data.idNo}</td>
-                {Array.from({ length: ROTATION }, (_, i) => (
-                  <RouteCell
-                    key={i}
-                    rec={routes[i]}
-                    locks={routeLocks(routes, i)}
-                    saveState={cellStatus[i]}
-                    stops={routes[i] && routes[i].ROWID ? stops[String(routes[i].ROWID)] || [] : []}
-                    onChange={(field, v) => setRoute(i, { [field]: v })}
-                    onCommit={() => saveRoute(i)}
-                    onRetry={() => saveRoute(i)}
-                    onPickTime={(field, label) => setPicker({
-                      label, value: (routesRef.current[i] || {})[field] || '',
-                      onOk: v => { setRoute(i, { [field]: v }); saveRoute(i); }
-                    })}
-                    onOpenTrip={() => setTrip(i)}
-                  />
-                ))}
-                <td className="remarks">🚕 Post escort</td>
-                <td className="delcell-col no-print"></td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      )}
+
+      <div className="ex-body">
+        {!data && !error && <div className="ex-muted">Loading…</div>}
+        {data && (
+          <div className={'ex-status' + (data.onEscort ? ' on' : '')}>
+            {data.onEscort ? '🟢 On Post Escort now' : data.canEdit ? '✅ Back at post · you can still fill a missing In' : '🔒 No Post Escort break. Post page → Go on break → 🚕 Post Escort'}
+          </div>
+        )}
+        {error && <div className="trip-error">{error}</div>}
+
+        {data && shown.map(i => {
+          const r = routes[i] || {};
+          const locks = routeLocks(routes, i);
+          const tripStops = r.ROWID ? stops[String(r.ROWID)] || [] : [];
+          const done = r.out && r.in;
+          const okTrip = r.out && isTripComplete(r, tripStops);
+          return (
+            <section key={i} className={'ex-card' + (data.canEdit ? '' : ' ex-locked') + (done ? ' done' : '')}>
+              <div className="ex-card-head">
+                <span>Trip {i + 1}</span>
+                <span className="ex-save">{cellStatus[i] === 'saving' ? 'Saving…' : cellStatus[i] === 'failed' ? <button type="button" onClick={() => saveRoute(i)}>⚠️ Retry</button> : done ? '✅ Done' : r.out ? '🚗 Out' : ''}</span>
+              </div>
+              <div className="ex-fields">
+                <label className="ex-wide">Location
+                  <input value={r.loc || ''} list="locationSuggestions" placeholder="Where to?" disabled={locks.locDisabled}
+                    onChange={e => setRoute(i, { loc: e.target.value })} onBlur={() => { if ((r.loc || "").trim() || r.ROWID) saveRoute(i); }} />
+                </label>
+                <label>Out
+                  <button type="button" className="trip-time-btn" disabled={locks.outDisabled} onClick={() => pick(i, 'out')}>🕒 {r.out || '--:--'}</button>
+                </label>
+                <label>In
+                  <button type="button" className="trip-time-btn" disabled={locks.inDisabled} onClick={() => pick(i, 'in')}>🕒 {r.in || '--:--'}</button>
+                </label>
+              </div>
+              {r.out && (
+                <button type="button" className={'ex-trip ' + (okTrip ? 'ok' : 'todo')} onClick={() => r.ROWID && setTrip(i)} disabled={!r.ROWID}>
+                  <span>🚕 {r.vehicle ? r.vehicle : 'Cab'} · 👥 {tripStops.length} employee{tripStops.length === 1 ? '' : 's'}</span>
+                  <b>{okTrip ? 'View ›' : 'Fill ›'}</b>
+                </button>
+              )}
+            </section>
+          );
+        })}
+
+        {data && data.canEdit && <div className="ex-muted">Location → Out → cab & employees → In. Waiting for the next trip? Trip {Math.min(shown.length + 1, ROTATION)} opens after this one's In.</div>}
+      </div>
+
+      <div className="ex-foot">
+        <a className="ex-btn" href={'#guard/' + token}>← My post</a>
+        <button type="button" className="ex-btn" onClick={load}>🔄 Refresh</button>
+      </div>
+
       {picker && <TimePicker label={picker.label} value={picker.value} onOk={picker.onOk} onClose={() => setPicker(null)} />}
       {tripRec && tripRec.ROWID && (
         <TripPopup
@@ -143,6 +159,6 @@ export default function EscortExtra({ token }) {
           onClose={() => setTrip(null)}
         />
       )}
-    </>
+    </div>
   );
 }

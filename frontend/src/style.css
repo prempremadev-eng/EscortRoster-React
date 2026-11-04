@@ -1335,8 +1335,32 @@ td.in-late{color:#b91c1c;}
 .pp-more summary{font-size:13px;color:#475569;}
 .adm-auto{margin:10px 0;display:flex;gap:8px;align-items:flex-start;font-size:13px;}
 
-/* Urgent escort page (EscortExtra.jsx): the guard's own Extra row. */
-.ex-bar{flex-wrap:wrap;gap:8px;}
-.ex-note{margin:10px 12px;}
-.ex-sheet{margin:0 12px 20px;overflow-x:auto;}
-.ex-locked{opacity:.55;pointer-events:none;}
+/* Post Escort page (EscortExtra.jsx), phone first: a card per trip, like the trip popup. */
+.ex{min-height:100vh;display:flex;flex-direction:column;background:#f1f5f9;font-family:'Source Sans 3',system-ui,Arial,sans-serif;}
+.ex-head{background:linear-gradient(135deg,#60a5fa,#2563eb);color:#fff;padding:16px;}
+.ex-title{font-size:22px;font-weight:700;}
+.ex-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px;}
+.ex-chips span{background:rgba(255,255,255,.22);border-radius:999px;padding:3px 11px;font-size:14px;}
+.ex-body{flex:1;width:100%;max-width:620px;margin:0 auto;padding:12px;display:flex;flex-direction:column;gap:12px;}
+.ex-status{border-radius:10px;padding:10px 12px;font-size:15px;background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;}
+.ex-status.on{background:#f0fdf4;border-color:#bbf7d0;color:#166534;font-weight:600;}
+.ex-card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;overflow:hidden;box-shadow:0 1px 3px rgba(15,23,42,.06);}
+.ex-card.done{border-color:#bbf7d0;}
+.ex-card-head{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#f5f9ff;border-bottom:1px solid #eef2f7;font-size:17px;font-weight:700;color:var(--blue-dark);}
+.ex-save{font-size:14px;font-weight:600;color:#475569;}
+.ex-save button{border:none;background:#fee2e2;color:#991b1b;border-radius:6px;padding:3px 8px;font-size:13px;}
+.ex-fields{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:12px 14px;}
+.ex-fields label{display:flex;flex-direction:column;gap:4px;font-size:14px;font-weight:600;color:#475569;}
+.ex-fields input{border:1px solid #cbd5e1;border-radius:8px;padding:11px 10px;font-size:17px;width:100%;min-width:0;}
+.ex-fields input:focus{outline:none;border-color:var(--blue-mid);box-shadow:0 0 0 3px var(--blue-light);}
+.ex-fields input:disabled,.ex-fields button:disabled{background:#f1f5f9;color:#94a3b8;cursor:not-allowed;}
+.ex-wide{grid-column:1 / -1;}
+.ex-trip{display:flex;justify-content:space-between;align-items:center;width:calc(100% - 28px);margin:0 14px 14px;border-radius:10px;padding:12px;font-size:15px;cursor:pointer;border:1px solid;}
+.ex-trip span{text-align:left;}
+.ex-trip b{white-space:nowrap;margin-left:10px;}
+.ex-trip.todo{background:#fef2f2;border-color:#fecaca;color:#991b1b;}
+.ex-trip.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534;}
+.ex-locked{opacity:.6;pointer-events:none;}
+.ex-muted{color:#64748b;font-size:14px;text-align:center;padding:4px 8px;}
+.ex-foot{position:sticky;bottom:0;display:flex;gap:10px;padding:10px 12px calc(10px + env(safe-area-inset-bottom));background:#fff;border-top:1px solid #e2e8f0;}
+.ex-btn{flex:1;text-align:center;text-decoration:none;border:1px solid #cbd5e1;background:#fff;border-radius:10px;padding:12px;font-size:16px;font-weight:600;color:#334155;cursor:pointer;}
