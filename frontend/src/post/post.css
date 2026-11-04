@@ -586,7 +586,7 @@
 .owl-side{position:absolute;inset:0;-webkit-backface-visibility:hidden;backface-visibility:hidden;}
 .owl-side svg{width:100%;height:100%;display:block;overflow:visible;}
 .owl-side-back{transform:rotateY(180deg);}
-.owl-eyes{transform-box:view-box;transform-origin:256px 210px;animation:owl-blink 1.1s 2.9s ease-in-out both;}
+.owl-eyes{transform-box:view-box;transform-origin:256px 210px;animation:owl-blink 1.6s 3s ease-in-out both;}
 .owl-star{animation:owl-twinkle 1.2s ease-in-out infinite alternate;}
 .owl-star:nth-of-type(2){animation-delay:.4s;}.owl-star:nth-of-type(3){animation-delay:.8s;}
 .splash-owl .splash-title{font-size:30px;letter-spacing:.04em;animation-delay:.5s;}
