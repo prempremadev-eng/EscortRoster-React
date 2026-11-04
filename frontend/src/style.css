@@ -838,12 +838,12 @@ td.routecell .trip-bar.pending{background:#fecaca;color:#991b1b;font-weight:bold
 .trip-close{background:rgba(255,255,255,.15);border:none;color:#fff;font-size:22px;line-height:1;width:34px;height:34px;border-radius:50%;cursor:pointer;flex:none;}
 .trip-close:hover{background:rgba(255,255,255,.3);}
 .trip-body{padding:14px 16px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;}
-.trip-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:8px 12px;font-size:13px;}
+.trip-status{flex:none;display:flex;flex-wrap:wrap;align-items:center;gap:8px;background:#fef2f2;border:1px solid #fecaca;color:#991b1b;border-radius:10px;padding:8px 12px;font-size:13px;}
 .trip-status span{background:#fff;border:1px solid #fecaca;border-radius:999px;padding:1px 10px;}
 .trip-status span.done{color:#166534;border-color:#bbf7d0;}
 .trip-status.ok{background:#f0fdf4;border-color:#bbf7d0;color:#166534;font-weight:600;}
 .trip-status.ok span{border:none;background:none;padding:0;}
-.trip-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;}
+.trip-card{flex:none;background:#fff;border:1px solid #e2e8f0;border-radius:12px;overflow:hidden;box-shadow:0 1px 2px rgba(15,23,42,.05);}
 .trip-card.editing{border-color:#facc15;box-shadow:0 0 0 3px #fef9c3;}
 .trip-card-head{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;font-size:14px;font-weight:700;color:var(--blue-dark);border-bottom:1px solid #eef2f7;background:#f8fbff;}
 .trip-card-head small{font-weight:400;color:#64748b;}
@@ -881,12 +881,21 @@ td.routecell .trip-bar.pending{background:#fecaca;color:#991b1b;font-weight:bold
 .trip-footer button.trip-save{flex:2;background:var(--blue-mid);border-color:var(--blue-mid);color:#fff;}
 .trip-footer button:disabled{opacity:.6;}
 @media (max-width:600px){
+  /* Phone: bottom sheet, two fields per row so the whole trip fits without much scrolling. */
   .trip-overlay{align-items:flex-end !important;padding:0 !important;}
-  .trip-box{width:100%;max-width:100%;max-height:94vh;border-radius:18px 18px 0 0;animation:trip-up .25s ease;}
-  .trip-fields{grid-template-columns:1fr;}
-  .trip-type{align-self:stretch;}
-  .trip-stops li{flex-wrap:wrap;}
-  .trip-footer{padding-bottom:calc(12px + env(safe-area-inset-bottom));}
+  .trip-box{width:100%;max-width:100%;max-height:96vh;border-radius:20px 20px 0 0;animation:trip-up .25s ease;}
+  .trip-header{padding:12px 14px;position:relative;}
+  .trip-header::before{content:'';position:absolute;top:6px;left:50%;width:40px;height:4px;margin-left:-20px;border-radius:2px;background:rgba(255,255,255,.45);}
+  .trip-title{font-size:17px;margin-top:4px;}
+  .trip-body{padding:10px 12px;gap:10px;}
+  .trip-card-head{padding:8px 12px;font-size:13px;}
+  .trip-fields{grid-template-columns:1fr 1fr;gap:10px;padding:10px 12px;}
+  .trip-fields label{font-size:11px;}
+  .trip-fields input{padding:9px 8px;font-size:15px;}
+  .trip-type button{padding:9px 4px;font-size:13px;}
+  .trip-stops li{padding:8px 12px;gap:8px;font-size:13px;}
+  .trip-footer{padding:10px 12px calc(10px + env(safe-area-inset-bottom));}
+  .trip-footer button{padding:12px;}
 }
 @keyframes trip-up{from{transform:translateY(40px);opacity:.4}to{transform:none;opacity:1}}
 

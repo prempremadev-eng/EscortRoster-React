@@ -118,11 +118,9 @@ export default function TripPopup({ escortName, rec, stops, onSaveCab, onSaveSto
             )}
           </section>
 
-          <section className="trip-card">
+          {stops.length > 0 && <section className="trip-card">
             <div className="trip-card-head"><span>👥 Employees <span className="trip-count">{stops.length}</span></span></div>
-            {stops.length === 0
-              ? <div className="trip-empty">No employee yet — add below.</div>
-              : (
+            {(
                 <ul className="trip-stops">
                   {stops.map((s, i) => (
                     <li key={s.ROWID} className={stop.ROWID === s.ROWID ? 'editing' : ''}>
@@ -143,7 +141,7 @@ export default function TripPopup({ escortName, rec, stops, onSaveCab, onSaveSto
                   ))}
                 </ul>
               )}
-          </section>
+          </section>}
 
           <section className={'trip-card trip-new' + (stop.ROWID ? ' editing' : '')}>
             <div className="trip-card-head"><span>{stop.ROWID ? '✏️ Edit employee' : '➕ Add employee'}</span></div>
