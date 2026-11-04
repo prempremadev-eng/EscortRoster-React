@@ -1,6 +1,15 @@
 import { useState } from 'react';
 import { isTripComplete, nowTime } from '../utils.js';
 
+// Vehicle No typed any way → "TN 22 AB 2344" (Prem, 4 Nov): capitals, a space between state,
+// RTO number, series letters and the number. Never adds a trailing space, so backspace works.
+export function plate(v) {
+  const raw = String(v || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  const m = raw.match(/^([A-Z]{1,2})(\d{0,2})([A-Z]{0,3})(\d{0,4})$/);
+  const parts = m ? m.slice(1) : raw.match(/[A-Z]+|\d+/g) || [];
+  return parts.filter(Boolean).join(' ');
+}
+
 const blankStop = () => ({ ROWID: null, emp: '', loc: '', type: 'Drop', time: nowTime() });
 
 // One trip's paperwork: cab details (once per trip) + the employees dropped / picked up.
@@ -105,10 +114,10 @@ export default function TripPopup({ escortName, rec, stops, onSaveCab, onSaveSto
             </div>
             {editCab ? (
               <div className="trip-fields">
-                <label>Vehicle No
-                  <input className="trip-plate" value={vehicle} onChange={e => setVehicle(e.target.value.toUpperCase())} placeholder="TN09 AB 1234" />
+                <label className="trip-wide">Vehicle No
+                  <input className="trip-plate" value={vehicle} onChange={e => setVehicle(plate(e.target.value))} placeholder="TN XX XX XXXX" autoCapitalize="characters" autoComplete="off" maxLength={16} />
                 </label>
-                <label>Driver Name
+                <label className="trip-wide">Driver Name
                   <input value={driver} onChange={e => setDriver(e.target.value)} placeholder="Driver name" />
                 </label>
               </div>
@@ -164,7 +173,7 @@ export default function TripPopup({ escortName, rec, stops, onSaveCab, onSaveSto
               <div className="trip-type" role="radiogroup" aria-label="Type">
                 {['Drop', 'Pickup'].map(t => (
                   <button type="button" key={t} role="radio" aria-checked={stop.type === t} className={stop.type === t ? 'on' : ''} onClick={() => setStopField('type', t)}>
-                    {t === 'Drop' ? '⬇️ Drop' : '⬆️ Pickup'}
+                    {t === 'Drop' ? '↓ Drop' : '↑ Pickup'}
                   </button>
                 ))}
               </div>
