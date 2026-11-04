@@ -16,39 +16,76 @@ const OWL = 'owl_shown';
 const OWL_NOW = (() => { try { if (sessionStorage.getItem(OWL)) return false; sessionStorage.setItem(OWL, '1'); } catch { /* show it */ } return true; })();
 
 // The head is its own 3D layer (front face + back of head) on the neck, so the WHOLE head turns
-// round like a real owl (Prem, 4 Nov: "neck da suththudhu, eye mattum illa").
-function Owl() {
-  const head = (back) => (
-    <svg viewBox="130 90 252 240" aria-hidden="true">
-      <path d="M150 108L218 156L168 186Z M362 108L294 156L344 186Z" fill="#C2410C" />
-      <circle cx="256" cy="215" r="105" fill="#F97316" />
-      {back
-        ? <path d="M206 170q25 18 50 0q25 18 50 0M196 205q30 20 60 0q30 20 60 0M211 240q22 14 45 0q22 14 45 0" stroke="#C2410C" strokeWidth="7" fill="none" strokeLinecap="round" />
-        : <>
-          <g className="owl-eyes">
-            <circle cx="212" cy="210" r="46" fill="#fff" /><circle cx="300" cy="210" r="46" fill="#fff" />
-            <circle cx="214" cy="214" r="23" fill="#111827" /><circle cx="298" cy="214" r="23" fill="#111827" />
-            <circle cx="223" cy="204" r="8" fill="#fff" /><circle cx="307" cy="204" r="8" fill="#fff" />
-          </g>
-          <path d="M240 250L272 250L256 278Z" fill="#FACC15" />
-        </>}
-    </svg>
+// round like a real owl (Prem, 4 Nov: "neck da suththudhu, eye mattum illa"). Soft "clay" look
+// (Prem's prompt: cute 3D owl, sits still, head turns all the way round): every part has a light
+// top-left, dark bottom-right gradient, glossy eyes, a shadow and a glow behind.
+const GRAD = [
+  ['b', 'radial', '#FDBA74', '#F97316', '#B93C0B'],   // body / head
+  ['y', 'radial', '#FFFBF5', '#FED7AA', '#F5A962'],   // belly
+  ['e', 'radial', '#FFFFFF', '#FFFFFF', '#CBD5E1'],   // eye white
+  ['p', 'radial', '#4B5563', '#111827', '#000000'],   // pupil
+  ['k', 'radial', '#FEF08A', '#FACC15', '#CA8A04'],   // beak / feet
+  ['w', 'radial', '#EA580C', '#C2410C', '#7C2D12'],   // wings / ears
+  ['r', 'linear', '#A16207', '#78350F', '#451A03'],   // branch
+];
+function Defs({ id }) {
+  return (
+    <defs>
+      {GRAD.map(([k, t, a, m, z]) => {
+        const stops = [<stop key="a" offset="0" stopColor={a} />, <stop key="m" offset=".5" stopColor={m} />, <stop key="z" offset="1" stopColor={z} />];
+        return t === 'radial'
+          ? <radialGradient key={k} id={id + k} cx=".35" cy=".3" r=".8">{stops}</radialGradient>
+          : <linearGradient key={k} id={id + k} x1="0" y1="0" x2="0" y2="1">{stops}</linearGradient>;
+      })}
+    </defs>
   );
+}
+const F = (id, k) => 'url(#' + id + k + ')';
+
+export function Owl() {
+  const head = (back) => {
+    const id = back ? 'owlB' : 'owlF';
+    return (
+      <svg viewBox="130 90 252 240" aria-hidden="true">
+        <Defs id={id} />
+        <path d="M150 104Q170 140 218 156L168 188Q146 150 150 104Z M362 104Q342 140 294 156L344 188Q366 150 362 104Z" fill={F(id, 'w')} />
+        <circle cx="256" cy="215" r="105" fill={F(id, 'b')} />
+        {back
+          ? <path d="M206 170q25 18 50 0q25 18 50 0M196 205q30 20 60 0q30 20 60 0M211 240q22 14 45 0q22 14 45 0" stroke="#B93C0B" strokeWidth="7" fill="none" strokeLinecap="round" opacity=".8" />
+          : <>
+            <ellipse cx="256" cy="226" rx="92" ry="64" fill="#FDBA74" opacity=".55" />
+            <g className="owl-eyes">
+              <circle cx="212" cy="210" r="46" fill={F(id, 'e')} /><circle cx="300" cy="210" r="46" fill={F(id, 'e')} />
+              <circle cx="216" cy="214" r="25" fill={F(id, 'p')} /><circle cx="296" cy="214" r="25" fill={F(id, 'p')} />
+              <circle cx="225" cy="202" r="9" fill="#fff" /><circle cx="305" cy="202" r="9" fill="#fff" />
+              <circle cx="209" cy="224" r="4" fill="#fff" opacity=".8" /><circle cx="289" cy="224" r="4" fill="#fff" opacity=".8" />
+            </g>
+            <path d="M238 250Q256 246 274 250Q264 272 256 282Q248 272 238 250Z" fill={F(id, 'k')} />
+            <ellipse cx="196" cy="252" rx="13" ry="7" fill="#FB7185" opacity=".45" /><ellipse cx="316" cy="252" rx="13" ry="7" fill="#FB7185" opacity=".45" />
+          </>}
+      </svg>
+    );
+  };
+  const id = 'owlS';
   return (
     <div className="owl">
       <svg viewBox="0 0 512 512" aria-hidden="true">
+        <Defs id={id} />
         <circle className="owl-star" cx="110" cy="96" r="5" fill="#FDE68A" />
         <circle className="owl-star" cx="160" cy="60" r="4" fill="#FDE68A" />
         <circle className="owl-star" cx="330" cy="58" r="4" fill="#FDE68A" />
         <path d="M405 62a40 40 0 1 0 35 66a46 46 0 0 1 -35 -66z" fill="#FDE68A" />
-        <rect x="96" y="400" width="320" height="20" rx="10" fill="#78350F" />
-        <ellipse cx="256" cy="312" rx="118" ry="104" fill="#F97316" />
-        <circle cx="256" cy="215" r="100" fill="#EA580C" />
-        <path d="M146 280Q126 340 170 396Q162 330 146 280Z M366 280Q386 340 342 396Q350 330 366 280Z" fill="#C2410C" />
-        <ellipse cx="256" cy="345" rx="68" ry="58" fill="#FED7AA" />
-        <path d="M226 326q8 8 16 0M270 326q8 8 16 0M236 356q10 10 20 0q10 10 20 0" stroke="#FB923C" strokeWidth="4" fill="none" strokeLinecap="round" />
-        <rect x="216" y="398" width="8" height="28" rx="4" fill="#FACC15" /><rect x="230" y="398" width="8" height="28" rx="4" fill="#FACC15" />
-        <rect x="276" y="398" width="8" height="28" rx="4" fill="#FACC15" /><rect x="290" y="398" width="8" height="28" rx="4" fill="#FACC15" />
+        <ellipse cx="256" cy="440" rx="150" ry="14" fill="#000" opacity=".25" />
+        <rect x="96" y="400" width="320" height="22" rx="11" fill={F(id, 'r')} />
+        <ellipse cx="256" cy="312" rx="118" ry="104" fill={F(id, 'b')} />
+        <circle cx="256" cy="215" r="103" fill={F(id, 'b')} />
+        <path d="M146 270Q120 340 172 398Q164 328 146 270Z M366 270Q392 340 340 398Q348 328 366 270Z" fill={F(id, 'w')} />
+        <ellipse cx="256" cy="345" rx="68" ry="58" fill={F(id, 'y')} />
+        <path d="M226 326q8 8 16 0M270 326q8 8 16 0M236 356q10 10 20 0q10 10 20 0" stroke="#F59E5B" strokeWidth="4" fill="none" strokeLinecap="round" />
+        <g fill={F(id, 'k')}>
+          <rect x="214" y="396" width="10" height="30" rx="5" /><rect x="229" y="396" width="10" height="30" rx="5" />
+          <rect x="273" y="396" width="10" height="30" rx="5" /><rect x="288" y="396" width="10" height="30" rx="5" />
+        </g>
       </svg>
       <div className="owl-head">
         <div className="owl-side">{head(false)}</div>

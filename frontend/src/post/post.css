@@ -577,9 +577,10 @@
 
 /* Owl intro (Splash.jsx Owl): pops in, then the whole head turns once round on the neck (3D: the
    back of the head shows halfway), a little tilt, a blink. */
-.splash-owl{z-index:201;background:#1E3A8A;}
+.splash-owl{z-index:201;background:radial-gradient(circle at 50% 40%,#3557BD 0%,#1E3A8A 42%,#14245C 100%);}
 .owl{position:relative;width:min(220px,58vw);aspect-ratio:1;perspective:700px;animation:splash-pop .6s cubic-bezier(.2,1.4,.4,1) both;}
-.owl > svg{position:absolute;inset:0;width:100%;height:100%;}
+.owl > svg{position:absolute;inset:0;width:100%;height:100%;filter:drop-shadow(0 14px 18px rgba(0,0,0,.35));}
+.owl::before{content:'';position:absolute;inset:-18%;border-radius:50%;background:radial-gradient(circle,rgba(253,230,138,.28),rgba(253,230,138,0) 65%);}
 .owl-head{position:absolute;left:25.39%;top:17.58%;width:49.22%;height:46.88%;transform-style:preserve-3d;transform-origin:50% 60%;
   animation:owl-neck 2.4s .55s cubic-bezier(.45,0,.3,1) both;}
 .owl-side{position:absolute;inset:0;-webkit-backface-visibility:hidden;backface-visibility:hidden;}
@@ -591,11 +592,12 @@
 .splash-owl .splash-title{font-size:30px;letter-spacing:.04em;animation-delay:.5s;}
 @keyframes owl-neck{
   0%{transform:rotateY(0) rotate(0)}
-  35%{transform:rotateY(-180deg) rotate(0)}
-  52%{transform:rotateY(-180deg) rotate(0)}
-  84%{transform:rotateY(-360deg) rotate(-12deg)}
-  93%{transform:rotateY(-360deg) rotate(6deg)}
-  100%{transform:rotateY(-360deg) rotate(0)}}
+  30%{transform:rotateY(-200deg) rotate(0)}
+  36%{transform:rotateY(-180deg) rotate(0)}
+  55%{transform:rotateY(-180deg) rotate(0)}
+  82%{transform:rotateY(10deg) rotate(-10deg)}
+  92%{transform:rotateY(0) rotate(5deg)}
+  100%{transform:rotateY(0) rotate(0)}}
 @keyframes owl-blink{0%,100%{transform:none}50%{transform:scaleY(.08)}}
 @keyframes owl-twinkle{from{opacity:.35}to{opacity:1}}
 
