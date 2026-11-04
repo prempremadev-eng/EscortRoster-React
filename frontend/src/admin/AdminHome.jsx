@@ -301,11 +301,13 @@ export default function AdminHome({ hash }) {
 function ErtStrip({ date }) {
   const [list, setList] = useState(null);
   useEffect(() => {
+    // The duty day runs past midnight: an incident at 02:30 has the next calendar date (Prem, 5 Nov: a
+    // night entry did not show), so read one day more and count it in this duty day until 08:00.
     const from = new Date(Date.parse(date + 'T00:00:00Z') - 6 * 86400000).toISOString().slice(0, 10);
-    api.ertList(from, date).then(r => setList(r.data.incidents)).catch(() => setList([]));
+    api.ertList(from, nextDay(date)).then(r => setList(r.data.incidents)).catch(() => setList([]));
   }, [date]);
   if (!list) return null;
-  const today = list.filter(x => x.date === date);
+  const today = list.filter(x => x.date === date || (x.date === nextDay(date) && x.time < '08:00'));
   const open = list.filter(x => !x.closed);
   const shown = [...open, ...today.filter(x => x.closed)].slice(0, 6);
   return (
@@ -319,9 +321,11 @@ function ErtStrip({ date }) {
         : shown.map(x => (
           <a key={x.ROWID} className={'ah-ert-row' + (x.closed ? '' : ' open')} href="#sitereports/ert">
             <b>{x.closed ? '✅' : '🔴'} {x.type}</b><span className={'ert-sev ert-sev-' + String(x.severity).toLowerCase()}>{x.severity}</span>
-            <small>{x.date === date ? '' : x.date.slice(5) + ' '}{x.time} · 📍 {x.place} · {x.post}</small>
+            <small>{x.date === date || x.date === nextDay(date) ? '' : x.date.slice(5) + ' '}{x.time} · 📍 {x.place} · {x.post}</small>
           </a>
         ))}
     </section>
   );
 }
+
+const nextDay = d => new Date(Date.parse(d + 'T00:00:00Z') + 86400000).toISOString().slice(0, 10);

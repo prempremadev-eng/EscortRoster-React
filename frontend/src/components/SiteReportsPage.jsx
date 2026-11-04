@@ -209,14 +209,15 @@ function Chart({ rows, label }) {
   );
 }
 
-// 🚑 ERT incidents of the area between two dates: newest first, open ones on top, tap for the full report,
+// 🚑 ERT incidents of the area between two dates (plus the next morning: a night incident after midnight
+// has the next calendar date): newest first, open ones on top, tap for the full report,
 // Excel. Several can be open at once.
 function ErtList({ from, to }) {
   const [list, setList] = useState(null);
   const [error, setError] = useState('');
   const [open, setOpen] = useState(() => new Set());
   const [only, setOnly] = useState('all');
-  const load = useCallback(() => { setList(null); setError(''); api.ertList(from, to).then(r => setList(r.data.incidents)).catch(err => setError(err.message)); }, [from, to]);
+  const load = useCallback(() => { setList(null); setError(''); api.ertList(from, addDays(to, 1)).then(r => setList(r.data.incidents)).catch(err => setError(err.message)); }, [from, to]);
   useEffect(() => { load(); }, [load]);
   const toggle = k => setOpen(o => { const n = new Set(o); if (n.has(k)) n.delete(k); else n.add(k); return n; });
   const shown = (list || []).filter(x => only === 'all' || (only === 'open' ? !x.closed : x.closed));
