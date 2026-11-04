@@ -124,7 +124,7 @@ module.exports = function siteReportRoutes(app, h) {
     const rows = await zcql.executeZCQLQuery(`SELECT ROWID, post_name, branch_id, agency_id, report_type FROM Posts WHERE ROWID = ${requireRowId(postId)}`);
     if (!rows.length) throw new Error('Post not found.');
     const p = rows[0].Posts;
-    if (!typeOf(p.report_type)) throw new Error('No report is set for ' + p.post_name + '.');
+    if (!typeOf(p.report_type) && p.report_type !== 'ert') throw new Error('No report is set for ' + p.post_name + '.');
     return p;
   }
 
@@ -138,6 +138,7 @@ module.exports = function siteReportRoutes(app, h) {
       const { me, log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
       const post = await postRow(zcql, log.post_id);
       const t = typeOf(post.report_type);
+      if (!t) throw new Error('This post sends the 🚑 ERT incident report. Refresh the page.');
       const date = shiftDate();
       const rows = await dayRows(zcql, `post_id = ${requireRowId(post.ROWID)}`, date);
       const slots = t.slots(date).map(slot => {
@@ -160,6 +161,7 @@ module.exports = function siteReportRoutes(app, h) {
       const { me, log } = await onDutyLog(zcql, b.t, b.post, true);
       const post = await postRow(zcql, log.post_id);
       const t = typeOf(post.report_type);
+      if (!t) throw new Error('This post sends the 🚑 ERT incident report. Refresh the page.');
       const date = shiftDate();
       const slot = String(b.slot || '');
       if (!t.slots(date).includes(slot)) throw new Error('Pick the report time.');
