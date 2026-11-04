@@ -17,7 +17,10 @@ export default function SiteReportsPage() {
   const [postId, setPostId] = useState('');
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
-  const [open, setOpen] = useState(null);
+  // Several reports can be open at once (Prem, 5 Nov: opening one must not close the others).
+  const [open, setOpenSet] = useState(() => new Set());
+  const isOpen = k => open.has(k);
+  const toggle = k => setOpenSet(o => { const n = new Set(o); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
   const load = useCallback(async () => {
     setError('');
@@ -119,15 +122,15 @@ export default function SiteReportsPage() {
                     </div>
                     <div className="srp-slots">
                       {p.slots.map(s => (
-                        <button key={s.slot} type="button" className={'srp-slot srp-' + s.state + (open === p.id + s.slot ? ' on' : '')}
-                          onClick={() => s.report && setOpen(open === p.id + s.slot ? null : p.id + s.slot)} disabled={!s.report}>
+                        <button key={s.slot} type="button" className={'srp-slot srp-' + s.state + (isOpen(p.id + s.slot) ? ' on' : '')}
+                          onClick={() => s.report && toggle(p.id + s.slot)} disabled={!s.report}>
                           <span>{s.slot}</span>
                           <b>{s.report ? s.report.total : STATE[s.state][0]}</b>
                           <small>{s.report ? (s.state === 'late' ? '🟡 ' : '') + s.report.time : STATE[s.state][1]}</small>
                         </button>
                       ))}
                     </div>
-                    {p.slots.filter(s => open === p.id + s.slot && s.report).map(s => <Detail key={s.slot} t={t} r={s.report} />)}
+                    {p.slots.filter(s => isOpen(p.id + s.slot) && s.report).map(s => <Detail key={s.slot} t={t} r={s.report} />)}
                   </section>
                 );
               })}
@@ -146,12 +149,12 @@ export default function SiteReportsPage() {
                   {rangeRows.map(r => {
                     const p = postOf(r.post);
                     return [
-                      <tr key={r.ROWID} className="dash-trip" onClick={() => setOpen(open === r.ROWID ? null : r.ROWID)}>
+                      <tr key={r.ROWID} className="dash-trip" onClick={() => toggle(r.ROWID)}>
                         <td>{nice(r.date)}</td><td>{r.slot}</td><td className="left">{typeOf(p).icon} {p.name}</td>
                         <td className="left">{r.totals.map(x => x[0] + ': ' + x[1]).join(' · ')}</td>
-                        <td className="left">{r.by}</td><td>{r.time}</td><td>{open === r.ROWID ? '▾' : '▸'}</td>
+                        <td className="left">{r.by}</td><td>{r.time}</td><td>{isOpen(r.ROWID) ? '▾' : '▸'}</td>
                       </tr>,
-                      open === r.ROWID && <tr key={r.ROWID + 'd'}><td colSpan={7}><Detail t={typeOf(p)} r={r} /></td></tr>
+                      isOpen(r.ROWID) && <tr key={r.ROWID + 'd'}><td colSpan={7}><Detail t={typeOf(p)} r={r} /></td></tr>
                     ];
                   })}
                 </tbody>

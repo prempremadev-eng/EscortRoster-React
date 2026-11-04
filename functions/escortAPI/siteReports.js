@@ -40,8 +40,9 @@ const TYPES = {
     label: 'Employee Strength', icon: '👥',
     // Weekdays only the night; Saturday / Sunday the day too (Prem, 5 Nov).
     slots: date => { const d = new Date(date + 'T00:00:00Z').getUTCDay(); return d === 0 || d === 6 ? ['11:00', '15:00', '23:00', '03:00'] : ['23:00', '03:00']; },
-    sections: [['Employees', [['male', 'Male emp', 'emp'], ['female', 'Female emp', 'emp']]]],
-    totals: [['Total employees', ['emp']]],
+    // Prem, 5 Nov: "Male = 01, Female = 05, below Total = 10".
+    sections: [['Employees', [['male', 'Male', 'emp'], ['female', 'Female', 'emp']]]],
+    totals: [['Total', ['emp']]],
     texts: [['safety', 'Safety officer']]
   }
 };
