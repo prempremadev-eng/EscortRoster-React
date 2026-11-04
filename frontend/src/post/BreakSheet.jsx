@@ -3,7 +3,7 @@ import { api } from '../api.js';
 import { initials } from './icons.jsx';
 
 // 🚕 Escort (Prem, 4 Nov): the shift incharge phoned — an urgent escort trip; the post is covered or empty.
-const TYPES = [['tea', 'Tea'], ['lunch', 'Lunch'], ['restroom', 'Restroom'], ['escort', '🚕 Escort'], ['other', 'Other']];
+const TYPES = [['tea', 'Tea'], ['lunch', 'Lunch'], ['restroom', 'Restroom'], ['escort', '🚕 Post Escort'], ['other', 'Other']];
 const NO_ONE = 'none';
 
 // Screen 5l "Go on break": break type, then who covers (guards on duty now in this branch).

@@ -64,7 +64,7 @@ export default function EscortExtra({ token }) {
 
   return (
     <>
-      <div className="titlebar"><h1>🚕 Urgent Escort</h1></div>
+      <div className="titlebar"><h1>🚕 Post Escort</h1></div>
       <div className="toolbar no-print ex-bar">
         {data && <div><b className="guard-name">{data.name}</b> · {data.agency} · {shortDate(data.dutyDate)}</div>}
         <div className="spacer"></div>
@@ -107,7 +107,7 @@ export default function EscortExtra({ token }) {
                     onOpenTrip={() => setTrip(i)}
                   />
                 ))}
-                <td className="remarks">🚨 Urgent escort</td>
+                <td className="remarks">🚕 Post escort</td>
                 <td className="delcell-col no-print"></td>
               </tr>
             </tbody>

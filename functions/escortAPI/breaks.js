@@ -10,7 +10,7 @@
 // Breaks has one row per break. Presence (post.js) records who stood where, minute by minute.
 
 // escort (Prem, 4 Nov): an urgent escort trip while the escort team is busy (index.js URGENT ESCORT).
-const TYPES = { tea: 'Tea', lunch: 'Lunch', restroom: 'Restroom', escort: 'Escort', other: 'Other' };
+const TYPES = { tea: 'Tea', lunch: 'Lunch', restroom: 'Restroom', escort: 'Post Escort', other: 'Other' };
 const ACTIVE = ['asked', 'declined', 'accepted', 'alone'];
 
 module.exports = function breakRoutes(app, h) {

@@ -1062,7 +1062,7 @@ app.post('/guardEscortRoute', async (req, res) => {
       ? await table.updateRow({ ROWID: current.ROWID, location, out_time, in_time })
       : await table.insertRow({
         duty_date: ctx.dutyDate, escort_id: 0, seat_no: ctx.seat, route_no: n, location, out_time, in_time,
-        remarks: '🚨 Urgent escort', is_extra: 'true',
+        remarks: '🚕 Post escort', is_extra: 'true',
         extra_name: ctx.me.guard_name, extra_agency: ctx.me.agency || '', extra_mobile: ctx.phone, extra_id_no: ctx.idNo
       });
     res.status(200).json({ status: 'success', data: { ROWID: result.ROWID } });
