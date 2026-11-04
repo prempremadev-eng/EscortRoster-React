@@ -5,7 +5,9 @@ import { useUser, atLeast } from '../auth/user.js';
 import { worksIn } from '../agency.js';
 import { Toggle, IconBtn } from './RowControls.jsx';
 
-const BLANK_POST = { post_name: '', post_type: 'POST', agency_id: '', vehicle_entry: false, extra_duty: false, auto_fill: false, section: '', sort_order: '', shift_codes: 'ABC' };
+// Same keys as functions/escortAPI/siteReports.js TYPES.
+export const REPORT_TYPES = [['', 'None'], ['mlcp_car', '🚗 MLCP Car Parking (11 · 15 · 23)'], ['mlcp_two', '🛵 MLCP Two Wheeler (11 · 15 · 23)'], ['lancor', '🚙 Lancor Vendor Parking (11 · 15 · 23)'], ['emp_strength', '👥 Employee Strength (23 · 03; Sat/Sun also 11 · 15)']];
+const BLANK_POST = { post_name: '', post_type: 'POST', agency_id: '', vehicle_entry: false, report_type: '', extra_duty: false, auto_fill: false, section: '', sort_order: '', shift_codes: 'ABC' };
 const isOn = v => v === true || v === 'true';
 const idList = v => String(v || '').split(',').map(x => x.trim()).filter(Boolean);
 // Posts.relief_guards = "relief ; weekend ; lady shifts ; flags" → the parts the form edits.
@@ -127,7 +129,7 @@ export default function PostsPage() {
     setSaving(true);
     setError('');
     try {
-      const body = { rules: form.rules, branch_id: form.branch_id || branch, post_name: form.post_name, post_type: form.post_type, agency_id: form.agency_id, vehicle_entry: isOn(form.vehicle_entry), extra_duty: isOn(form.extra_duty), auto_fill: isOn(form.auto_fill), section: form.section, sort_order: form.sort_order, shift_codes: form.shift_codes };
+      const body = { rules: form.rules, branch_id: form.branch_id || branch, post_name: form.post_name, post_type: form.post_type, agency_id: form.agency_id, vehicle_entry: isOn(form.vehicle_entry), report_type: form.report_type || '', extra_duty: isOn(form.extra_duty), auto_fill: isOn(form.auto_fill), section: form.section, sort_order: form.sort_order, shift_codes: form.shift_codes };
       const saved = form.ROWID
         ? (await api.updatePost({ ...body, ROWID: form.ROWID, is_active: form.is_active !== 'false' })).data
         : (await api.addPost(body)).data;
@@ -263,6 +265,12 @@ export default function PostsPage() {
                 <input type="checkbox" checked={isOn(form.vehicle_entry)} onChange={e => setForm(f => ({ ...f, vehicle_entry: e.target.checked }))} />
                 🚗 Visitor / vehicle entry at this post
               </label>
+              {/* 📋 Site report (Prem, 5 Nov): the counts this post sends at fixed times. */}
+              <label>📋 Report from this post
+                <select value={form.report_type || ''} onChange={e => setForm(f => ({ ...f, report_type: e.target.value }))}>
+                  {REPORT_TYPES.map(([k, name]) => <option key={k} value={k}>{name}</option>)}
+                </select>
+              </label>
 
             </div>
 
@@ -323,7 +331,7 @@ export default function PostsPage() {
           <div className="dash-scroll">
             <table className="dash-table adm-table">
               <thead>
-                <tr><th>#</th><th>Post</th><th>Agency</th><th>Branch</th><th>City</th><th>State</th><th>Shifts</th><th>Vehicle entry</th><th>Status</th><th></th></tr>
+                <tr><th>#</th><th>Post</th><th>Agency</th><th>Branch</th><th>City</th><th>State</th><th>Shifts</th><th>Vehicle entry</th><th>Report</th><th>Status</th><th></th></tr>
               </thead>
               <tbody>
                 {posts.map((p, i) => {
@@ -339,6 +347,7 @@ export default function PostsPage() {
                       <td>{b.state || '—'}</td>
                       <td>{p.shift_codes || 'All'}</td>
                       <td>{isOn(p.vehicle_entry) ? '🚗 Yes' : '—'}</td>
+                      <td>{p.report_type ? (REPORT_TYPES.find(r => r[0] === p.report_type) || ['', p.report_type])[1] : '—'}</td>
                       <td><Toggle on={!off} label={p.post_name} disabled={!canEdit} onChange={() => setActive(p, off)} /></td>
                       <td className="adm-actions">{canEdit && !off && <IconBtn icon="✏️" label={'Edit ' + p.post_name} onClick={() => { setError(''); setNote(''); loadGuards(); setForm({ ...p, rules: rulesOf(p) }); window.scrollTo({ top: 0 }); }} />}
                         {/* 🗑 only on a switched-off post; the server deletes it only if it was never used. */}

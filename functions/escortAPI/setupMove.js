@@ -21,7 +21,7 @@ module.exports = function setupMoveRoutes(app, h) {
     Shifts: ['ROWID', 'shift_code', 'start_time', 'end_time'],
     Agencies: ['ROWID', 'agency_name', 'contact_name', 'contact_phone', 'contact_email', 'address', 'license_no', 'license_till', 'branch_ids', 'incharge_ids', 'is_active'],
     Guards: ['ROWID', 'id_number', 'card_number', 'guard_name', 'agency', 'agency_id', 'branch_id', 'area', 'phone', 'tags', 'gender', 'designation', 'date_of_joining', 'date_of_birth', 'emergency_contact', 'created_by', 'is_active'],
-    Posts: ['ROWID', 'branch_id', 'agency_id', 'post_name', 'post_type', 'vehicle_entry', 'extra_duty', 'auto_fill', 'section', 'sort_order', 'shift_codes', 'regular_guards', 'relief_guards', 'is_active'],
+    Posts: ['ROWID', 'branch_id', 'agency_id', 'post_name', 'post_type', 'vehicle_entry', 'report_type', 'extra_duty', 'auto_fill', 'section', 'sort_order', 'shift_codes', 'regular_guards', 'relief_guards', 'is_active'],
     UserRoles: ['ROWID', 'email', 'name', 'role', 'state', 'city', 'branch_id', 'agency_id', 'created_by', 'is_active']
   };
 

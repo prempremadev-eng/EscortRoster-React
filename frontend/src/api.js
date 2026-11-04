@@ -218,6 +218,10 @@ export const api = {
   finishWork: (t, rowid, post) => apiCall('POST', '/finishWork', { t, rowid, post }),
   safety: (t, post) => apiCall('GET', '/safety?t=' + q(t) + (post ? '&post=' + q(post) : '')),
   addSafety: (t, entry, post) => apiCall('POST', '/addSafety', { t, ...entry, post }),
+  // 📋 Site reports (parking / employee strength).
+  siteReportForm: (t, post) => apiCall('GET', '/siteReportForm?t=' + q(t) + (post ? '&post=' + q(post) : '')),
+  siteReportSend: body => apiCall('POST', '/siteReportSend', body),
+  siteReports: (from, to) => apiCall('GET', '/siteReports?from=' + q(from) + '&to=' + q(to || from)),
   vehicles: (t, post) => apiCall('GET', '/vehicles?t=' + q(t) + (post ? '&post=' + q(post) : '')),
   vehicleIn: (t, entry, post) => apiCall('POST', '/vehicleIn', { t, ...entry, post }),
   vehicleOut: (t, id, post) => apiCall('POST', '/vehicleOut', { t, id, post }),

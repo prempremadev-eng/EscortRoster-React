@@ -177,7 +177,7 @@ module.exports = function postRoutes(app, h) {
         return res.status(200).json({ status: 'success', data: { name: me.guard_name, locked: true, out: true, outAt: swipe ? swipe.punch_time : '' } });
       }
       const [posts, shifts, others] = await Promise.all([
-        zcql.executeZCQLQuery(`SELECT ROWID, post_name, branch_id, vehicle_entry FROM Posts WHERE ROWID = ${requireRowId(log.post_id)}`),
+        zcql.executeZCQLQuery(`SELECT ROWID, post_name, branch_id, vehicle_entry, report_type FROM Posts WHERE ROWID = ${requireRowId(log.post_id)}`),
         getShifts(zcql, me.branch_id),
         log.status === 'waiting' ? onDutyAt(zcql, log.post_id, log.ROWID) : Promise.resolve([])
       ]);
@@ -225,7 +225,7 @@ module.exports = function postRoutes(app, h) {
           post: post.post_name, branch: [branch.branch_name, branch.area].filter(Boolean).join(' · '),
           supervisorPhone: branch.supervisor_phone || '',
           shift: shifts.find(s => s.code === log.shift_code) || { code: log.shift_code, start: '', end: '' },
-          from, notes, works, general, atPost, vehicleEntry: isTrue(post.vehicle_entry)
+          from, notes, works, general, atPost, vehicleEntry: isTrue(post.vehicle_entry), reportType: post.report_type || ''
         }
       });
     } catch (err) {
@@ -832,6 +832,11 @@ module.exports = function postRoutes(app, h) {
   // Vehicle entry (vehicles.js): posts with vehicle entry on.
   require('./vehicles.js')(app, {
     catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, isTrue, onDutyLog, shiftDate, auth, getSetting
+  });
+
+  // Parking / employee strength reports (siteReports.js, Prem 5 Nov).
+  require('./siteReports.js')(app, {
+    catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, onDutyLog, shiftDate, auth, addMessage
   });
 
   // Supervisor inbox (supervisor.js).

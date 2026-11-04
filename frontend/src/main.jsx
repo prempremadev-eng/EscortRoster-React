@@ -9,6 +9,7 @@ import PostsPage from './components/PostsPage.jsx';
 import DutyHistory from './components/DutyHistory.jsx';
 import ShiftReport from './components/ShiftReport.jsx';
 import VehiclesPage from './components/VehiclesPage.jsx';
+import SiteReportsPage from './components/SiteReportsPage.jsx';
 import GuardSetup from './components/GuardSetup.jsx';
 import GuardPage from './components/GuardPage.jsx';
 import SupervisorInbox from './supervisor/SupervisorInbox.jsx';
@@ -149,6 +150,7 @@ function page(hash) {
   // The weekly Duty Chart page is gone (Prem, 22 Oct); an old #chart link opens Duty History.
   // #vehicles/add/<post>: the + of the office chat opens the IN form of that post.
   if (hash === '#vehicles' || hash.startsWith('#vehicles/add/')) return <SupFrame active="vehicles"><VehiclesPage addFor={hash.split('/')[2] || ''} /></SupFrame>;
+  if (hash === '#sitereports') return <SupFrame active="sitereports"><SiteReportsPage /></SupFrame>;
   if (hash === '#report') return <SupFrame active="report"><ShiftReport /></SupFrame>;
   if (hash === '#attendance') return <SupFrame active="attendance"><AttendancePage /></SupFrame>;
   if (hash === '#history' || hash === '#chart') return <SupFrame active="history"><DutyHistory /></SupFrame>;

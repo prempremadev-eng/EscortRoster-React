@@ -9,6 +9,7 @@ import PhotoView, { PhotoPick, ChatPhoto } from './PhotoView.jsx';
 import ChatInput from './ChatInput.jsx';
 import { shareMessage } from './share.js';
 import BreakSheet from './BreakSheet.jsx';
+import SiteReportForm from './SiteReportForm.jsx';
 import PostHistory, { forgetHistory } from './PostHistory.jsx';
 import MoreMenu from './MoreMenu.jsx';
 import { useSwipeReply, jumpTo } from './swipe.jsx';
@@ -395,6 +396,9 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
   if (page === 'vehicle' && duty.vehicleEntry) {
     return <VehicleEntry token={token} post={viewPost} postName={duty.post} onClose={closePage} />;
   }
+  if (page === 'sitereport' && duty.reportType) {
+    return <SiteReportForm token={token} onClose={sent => { closePage(); if (sent) load(); }} />;
+  }
   if (page === 'work') {
     return <AddWork token={token} post={viewPost} postName={hereEarly ? hereEarly.post : duty.post} onClose={saved => { closePage(); if (saved) load(); }} />;
   }
@@ -597,6 +601,11 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
                 <button className="pd-option pd-option-primary" onClick={() => { setSheet(null); setPage('work'); }}>
                   {Icon.wrench}<span><b>Work update</b><span>Contractor, persons, permit time</span></span>
                 </button>
+                {duty.reportType && !viewPost && (
+                  <button className="pd-option" onClick={() => { setSheet(null); setPage('sitereport'); }}>
+                    <span className="pd-emoji-icon">📋</span><span><b>Site report</b><span>Parking / employee count for the report time</span></span>
+                  </button>
+                )}
                 {duty.vehicleEntry && !viewPost && (
                   <button className="pd-option" onClick={() => { setSheet(null); setPage('vehicle'); }}>
                     {Icon.car}<span><b>Vehicle entry</b><span>Employee, visitor, vendor IN / OUT</span></span>
