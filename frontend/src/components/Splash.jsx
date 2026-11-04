@@ -101,7 +101,7 @@ export default function SplashHost() {
   const [owl, setOwl] = useState(OWL_NOW ? 'on' : null);
   useEffect(() => {
     if (!owl) return undefined;
-    const t = setTimeout(() => setOwl(owl === 'on' ? 'leaving' : null), owl === 'on' ? 3000 : 400);
+    const t = setTimeout(() => setOwl(owl === 'on' ? 'leaving' : null), owl === 'on' ? 4500 : 400);
     return () => clearTimeout(t);
   }, [owl]);
   const owlLayer = owl && (
