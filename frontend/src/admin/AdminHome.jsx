@@ -192,6 +192,7 @@ export default function AdminHome({ hash }) {
       </header>
       {error && <div className="ah-error">{error}</div>}
       {!data && !error && <div className="ah-loading">Loading…</div>}
+      {view === 'total' && <ErtStrip date={date} />}
 
       {data && view === 'total' && (() => {
         // Enterprise look (Prem, 26 Oct): a white KPI strip for the whole day, then one table line per
@@ -292,5 +293,35 @@ export default function AdminHome({ hash }) {
         </section>
       )}
     </div>
+  );
+}
+
+// 🚑 ERT incidents on the Today page (Prem, 5 Nov: "ERT report dashboard-ku varanum"): the day's
+// incidents and any still open from the last 7 days; tap → Site reports · ERT.
+function ErtStrip({ date }) {
+  const [list, setList] = useState(null);
+  useEffect(() => {
+    const from = new Date(Date.parse(date + 'T00:00:00Z') - 6 * 86400000).toISOString().slice(0, 10);
+    api.ertList(from, date).then(r => setList(r.data.incidents)).catch(() => setList([]));
+  }, [date]);
+  if (!list) return null;
+  const today = list.filter(x => x.date === date);
+  const open = list.filter(x => !x.closed);
+  const shown = [...open, ...today.filter(x => x.closed)].slice(0, 6);
+  return (
+    <section className="ah-ert">
+      <a className="ah-ert-head" href="#sitereports/ert">
+        <span>🚑 <b>ERT incidents</b></span>
+        <span className="ah-ert-nums"><em>Today <b>{today.length}</b></em><em className={open.length ? 'ah-ert-red' : ''}>Open <b>{open.length}</b></em><span>›</span></span>
+      </a>
+      {shown.length === 0
+        ? <div className="ah-ert-none">No incident today, nothing open. ✅</div>
+        : shown.map(x => (
+          <a key={x.ROWID} className={'ah-ert-row' + (x.closed ? '' : ' open')} href="#sitereports/ert">
+            <b>{x.closed ? '✅' : '🔴'} {x.type}</b><span className={'ert-sev ert-sev-' + String(x.severity).toLowerCase()}>{x.severity}</span>
+            <small>{x.date === date ? '' : x.date.slice(5) + ' '}{x.time} · 📍 {x.place} · {x.post}</small>
+          </a>
+        ))}
+    </section>
   );
 }

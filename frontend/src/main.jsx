@@ -150,7 +150,8 @@ function page(hash) {
   // The weekly Duty Chart page is gone (Prem, 22 Oct); an old #chart link opens Duty History.
   // #vehicles/add/<post>: the + of the office chat opens the IN form of that post.
   if (hash === '#vehicles' || hash.startsWith('#vehicles/add/')) return <SupFrame active="vehicles"><VehiclesPage addFor={hash.split('/')[2] || ''} /></SupFrame>;
-  if (hash === '#sitereports') return <SupFrame active="sitereports"><SiteReportsPage /></SupFrame>;
+  // #sitereports/ert: the Today page's 🚑 ERT card opens the ERT tab.
+  if (hash === '#sitereports' || hash === '#sitereports/ert') return <SupFrame active="sitereports"><SiteReportsPage key={hash} initialMode={hash.endsWith('/ert') ? 'ert' : 'day'} /></SupFrame>;
   if (hash === '#report') return <SupFrame active="report"><ShiftReport /></SupFrame>;
   if (hash === '#attendance') return <SupFrame active="attendance"><AttendancePage /></SupFrame>;
   if (hash === '#history' || hash === '#chart') return <SupFrame active="history"><DutyHistory /></SupFrame>;

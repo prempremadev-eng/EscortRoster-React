@@ -678,3 +678,14 @@ a.setup-flow-title{text-decoration:none;}
 }
 /* Space between G / Week off / Relievers / Escort tables (Prem, 3 Nov). Screen only; print keeps the paper look. */
 @media screen{.sh-row-misc{column-gap:16px;row-gap:16px;}}
+/* 🚑 ERT strip on the Today page (AdminHome ErtStrip). */
+.ah-ert{background:#fff;border:1px solid #fecaca;border-radius:14px;overflow:hidden;margin-bottom:14px;}
+.ah-ert-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;background:#fff5f5;text-decoration:none;color:#7f1d1d;font-size:16px;}
+.ah-ert-nums{display:flex;align-items:center;gap:10px;font-size:14px;}
+.ah-ert-nums em{font-style:normal;background:#fff;border:1px solid #fecaca;border-radius:999px;padding:2px 10px;}
+.ah-ert-nums em.ah-ert-red{background:#dc2626;color:#fff;border-color:#dc2626;}
+.ah-ert-none{padding:10px 14px;color:#166534;font-size:14px;}
+.ah-ert-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:10px 14px;border-top:1px solid #fee2e2;text-decoration:none;color:#1e293b;font-size:15px;}
+.ah-ert-row small{flex-basis:100%;color:#64748b;font-size:13px;}
+.ah-ert-row.open{background:#fffafa;}
+.ah-ert .ert-sev{border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;}

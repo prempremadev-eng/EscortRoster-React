@@ -9,8 +9,8 @@ const STATE = { sent: ['✅', 'Sent'], late: ['🟡', 'Late'], missed: ['🔴', 
 const addDays = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
 const nice = d => new Date(d + 'T00:00:00').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
 
-export default function SiteReportsPage() {
-  const [mode, setMode] = useState('day');
+export default function SiteReportsPage({ initialMode }) {
+  const [mode, setMode] = useState(initialMode || 'day');
   const [date, setDate] = useState(dutyDayStr());
   const [from, setFrom] = useState(addDays(dutyDayStr(), -6));
   const [to, setTo] = useState(dutyDayStr());
