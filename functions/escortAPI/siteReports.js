@@ -49,7 +49,7 @@ const LATE_MIN = 30;
 
 module.exports = function siteReportRoutes(app, h) {
   const { catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, onDutyLog, shiftDate, auth, addMessage,
-    sendPushToGuard, getSetting, notifySupervisors } = h;
+    sendPushToGuard, getSetting, notifySupervisors, postToGroup } = h;
 
   const typeOf = key => TYPES[String(key || '')] || null;
   const form = t => ({ label: t.label, icon: t.icon, sections: t.sections.map(([title, fields]) => ({ title, fields: fields.map(([k, label, tag]) => ({ k, label, tag })) })), totals: t.totals.map(([label, tags]) => ({ label, tags })), texts: (t.texts || []).map(([k, label]) => ({ k, label })) });
@@ -75,17 +75,22 @@ module.exports = function siteReportRoutes(app, h) {
     return now > due + LATE_MIN ? 'missed' : now >= due - 60 ? 'due' : 'later';
   }
 
-  // The WhatsApp style message (what the group used to get), also posted on the post's chat.
+  // The WhatsApp style message (what the group used to get), posted on the post chat and the team group.
+  // Prem, 5 Nov: in order, "Male emp = 01" (two digits at least), totals under a line.
+  const two = n => String(n).padStart(2, '0');
+  const niceDate = d => { const [y, m, dd] = d.split('-'); return dd + '-' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][+m - 1] + '-' + y; };
   function message(t, post, date, slot, values, texts, remarks, by) {
-    const lines = [t.icon + ' ' + t.label.toUpperCase() + ' REPORT', post + ' · ' + date + ' · ' + slot, ''];
+    const lines = [t.icon + ' ' + t.label.toUpperCase() + ' REPORT', '📍 ' + post, '📅 ' + niceDate(date) + ' · ⏰ ' + slot, '━━━━━━━━━━━━'];
     t.sections.forEach(([title, fields]) => {
-      if (t.sections.length > 1) lines.push(title + ':');
-      fields.forEach(([k, label]) => lines.push(label + ' : ' + (values[k] || 0)));
-      lines.push('');
+      if (t.sections.length > 1) lines.push('▸ ' + title.toUpperCase());
+      fields.forEach(([k, label]) => lines.push(label + ' = ' + two(values[k] || 0)));
+      if (t.sections.length > 1) lines.push('');
     });
-    totalsOf(t, values).forEach(([label, n]) => lines.push(label + ' = ' + n));
-    (t.texts || []).forEach(([k, label]) => { if (texts[k]) lines.push(label + ': ' + texts[k]); });
-    lines.push('', remarks || 'All area rounds checked, everything normal.', '', 'By ' + by);
+    if (lines[lines.length - 1] === '') lines.pop();
+    lines.push('━━━━━━━━━━━━');
+    totalsOf(t, values).forEach(([label, n]) => lines.push('🔢 ' + label + ' = ' + two(n)));
+    (t.texts || []).forEach(([k, label]) => { if (texts[k]) lines.push('🦺 ' + label + ': ' + texts[k]); });
+    lines.push('', '✅ ' + (remarks || 'All area rounds checked, everything normal.'), '', '👤 By ' + by);
     return lines.join('\n');
   }
 
@@ -157,6 +162,11 @@ module.exports = function siteReportRoutes(app, h) {
         await addMessage(catalystApp, { post_id: post.ROWID, duty_log_id: log.ROWID, guard_id: me.ROWID, kind: 'text', text: (old ? '(updated) ' : '') + text });
       } catch (err) {
         console.error('Report chat message failed:', err);
+      }
+      try {
+        await postToGroup(catalystApp, me, (old ? '(updated) ' : '') + text);
+      } catch (err) {
+        console.error('Report group message failed:', err);
       }
       res.status(200).json({ status: 'success', data: { ROWID: saved.ROWID, text, totals } });
     } catch (err) {

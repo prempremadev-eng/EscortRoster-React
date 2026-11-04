@@ -174,10 +174,10 @@ function Detail({ t, r }) {
       {t.sections.map(sec => (
         <div key={sec.title} className="srp-sec">
           <div className="srp-sec-title">{sec.title}</div>
-          <div className="srp-vals">{sec.fields.map(f => <span key={f.k}>{f.label}<b>{r.values[f.k] || 0}</b></span>)}</div>
+          <div className="srp-vals">{sec.fields.map(f => <span key={f.k}>{f.label} =<b>{String(r.values[f.k] || 0).padStart(2, '0')}</b></span>)}</div>
         </div>
       ))}
-      <div className="srp-vals srp-tot">{r.totals.map(x => <span key={x[0]}>{x[0]}<b>{x[1]}</b></span>)}</div>
+      <div className="srp-vals srp-tot">{r.totals.map(x => <span key={x[0]}>{x[0]} =<b>{String(x[1]).padStart(2, '0')}</b></span>)}</div>
       {Object.keys(r.values).filter(k => typeof r.values[k] === 'string' && r.values[k]).map(k => <div key={k} className="srp-note">🦺 {r.values[k]}</div>)}
       <div className="srp-note">{r.remarks || 'All area rounds checked, everything normal.'}</div>
     </div>

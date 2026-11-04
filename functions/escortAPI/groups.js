@@ -165,4 +165,14 @@ module.exports = function groupRoutes(app, h) {
       }
     });
   }
+
+  // A guard's message posted by the server (📋 site reports, Prem 5 Nov: the report also goes to the
+  // team group, like the WhatsApp group). The office hears it like any guard message.
+  async function postAsGuard(catalystApp, guard, text) {
+    if (!guard.branch_id || !guard.agency_id) return;
+    const who = { guard, branch: String(guard.branch_id), agency: String(guard.agency_id), name: guard.guard_name };
+    await save(catalystApp, who, { kind: 'text', text });
+    await tell(catalystApp, catalystApp.zcql(), who, text.split('\n')[0]);
+  }
+  return { postAsGuard };
 };

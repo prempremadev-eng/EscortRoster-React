@@ -818,7 +818,7 @@ module.exports = function postRoutes(app, h) {
   require('./strength.js')(app, { catalyst, fail, requireDate, requireRowId, selectAll, getShifts, shiftDate, nowStamp, auth });
 
   // Agency group chat (groups.js): "IPF Schedule" for guards and the office.
-  require('./groups.js')(app, {
+  const groups = require('./groups.js')(app, {
     catalyst, fail, requireRowId, guardByToken, sendPushToRows, nowStamp, cleanText, MAX_TEXT, auth,
     express, crypto, MEDIA, MEDIA_BUCKET, MEDIA_SOURCES, MAX_VIDEO_SECONDS, MAX_VOICE_SECONDS, mediaLabel, mediaLinks, namesOf, avatarLinks
   });
@@ -837,7 +837,7 @@ module.exports = function postRoutes(app, h) {
   // Parking / employee strength reports (siteReports.js, Prem 5 Nov).
   require('./siteReports.js')(app, {
     catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, onDutyLog, shiftDate, auth, addMessage,
-    sendPushToGuard, getSetting, notifySupervisors: (...args) => sup.notify(...args)
+    sendPushToGuard, getSetting, notifySupervisors: (...args) => sup.notify(...args), postToGroup: (...args) => groups.postAsGuard(...args)
   });
 
   // Supervisor inbox (supervisor.js).
