@@ -639,6 +639,8 @@ body:has(.gsheet-bar) .pd-group-fab,body:has(.pd-chat) .pd-group-fab{display:non
 
 /* A reliever's page after OUT: no 👥 Group (Prem, 30 Oct). */
 body:has(.pd-no-group) .pd-group-fab{display:none;}
+/* Report / ERT / Post Escort forms and any typing (Prem, 5 Nov: the Group button sat on the fields). */
+body:has(.sr) .pd-group-fab,body:has(.ex) .pd-group-fab,body:has(input:focus) .pd-group-fab,body:has(textarea:focus) .pd-group-fab{display:none;}
 
 /* 👤 Profile photos (Prem, 2 Nov): the avatar circle shows the picture; a tiny one beside the author in the chats. */
 .pd-avatar-photo{padding:0;overflow:hidden;}
