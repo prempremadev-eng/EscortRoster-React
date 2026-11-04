@@ -48,6 +48,16 @@ const TYPES = {
 };
 const LATE_MIN = 30;
 
+// 🚑 ERT incident report (Prem, 5 Nov: "some incident or accident nadanthaal report-la maintain pannanum").
+// Not at fixed times: one row per incident in ShiftReports (report_type 'ert', slot = incident time,
+// values_json = the form below, remarks = what happened). Posts.report_type 'ert' gives the ERT post
+// the 🚑 button. The fields follow a usual security incident report until Prem's own format comes.
+const ERT = {
+  types: ['Vehicle accident', 'Injury / fall', 'Medical emergency', 'Fire / smoke', 'Fight / quarrel', 'Theft / loss', 'Property damage', 'Other'],
+  severity: ['Minor', 'Major', 'Critical'],
+  actions: ['First aid given', 'Ambulance called', 'Sent to hospital', 'Police informed', 'Fire extinguisher used', 'Area cordoned', 'Supervisor informed', 'HR / Admin informed']
+};
+
 module.exports = function siteReportRoutes(app, h) {
   const { catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, onDutyLog, shiftDate, auth, addMessage,
     sendPushToGuard, getSetting, notifySupervisors, postToGroup } = h;
@@ -279,7 +289,119 @@ module.exports = function siteReportRoutes(app, h) {
     }
   });
 
+  /* ---------- 🚑 ERT incidents ---------- */
+
+  function readIncident(b) {
+    const v = {};
+    if (!ERT.types.includes(b.type)) throw new Error('Pick what happened (type).');
+    v.type = b.type;
+    v.severity = ERT.severity.includes(b.severity) ? b.severity : 'Minor';
+    v.place = cleanText(b.place, 'Place', 100, true);
+    v.actions = (Array.isArray(b.actions) ? b.actions : []).filter(a => ERT.actions.includes(a));
+    v.persons = (Array.isArray(b.persons) ? b.persons : []).slice(0, 10).map(p => ({
+      name: cleanText(p.name, 'Person name', 60, false), id: cleanText(p.id, 'Emp / ID', 30, false),
+      company: cleanText(p.company, 'Company', 60, false), injured: p.injured === true
+    })).filter(p => p.name || p.id);
+    v.hospital = cleanText(b.hospital, 'Hospital / ambulance', 150, false);
+    v.vehicles = cleanText(b.vehicles, 'Vehicle numbers', 100, false).toUpperCase();
+    v.witness = cleanText(b.witness, 'Witness', 150, false);
+    v.informed = cleanText(b.informed, 'Informed to', 150, false);
+    v.closed = b.closed === true;
+    const time = String(b.time || '');
+    if (!/^([01]\d|2[0-3]):[0-5]\d$/.test(time)) throw new Error('Time of incident: pick the time.');
+    const date = requireDate(b.date);
+    const what = cleanText(b.what, 'What happened', 3000, true);
+    return { v, time, date, what };
+  }
+
+  function incidentText(post, date, time, v, what, by) {
+    const lines = ['🚑 ERT INCIDENT REPORT' + (v.closed ? ' · ✅ CLOSED' : ' · 🔴 OPEN'), '📍 ' + v.place + ' (' + post + ')', '📅 ' + niceDate(date) + ' · ⏰ ' + time,
+      '━━━━━━━━━━━━', '⚠️ ' + v.type + ' · ' + v.severity];
+    if (v.persons.length) {
+      lines.push('', '👥 PERSONS');
+      v.persons.forEach((p, i) => lines.push(two(i + 1) + '. ' + [p.name, p.id, p.company].filter(Boolean).join(' · ') + (p.injured ? ' · 🩹 injured' : '')));
+    }
+    lines.push('', '📝 WHAT HAPPENED', what);
+    if (v.actions.length) lines.push('', '✅ ACTION TAKEN', ...v.actions.map(a => '• ' + a));
+    if (v.hospital) lines.push('🏥 ' + v.hospital);
+    if (v.vehicles) lines.push('🚗 Vehicles: ' + v.vehicles);
+    if (v.witness) lines.push('👀 Witness: ' + v.witness);
+    if (v.informed) lines.push('📞 Informed: ' + v.informed);
+    lines.push('', '👤 By ' + by);
+    return lines.join('\n');
+  }
+
+  // Guard: the form lists + this post's incidents of the last 7 days (to close / correct one).
+  app.get('/ertForm', async (req, res) => {
+    try {
+      const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
+      const { me, log } = await onDutyLog(zcql, req.query.t, req.query.post, true);
+      const post = await postRow(zcql, log.post_id);
+      if (post.report_type !== 'ert') throw new Error('ERT report is not on for ' + post.post_name + '.');
+      const since = new Date(Date.parse(shiftDate() + 'T00:00:00Z') - 7 * 86400000).toISOString().slice(0, 10);
+      const rows = await selectAll(zcql, 'ShiftReports', `SELECT * FROM ShiftReports WHERE post_id = ${requireRowId(post.ROWID)} AND report_type = 'ert' AND report_date >= '${since}' ORDER BY CREATEDTIME DESC`);
+      res.status(200).json({ status: 'success', data: { post: post.post_name, guard: me.guard_name, today: nowStamp().slice(0, 10), now: hhmm(nowStamp()), lists: ERT,
+        recent: rows.map(r => ({ ROWID: r.ROWID, date: r.report_date, time: r.slot, by: r.guard_name, what: r.remarks || '', ...JSON.parse(r.values_json || '{}') })) } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  app.post('/ertSend', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const b = req.body || {};
+      const { me, log } = await onDutyLog(zcql, b.t, b.post, true);
+      const post = await postRow(zcql, log.post_id);
+      if (post.report_type !== 'ert') throw new Error('ERT report is not on for ' + post.post_name + '.');
+      const { v, time, date, what } = readIncident(b);
+      const row = {
+        report_date: date, slot: time, report_type: 'ert', post_id: post.ROWID, branch_id: post.branch_id, agency_id: post.agency_id,
+        guard_id: me.ROWID, guard_name: me.guard_name, values_json: JSON.stringify(v), total: v.persons.filter(p => p.injured).length, remarks: what, sent_time: hhmm(nowStamp())
+      };
+      const table = catalystApp.datastore().table('ShiftReports');
+      let old = null;
+      if (b.rowid) {
+        const r = await zcql.executeZCQLQuery(`SELECT ROWID, post_id, report_type FROM ShiftReports WHERE ROWID = ${requireRowId(b.rowid)}`);
+        old = r.length && String(r[0].ShiftReports.post_id) === String(post.ROWID) && r[0].ShiftReports.report_type === 'ert' ? r[0].ShiftReports : null;
+        if (!old) throw new Error('Incident not found.');
+      }
+      const saved = old ? await table.updateRow({ ROWID: old.ROWID, ...row }) : await table.insertRow(row);
+      const full = (old ? '(updated) ' : '') + incidentText(post.post_name, date, time, v, what, me.guard_name);
+      const short = full.length <= 250 ? full : (full.split('\n').slice(0, 5).join('\n') + '\n📝 ' + what).slice(0, 252) + '…';
+      const long = short === full ? null : full;
+      try { await addMessage(catalystApp, { post_id: post.ROWID, duty_log_id: log.ROWID, guard_id: me.ROWID, kind: 'text', text: short, long_text: long }); } catch (err) { console.error('ERT chat failed:', err); }
+      try { await postToGroup(catalystApp, me, short, long); } catch (err) { console.error('ERT group failed:', err); }
+      // A new incident (not a correction) is urgent for the office.
+      if (!old) await notifySupervisors(catalystApp, post.ROWID, '🚑 ERT incident · ' + v.type, v.place + ' · ' + time + ' · ' + v.severity + ' · ' + what.slice(0, 80), true);
+      res.status(200).json({ status: 'success', data: { ROWID: saved.ROWID, text: full } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // Office: incidents of the area between two dates.
+  app.get('/ertList', async (req, res) => {
+    try {
+      const zcql = catalyst.initialize(req, { scope: 'admin' }).zcql();
+      const from = requireDate(req.query.from), to = requireDate(req.query.to || req.query.from);
+      const branches = (await auth.branchList(zcql)).filter(b => b.is_active === 'true' && auth.branchOk(req, b.ROWID));
+      const ids = branches.map(b => requireRowId(b.ROWID));
+      if (!ids.length) return res.status(200).json({ status: 'success', data: { incidents: [] } });
+      const rows = auth.inArea(req, await selectAll(zcql, 'ShiftReports', `SELECT * FROM ShiftReports WHERE report_type = 'ert' AND branch_id IN (${ids.join(', ')}) AND report_date >= '${from}' AND report_date <= '${to}' ORDER BY CREATEDTIME DESC`));
+      const posts = rows.length ? await selectAll(zcql, 'Posts', `SELECT ROWID, post_name FROM Posts WHERE ROWID IN (${[...new Set(rows.map(r => requireRowId(r.post_id)))].join(', ')})`) : [];
+      const pName = {};
+      posts.forEach(p => { pName[String(p.ROWID)] = p.post_name; });
+      const bName = {};
+      branches.forEach(b => { bName[String(b.ROWID)] = b.branch_name; });
+      res.status(200).json({ status: 'success', data: { incidents: rows.map(r => ({ ROWID: r.ROWID, date: r.report_date, time: r.slot, post: pName[String(r.post_id)] || '', branch: bName[String(r.branch_id)] || '', by: r.guard_name, sent: r.sent_time, what: r.remarks || '', ...JSON.parse(r.values_json || '{}') })) } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   return { TYPES };
 };
 
-module.exports.TYPE_KEYS = Object.keys(TYPES);
+module.exports.TYPE_KEYS = [...Object.keys(TYPES), 'ert'];

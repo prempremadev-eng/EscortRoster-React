@@ -221,6 +221,9 @@ export const api = {
   // 📋 Site reports (parking / employee strength).
   siteReportForm: (t, post) => apiCall('GET', '/siteReportForm?t=' + q(t) + (post ? '&post=' + q(post) : '')),
   siteReportSend: body => apiCall('POST', '/siteReportSend', body),
+  ertForm: (t, post) => apiCall('GET', '/ertForm?t=' + q(t) + (post ? '&post=' + q(post) : '')),
+  ertSend: body => apiCall('POST', '/ertSend', body),
+  ertList: (from, to) => apiCall('GET', '/ertList?from=' + q(from) + '&to=' + q(to || from)),
   siteReports: (from, to) => apiCall('GET', '/siteReports?from=' + q(from) + '&to=' + q(to || from)),
   vehicles: (t, post) => apiCall('GET', '/vehicles?t=' + q(t) + (post ? '&post=' + q(post) : '')),
   vehicleIn: (t, entry, post) => apiCall('POST', '/vehicleIn', { t, ...entry, post }),

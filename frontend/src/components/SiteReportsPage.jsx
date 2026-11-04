@@ -25,6 +25,7 @@ export default function SiteReportsPage() {
   const load = useCallback(async () => {
     setError('');
     setData(null);
+    if (mode === 'ert') return;
     try {
       setData((await (mode === 'day' ? api.siteReports(date) : api.siteReports(from, to))).data);
     } catch (err) {
@@ -74,6 +75,7 @@ export default function SiteReportsPage() {
         <div className="srp-tabs">
           <button className={'btn' + (mode === 'day' ? '' : ' secondary')} onClick={() => setMode('day')}>Day</button>
           <button className={'btn' + (mode === 'range' ? '' : ' secondary')} onClick={() => setMode('range')}>History</button>
+          <button className={'btn' + (mode === 'ert' ? '' : ' secondary')} onClick={() => setMode('ert')}>🚑 ERT</button>
         </div>
         {mode === 'day' ? (
           <div className="srp-dates">
@@ -86,18 +88,18 @@ export default function SiteReportsPage() {
             <input type="date" value={from} onChange={e => e.target.value && setFrom(e.target.value)} aria-label="From" />
             <span>to</span>
             <input type="date" value={to} onChange={e => e.target.value && setTo(e.target.value)} aria-label="To" />
-            <select value={postId} onChange={e => setPostId(e.target.value)} aria-label="Post">
+            {mode === 'range' && <select value={postId} onChange={e => setPostId(e.target.value)} aria-label="Post">
               <option value="">All report posts</option>
               {posts.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-            </select>
-            <button className="btn secondary" onClick={exportXlsx} disabled={!rangeRows.length}>📤 Excel</button>
+            </select>}
+            {mode === 'range' && <button className="btn secondary" onClick={exportXlsx} disabled={!rangeRows.length}>📤 Excel</button>}
           </div>
         )}
         <div className="spacer"></div>
-        <button className="btn" onClick={load}>🔄 Refresh</button>
+        {mode !== 'ert' && <button className="btn" onClick={load}>🔄 Refresh</button>}
       </div>
 
-      <div className="srp">
+      {mode === 'ert' ? <ErtList from={from} to={to} /> : <div className="srp">
         {error && <div className="setup-card bad">❌ {error}</div>}
         {!data && !error && <div className="loading-message">Loading...</div>}
 
@@ -162,7 +164,7 @@ export default function SiteReportsPage() {
             </div>
           </>
         )}
-      </div>
+      </div>}
     </>
   );
 }
@@ -201,6 +203,78 @@ function Chart({ rows, label }) {
             <span style={{ height: Math.max(4, (r.total / max) * 120) + 'px' }}></span>
             <small>{r.date.slice(8)}<br />{r.slot}</small>
           </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// 🚑 ERT incidents of the area between two dates: newest first, open ones on top, tap for the full report,
+// Excel. Several can be open at once.
+function ErtList({ from, to }) {
+  const [list, setList] = useState(null);
+  const [error, setError] = useState('');
+  const [open, setOpen] = useState(() => new Set());
+  const [only, setOnly] = useState('all');
+  const load = useCallback(() => { setList(null); setError(''); api.ertList(from, to).then(r => setList(r.data.incidents)).catch(err => setError(err.message)); }, [from, to]);
+  useEffect(() => { load(); }, [load]);
+  const toggle = k => setOpen(o => { const n = new Set(o); if (n.has(k)) n.delete(k); else n.add(k); return n; });
+  const shown = (list || []).filter(x => only === 'all' || (only === 'open' ? !x.closed : x.closed));
+
+  async function exportXlsx() {
+    const ExcelJS = (await import('exceljs')).default;
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet('ERT incidents');
+    const head = ['Date', 'Time', 'Branch', 'Post', 'Place', 'Type', 'Severity', 'Status', 'Persons', 'Injured', 'What happened', 'Action taken', 'Hospital / ambulance', 'Vehicles', 'Witness', 'Informed', 'By', 'Sent'];
+    ws.addRow(head).font = { bold: true };
+    shown.forEach(x => ws.addRow([x.date, x.time, x.branch, x.post, x.place, x.type, x.severity, x.closed ? 'Closed' : 'Open',
+      (x.persons || []).map(p => [p.name, p.id, p.company].filter(Boolean).join(' / ')).join('; '), (x.persons || []).filter(p => p.injured).length,
+      x.what, (x.actions || []).join(', '), x.hospital, x.vehicles, x.witness, x.informed, x.by, x.sent]));
+    ws.columns.forEach((c, i) => { c.width = [11, 7, 12, 16, 22, 18, 9, 8, 30, 8, 50, 30, 20, 14, 18, 18, 16, 7][i]; });
+    const blob = new Blob([await wb.xlsx.writeBuffer()], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ERT-incidents-' + from + '-to-' + to + '.xlsx';
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  return (
+    <div className="srp">
+      <div className="srp-counts">
+        {[['all', 'All'], ['open', '🔴 Open'], ['closed', '✅ Closed']].map(([k, label]) => (
+          <button key={k} className={'srp-count' + (only === k ? ' srp-on' : '')} onClick={() => setOnly(k)}>
+            {label} <b>{(list || []).filter(x => k === 'all' || (k === 'open' ? !x.closed : x.closed)).length}</b>
+          </button>
+        ))}
+        <span className="spacer"></span>
+        <button className="btn secondary" onClick={exportXlsx} disabled={!shown.length}>📤 Excel</button>
+        <button className="btn" onClick={load}>🔄 Refresh</button>
+      </div>
+      {error && <div className="setup-card bad">❌ {error}</div>}
+      {!list && !error && <div className="loading-message">Loading...</div>}
+      {list && !shown.length && <div className="setup-card">No ERT incident in these dates. (Post setup → ERT post → 📋 Report: 🚑 ERT incident report.)</div>}
+      <div className="srp-grid">
+        {shown.map(x => (
+          <section key={x.ROWID} className={'srp-card ert-card' + (x.closed ? '' : ' ert-open')}>
+            <button type="button" className="ert-card-head" onClick={() => toggle(x.ROWID)}>
+              <span><b>{x.closed ? '✅' : '🔴'} {x.type}</b> <span className={'ert-sev ert-sev-' + String(x.severity).toLowerCase()}>{x.severity}</span></span>
+              <small>{nice(x.date)} · {x.time} · 📍 {x.place}</small>
+              <small>{x.post}{x.branch ? ' · ' + x.branch : ''} · by {x.by}</small>
+            </button>
+            {open.has(x.ROWID) && (
+              <div className="srp-detail">
+                {(x.persons || []).length > 0 && <div><b>👥 Persons</b>{x.persons.map((p, i) => <div key={i}>{String(i + 1).padStart(2, '0')}. {[p.name, p.id, p.company].filter(Boolean).join(' · ')}{p.injured ? ' · 🩹 injured' : ''}</div>)}</div>}
+                <div><b>📝 What happened</b><div className="ert-what">{x.what}</div></div>
+                {(x.actions || []).length > 0 && <div><b>✅ Action taken</b><div className="srp-vals">{x.actions.map(a => <span key={a}>{a}</span>)}</div></div>}
+                {x.hospital && <div>🏥 {x.hospital}</div>}
+                {x.vehicles && <div>🚗 {x.vehicles}</div>}
+                {x.witness && <div>👀 Witness: {x.witness}</div>}
+                {x.informed && <div>📞 Informed: {x.informed}</div>}
+                <div className="srp-note">Sent {x.sent}</div>
+              </div>
+            )}
+          </section>
         ))}
       </div>
     </div>

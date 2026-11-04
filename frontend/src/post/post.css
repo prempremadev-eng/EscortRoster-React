@@ -709,3 +709,27 @@ button.pd-avatar{border:none;cursor:pointer;}
 .sr-send{flex:none;border:none;background:#2563eb;color:#fff;border-radius:10px;padding:13px 16px;font-size:16px;font-weight:700;cursor:pointer;}
 .sr-send:disabled{opacity:.6;}
 @media (max-width:420px){ .sr-grid.many{grid-template-columns:1fr;} }
+
+/* 🚑 ERT incident form (ErtForm.jsx), on top of the site report styles. */
+.ert-head{background:linear-gradient(135deg,#f87171,#dc2626);}
+.ert-pad{padding:12px 14px;display:flex;flex-direction:column;gap:10px;}
+.ert-chips{display:flex;flex-wrap:wrap;gap:8px;}
+.ert-chip{border:1px solid #cbd5e1;background:#fff;border-radius:999px;padding:8px 12px;font-size:14px;cursor:pointer;color:#334155;}
+.ert-chip.on{background:#dc2626;border-color:#dc2626;color:#fff;font-weight:700;}
+.ert-label{font-size:14px;font-weight:700;color:#475569;}
+.ert-seg{display:flex;border:1px solid #cbd5e1;border-radius:10px;overflow:hidden;}
+.ert-seg button{flex:1;border:none;background:#fff;padding:10px;font-size:15px;cursor:pointer;color:#334155;}
+.ert-seg button + button{border-left:1px solid #cbd5e1;}
+.ert-seg .ert-sev-minor.on{background:#facc15;color:#422006;font-weight:700;}
+.ert-seg .ert-sev-major.on{background:#f97316;color:#fff;font-weight:700;}
+.ert-seg .ert-sev-critical.on{background:#dc2626;color:#fff;font-weight:700;}
+.ert-two{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+.ert-wide{grid-column:1 / -1;}
+.ert-two input,.ert-person input:not([type=checkbox]){border:1px solid #cbd5e1;border-radius:8px;padding:10px;font-size:16px;width:100%;min-width:0;}
+.ert-person{border:1px solid #e2e8f0;border-radius:10px;padding:10px;display:flex;flex-direction:column;gap:6px;}
+.ert-check{display:flex;align-items:center;gap:6px;font-size:15px;}
+.ert-remove{align-self:flex-end;border:none;background:none;color:#b91c1c;font-size:13px;cursor:pointer;}
+.ert-close{display:flex;align-items:center;gap:8px;font-size:16px;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px;}
+.ert-old{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1px solid #e2e8f0;background:#f8fafc;border-radius:10px;padding:10px;cursor:pointer;}
+.ert-old small{color:#64748b;}
+.ert-send{background:#dc2626;}

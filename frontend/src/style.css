@@ -1403,3 +1403,15 @@ td.in-late{color:#b91c1c;}
 .srp-bar{display:flex;flex-direction:column;align-items:center;gap:2px;min-width:34px;font-size:11px;color:#475569;}
 .srp-bar span{width:20px;background:#3b82f6;border-radius:4px 4px 0 0;}
 .srp-bar small{text-align:center;line-height:1.1;}
+/* 🚑 ERT list (SiteReportsPage ErtList). */
+.srp-count{cursor:pointer;font-family:inherit;}
+.srp-on{background:#1e3a8a;color:#fff;border-color:#1e3a8a;}
+.ert-card.ert-open{border-color:#fecaca;}
+.ert-card-head{display:flex;flex-direction:column;align-items:flex-start;gap:3px;width:100%;text-align:left;border:none;background:#fff5f5;padding:12px 14px;font-family:inherit;font-size:15px;cursor:pointer;color:#1e293b;}
+.ert-card:not(.ert-open) .ert-card-head{background:#f5f9ff;}
+.ert-card-head small{color:#64748b;font-size:13px;}
+.ert-sev{border-radius:999px;padding:1px 9px;font-size:12px;font-weight:700;margin-left:6px;}
+.ert-sev-minor{background:#fef9c3;color:#713f12;}
+.ert-sev-major{background:#ffedd5;color:#9a3412;}
+.ert-sev-critical{background:#fee2e2;color:#991b1b;}
+.ert-what{white-space:pre-wrap;}

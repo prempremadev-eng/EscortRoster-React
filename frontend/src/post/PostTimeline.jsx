@@ -10,6 +10,7 @@ import ChatInput from './ChatInput.jsx';
 import { shareMessage } from './share.js';
 import BreakSheet from './BreakSheet.jsx';
 import SiteReportForm from './SiteReportForm.jsx';
+import ErtForm from './ErtForm.jsx';
 import PostHistory, { forgetHistory } from './PostHistory.jsx';
 import MoreMenu from './MoreMenu.jsx';
 import { useSwipeReply, jumpTo } from './swipe.jsx';
@@ -397,7 +398,9 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
     return <VehicleEntry token={token} post={viewPost} postName={duty.post} onClose={closePage} />;
   }
   if (page === 'sitereport' && duty.reportType) {
-    return <SiteReportForm token={token} onClose={sent => { closePage(); if (sent) load(); }} />;
+    return duty.reportType === 'ert'
+      ? <ErtForm token={token} onClose={sent => { closePage(); if (sent) load(); }} />
+      : <SiteReportForm token={token} onClose={sent => { closePage(); if (sent) load(); }} />;
   }
   if (page === 'work') {
     return <AddWork token={token} post={viewPost} postName={hereEarly ? hereEarly.post : duty.post} onClose={saved => { closePage(); if (saved) load(); }} />;
@@ -603,7 +606,9 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
                 </button>
                 {duty.reportType && !viewPost && (
                   <button className="pd-option" onClick={() => { setSheet(null); setPage('sitereport'); }}>
-                    <span className="pd-emoji-icon">📋</span><span><b>Site report</b><span>Parking / employee count for the report time</span></span>
+                    {duty.reportType === 'ert'
+                      ? <><span className="pd-emoji-icon">🚑</span><span><b>ERT incident report</b><span>Accident, injury, fire… what happened, action taken</span></span></>
+                      : <><span className="pd-emoji-icon">📋</span><span><b>Site report</b><span>Parking / employee count for the report time</span></span></>}
                   </button>
                 )}
                 {duty.vehicleEntry && !viewPost && (
