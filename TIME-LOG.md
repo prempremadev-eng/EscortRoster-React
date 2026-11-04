@@ -180,3 +180,14 @@ Note: after the day-end files (00:21) work went on till about 01:00 (copy-from-y
 | 10:16 | ▶️ Start ("good morning") |
 | 00:22 (4 Nov) | 🌙 Done (Production deploy + push) |
 | 00:46 (4 Nov) | 🌙 Good night (IPF live in Production) |
+
+## 2026-11-04 (Wednesday)
+
+| Time | Event |
+|---|---|
+| 07:31 | ▶️ Start (G still-on-duty bug) |
+| 19:15 | Owl splash, trip popup redesign, Post Escort |
+| 01:10 (5 Nov) | Site reports (parking / strength) + reminders |
+| 02:30 (5 Nov) | ERT incident report |
+| 03:05 (5 Nov) | Production deploy (Data Store + escortAPI + Slate) |
+| 03:20 (5 Nov) | 🌙 Done (day notes) |
