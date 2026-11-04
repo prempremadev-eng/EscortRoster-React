@@ -95,6 +95,19 @@ module.exports = function siteReportRoutes(app, h) {
     return lines.join('\n');
   }
 
+  // Chat text: PostMessages / GroupMessages keep 255 letters (Prem, 5 Nov: the MLCP car report was cut
+  // at "08A"). A short report goes in full; a long one as a summary with the totals, full report on the
+  // Site reports page (and 📋 Copy on the guard's phone gives the full WhatsApp text).
+  function chatText(full, t, post, date, slot, values, texts, remarks, by) {
+    if (full.length <= 250) return full;
+    const lines = [t.icon + ' ' + t.label.toUpperCase() + ' REPORT', '📍 ' + post + ' · ' + niceDate(date).slice(0, 6) + ' · ⏰ ' + slot,
+      ...totalsOf(t, values).map(([label, n]) => '🔢 ' + label + ' = ' + two(n)),
+      ...(t.texts || []).filter(([k]) => texts[k]).map(([k, label]) => '🦺 ' + label + ': ' + texts[k]),
+      '✅ ' + (remarks || 'All normal'), '👤 ' + by, '📋 Full: Site reports'];
+    let out = lines.join('\n');
+    return out.length <= 255 ? out : out.slice(0, 252) + '…';
+  }
+
   /* ---------- guard (post page → 📋 Report) ---------- */
 
   async function postRow(zcql, postId) {
@@ -159,13 +172,14 @@ module.exports = function siteReportRoutes(app, h) {
       const old = (await dayRows(zcql, `post_id = ${requireRowId(post.ROWID)} AND slot = '${slot}'`, date)).pop();
       const saved = old ? await table.updateRow({ ROWID: old.ROWID, ...row }) : await table.insertRow(row);
       const text = message(t, post.post_name, date, slot, values, texts, remarks, me.guard_name);
+      const short = chatText((old ? '(updated) ' : '') + text, t, post.post_name, date, slot, values, texts, remarks, me.guard_name);
       try {
-        await addMessage(catalystApp, { post_id: post.ROWID, duty_log_id: log.ROWID, guard_id: me.ROWID, kind: 'text', text: (old ? '(updated) ' : '') + text });
+        await addMessage(catalystApp, { post_id: post.ROWID, duty_log_id: log.ROWID, guard_id: me.ROWID, kind: 'text', text: short });
       } catch (err) {
         console.error('Report chat message failed:', err);
       }
       try {
-        await postToGroup(catalystApp, me, (old ? '(updated) ' : '') + text);
+        await postToGroup(catalystApp, me, short);
       } catch (err) {
         console.error('Report group message failed:', err);
       }
