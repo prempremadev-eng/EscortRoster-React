@@ -300,6 +300,9 @@ export default function AdminHome({ hash }) {
 // incidents and any still open from the last 7 days; tap → Site reports · ERT.
 function ErtStrip({ date }) {
   const [list, setList] = useState(null);
+  // ▾ / ▸ hide the list (Prem, 5 Nov); remembered on this computer.
+  const [hide, setHide] = useState(() => { try { return localStorage.getItem('ah-ert-hide') === '1'; } catch { return false; } });
+  const flip = () => setHide(h => { try { localStorage.setItem('ah-ert-hide', h ? '' : '1'); } catch { /* private mode */ } return !h; });
   useEffect(() => {
     // The duty day runs past midnight: an incident at 02:30 has the next calendar date (Prem, 5 Nov: a
     // night entry did not show), so read one day more and count it in this duty day until 08:00.
@@ -312,11 +315,12 @@ function ErtStrip({ date }) {
   const shown = [...open, ...today.filter(x => x.closed)].slice(0, 6);
   return (
     <section className="ah-ert">
-      <a className="ah-ert-head" href="#sitereports/ert">
-        <span>🚑 <b>ERT incidents</b></span>
-        <span className="ah-ert-nums"><em>Today <b>{today.length}</b></em><em className={open.length ? 'ah-ert-red' : ''}>Open <b>{open.length}</b></em><span>›</span></span>
-      </a>
-      {shown.length === 0
+      <div className="ah-ert-head">
+        <button type="button" className="ah-ert-fold" onClick={flip} aria-expanded={!hide} aria-label={hide ? 'Show ERT incidents' : 'Hide ERT incidents'}>{hide ? '▸' : '▾'}</button>
+        <a href="#sitereports/ert" className="ah-ert-title">🚑 <b>ERT incidents</b></a>
+        <span className="ah-ert-nums"><em>Today <b>{today.length}</b></em><em className={open.length ? 'ah-ert-red' : ''}>Open <b>{open.length}</b></em><a href="#sitereports/ert" aria-label="Open ERT">›</a></span>
+      </div>
+      {hide ? null : shown.length === 0
         ? <div className="ah-ert-none">No incident today, nothing open. ✅</div>
         : shown.map(x => (
           <a key={x.ROWID} className={'ah-ert-row' + (x.closed ? '' : ' open')} href="#sitereports/ert">
