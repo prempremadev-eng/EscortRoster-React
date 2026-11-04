@@ -247,7 +247,14 @@ module.exports = function postRoutes(app, h) {
       const table = catalystApp.datastore().table('DutyLog');
       const onPost = await onDutyAt(zcql, log.post_id, log.ROWID);
       const prevs = onPost.filter(p => p.shift_code !== GENERAL);
-      const generalHere = onPost.filter(p => p.shift_code === GENERAL);
+      // A G guard counts as "still on duty" only on this duty day and before their card OUT (4 Nov: a G guard
+      // who went OUT at 17:02 was still named at the 21:54 and 06:04 take-overs).
+      const gAll = onPost.filter(p => p.shift_code === GENERAL);
+      const generalHere = gAll.filter(p => p.status !== 'out' && p.duty_date === log.duty_date);
+      // Only rows of an earlier day are closed; a G guard OUT for lunch today can still card IN again.
+      for (const p of gAll.filter(x => x.duty_date < log.duty_date)) {
+        await table.updateRow({ ROWID: p.ROWID, status: 'handed_over', handed_over_at: p.handed_over_at || now });
+      }
       for (const p of prevs) {
         await table.updateRow({ ROWID: p.ROWID, status: 'handed_over', handed_over_at: now });
         await closePresence(catalystApp, zcql, log.post_id, p.guard_id, null);
