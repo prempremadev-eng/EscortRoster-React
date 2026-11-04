@@ -16,7 +16,8 @@ const OWL = 'owl_shown';
 const OWL_NOW = (() => { try { if (sessionStorage.getItem(OWL)) return false; sessionStorage.setItem(OWL, '1'); } catch { /* show it */ } return true; })();
 
 // The head is its own 3D layer (front face + back of head) on the neck, so the WHOLE head turns
-// round like a real owl (Prem, 4 Nov: "neck da suththudhu, eye mattum illa"). Soft "clay" look
+// round like a real owl (Prem, 4 Nov: "neck da suththudhu, eye mattum illa"). Prem's video: the owl
+// sits with its back to us and only the head swings round to look at us over its back. Soft "clay" look
 // (Prem's prompt: cute 3D owl, sits still, head turns all the way round): every part has a light
 // top-left, dark bottom-right gradient, glossy eyes, a shadow and a glow behind.
 const GRAD = [
@@ -79,9 +80,10 @@ export function Owl() {
         <rect x="96" y="400" width="320" height="22" rx="11" fill={F(id, 'r')} />
         <ellipse cx="256" cy="312" rx="118" ry="104" fill={F(id, 'b')} />
         <circle cx="256" cy="215" r="103" fill={F(id, 'b')} />
-        <path d="M146 270Q120 340 172 398Q164 328 146 270Z M366 270Q392 340 340 398Q348 328 366 270Z" fill={F(id, 'w')} />
-        <ellipse cx="256" cy="345" rx="68" ry="58" fill={F(id, 'y')} />
-        <path d="M226 326q8 8 16 0M270 326q8 8 16 0M236 356q10 10 20 0q10 10 20 0" stroke="#F59E5B" strokeWidth="4" fill="none" strokeLinecap="round" />
+        {/* Body seen from the BACK (like Prem's video): folded wings meet in the middle, a tail. */}
+        <path d="M244 398L256 446L268 398Z" fill={F(id, 'w')} />
+        <path d="M256 226Q160 234 146 302Q144 372 242 412Q250 330 256 226Z M256 226Q352 234 366 302Q368 372 270 412Q262 330 256 226Z" fill={F(id, 'w')} />
+        <path d="M190 300q14 10 28 0M178 336q16 10 32 0M200 368q14 10 28 0M294 300q14 10 28 0M302 336q16 10 32 0M284 368q14 10 28 0" stroke="#7C2D12" strokeWidth="5" fill="none" strokeLinecap="round" opacity=".55" />
         <g fill={F(id, 'k')}>
           <rect x="214" y="396" width="10" height="30" rx="5" /><rect x="229" y="396" width="10" height="30" rx="5" />
           <rect x="273" y="396" width="10" height="30" rx="5" /><rect x="288" y="396" width="10" height="30" rx="5" />
