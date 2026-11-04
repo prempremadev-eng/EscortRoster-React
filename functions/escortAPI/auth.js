@@ -41,6 +41,7 @@ const OFFICE_VIEWS = new Set(['/myProfile', '/safety', '/postHistory', '/postWor
 const GUARD_ROUTES = new Set([
   '/guardInfo', '/saveSubscription', '/testPush',
   '/guardDay', '/guardSaveRoute', '/guardSaveCab', '/guardAddStop', '/guardUpdateStop', '/guardDeleteStop',
+  '/guardEscortExtra', '/guardEscortRoute', '/guardEscortCab', '/guardEscortStop',
   '/postDuty', '/takeOver', '/startGeneral', '/endGeneral', '/postTimeline', '/postMessage', '/uploadMedia',
   '/pinMessage', '/forwardMessage', '/addWork', '/finishWork', '/safety', '/addSafety', '/sendAlert', '/cancelAlert',
   '/postHistory', '/postWorks', '/pastShift', '/groupChat', '/groupSend', '/groupMedia',
