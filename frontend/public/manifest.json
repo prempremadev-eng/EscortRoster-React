@@ -4,7 +4,7 @@
   "description": "Shifts, duty and team chat in one place",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#FFFFFF",
+  "background_color": "#1E3A8A",
   "theme_color": "#1e3a8a",
   "icons": [
     {
