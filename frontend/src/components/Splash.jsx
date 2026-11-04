@@ -15,35 +15,46 @@ export function showSplash(detail) {
 const OWL = 'owl_shown';
 const OWL_NOW = (() => { try { if (sessionStorage.getItem(OWL)) return false; sessionStorage.setItem(OWL, '1'); } catch { /* show it */ } return true; })();
 
+// The head is its own 3D layer (front face + back of head) on the neck, so the WHOLE head turns
+// round like a real owl (Prem, 4 Nov: "neck da suththudhu, eye mattum illa").
 function Owl() {
-  return (
-    <svg className="owl" viewBox="0 0 512 512" aria-hidden="true">
-      <circle className="owl-star" cx="110" cy="96" r="5" fill="#FDE68A" />
-      <circle className="owl-star" cx="160" cy="60" r="4" fill="#FDE68A" />
-      <circle className="owl-star" cx="330" cy="58" r="4" fill="#FDE68A" />
-      <path className="owl-moon" d="M405 62a40 40 0 1 0 35 66a46 46 0 0 1 -35 -66z" fill="#FDE68A" />
-      <rect x="96" y="400" width="320" height="20" rx="10" fill="#78350F" />
-      <g className="owl-body">
-        <path d="M150 108L218 156L168 186Z M362 108L294 156L344 186Z" fill="#C2410C" className="owl-ears" />
-        <ellipse cx="256" cy="282" rx="122" ry="132" fill="#F97316" />
-        <path d="M142 262Q122 330 168 392Q160 320 142 262Z M370 262Q390 330 344 392Q352 320 370 262Z" fill="#C2410C" />
-        <ellipse cx="256" cy="330" rx="72" ry="72" fill="#FED7AA" />
-        <path d="M226 304q8 8 16 0M270 304q8 8 16 0M236 336q10 10 20 0q10 10 20 0" stroke="#FB923C" strokeWidth="4" fill="none" strokeLinecap="round" />
-        <g className="owl-back">
-          <path d="M216 218q20 14 40 0q20 14 40 0M226 246q15 10 30 0q15 10 30 0" stroke="#C2410C" strokeWidth="6" fill="none" strokeLinecap="round" />
-        </g>
-        <g className="owl-face">
+  const head = (back) => (
+    <svg viewBox="130 90 252 240" aria-hidden="true">
+      <path d="M150 108L218 156L168 186Z M362 108L294 156L344 186Z" fill="#C2410C" />
+      <circle cx="256" cy="215" r="105" fill="#F97316" />
+      {back
+        ? <path d="M206 170q25 18 50 0q25 18 50 0M196 205q30 20 60 0q30 20 60 0M211 240q22 14 45 0q22 14 45 0" stroke="#C2410C" strokeWidth="7" fill="none" strokeLinecap="round" />
+        : <>
           <g className="owl-eyes">
-            <circle cx="212" cy="222" r="48" fill="#fff" /><circle cx="300" cy="222" r="48" fill="#fff" />
-            <circle cx="214" cy="226" r="24" fill="#111827" /><circle cx="298" cy="226" r="24" fill="#111827" />
-            <circle cx="223" cy="215" r="8" fill="#fff" /><circle cx="307" cy="215" r="8" fill="#fff" />
+            <circle cx="212" cy="210" r="46" fill="#fff" /><circle cx="300" cy="210" r="46" fill="#fff" />
+            <circle cx="214" cy="214" r="23" fill="#111827" /><circle cx="298" cy="214" r="23" fill="#111827" />
+            <circle cx="223" cy="204" r="8" fill="#fff" /><circle cx="307" cy="204" r="8" fill="#fff" />
           </g>
-          <path d="M240 262L272 262L256 290Z" fill="#FACC15" />
-        </g>
+          <path d="M240 250L272 250L256 278Z" fill="#FACC15" />
+        </>}
+    </svg>
+  );
+  return (
+    <div className="owl">
+      <svg viewBox="0 0 512 512" aria-hidden="true">
+        <circle className="owl-star" cx="110" cy="96" r="5" fill="#FDE68A" />
+        <circle className="owl-star" cx="160" cy="60" r="4" fill="#FDE68A" />
+        <circle className="owl-star" cx="330" cy="58" r="4" fill="#FDE68A" />
+        <path d="M405 62a40 40 0 1 0 35 66a46 46 0 0 1 -35 -66z" fill="#FDE68A" />
+        <rect x="96" y="400" width="320" height="20" rx="10" fill="#78350F" />
+        <ellipse cx="256" cy="312" rx="118" ry="104" fill="#F97316" />
+        <circle cx="256" cy="215" r="100" fill="#EA580C" />
+        <path d="M146 280Q126 340 170 396Q162 330 146 280Z M366 280Q386 340 342 396Q350 330 366 280Z" fill="#C2410C" />
+        <ellipse cx="256" cy="345" rx="68" ry="58" fill="#FED7AA" />
+        <path d="M226 326q8 8 16 0M270 326q8 8 16 0M236 356q10 10 20 0q10 10 20 0" stroke="#FB923C" strokeWidth="4" fill="none" strokeLinecap="round" />
         <rect x="216" y="398" width="8" height="28" rx="4" fill="#FACC15" /><rect x="230" y="398" width="8" height="28" rx="4" fill="#FACC15" />
         <rect x="276" y="398" width="8" height="28" rx="4" fill="#FACC15" /><rect x="290" y="398" width="8" height="28" rx="4" fill="#FACC15" />
-      </g>
-    </svg>
+      </svg>
+      <div className="owl-head">
+        <div className="owl-side">{head(false)}</div>
+        <div className="owl-side owl-side-back">{head(true)}</div>
+      </div>
+    </div>
   );
 }
 

@@ -575,31 +575,27 @@
 .splash-foot{margin-top:18px;font-size:15px;color:#9FB3D9;animation:splash-rise .5s 1s ease both;}
 @keyframes splash-line{from{transform:scaleX(0)}to{transform:scaleX(1)}}
 
-/* Owl intro (Splash.jsx Owl): pops in, the face goes round the back of the head (left), comes back from
-   the right, settles, blinks. The back-of-head feathers show only while the face is away. */
+/* Owl intro (Splash.jsx Owl): pops in, then the whole head turns once round on the neck (3D: the
+   back of the head shows halfway), a little tilt, a blink. */
 .splash-owl{z-index:201;background:#1E3A8A;}
-.owl{width:min(220px,58vw);height:auto;overflow:visible;animation:splash-pop .6s cubic-bezier(.2,1.4,.4,1) both;}
-.owl *{transform-box:view-box;}
-.owl-body{transform-origin:256px 400px;animation:owl-sway 3s ease-in-out both;}
-.owl-face{transform-origin:256px 240px;animation:owl-turn 2.2s .5s ease-in-out both;}
-.owl-back{opacity:0;animation:owl-backshow 2.2s .5s ease-in-out both;}
-.owl-eyes{transform-origin:256px 222px;animation:owl-blink .3s 2.6s ease both;}
-.owl-ears{transform-origin:256px 160px;animation:owl-ears 2.2s .5s ease-in-out both;}
+.owl{position:relative;width:min(220px,58vw);aspect-ratio:1;perspective:700px;animation:splash-pop .6s cubic-bezier(.2,1.4,.4,1) both;}
+.owl > svg{position:absolute;inset:0;width:100%;height:100%;}
+.owl-head{position:absolute;left:25.39%;top:17.58%;width:49.22%;height:46.88%;transform-style:preserve-3d;transform-origin:50% 60%;
+  animation:owl-neck 2.4s .55s cubic-bezier(.45,0,.3,1) both;}
+.owl-side{position:absolute;inset:0;-webkit-backface-visibility:hidden;backface-visibility:hidden;}
+.owl-side svg{width:100%;height:100%;display:block;overflow:visible;}
+.owl-side-back{transform:rotateY(180deg);}
+.owl-eyes{transform-box:view-box;transform-origin:256px 210px;animation:owl-blink .3s 3s ease both;}
 .owl-star{animation:owl-twinkle 1.2s ease-in-out infinite alternate;}
 .owl-star:nth-of-type(2){animation-delay:.4s;}.owl-star:nth-of-type(3){animation-delay:.8s;}
 .splash-owl .splash-title{font-size:30px;letter-spacing:.04em;animation-delay:.5s;}
-@keyframes owl-turn{
-  0%{transform:none;opacity:1}
-  18%{transform:translateX(-40px) scaleX(.78);opacity:1}
-  32%{transform:translateX(-78px) scaleX(.25);opacity:0}
-  50%{transform:translateX(0) scaleX(0);opacity:0}
-  62%{transform:translateX(78px) scaleX(.25);opacity:0}
-  74%{transform:translateX(40px) scaleX(.78);opacity:1}
-  88%{transform:translateX(-6px) rotate(-4deg);opacity:1}
-  100%{transform:none;opacity:1}}
-@keyframes owl-backshow{0%,28%{opacity:0}38%,56%{opacity:1}66%,100%{opacity:0}}
-@keyframes owl-ears{0%,100%{transform:none}25%{transform:translateX(-10px)}50%{transform:scaleX(.92)}70%{transform:translateX(10px)}}
-@keyframes owl-sway{0%,15%{transform:none}88%{transform:rotate(-3deg)}100%{transform:none}}
+@keyframes owl-neck{
+  0%{transform:rotateY(0) rotate(0)}
+  35%{transform:rotateY(-180deg) rotate(0)}
+  52%{transform:rotateY(-180deg) rotate(0)}
+  84%{transform:rotateY(-360deg) rotate(-12deg)}
+  93%{transform:rotateY(-360deg) rotate(6deg)}
+  100%{transform:rotateY(-360deg) rotate(0)}}
 @keyframes owl-blink{0%,100%{transform:none}50%{transform:scaleY(.08)}}
 @keyframes owl-twinkle{from{opacity:.35}to{opacity:1}}
 
