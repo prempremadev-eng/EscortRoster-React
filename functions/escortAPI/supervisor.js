@@ -1344,7 +1344,7 @@ module.exports = function supervisorRoutes(app, h) {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const m = await officeMessage(req, catalystApp.zcql(), req.body.rowid);
-      await catalystApp.datastore().table('PostMessages').updateRow({ ROWID: m.ROWID, text: '🚫 This message was deleted', media_key: null, media_source: null, duration: null, pinned: false });
+      await catalystApp.datastore().table('PostMessages').updateRow({ ROWID: m.ROWID, text: '🚫 This message was deleted', long_text: null, media_key: null, media_source: null, duration: null, pinned: false });
       if (m.media_key) {
         try { await catalystApp.stratus().bucket(process.env.MEDIA_BUCKET || 'escortcardaccess-media').deleteObject(m.media_key); } catch (err) { console.error('Deleted message media not removed:', err.message || err); }
       }

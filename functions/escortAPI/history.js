@@ -126,7 +126,7 @@ module.exports = function historyRoutes(app, h) {
       const seesPresence = !!req.user && req.user.role !== 'supervisor';
       const [presence, msgs] = await Promise.all([
         !seesPresence ? Promise.resolve([]) : all(zcql, 'Presence', `SELECT guard_id, kind, from_at, to_at FROM Presence WHERE post_id = ${postId} AND from_at <= '${end}' ORDER BY CREATEDTIME ASC`),
-        all(zcql, 'PostMessages', `SELECT ROWID, guard_id, kind, text, pinned, ref_id, media_key, media_source, duration, CREATEDTIME FROM PostMessages WHERE post_id = ${postId} AND CREATEDTIME >= '${start}:00' AND CREATEDTIME <= '${end}:59' ORDER BY CREATEDTIME ASC`)
+        all(zcql, 'PostMessages', `SELECT ROWID, guard_id, kind, text, long_text, pinned, ref_id, media_key, media_source, duration, CREATEDTIME FROM PostMessages WHERE post_id = ${postId} AND CREATEDTIME >= '${start}:00' AND CREATEDTIME <= '${end}:59' ORDER BY CREATEDTIME ASC`)
       ]);
       const segs = presence.filter(p => !p.to_at || p.to_at >= start);
       const workIds = msgs.filter(m => m.kind === 'work').map(m => m.ref_id).filter(Boolean);
@@ -148,7 +148,7 @@ module.exports = function historyRoutes(app, h) {
             from: p.from_at < start ? start : p.from_at, to: !p.to_at || p.to_at > end ? end : p.to_at
           })),
           messages: msgs.map(m => ({
-            ROWID: m.ROWID, kind: m.kind, text: m.text || (m.media_key ? mediaLabel(m.kind) : ''), pinned: isTrue(m.pinned),
+            ROWID: m.ROWID, kind: m.kind, text: m.long_text || m.text || (m.media_key ? mediaLabel(m.kind) : ''), pinned: isTrue(m.pinned),
             author: nameOf(m.guard_id), time: String(m.CREATEDTIME).slice(11, 16),
             work: m.kind === 'work' && workById[String(m.ref_id)] ? workView(workById[String(m.ref_id)]) : null,
             media: m.media_key ? { url: links[m.media_key] || '', source: m.media_source || '', duration: parseInt(m.duration, 10) || 0 } : null

@@ -508,7 +508,7 @@ module.exports = function postRoutes(app, h) {
     const open = await openWorks(zcql, postId);
     await notePermitsExpired(catalystApp, { post_id: postId, ROWID: viewer.logId || null }, open);
 
-    const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, duty_log_id, guard_id, kind, text, pinned, reply_to_id, ref_id, forwarded, media_key, media_source, duration, author_name, seen_by, seen_at, CREATEDTIME FROM PostMessages WHERE post_id = ${requireRowId(postId)} ORDER BY CREATEDTIME DESC LIMIT ${TIMELINE_LIMIT}`))
+    const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, duty_log_id, guard_id, kind, text, long_text, pinned, reply_to_id, ref_id, forwarded, media_key, media_source, duration, author_name, seen_by, seen_at, CREATEDTIME FROM PostMessages WHERE post_id = ${requireRowId(postId)} ORDER BY CREATEDTIME DESC LIMIT ${TIMELINE_LIMIT}`))
       .map(r => r.PostMessages).reverse();
     const [names, works, alerts, links] = await Promise.all([
       namesOf(zcql, rows.map(m => m.guard_id)),
@@ -527,7 +527,7 @@ module.exports = function postRoutes(app, h) {
       const a = m.kind === 'alert' ? alerts[String(m.ref_id)] : null;
       const w = m.kind === 'work' ? works[String(m.ref_id)] : null;
       return {
-        ROWID: m.ROWID, kind: m.kind, text: m.text, pinned: isTrue(m.pinned), forwarded: isTrue(m.forwarded),
+        ROWID: m.ROWID, kind: m.kind, text: m.long_text || m.text, pinned: isTrue(m.pinned), forwarded: isTrue(m.forwarded),
         mine: viewer.supervisor ? office(m) : String(m.guard_id) === String(viewer.guardId), office: office(m),
         // Only the guard's own shift's notes can be pinned / unpinned.
         myShift: !viewer.supervisor && String(m.duty_log_id) === String(viewer.logId),

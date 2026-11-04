@@ -48,7 +48,7 @@ module.exports = function groupRoutes(app, h) {
     const author = r => (r.guard_id ? (names[String(r.guard_id)] || {}).guard_name || 'Guard' : r.author_name || 'Office');
     const q = m.reply_to_id ? byId[String(m.reply_to_id)] : null;
     return {
-      ROWID: String(m.ROWID), kind: m.kind || 'text', text: m.text || '', author: author(m), avatar: avatars[String(m.ROWID)] || '', office: !m.guard_id,
+      ROWID: String(m.ROWID), kind: m.kind || 'text', text: m.long_text || m.text || '', author: author(m), avatar: avatars[String(m.ROWID)] || '', office: !m.guard_id,
       mine: who.guard ? String(m.guard_id) === String(who.guard.ROWID) : !m.guard_id && m.author_name === who.name,
       date: String(m.CREATEDTIME).slice(0, 10), time: String(m.CREATEDTIME).slice(11, 16),
       reply: q ? { id: String(q.ROWID), author: author(q), text: q.text || mediaLabel(q.kind) } : null,
@@ -168,10 +168,11 @@ module.exports = function groupRoutes(app, h) {
 
   // A guard's message posted by the server (📋 site reports, Prem 5 Nov: the report also goes to the
   // team group, like the WhatsApp group). The office hears it like any guard message.
-  async function postAsGuard(catalystApp, guard, text) {
+  // `long` = the full text when it is over 255 letters (GroupMessages.long_text; `text` keeps the summary).
+  async function postAsGuard(catalystApp, guard, text, long) {
     if (!guard.branch_id || !guard.agency_id) return;
     const who = { guard, branch: String(guard.branch_id), agency: String(guard.agency_id), name: guard.guard_name };
-    await save(catalystApp, who, { kind: 'text', text });
+    await save(catalystApp, who, { kind: 'text', text, long_text: long || null });
     await tell(catalystApp, catalystApp.zcql(), who, text.split('\n')[0]);
   }
   return { postAsGuard };
