@@ -852,6 +852,8 @@ td.routecell .trip-bar.pending{background:#fecaca;color:#991b1b;font-weight:bold
 .trip-fields label{display:flex;flex-direction:column;font-size:14px;font-weight:600;color:#475569;gap:4px;}
 .trip-fields input{border:1px solid #cbd5e1;border-radius:8px;padding:11px 10px;font-size:17px;background:#fff;width:100%;min-width:0;}
 .trip-fields input:focus{outline:none;border-color:var(--blue-mid);box-shadow:0 0 0 3px var(--blue-light);}
+.trip-time-btn{border:1px solid #cbd5e1;border-radius:8px;padding:10px;font-size:17px;background:#fff;text-align:left;cursor:pointer;color:var(--text);font-variant-numeric:tabular-nums;font-weight:600;}
+.trip-time-btn:hover{border-color:var(--blue-mid);}
 .trip-plate,.trip-plate-view{font-family:'JetBrains Mono',ui-monospace,monospace;letter-spacing:.06em;font-weight:600;}
 .trip-plate-view{background:#fef9c3;border:1px solid #eab308;border-radius:6px;padding:3px 10px;color:#1f2937;}
 .trip-type{display:flex;align-self:end;border:1px solid #cbd5e1;border-radius:8px;overflow:hidden;}

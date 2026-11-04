@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { isTripComplete, nowTime } from '../utils.js';
+import TimePicker from './TimePicker.jsx';
 
 // Vehicle No typed any way → "TN 22 AB 2344" (Prem, 4 Nov): capitals, a space between state,
 // RTO number, series letters and the number. Never adds a trailing space, so backspace works.
@@ -26,6 +27,8 @@ export default function TripPopup({ escortName, rec, stops, onSaveCab, onSaveSto
   const [confirmDelete, setConfirmDelete] = useState(null);
   // ⋮ menu per employee row (Prem, 4 Nov): one button, tap → Edit / Delete.
   const [menu, setMenu] = useState(null);
+  // Time uses the same grid picker as the Escort sheet's Out / In (Prem, 4 Nov).
+  const [pickTime, setPickTime] = useState(false);
 
   const cabChanged = vehicle.trim() !== (rec.vehicle || '') || driver.trim() !== (rec.driver || '');
   const stopStarted = !!(stop.ROWID || stop.emp.trim() || stop.loc.trim());
@@ -178,13 +181,15 @@ export default function TripPopup({ escortName, rec, stops, onSaveCab, onSaveSto
                 ))}
               </div>
               <label>Time
-                <input type="time" value={stop.time} onChange={e => setStopField('time', e.target.value)} />
+                <button type="button" className="trip-time-btn" onClick={() => setPickTime(true)}>🕒 {stop.time || '--:--'}</button>
               </label>
             </div>
           </section>
 
           {error && <div className="trip-error">{error}</div>}
         </div>
+
+        {pickTime && <TimePicker label="Time" value={stop.time} onOk={v => setStopField('time', v)} onClose={() => setPickTime(false)} />}
 
         <div className="trip-footer">
           {stop.ROWID
