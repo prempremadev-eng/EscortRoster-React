@@ -988,6 +988,157 @@ app.post('/guardDeleteStop', async (req, res) => {
   }
 });
 
+/* ---------------- URGENT ESCORT (a post guard helps the escort team) ---------------- */
+// Prem, 4 Nov: when the escort guards are busy on trips the shift incharge phones a post guard
+// to go. The guard takes a 🚕 Escort break (breaks.js: who covers the post, or the post is empty),
+// then fills the trip here from the phone. The trips are "Extra (today only)" rows of the escort
+// duty sheet (DutyRecords is_extra, extra_id_no = the guard's ID number) so the office sees them
+// on the same sheet. Writes need an Escort break that is still running.
+
+const ESCORT_BREAK_ACTIVE = "(status = 'asked' OR status = 'declined' OR status = 'accepted' OR status = 'alone')";
+
+async function escortExtraCtx(zcql, req, write) {
+  const b = req.method === 'GET' ? req.query : (req.body || {});
+  const me = await guardByToken(zcql, b.t);
+  const more = (await zcql.executeZCQLQuery(`SELECT id_number, phone FROM Guards WHERE ROWID = ${requireRowId(me.ROWID)}`))[0].Guards;
+  const idNo = String(more.id_number || '').trim();
+  if (!idNo) throw new Error('Your ID number is missing. Ask the office.');
+  const brk = await zcql.executeZCQLQuery(`SELECT ROWID, start_at, asked_at FROM Breaks WHERE guard_id = ${requireRowId(me.ROWID)} AND type = 'escort' AND ${ESCORT_BREAK_ACTIVE} ORDER BY CREATEDTIME DESC LIMIT 1`);
+  const onEscort = brk.length > 0;
+  if (write && !onEscort) throw new Error('Start a 🚕 Escort break first (Go on break → Escort).');
+  const dutyDate = istNow().dutyDate;
+  const all = await selectAll(zcql, 'DutyRecords', `SELECT ROWID, seat_no, route_no, location, out_time, in_time, vehicle_no, driver_name, extra_id_no FROM DutyRecords WHERE duty_date = '${dutyDate}' AND is_extra = 'true'`);
+  const routes = all.filter(r => String(r.extra_id_no || '').trim() === idNo);
+  const ids = routes.map(r => String(r.ROWID));
+  const stops = ids.length
+    ? (await selectAll(zcql, 'TripStops', `SELECT ROWID, duty_record_id, emp_id, location, trip_type, stop_time FROM TripStops WHERE duty_date = '${dutyDate}' ORDER BY CREATEDTIME ASC`)).filter(x => ids.includes(String(x.duty_record_id)))
+    : [];
+  // Seat of this guard's Extra row: his own if he has one today, else the next free one (the
+  // office's Extra rows start at 9000, see App.jsx extraSeatCounter).
+  const seat = routes.length ? parseInt(routes[0].seat_no, 10) : Math.max(8999, ...all.map(r => parseInt(r.seat_no, 10) || 0)) + 1;
+  return { me, idNo, phone: more.phone || '', dutyDate, onEscort, routes, stops, seat };
+}
+
+const extraRouteOf = (ctx, n) => ctx.routes.find(r => (parseInt(r.route_no, 10) || 1) === n);
+
+app.get('/guardEscortExtra', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const ctx = await escortExtraCtx(catalystApp.zcql(), req, false);
+    res.status(200).json({ status: 'success', data: {
+      name: ctx.me.guard_name, agency: ctx.me.agency || '', idNo: ctx.idNo, dutyDate: ctx.dutyDate, onEscort: ctx.onEscort,
+      routes: Array.from({ length: ROUTES }, (_, k) => {
+        const r = extraRouteOf(ctx, k + 1);
+        return r ? { ROWID: r.ROWID, loc: r.location || '', out: r.out_time || '', in: r.in_time || '', vehicle: r.vehicle_no || '', driver: r.driver_name || '' } : null;
+      }),
+      stops: ctx.stops
+    } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// Location → Out → In, same order and locks as the duty sheet; Route 2 after Route 1 is done.
+app.post('/guardEscortRoute', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const ctx = await escortExtraCtx(catalystApp.zcql(), req, true);
+    const b = req.body;
+    const n = requireRouteNo(b.route_no);
+    const location = String(b.location || '').trim().slice(0, 100);
+    const out_time = optionalTime(b.out_time, 'Out');
+    const in_time = optionalTime(b.in_time, 'In');
+    if (n > 1) {
+      const prev = extraRouteOf(ctx, n - 1);
+      if (!prev || !prev.out_time || !prev.in_time) throw new Error('Finish Trip ' + (n - 1) + ' first (Out and In)');
+    }
+    if (out_time && !location) throw new Error('Location first, then Out');
+    if (in_time && !out_time) throw new Error('Out first, then In');
+    const table = catalystApp.datastore().table('DutyRecords');
+    const current = extraRouteOf(ctx, n);
+    const result = current
+      ? await table.updateRow({ ROWID: current.ROWID, location, out_time, in_time })
+      : await table.insertRow({
+        duty_date: ctx.dutyDate, escort_id: 0, seat_no: ctx.seat, route_no: n, location, out_time, in_time,
+        remarks: '🚨 Urgent escort', is_extra: 'true',
+        extra_name: ctx.me.guard_name, extra_agency: ctx.me.agency || '', extra_mobile: ctx.phone, extra_id_no: ctx.idNo
+      });
+    res.status(200).json({ status: 'success', data: { ROWID: result.ROWID } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+function extraTrip(ctx, routeNo) {
+  const rec = extraRouteOf(ctx, requireRouteNo(routeNo));
+  if (!rec || !rec.out_time) throw new Error('Save the Out time of this trip first');
+  return rec;
+}
+
+app.post('/guardEscortCab', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const ctx = await escortExtraCtx(catalystApp.zcql(), req, true);
+    const rec = extraTrip(ctx, req.body.route_no);
+    await catalystApp.datastore().table('DutyRecords').updateRow({
+      ROWID: rec.ROWID,
+      vehicle_no: String(req.body.vehicle_no || '').trim().toUpperCase().slice(0, 20),
+      driver_name: String(req.body.driver_name || '').trim().slice(0, 50)
+    });
+    res.status(200).json({ status: 'success', data: { ROWID: rec.ROWID } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+function stopFields(b) {
+  const stop_time = optionalTime(b.stop_time, 'Time');
+  if (!stop_time) throw new Error('Time is required');
+  return {
+    emp_id: requireText(b.emp_id, 'Emp ID', 20), location: requireText(b.location, 'Location', 100),
+    trip_type: b.trip_type === 'Pickup' ? 'Pickup' : 'Drop', stop_time
+  };
+}
+
+app.post('/guardEscortStop', async (req, res) => {
+  try {
+    const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+    const ctx = await escortExtraCtx(catalystApp.zcql(), req, true);
+    const b = req.body;
+    const table = catalystApp.datastore().table('TripStops');
+    if (b.delete || b.rowid) {
+      const rowid = String(requireRowId(b.rowid));
+      if (!ctx.stops.some(x => String(x.ROWID) === rowid)) throw new Error('Employee entry not found');
+      if (b.delete) {
+        await table.deleteRow(rowid);
+        return res.status(200).json({ status: 'success', data: { deleted: rowid } });
+      }
+      await table.updateRow({ ROWID: rowid, ...stopFields(b) });
+      return res.status(200).json({ status: 'success', data: { ROWID: rowid } });
+    }
+    const rec = extraTrip(ctx, b.route_no);
+    const result = await table.insertRow({ duty_record_id: rec.ROWID, duty_date: ctx.dutyDate, escort_id: 0, ...stopFields(b) });
+    res.status(200).json({ status: 'success', data: { ROWID: result.ROWID } });
+  } catch (err) {
+    fail(res, err);
+  }
+});
+
+// "I'm back" from an Escort break (breaks.js): the open trip gets its In time.
+async function closeEscortTrip(catalystApp, guardId) {
+  const zcql = catalystApp.zcql();
+  const rows = await zcql.executeZCQLQuery(`SELECT id_number FROM Guards WHERE ROWID = ${requireRowId(guardId)}`);
+  const idNo = rows.length ? String(rows[0].Guards.id_number || '').trim() : '';
+  if (!idNo) return;
+  const { dutyDate, time } = istNow();
+  const recs = await selectAll(zcql, 'DutyRecords', `SELECT ROWID, out_time, in_time, extra_id_no FROM DutyRecords WHERE duty_date = '${dutyDate}' AND is_extra = 'true'`);
+  for (const r of recs) {
+    if (String(r.extra_id_no || '').trim() === idNo && r.out_time && !r.in_time) {
+      await catalystApp.datastore().table('DutyRecords').updateRow({ ROWID: r.ROWID, in_time: time });
+    }
+  }
+}
+
 app.get('/getAccessLog', async (req, res) => {
   try {
     auth.need(req, 'admin');
@@ -2046,7 +2197,7 @@ async function activeBranches(req, zcql) {
 
 const post = require('./post.js')(app, {
   catalyst, selectAll, requireRowId, requireDate, fail, guardByToken, sendPushToGuard, sendPushToRows, getVapidKeys,
-  getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN, auth, getSetting, dutyOf, istNow
+  getShifts, shiftDate, weekStartOf, IST_OFFSET_MIN, auth, getSetting, dutyOf, istNow, closeEscortTrip
 });
 
 // QR attendance at a gate without a card machine (qr.js, Cumbum, 29 Oct).

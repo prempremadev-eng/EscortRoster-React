@@ -4,7 +4,9 @@ import TableHeader from './TableHeader.jsx';
 import { routeLocks } from '../utils.js';
 
 // "Extra Escorts (Today Only)" — screen only, not printed.
-export default function ExtraSection({ extraRows, rotation, actions }) {
+// Trips of an Extra row have the same trip bar + popup as the main sheet (Prem, 4 Nov: urgent
+// escorts filled from a post guard's phone show their cab and employees here).
+export default function ExtraSection({ extraRows, rotation, actions, stops = {} }) {
   const visible = extraRows.filter(r => !r.deleted);
   if (visible.length === 0) return null;
 
@@ -39,6 +41,8 @@ export default function ExtraSection({ extraRows, rotation, actions }) {
                     onChange={(field, v) => actions.setExtraRouteField(r.uid, i2, field, v)}
                     onCommit={() => actions.saveExtraRoute(r.uid, i2)}
                     onPickTime={(field, label) => actions.pickExtraTime(r.uid, i2, field, label)}
+                    stops={r.routes[i2] && r.routes[i2].ROWID ? stops[String(r.routes[i2].ROWID)] || [] : []}
+                    onOpenTrip={() => actions.openExtraTrip(r.uid, i2)}
                   />
                 ))}
                 <td className="remarks">

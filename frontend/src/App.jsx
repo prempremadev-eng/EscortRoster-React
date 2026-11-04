@@ -408,6 +408,39 @@ export default function App() {
       setTrip({ id, idx });
     },
 
+    // Extra row trips: { extra: uid, idx } (same popup; stops are keyed by the trip ROWID).
+    openExtraTrip(uid, idx) {
+      setTrip({ extra: uid, idx });
+    },
+
+    async saveExtraCab(uid, idx, vehicle, driver) {
+      const r = extrasRef.current.find(x => x.uid === uid);
+      const rec = r && r.routes[idx];
+      await api.updateTripCab({ ROWID: rec.ROWID, vehicle_no: vehicle, driver_name: driver });
+      actions.setExtraRouteField(uid, idx, 'vehicle', vehicle);
+      actions.setExtraRouteField(uid, idx, 'driver', driver);
+    },
+
+    async saveExtraStop(uid, idx, stop) {
+      const rec = extrasRef.current.find(x => x.uid === uid).routes[idx];
+      const key = String(rec.ROWID);
+      const payload = { emp_id: stop.emp, location: stop.loc, trip_type: stop.type, stop_time: stop.time };
+      if (stop.ROWID) {
+        await api.updateTripStop({ ROWID: stop.ROWID, ...payload });
+        updateStops(m => ({ ...m, [key]: (m[key] || []).map(s => s.ROWID === stop.ROWID ? stop : s) }));
+      } else {
+        const result = await api.addTripStop({ duty_record_id: rec.ROWID, duty_date: dutyDateRef.current, escort_id: 0, ...payload });
+        updateStops(m => ({ ...m, [key]: [...(m[key] || []), { ...stop, ROWID: result.data.ROWID }] }));
+      }
+    },
+
+    async deleteExtraStop(uid, idx, rowid) {
+      const rec = extrasRef.current.find(x => x.uid === uid).routes[idx];
+      const key = String(rec.ROWID);
+      await api.deleteTripStop(rowid);
+      updateStops(m => ({ ...m, [key]: (m[key] || []).filter(s => s.ROWID !== rowid) }));
+    },
+
     async saveTripCab(id, idx, vehicle, driver) {
       const rec = dutyRef.current[id].routes[idx];
       await api.updateTripCab({ ROWID: rec.ROWID, vehicle_no: vehicle, driver_name: driver });
@@ -612,11 +645,12 @@ export default function App() {
   const displayRows = rosterDay ? escorts : computeDisplayRows(escorts, rotation, startDate, dutyDate);
 
   // Current data for the open trip popup (null when closed or the trip vanished).
-  const tripRec = trip && duty[trip.id] && duty[trip.id].routes[trip.idx];
+  const tripExtra = trip && trip.extra ? extraRows.find(x => x.uid === trip.extra) : null;
+  const tripRec = trip && (trip.extra ? tripExtra && tripExtra.routes[trip.idx] : duty[trip.id] && duty[trip.id].routes[trip.idx]);
   const tripView = tripRec && tripRec.ROWID ? {
     rec: tripRec,
     stops: stops[String(tripRec.ROWID)] || [],
-    escortName: (escorts.find(e => String(e.ROWID) === trip.id) || {}).name
+    escortName: trip.extra ? tripExtra.name : (escorts.find(e => String(e.ROWID) === trip.id) || {}).name
   } : null;
 
   return (
@@ -665,7 +699,7 @@ export default function App() {
                 actions={actions}
               />
             ))}
-            <ExtraSection extraRows={extraRows} rotation={rotation} actions={actions} />
+            <ExtraSection extraRows={extraRows} rotation={rotation} actions={actions} stops={stops} />
           </>
         )}
       </div>
@@ -687,9 +721,9 @@ export default function App() {
           escortName={tripView.escortName}
           rec={tripView.rec}
           stops={tripView.stops}
-          onSaveCab={(vehicle, driver) => actions.saveTripCab(trip.id, trip.idx, vehicle, driver)}
-          onSaveStop={stop => actions.saveTripStop(trip.id, trip.idx, stop)}
-          onDeleteStop={rowid => actions.deleteTripStop(trip.id, trip.idx, rowid)}
+          onSaveCab={(vehicle, driver) => (trip.extra ? actions.saveExtraCab(trip.extra, trip.idx, vehicle, driver) : actions.saveTripCab(trip.id, trip.idx, vehicle, driver))}
+          onSaveStop={stop => (trip.extra ? actions.saveExtraStop(trip.extra, trip.idx, stop) : actions.saveTripStop(trip.id, trip.idx, stop))}
+          onDeleteStop={rowid => (trip.extra ? actions.deleteExtraStop(trip.extra, trip.idx, rowid) : actions.deleteTripStop(trip.id, trip.idx, rowid))}
           onClose={() => setTrip(null)}
         />
       )}

@@ -9,12 +9,13 @@
 //   (his own post stays empty) until he presses "I'm at <post>" or takes his own break.
 // Breaks has one row per break. Presence (post.js) records who stood where, minute by minute.
 
-const TYPES = { tea: 'Tea', lunch: 'Lunch', restroom: 'Restroom', other: 'Other' };
+// escort (Prem, 4 Nov): an urgent escort trip while the escort team is busy (index.js URGENT ESCORT).
+const TYPES = { tea: 'Tea', lunch: 'Lunch', restroom: 'Restroom', escort: 'Escort', other: 'Other' };
 const ACTIVE = ['asked', 'declined', 'accepted', 'alone'];
 
 module.exports = function breakRoutes(app, h) {
   const { catalyst, fail, requireRowId, guardByToken, sendPushToGuard, shiftDate, nowStamp, hhmm, minutesBetween,
-    myLog, namesOf, addMessage, openPresence, closePresence, onDutyLog, notifySupervisors } = h;
+    myLog, namesOf, addMessage, openPresence, closePresence, onDutyLog, notifySupervisors, closeEscortTrip } = h;
 
   const statusIn = list => '(' + list.map(s => `status = '${s}'`).join(' OR ') + ')';
   const label = type => TYPES[type] || 'Break';
@@ -130,6 +131,11 @@ module.exports = function breakRoutes(app, h) {
       const { me, own } = await onDutyLog(zcql, req.body.t);
       const type = String(req.body.type || '');
       if (!TYPES[type]) throw new Error('Pick a break type.');
+      // Shift incharges stay on site (Prem, 4 Nov): no escort for them.
+      if (type === 'escort') {
+        const ag = await zcql.executeZCQLQuery('SELECT incharge_ids FROM Agencies');
+        if (ag.some(a => String(a.Agencies.incharge_ids || '').split(',').map(x => x.trim()).includes(String(me.ROWID)))) throw new Error('Shift incharge cannot go on escort.');
+      }
       const current = await myActiveBreak(zcql, me.ROWID);
       if (current && (current.status === 'accepted' || current.status === 'alone')) throw new Error('You are already on break.');
       // Walking back from a cover and going straight on my own break: the walk is over,
@@ -287,6 +293,10 @@ module.exports = function breakRoutes(app, h) {
       const time = hhmm(now);
       const walking = b && b.status === 'accepted' && b.cover_mode === 'go' && b.cover_guard_id;
       if (b) await catalystApp.datastore().table('Breaks').updateRow({ ROWID: b.ROWID, status: walking ? 'returning' : 'ended', end_at: now });
+      // Back from an urgent escort: the trip still out gets its In time.
+      if (b && b.type === 'escort' && closeEscortTrip) {
+        try { await closeEscortTrip(catalystApp, me.ROWID); } catch (err) { console.error('Escort In time failed:', err); }
+      }
       await catalystApp.datastore().table('DutyLog').updateRow({ ROWID: own.ROWID, status: 'on_duty' });
       await openPresence(catalystApp, own.post_id, me.ROWID, own.ROWID, 'main');
       await addMessage(catalystApp, { post_id: own.post_id, duty_log_id: own.ROWID, guard_id: me.ROWID, kind: 'system', text: me.guard_name + ' back on duty · ' + time });

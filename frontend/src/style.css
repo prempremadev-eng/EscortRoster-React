@@ -1334,3 +1334,9 @@ td.in-late{color:#b91c1c;}
 .pp-more{margin-top:12px;}
 .pp-more summary{font-size:13px;color:#475569;}
 .adm-auto{margin:10px 0;display:flex;gap:8px;align-items:flex-start;font-size:13px;}
+
+/* Urgent escort page (EscortExtra.jsx): the guard's own Extra row. */
+.ex-bar{flex-wrap:wrap;gap:8px;}
+.ex-note{margin:10px 12px;}
+.ex-sheet{margin:0 12px 20px;overflow-x:auto;}
+.ex-locked{opacity:.55;pointer-events:none;}

@@ -134,7 +134,7 @@ module.exports = function supervisorRoutes(app, h) {
       const brRows = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_id, cover_guard_id, cover_post_id, cover_mode, type, status, asked_at, start_at, end_at FROM Breaks WHERE post_id = ${postId} AND asked_at >= '${dayOf} 00:00:00' ORDER BY asked_at DESC LIMIT 30`)).map(r => r.Breaks);
       const brNames = await namesOf(zcql, brRows.flatMap(x => [x.guard_id, x.cover_guard_id]));
       const brPosts = brRows.some(x => x.cover_post_id) ? (await zcql.executeZCQLQuery(`SELECT ROWID, post_name FROM Posts WHERE ROWID IN (${idList(brRows.map(x => x.cover_post_id).filter(Boolean))})`)).map(r => r.Posts) : [];
-      const BREAK_TYPE = { tea: 'Tea', lunch: 'Lunch', restroom: 'Restroom', other: 'Other' };
+      const BREAK_TYPE = { tea: 'Tea', lunch: 'Lunch', restroom: 'Restroom', escort: '🚕 Escort', other: 'Other' };
       const nowB = nowStamp();
       const breaks = brRows.filter(x => x.status !== 'cancelled').map(x => ({
         ROWID: x.ROWID, guard: (brNames[String(x.guard_id)] || {}).guard_name || 'Guard', cover: (brNames[String(x.cover_guard_id)] || {}).guard_name || '',

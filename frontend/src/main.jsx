@@ -26,6 +26,7 @@ import QrAttend from './components/QrAttend.jsx';
 import RelieversPage from './components/RelieversPage.jsx';
 import AttendancePage from './components/AttendancePage.jsx';
 import SplashHost from './components/Splash.jsx';
+import EscortExtra from './components/EscortExtra.jsx';
 import GroupChat from './post/GroupChat.jsx';
 import { api } from './api.js';
 
@@ -124,6 +125,8 @@ function Root() {
   if (hash.startsWith('#qr/')) return <QrAttend qrKey={hash.slice('#qr/'.length)} />;
   if (hash.startsWith('#group/')) return <GuardGroup token={hash.slice('#group/'.length)} />;
   if (hash.startsWith('#setup/')) return <GuardSetup token={hash.slice('#setup/'.length)} />;
+  // Urgent escort (Prem, 4 Nov): a post guard on a 🚕 Escort break fills his Extra row.
+  if (hash.startsWith('#escortx/')) return <EscortExtra token={hash.slice('#escortx/'.length)} />;
   if (hash.startsWith('#guard/')) {
     const [token, query] = hash.slice('#guard/'.length).split('?');
     return <><GuardPage token={token} testDate={new URLSearchParams(query || '').get('date')} /><a className="pd-group-fab" href={'#group/' + token}>👥 Group</a><SplashHost /></>;

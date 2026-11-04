@@ -559,6 +559,9 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
       )}
 
 
+      {myBreak && myBreak.type === 'escort' && !here && (
+        <a className="pd-btn pd-btn-primary pd-btn-big pd-escort-open" href={'#escortx/' + token}>🚕 Open escort sheet · fill your trip</a>
+      )}
       {onBreak && !here && (
         <div className="pd-back">
           <button className="pd-btn pd-btn-green pd-btn-big" onClick={backOnDuty} disabled={busy}>{Icon.check}I'm back · Back on duty</button>

@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { initials } from './icons.jsx';
 
-const TYPES = [['tea', 'Tea'], ['lunch', 'Lunch'], ['restroom', 'Restroom'], ['other', 'Other']];
+// 🚕 Escort (Prem, 4 Nov): the shift incharge phoned — an urgent escort trip; the post is covered or empty.
+const TYPES = [['tea', 'Tea'], ['lunch', 'Lunch'], ['restroom', 'Restroom'], ['escort', '🚕 Escort'], ['other', 'Other']];
 const NO_ONE = 'none';
 
 // Screen 5l "Go on break": break type, then who covers (guards on duty now in this branch).
@@ -19,7 +20,7 @@ export default function BreakSheet({ token, branch, current, onDone, onClose }) 
     api.coverCandidates(token).then(r => setGuards(r.data)).catch(err => setError(err.message));
   }, [token]);
 
-  const typeName = (TYPES.find(t => t[0] === type) || TYPES[0])[1];
+  const typeName = (TYPES.find(t => t[0] === type) || TYPES[0])[1].replace('🚕 ', '');
   const list = (guards || []).filter(g => (g.name + ' ' + g.post).toLowerCase().includes(search.trim().toLowerCase()));
   const picked = guards && guards.find(g => g.guardId === pick);
 

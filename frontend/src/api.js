@@ -201,6 +201,11 @@ export const api = {
   guardAddStop: body => apiCall('POST', '/guardAddStop', body),
   guardUpdateStop: body => apiCall('POST', '/guardUpdateStop', body),
   guardDeleteStop: body => apiCall('POST', '/guardDeleteStop', body),
+  // Urgent escort (a post guard on a 🚕 Escort break): his own Extra row of the escort sheet.
+  guardEscortExtra: t => apiCall('GET', '/guardEscortExtra?t=' + q(t)),
+  guardEscortRoute: body => apiCall('POST', '/guardEscortRoute', body),
+  guardEscortCab: body => apiCall('POST', '/guardEscortCab', body),
+  guardEscortStop: body => apiCall('POST', '/guardEscortStop', body),
 
   postDuty: t => apiCall('GET', '/postDuty?t=' + q(t)),
   takeOver: t => apiCall('POST', '/takeOver', { t }),
