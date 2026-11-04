@@ -37,12 +37,17 @@ module.exports = function strengthRoutes(app, h) {
         selectAll(zcql, 'Agencies', 'SELECT ROWID, agency_name FROM Agencies ORDER BY agency_name ASC'),
         selectAll(zcql, 'Guards', `SELECT ROWID, guard_name, id_number, branch_id, agency_id FROM Guards WHERE is_active = 'true'${inBranches}${auth.agencyWhere(req)} ORDER BY ROWID ASC`),
         selectAll(zcql, 'Schedule', `SELECT guard_id, post_id, branch_id, shift_code FROM Schedule WHERE sched_date = '${date}' AND published = true${inBranches} ORDER BY ROWID ASC`),
-        selectAll(zcql, 'MonthRoster', `SELECT guard_id, codes FROM MonthRoster WHERE roster_month = '${date.slice(0, 7)}'${inBranches} ORDER BY ROWID ASC`),
+        selectAll(zcql, 'MonthRoster', `SELECT guard_id, codes, team FROM MonthRoster WHERE roster_month = '${date.slice(0, 7)}'${inBranches} ORDER BY ROWID ASC`),
         selectAll(zcql, 'AccessLog', `SELECT guard_id, punch_time, direction FROM AccessLog WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`)
       ]);
       const day = Number(date.slice(8, 10)) - 1;
       const codeOf = {};
       roster.forEach(r => { const c = String(r.codes || '')[day]; if (c) codeOf[String(r.guard_id)] = c; });
+      // Escorts (Prem, 4 Nov: "escort + C shift counting"): Mon–Fri the Escort team's C guards ride the night cab,
+      // not a post, so they are on no schedule slot. They count in the C shift all the same.
+      const wd = new Date(date + 'T00:00:00Z').getUTCDay();
+      const escortC = new Set(wd >= 1 && wd <= 5 ? roster.filter(r => r.team === 'Escort' && String(r.codes || '')[day] === 'C').map(r => String(r.guard_id)) : []);
+      const onCab = (id, code) => code === 'C' && escortC.has(id);
       const firstIn = {}, lastDir = {};
       ins.forEach(x => {
         const id = String(x.guard_id);
@@ -82,7 +87,7 @@ module.exports = function strengthRoutes(app, h) {
         let allotted = 0, present = 0, out = 0, absent = 0, leave = 0, off = 0;
         inArea.forEach(g => {
           const id = String(g.ROWID);
-          if (on.has(id) || (!hasSchedule(g) && codeOf[id] === sh.code)) {
+          if (on.has(id) || onCab(id, sh.code) || (!hasSchedule(g) && codeOf[id] === sh.code)) {
             allotted++;
             if (firstIn[id]) { present++; if (lastDir[id] === 'OUT') out++; } else if (begunAt(sh.code, g.branch_id)) absent++;
           } else if (usualOf[id] === sh.code && codeOf[id] === 'L') leave++;
@@ -104,7 +109,7 @@ module.exports = function strengthRoutes(app, h) {
         if (!g.branch_id) continue;
         const id = String(g.ROWID);
         const code = codeOf[id] || '';
-        const allotted = id in onShift || (!hasSchedule(g) && code === shift.code);
+        const allotted = id in onShift || onCab(id, shift.code) || (!hasSchedule(g) && code === shift.code);
         const gr = groupOf(g);
         let state = '';
         if (allotted) {
@@ -142,7 +147,7 @@ module.exports = function strengthRoutes(app, h) {
         slots.forEach(x => { (slotOf[x.shift_code] = slotOf[x.shift_code] || {})[String(x.guard_id)] = String(x.post_id); });
         inArea.forEach(g => {
           const id = String(g.ROWID), code = codeOf[id] || '';
-          const mine = shifts.filter(sh => (slotOf[sh.code] || {})[id] || (!hasSchedule(g) && code === sh.code));
+          const mine = shifts.filter(sh => (slotOf[sh.code] || {})[id] || onCab(id, sh.code) || (!hasSchedule(g) && code === sh.code));
           let st = '';
           if (mine.length) st = firstIn[id] ? 'present' : mine.some(sh => begunAt(sh.code, g.branch_id)) ? 'absent' : 'due';
           else if (code === 'L') st = 'leave';
