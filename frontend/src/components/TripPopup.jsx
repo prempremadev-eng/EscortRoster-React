@@ -15,6 +15,8 @@ export default function TripPopup({ escortName, rec, stops, onSaveCab, onSaveSto
   // ROWID of the stop whose 🗑 was tapped once — the second tap deletes.
   // (No window.confirm: browsers can silently block it, and it is clumsy on mobile.)
   const [confirmDelete, setConfirmDelete] = useState(null);
+  // ⋮ menu per employee row (Prem, 4 Nov): one button, tap → Edit / Delete.
+  const [menu, setMenu] = useState(null);
 
   const cabChanged = vehicle.trim() !== (rec.vehicle || '') || driver.trim() !== (rec.driver || '');
   const stopStarted = !!(stop.ROWID || stop.emp.trim() || stop.loc.trim());
@@ -85,7 +87,7 @@ export default function TripPopup({ escortName, rec, stops, onSaveCab, onSaveSto
           <button type="button" className="trip-close" onClick={onClose} disabled={busy} aria-label="Close">&times;</button>
         </div>
 
-        <div className="trip-body">
+        <div className="trip-body" onClick={e => { if (menu && !e.target.closest('.trip-stop-actions')) { setMenu(null); setConfirmDelete(null); } }}>
           <div className={'trip-status' + (complete ? ' ok' : '')}>
             {complete
               ? <span>✅ Trip complete</span>
@@ -118,7 +120,7 @@ export default function TripPopup({ escortName, rec, stops, onSaveCab, onSaveSto
             )}
           </section>
 
-          {stops.length > 0 && <section className="trip-card">
+          {stops.length > 0 && <section className="trip-card trip-card-list">
             <div className="trip-card-head"><span>👥 Employees <span className="trip-count">{stops.length}</span></span></div>
             {(
                 <ul className="trip-stops">
@@ -132,10 +134,17 @@ export default function TripPopup({ escortName, rec, stops, onSaveCab, onSaveSto
                       <span className={'trip-pill ' + (s.type === 'Pickup' ? 'pick' : 'drop')}>{s.type}</span>
                       <span className="trip-time">{s.time}</span>
                       <span className="trip-stop-actions">
-                        <button type="button" title="Edit" onClick={() => setStop({ ...s })} disabled={busy}>✏️</button>
-                        {confirmDelete === s.ROWID
-                          ? <button type="button" className="trip-del-confirm" onClick={() => remove(s)} disabled={busy}>Delete?</button>
-                          : <button type="button" title="Delete" onClick={() => remove(s)} disabled={busy}>🗑</button>}
+                        <button type="button" className="trip-dots" aria-label="Options" aria-expanded={menu === s.ROWID}
+                          onClick={() => { setMenu(menu === s.ROWID ? null : s.ROWID); setConfirmDelete(null); }} disabled={busy}>⋮</button>
+                        {menu === s.ROWID && (
+                          <span className={'trip-menu' + (i === stops.length - 1 && i > 0 ? ' up' : '')} role="menu">
+                            <button type="button" role="menuitem" onClick={() => { setStop({ ...s }); setMenu(null); }}>✏️ Edit</button>
+                            <button type="button" role="menuitem" className={confirmDelete === s.ROWID ? 'danger on' : 'danger'}
+                              onClick={() => { if (confirmDelete === s.ROWID) setMenu(null); remove(s); }}>
+                              {confirmDelete === s.ROWID ? '🗑 Tap again to delete' : '🗑 Delete'}
+                            </button>
+                          </span>
+                        )}
                       </span>
                     </li>
                   ))}

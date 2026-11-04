@@ -872,7 +872,18 @@ td.routecell .trip-bar.pending{background:#fecaca;color:#991b1b;font-weight:bold
 .trip-pill.drop{background:#dbeafe;color:#1e40af;}
 .trip-pill.pick{background:#dcfce7;color:#166534;}
 .trip-time{font-variant-numeric:tabular-nums;color:#334155;}
-.trip-stop-actions{white-space:nowrap;}
+.trip-stop-actions{white-space:nowrap;position:relative;}
+.trip-card-list{overflow:visible;}
+.trip-dots{width:34px;height:34px;border-radius:50%;font-size:20px !important;line-height:1;color:#475569;font-weight:700;}
+.trip-dots:hover,.trip-dots[aria-expanded=true]{background:#eef2f7 !important;}
+.trip-menu{position:absolute;right:0;top:100%;z-index:5;display:flex;flex-direction:column;min-width:170px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;
+  box-shadow:0 10px 24px rgba(15,23,42,.18);padding:4px;animation:trip-menu .12s ease;}
+.trip-menu.up{top:auto;bottom:100%;}
+.trip-menu button{text-align:left;padding:10px 12px !important;border-radius:7px;font-size:14px !important;color:#1e293b;}
+.trip-menu button:hover{background:#f1f5f9;}
+.trip-menu button.danger{color:#b91c1c;}
+.trip-menu button.danger.on{background:#dc2626;color:#fff;}
+@keyframes trip-menu{from{opacity:0;transform:scale(.95)}to{opacity:1;transform:none}}
 .trip-stop-actions button{background:none;border:none;cursor:pointer;font-size:15px;padding:4px;}
 .trip-error{color:#b91c1c;background:#fef2f2;border-radius:8px;font-size:13px;padding:8px 12px;}
 .trip-stop-actions button.trip-del-confirm{background:#dc2626;color:#fff;border-radius:6px;font-size:12px;padding:4px 9px;}
