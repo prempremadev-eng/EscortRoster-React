@@ -836,7 +836,8 @@ module.exports = function postRoutes(app, h) {
 
   // Parking / employee strength reports (siteReports.js, Prem 5 Nov).
   require('./siteReports.js')(app, {
-    catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, onDutyLog, shiftDate, auth, addMessage
+    catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, onDutyLog, shiftDate, auth, addMessage,
+    sendPushToGuard, getSetting, notifySupervisors: (...args) => sup.notify(...args)
   });
 
   // Supervisor inbox (supervisor.js).

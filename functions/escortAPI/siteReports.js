@@ -48,7 +48,8 @@ const TYPES = {
 const LATE_MIN = 30;
 
 module.exports = function siteReportRoutes(app, h) {
-  const { catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, onDutyLog, shiftDate, auth, addMessage } = h;
+  const { catalyst, selectAll, requireRowId, requireDate, fail, nowStamp, hhmm, cleanText, onDutyLog, shiftDate, auth, addMessage,
+    sendPushToGuard, getSetting, notifySupervisors } = h;
 
   const typeOf = key => TYPES[String(key || '')] || null;
   const form = t => ({ label: t.label, icon: t.icon, sections: t.sections.map(([title, fields]) => ({ title, fields: fields.map(([k, label, tag]) => ({ k, label, tag })) })), totals: t.totals.map(([label, tags]) => ({ label, tags })), texts: (t.texts || []).map(([k, label]) => ({ k, label })) });
@@ -198,6 +199,54 @@ module.exports = function siteReportRoutes(app, h) {
         };
       });
       res.status(200).json({ status: 'success', data: { from, to, today: shiftDate(), types, posts: list, reports: rows.map(view) } });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  /* ---------- reminders (Job Scheduling cron, Prem 5 Nov) ---------- */
+  // Cron "0,30 3,11,15,23 * * *" calls /siteReportRemind?key=<Settings qr_cron_key>.
+  //   at the report time (:00–:10)  → the guard on duty at each report post that has not sent it: 📋 push
+  //   30 min later (:30–:40)        → still not sent: the guard again (urgent) and the office (missed)
+  app.get('/siteReportRemind', async (req, res) => {
+    try {
+      const catalystApp = catalyst.initialize(req, { scope: 'admin' });
+      const zcql = catalystApp.zcql();
+      const key = await getSetting(zcql, 'qr_cron_key');
+      if (!key || !key.setting_value || String(req.query.key || '') !== key.setting_value) throw new Error('Not allowed.');
+      const date = shiftDate();
+      const now = nowMinOn(date);
+      const posts = (await selectAll(zcql, 'Posts', "SELECT ROWID, post_name, report_type, is_active FROM Posts WHERE report_type IS NOT NULL ORDER BY ROWID ASC"))
+        .filter(p => typeOf(p.report_type) && p.is_active !== 'false');
+      const told = [];
+      for (const p of posts) {
+        const t = typeOf(p.report_type);
+        for (const slot of t.slots(date)) {
+          const since = now - slotMin(slot);
+          const missed = since >= LATE_MIN && since < LATE_MIN + 10;
+          if (!(since >= 0 && since < 10) && !missed) continue;
+          const done = await dayRows(zcql, `post_id = ${requireRowId(p.ROWID)} AND slot = '${slot}'`, date);
+          if (done.length) continue;
+          // Guards on this post now (today's or last night's duty still running).
+          const logs = (await zcql.executeZCQLQuery(`SELECT guard_id FROM DutyLog WHERE post_id = ${requireRowId(p.ROWID)} AND (status = 'on_duty' OR status = 'on_break') ORDER BY CREATEDTIME DESC LIMIT 5`)).map(r => r.DutyLog);
+          for (const l of logs) {
+            try {
+              const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_token FROM Guards WHERE ROWID = ${requireRowId(l.guard_id)}`))[0];
+              await sendPushToGuard(catalystApp, l.guard_id, {
+                title: (missed ? '🔴 ' : '📋 ') + slot + ' ' + t.label + ' report' + (missed ? ' not sent' : ''),
+                body: missed ? 'Send it now: + → Site report.' : 'Report time. Open your post page: + → Site report.',
+                url: g && g.Guards.guard_token ? 'index.html#guard/' + g.Guards.guard_token : 'index.html',
+                urgent: missed, tag: 'report-' + p.ROWID + '-' + slot
+              });
+            } catch (err) {
+              console.error('Report reminder push failed:', err);
+            }
+          }
+          if (missed) await notifySupervisors(catalystApp, p.ROWID, '🔴 Report missed', p.post_name + ' · ' + slot + ' ' + t.label + ' not sent', true);
+          told.push({ post: p.post_name, slot, missed, guards: logs.length });
+        }
+      }
+      res.status(200).json({ status: 'success', data: { date, told } });
     } catch (err) {
       fail(res, err);
     }
