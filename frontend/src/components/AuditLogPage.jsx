@@ -5,7 +5,7 @@ import { api } from '../api.js';
 // posts, guards, logins. Admin + Branch Admin. Server: audit.js. Records are never deleted.
 const ICON = {
   'Schedule published': '📢', 'Auto fill run': '⚡', 'Copied from yesterday': '📋', 'Day cleared': '🧹', 'Schedule changed': '✏️',
-  'Month roster uploaded': '📤', 'Month roster row changed': '🗓️', 'Month roster changed': '🗓️',
+  'Month roster uploaded': '📤', 'Month roster row changed': '🗓️', 'Month roster changed': '🗓️', 'Month roster saved': '💾',
   'Post created': '➕', 'Post edited': '✏️', 'Post deleted': '🗑️', 'Posts reordered': '↕️',
   'Guard added': '🧑‍✈️', 'Guard edited': '✏️', 'Guard switched on/off': '🔁', 'Guards imported': '📥', 'Branch imported': '📦',
   'Login added': '🔑', 'Login changed': '🔑', 'Login on/off': '🔑', 'Login deleted': '🔑', 'Branch saved': '🏢', 'Agency saved': '🏢'
@@ -71,11 +71,20 @@ export default function AuditLogPage() {
                   <span className="al-icon">{ICON[r.action] || '•'}</span>
                   <span className="al-what"><b>{r.action}</b>{r.target ? <span> · {r.target}</span> : null}</span>
                   <span className="al-who">{r.who}<small>{ROLE[r.role] || r.role}{r.branch ? ' · ' + r.branch : ''}</small></span>
-                  <span className="al-more">{details(r).length ? (open.has(r.ROWID) ? '▾' : '▸ ' + details(r).length) : ''}</span>
+                  <span className="al-more">{open.has(r.ROWID) ? '▾' : '▸'}</span>
                 </button>
                 {open.has(r.ROWID) && (
                   <ul className="al-details">
-                    {details(r).length ? details(r).map((line, i) => <li key={i}>{line}</li>) : <li className="al-none">Nothing more to show.</li>}
+                    {/* Who changed it first (Prem, 5 Nov), then each line as "Label value" parts. */}
+                    <li className="al-by"><span><small>Modified by</small>{r.who} ({ROLE[r.role] || r.role})</span><span><small>When</small>{nice(String(r.at).slice(0, 10))} · {String(r.at).slice(11, 16)}</span>{r.branch && <span><small>Branch</small>{r.branch}</span>}</li>
+                    {details(r).map((line, i) => (
+                      <li key={i}>{String(line).split(' · ').map((part, j) => {
+                        const at = part.indexOf(': ');
+                        return at > 0
+                          ? <span key={j} className={/^(Before|After)$/.test(part.slice(0, at)) ? 'al-' + part.slice(0, at).toLowerCase() : ''}><small>{part.slice(0, at)}</small>{part.slice(at + 2)}</span>
+                          : <span key={j}>{part}</span>;
+                      })}</li>
+                    ))}
                   </ul>
                 )}
               </div>

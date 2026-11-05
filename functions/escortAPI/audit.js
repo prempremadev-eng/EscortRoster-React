@@ -63,7 +63,7 @@ module.exports = function auditRoutes(app, h) {
       const name = await guardName(zcql, b.guard_id);
       const r = id(b.guard_id) ? await zcql.executeZCQLQuery(`SELECT codes FROM MonthRoster WHERE guard_id = ${b.guard_id} AND roster_month = '${String(b.month).replace(/[^0-9-]/g, '')}'`) : [];
       const old = r.length ? String(r[0].MonthRoster.codes || '')[Number(b.day) - 1] : '';
-      return () => ({ target: name + ' · ' + day(b.month + '-' + String(b.day).padStart(2, '0')) + ': ' + code(old) + ' → ' + code(String(b.code || '').toUpperCase()), lines: [] });
+      return () => ({ target: name + ' · ' + day(b.month + '-' + String(b.day).padStart(2, '0')) + ': ' + code(old) + ' → ' + code(String(b.code || '').toUpperCase()), lines: ['Month: ' + b.month, 'Guard: ' + name, 'Day: ' + day(b.month + '-' + String(b.day).padStart(2, '0')), 'Before: ' + code(old), 'After: ' + code(String(b.code || '').toUpperCase())] });
     },
     '/rosterRow': async (zcql, b) => {
       const name = await guardName(zcql, b.guard_id);
@@ -72,8 +72,8 @@ module.exports = function auditRoutes(app, h) {
       return reply => {
         const now = String((reply && reply.codes) || b.codes || '');
         const lines = [];
-        for (let i = 0; i < now.length; i++) if ((old[i] || '-') !== now[i]) lines.push(day(b.month + '-' + String(i + 1).padStart(2, '0')) + ': ' + code(old[i]) + ' → ' + code(now[i]));
-        return { target: name + ' · ' + lines.length + ' day(s) changed', lines };
+        for (let i = 0; i < now.length; i++) if ((old[i] || '-') !== now[i]) lines.push('Guard: ' + name + ' · Day: ' + day(b.month + '-' + String(i + 1).padStart(2, '0')) + ' · Before: ' + code(old[i]) + ' · After: ' + code(now[i]));
+        return { target: name + ' · ' + lines.length + ' day(s) changed', lines: ['Month: ' + b.month, ...lines] };
       };
     },
     '/rosterSave': async (zcql, b) => {
@@ -86,7 +86,7 @@ module.exports = function auditRoutes(app, h) {
       }
       return () => ({
         target: list.length + ' change(s) · ' + ids.length + ' guard(s)',
-        lines: list.map(c => (names[String(c.guard_id)] || 'Guard') + ' · ' + day(b.month + '-' + String(c.day).padStart(2, '0')) + ': ' + code((before[String(c.guard_id)] || '')[Number(c.day) - 1]) + ' → ' + code(String(c.code || '').toUpperCase()))
+        lines: ['Month: ' + b.month, ...list.map(c => 'Guard: ' + (names[String(c.guard_id)] || 'Guard') + ' · Day: ' + day(b.month + '-' + String(c.day).padStart(2, '0')) + ' · Before: ' + code((before[String(c.guard_id)] || '')[Number(c.day) - 1]) + ' · After: ' + code(String(c.code || '').toUpperCase()))]
       });
     },
     '/scheduleSet': async (zcql, b) => {
@@ -94,7 +94,7 @@ module.exports = function auditRoutes(app, h) {
       const cell = id(b.post) ? await zcql.executeZCQLQuery(`SELECT guard_id FROM Schedule WHERE post_id = ${b.post} AND sched_date = '${String(b.date).replace(/[^0-9-]/g, '')}' AND shift_code = '${String(b.shift).replace(/[^A-Z]/g, '')}'`) : [];
       const oldName = cell.length ? await guardName(zcql, cell[0].Schedule.guard_id) : '';
       const newName = b.guard ? await guardName(zcql, b.guard) : '';
-      return () => ({ target: post + ' · Shift ' + b.shift + ' · ' + day(b.date) + ': ' + (oldName || 'empty') + ' → ' + (newName || 'empty'), lines: [] });
+      return () => ({ target: post + ' · Shift ' + b.shift + ' · ' + day(b.date) + ': ' + (oldName || 'empty') + ' → ' + (newName || 'empty'), lines: ['Date: ' + day(b.date), 'Post: ' + post, 'Shift: ' + b.shift, 'Before: ' + (oldName || 'empty'), 'After: ' + (newName || 'empty')] });
     },
     '/schedulePublish': async (zcql, b) => reply => ({ target: day(b.date) + (reply && reply.published !== undefined ? ' · ' + reply.published + ' change(s) sent to guards' : ''), lines: [] }),
     '/scheduleAuto': async (zcql, b) => reply => ({ target: day(b.date) + (reply && reply.filled !== undefined ? ' · ' + reply.filled + ' slot(s) filled' : ''), lines: [] }),
