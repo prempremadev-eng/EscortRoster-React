@@ -36,6 +36,7 @@ export default function Rail({ active }) {
     ['escort', '#escort', 'Escort', Icon.escort],
     ['vehicles', '#vehicles', 'Vehicles', Icon.barrier],
     ['sitereports', '#sitereports', 'Site reports', Icon.report],
+    ['auditlog', '#auditlog', 'History log', Icon.history],
     ['report', '#report', 'Report', Icon.report],
     ['history', '#history', 'History', Icon.history],
     ['attendance', '#attendance', 'Attendance', Icon.calendar],
