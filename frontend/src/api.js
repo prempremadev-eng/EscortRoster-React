@@ -145,6 +145,7 @@ export const api = {
   setupExport: branch => apiCall('GET', '/setupExport' + (branch ? '?branch=' + encodeURIComponent(branch) : '')),
   setupImport: data => apiCall('POST', '/setupImport', data),
   myAttendance: (t, month) => apiCall('GET', '/myAttendance?t=' + q(t) + '&month=' + q(month)),
+  auditLog: (from, to) => apiCall('GET', '/auditLog?from=' + q(from) + '&to=' + q(to)),
   attendanceMonth: month => apiCall('GET', '/attendanceMonth?month=' + q(month)),
   attendance: (branch, agency, from, to) => apiCall('GET', '/attendance?branch=' + q(branch) + '&agency=' + q(agency || '') + '&from=' + q(from) + '&to=' + q(to)),
   qrWait: (k, pass) => apiCall('POST', '/qrWait', { k, pass }),

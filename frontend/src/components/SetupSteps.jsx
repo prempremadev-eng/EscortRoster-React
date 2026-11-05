@@ -100,6 +100,7 @@ export function MoreHome() {
       ['#vehicles', Icon.barrier, 'Vehicles', 'Vehicle IN / OUT at the gates: scan, mark OUT, list of today.']
     ]],
     ['Reports', [
+      ['#auditlog', Icon.history, 'History log', 'Who changed what and when: publish, roster, posts, guards, logins (Admin + Branch Admin).'],
       ['#sitereports', Icon.report, 'Site reports', 'Parking and employee strength counts from the posts (11 · 15 · 23 · 03), history and Excel.'],
       ['#report', Icon.report, 'Shift report', 'Each shift: posts, IN, late, absent, leave, off, vacant (to send to the Branch Admin).'],
       ['#history', Icon.history, 'Duty history', 'Who was at which post on past days; open any shift.'],

@@ -10,6 +10,7 @@ import DutyHistory from './components/DutyHistory.jsx';
 import ShiftReport from './components/ShiftReport.jsx';
 import VehiclesPage from './components/VehiclesPage.jsx';
 import SiteReportsPage from './components/SiteReportsPage.jsx';
+import AuditLogPage from './components/AuditLogPage.jsx';
 import GuardSetup from './components/GuardSetup.jsx';
 import GuardPage from './components/GuardPage.jsx';
 import SupervisorInbox from './supervisor/SupervisorInbox.jsx';
@@ -155,6 +156,7 @@ function page(hash) {
   if (hash === '#vehicles' || hash.startsWith('#vehicles/add/')) return <SupFrame active="vehicles"><VehiclesPage addFor={hash.split('/')[2] || ''} /></SupFrame>;
   // #sitereports/ert: the Today page's 🚑 ERT card opens the ERT tab.
   if (hash === '#sitereports' || hash === '#sitereports/ert') return <SupFrame active="sitereports"><SiteReportsPage key={hash} initialMode={hash.endsWith('/ert') ? 'ert' : 'day'} /></SupFrame>;
+  if (hash === '#auditlog') return <SupFrame active="auditlog"><AuditLogPage /></SupFrame>;
   if (hash === '#report') return <SupFrame active="report"><ShiftReport /></SupFrame>;
   if (hash === '#attendance') return <SupFrame active="attendance"><AttendancePage /></SupFrame>;
   if (hash === '#history' || hash === '#chart') return <SupFrame active="history"><DutyHistory /></SupFrame>;

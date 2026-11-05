@@ -30,6 +30,8 @@ app.use((req, res, next) => {
 // Login + roles (auth.js): guard routes pass with their secret link, the rest need a login.
 const auth = require('./auth.js')(catalyst, selectAll);
 app.use(auth.middleware);
+// 📜 History log (audit.js): records every office change after it succeeds. Must stay before the routes.
+require('./audit.js')(app, { catalyst, selectAll, requireDate, fail, auth });
 
 /* ---------------- HELPERS ---------------- */
 
