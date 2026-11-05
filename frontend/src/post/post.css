@@ -771,3 +771,4 @@ button.pd-avatar{border:none;cursor:pointer;}
 .ma-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:#475569;justify-content:center;}
 .ma-legend span{display:flex;align-items:center;gap:5px;}
 .ma-dot{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid transparent;}
+.sr-together{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px 12px;font-size:14px;color:#1e3a8a;}

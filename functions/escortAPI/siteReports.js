@@ -16,7 +16,7 @@ const MLCP_FLOORS = ['T "A"', 'T', '12A', '12th', '11A', '11th', '10A', '10th', 
 // the first total is the headline number (ShiftReports.total).
 const TYPES = {
   mlcp_car: {
-    label: 'MLCP Car Parking', icon: '🚗', slots: () => PARKING_SLOTS,
+    label: 'MLCP Car Parking', icon: '🚗', slots: () => PARKING_SLOTS, shared: true,
     sections: [
       ['Floors', MLCP_FLOORS.map((f, i) => ['f' + i, f + ' floor', 'floor'])],
       ['Outside', [['outer', 'Outer side parking', 'outer']]]
@@ -24,12 +24,12 @@ const TYPES = {
     totals: [['Total cars', ['floor', 'outer']], ['Floor cars', ['floor']]]
   },
   mlcp_two: {
-    label: 'MLCP Two Wheeler Parking', icon: '🛵', slots: () => PARKING_SLOTS,
+    label: 'MLCP Two Wheeler Parking', icon: '🛵', slots: () => PARKING_SLOTS, shared: true,
     sections: ['Basement 01', 'Basement 02'].map((b, i) => [b, [['b' + i + 'bike', 'Emp bikes', 'bike'], ['b' + i + 'cycle', 'Emp cycles', 'cycle'], ['b' + i + 'halt', 'Halt bikes', 'halt']]]),
     totals: [['Total bikes', ['bike']], ['Total emp cycles', ['cycle']], ['Total halt bikes', ['halt']]]
   },
   lancor: {
-    label: 'Lancor Vendor Bike & Car Parking', icon: '🚙', slots: () => PARKING_SLOTS,
+    label: 'Lancor Vendor Bike & Car Parking', icon: '🚙', slots: () => PARKING_SLOTS, shared: true,
     sections: [
       ['Parking (cars)', [['p1', 'Parking 01', 'car'], ['p2', 'Parking 02', 'car']]],
       ['Ground parking', [['ecar', 'EMP cars', 'car'], ['ebike', 'EMP bikes', 'bike'], ['vcar', 'Vendor car', 'car'], ['vauto', 'Vendor auto', 'auto'], ['vbike', 'Vendor bikes', 'bike'], ['vcycle', 'Vendor cycle', 'cycle']]]
@@ -47,6 +47,9 @@ const TYPES = {
   }
 };
 const LATE_MIN = 30;
+// shared: one report per branch and time, filled by every post of that type (Prem, 5 Nov: MLCP Basement-1
+// and Basement-2 both go in the one MLCP Two Wheeler report; each guard fills his basement, the totals
+// add up). Employee strength is per building, so not shared.
 
 // 🚑 ERT incident report (Prem, 5 Nov: "some incident or accident nadanthaal report-la maintain pannanum").
 // Not at fixed times: one row per incident in ShiftReports (report_type 'ert', slot = incident time,
@@ -128,6 +131,15 @@ module.exports = function siteReportRoutes(app, h) {
     return p;
   }
 
+  // Which ShiftReports rows belong to this post's report: the post's own, or (shared) the branch's.
+  const whereFor = (t, post) => t.shared
+    ? `report_type = '${String(post.report_type).replace(/[^a-z_]/g, '')}' AND branch_id = ${requireRowId(post.branch_id)}`
+    : `post_id = ${requireRowId(post.ROWID)}`;
+  async function sharedPosts(zcql, post) {
+    const rows = await zcql.executeZCQLQuery(`SELECT ROWID, post_name FROM Posts WHERE branch_id = ${requireRowId(post.branch_id)} AND report_type = '${String(post.report_type).replace(/[^a-z_]/g, '')}' AND is_active = 'true'`);
+    return rows.map(r => r.Posts);
+  }
+
   async function dayRows(zcql, where, date) {
     return selectAll(zcql, 'ShiftReports', `SELECT * FROM ShiftReports WHERE ${where} AND report_date = '${date}' ORDER BY CREATEDTIME ASC`);
   }
@@ -140,14 +152,15 @@ module.exports = function siteReportRoutes(app, h) {
       const t = typeOf(post.report_type);
       if (!t) throw new Error('This post sends the 🚑 ERT incident report. Refresh the page.');
       const date = shiftDate();
-      const rows = await dayRows(zcql, `post_id = ${requireRowId(post.ROWID)}`, date);
+      const rows = await dayRows(zcql, whereFor(t, post), date);
+      const together = t.shared ? (await sharedPosts(zcql, post)).map(p => p.post_name) : [];
       const slots = t.slots(date).map(slot => {
         const r = rows.filter(x => x.slot === slot).pop();
         return { slot, state: slotState(date, slot, r), sent: r ? { by: r.guard_name, time: r.sent_time, total: r.total, values: JSON.parse(r.values_json || '{}'), remarks: r.remarks || '' } : null };
       });
       // The slot to fill: the first one due or missed and not sent, else the next one.
       const pick = (slots.find(s => !s.sent && (s.state === 'due' || s.state === 'missed')) || slots.find(s => !s.sent) || slots[slots.length - 1]).slot;
-      res.status(200).json({ status: 'success', data: { post: post.post_name, type: post.report_type, form: form(t), date, slots, pick, guard: me.guard_name } });
+      res.status(200).json({ status: 'success', data: { post: post.post_name, together, type: post.report_type, form: form(t), date, slots, pick, guard: me.guard_name } });
     } catch (err) {
       fail(res, err);
     }
@@ -181,7 +194,9 @@ module.exports = function siteReportRoutes(app, h) {
         guard_id: me.ROWID, guard_name: me.guard_name, values_json: JSON.stringify({ ...values, ...texts }), total: totals[0][1], remarks, sent_time: hhmm(now)
       };
       const table = catalystApp.datastore().table('ShiftReports');
-      const old = (await dayRows(zcql, `post_id = ${requireRowId(post.ROWID)} AND slot = '${slot}'`, date)).pop();
+      const old = (await dayRows(zcql, whereFor(t, post) + ` AND slot = '${slot}'`, date)).pop();
+      // Shared report: every guard who filled a part is named ("A + B").
+      if (old && t.shared && old.guard_name && !String(old.guard_name).split(' + ').includes(me.guard_name)) row.guard_name = (old.guard_name + ' + ' + me.guard_name).slice(0, 100);
       const saved = old ? await table.updateRow({ ROWID: old.ROWID, ...row }) : await table.insertRow(row);
       const text = message(t, post.post_name, date, slot, values, texts, remarks, me.guard_name);
       const fullChat = (old ? '(updated) ' : '') + text;
@@ -222,14 +237,22 @@ module.exports = function siteReportRoutes(app, h) {
       const from = requireDate(req.query.from || req.query.date || shiftDate());
       const to = requireDate(req.query.to || from);
       const rows = postIds.length
-        ? await selectAll(zcql, 'ShiftReports', `SELECT * FROM ShiftReports WHERE post_id IN (${postIds.join(', ')}) AND report_date >= '${from}' AND report_date <= '${to}' ORDER BY CREATEDTIME ASC`)
+        ? await selectAll(zcql, 'ShiftReports', `SELECT * FROM ShiftReports WHERE branch_id IN (${[...new Set(posts.map(p => requireRowId(p.branch_id)))].join(', ')}) AND report_type != 'ert' AND report_date >= '${from}' AND report_date <= '${to}' ORDER BY CREATEDTIME ASC`)
         : [];
-      const view = r => ({ ROWID: r.ROWID, date: r.report_date, slot: r.slot, post: String(r.post_id), by: r.guard_name, time: r.sent_time, total: r.total, values: JSON.parse(r.values_json || '{}'), remarks: r.remarks || '', totals: typeOf(r.report_type) ? totalsOf(typeOf(r.report_type), JSON.parse(r.values_json || '{}')) : [] });
-      const list = posts.map(p => {
+      // Shared types: the branch's posts of that type are one card (id g-<type>-<branch>).
+      const cardOf = r => (typeOf(r.report_type) && typeOf(r.report_type).shared ? 'g-' + r.report_type + '-' + r.branch_id : String(r.post_id));
+      const view = r => ({ ROWID: r.ROWID, date: r.report_date, slot: r.slot, post: cardOf(r), by: r.guard_name, time: r.sent_time, total: r.total, values: JSON.parse(r.values_json || '{}'), remarks: r.remarks || '', totals: typeOf(r.report_type) ? totalsOf(typeOf(r.report_type), JSON.parse(r.values_json || '{}')) : [] });
+      const cards = {};
+      posts.forEach(p => {
+        const id = cardOf({ report_type: p.report_type, branch_id: p.branch_id, post_id: p.ROWID });
+        (cards[id] = cards[id] || { id, p, names: [] }).names.push(p.post_name);
+      });
+      const shownRows = rows.filter(r => cards[cardOf(r)]);
+      const list = Object.values(cards).map(({ id, p, names }) => {
         const t = typeOf(p.report_type);
-        const mine = rows.filter(r => String(r.post_id) === String(p.ROWID));
+        const mine = shownRows.filter(r => cardOf(r) === id);
         return {
-          id: String(p.ROWID), name: p.post_name, branch: branchName[String(p.branch_id)] || '', type: p.report_type,
+          id, name: names.join(' + '), branch: branchName[String(p.branch_id)] || '', type: p.report_type,
           // Day view: the slots of `from` with their state.
           slots: t.slots(from).map(slot => {
             const r = mine.filter(x => x.report_date === from && x.slot === slot).pop();
@@ -237,7 +260,7 @@ module.exports = function siteReportRoutes(app, h) {
           })
         };
       });
-      res.status(200).json({ status: 'success', data: { from, to, today: shiftDate(), types, posts: list, reports: rows.map(view) } });
+      res.status(200).json({ status: 'success', data: { from, to, today: shiftDate(), types, posts: list, reports: shownRows.map(view) } });
     } catch (err) {
       fail(res, err);
     }
@@ -255,19 +278,27 @@ module.exports = function siteReportRoutes(app, h) {
       if (!key || !key.setting_value || String(req.query.key || '') !== key.setting_value) throw new Error('Not allowed.');
       const date = shiftDate();
       const now = nowMinOn(date);
-      const posts = (await selectAll(zcql, 'Posts', "SELECT ROWID, post_name, report_type, is_active FROM Posts WHERE report_type IS NOT NULL ORDER BY ROWID ASC"))
+      const posts = (await selectAll(zcql, 'Posts', "SELECT ROWID, post_name, report_type, branch_id, is_active FROM Posts WHERE report_type IS NOT NULL ORDER BY ROWID ASC"))
         .filter(p => typeOf(p.report_type) && p.is_active !== 'false');
       const told = [];
-      for (const p of posts) {
+      // Shared types: one reminder check per branch, every guard of those posts is told.
+      const groups = {};
+      posts.forEach(p => {
+        const t = typeOf(p.report_type);
+        const key = t.shared ? p.report_type + '|' + p.branch_id : 'p' + p.ROWID;
+        (groups[key] = groups[key] || []).push(p);
+      });
+      for (const group of Object.values(groups)) {
+        const p = group[0];
         const t = typeOf(p.report_type);
         for (const slot of t.slots(date)) {
           const since = now - slotMin(slot);
           const missed = since >= LATE_MIN && since < LATE_MIN + 10;
           if (!(since >= 0 && since < 10) && !missed) continue;
-          const done = await dayRows(zcql, `post_id = ${requireRowId(p.ROWID)} AND slot = '${slot}'`, date);
+          const done = await dayRows(zcql, whereFor(t, p) + ` AND slot = '${slot}'`, date);
           if (done.length) continue;
           // Guards on this post now (today's or last night's duty still running).
-          const logs = (await zcql.executeZCQLQuery(`SELECT guard_id FROM DutyLog WHERE post_id = ${requireRowId(p.ROWID)} AND (status = 'on_duty' OR status = 'on_break') ORDER BY CREATEDTIME DESC LIMIT 5`)).map(r => r.DutyLog);
+          const logs = (await zcql.executeZCQLQuery(`SELECT guard_id FROM DutyLog WHERE post_id IN (${group.map(x => requireRowId(x.ROWID)).join(', ')}) AND (status = 'on_duty' OR status = 'on_break') ORDER BY CREATEDTIME DESC LIMIT 10`)).map(r => r.DutyLog);
           for (const l of logs) {
             try {
               const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_token FROM Guards WHERE ROWID = ${requireRowId(l.guard_id)}`))[0];
@@ -281,8 +312,8 @@ module.exports = function siteReportRoutes(app, h) {
               console.error('Report reminder push failed:', err);
             }
           }
-          if (missed) await notifySupervisors(catalystApp, p.ROWID, '🔴 Report missed', p.post_name + ' · ' + slot + ' ' + t.label + ' not sent', true);
-          told.push({ post: p.post_name, slot, missed, guards: logs.length });
+          if (missed) await notifySupervisors(catalystApp, p.ROWID, '🔴 Report missed', group.map(x => x.post_name).join(' + ') + ' · ' + slot + ' ' + t.label + ' not sent', true);
+          told.push({ post: group.map(x => x.post_name).join(' + '), slot, missed, guards: logs.length });
         }
       }
       res.status(200).json({ status: 'success', data: { date, told } });

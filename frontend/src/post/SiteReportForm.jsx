@@ -76,6 +76,9 @@ export default function SiteReportForm({ token, onClose }) {
         {!data && !error && <div className="sr-muted">Loading…</div>}
         {error && <div className="trip-error">{error}</div>}
 
+        {data && data.together && data.together.length > 1 && (
+          <div className="sr-together">🤝 One report for <b>{data.together.join(' + ')}</b>. Fill your part; the other numbers are what the others sent. Totals add up.</div>
+        )}
         {data && (
           <>
             <div className="sr-label">Report time</div>
