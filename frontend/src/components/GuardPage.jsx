@@ -84,6 +84,7 @@ export default function GuardPage({ token, testDate }) {
             <div>{inCount} of {sheet.length} IN</div>
             <button className="btn" onClick={load}>🔄 Refresh</button>
             <a className="btn secondary" href={'#group/' + token}>👥 Group</a>
+            <a className="btn secondary" href={'#myatt/' + token}>📅 Attendance</a>
           </div>
           <div className="sim-note gsheet-note">Fill your ⭐ row like the duty sheet. Other rows are view only. This page closes at 08:00.</div>
           <GuardSheet
@@ -111,6 +112,7 @@ export default function GuardPage({ token, testDate }) {
                 ? <p>Your card is <b>OUT</b> since {data.outTime}. Your page opens again after you swipe <b>IN</b>.</p>
                 : <p>Your duty page opens after your access card shows <b>IN</b> for today's duty.</p>}
               <button className="btn secondary setup-btn" onClick={load}>🔄 Check again</button>
+              <a className="btn secondary setup-btn" href={'#myatt/' + token}>📅 My attendance</a>
             </div>
           )}
 

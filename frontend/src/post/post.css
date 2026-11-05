@@ -735,3 +735,39 @@ button.pd-avatar{border:none;cursor:pointer;}
 .ert-old{display:flex;flex-direction:column;align-items:flex-start;gap:2px;text-align:left;border:1px solid #e2e8f0;background:#f8fafc;border-radius:10px;padding:10px;cursor:pointer;}
 .ert-old small{color:#64748b;}
 .ert-send{background:#dc2626;}
+
+/* 📅 My attendance (MyAttendance.jsx): the guard's month as a calendar. */
+.ma{min-height:100vh;display:flex;flex-direction:column;background:#f1f5f9;font-family:'Source Sans 3',system-ui,Arial,sans-serif;}
+.ma-head{display:flex;align-items:center;gap:12px;background:linear-gradient(135deg,#60a5fa,#2563eb);color:#fff;padding:14px 16px;}
+.ma-head .sr-back{display:grid;place-items:center;text-decoration:none;}
+.ma-title{font-size:20px;font-weight:700;color:#fff;}
+.ma-sub{font-size:14px;color:#fff;opacity:.9;}
+.ma-body{width:100%;max-width:520px;margin:0 auto;padding:12px;display:flex;flex-direction:column;gap:12px;}
+.ma-month{display:flex;align-items:center;justify-content:space-between;background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:6px;}
+.ma-month b{font-size:18px;color:#1e3a8a;}
+.ma-month button{width:40px;height:40px;border:none;background:#eff6ff;border-radius:10px;font-size:20px;color:#1e3a8a;cursor:pointer;}
+.ma-month button:disabled{opacity:.3;}
+.ma-tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+.ma-tile{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 4px;display:flex;flex-direction:column;align-items:center;}
+.ma-tile b{font-size:26px;line-height:1.1;}
+.ma-tile small{font-size:12px;color:#64748b;}
+.ma-t-p b{color:#15803d;}.ma-t-ab b{color:#b91c1c;}.ma-t-l b{color:#a16207;}.ma-t-wo b{color:#475569;}
+.ma-hours{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:10px 12px;font-size:15px;color:#334155;}
+.ma-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:8px;}
+.ma-wd{text-align:center;font-size:11px;font-weight:700;color:#94a3b8;padding:2px 0;}
+.ma-day{aspect-ratio:1;border-radius:10px;border:1px solid #f1f5f9;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;font-family:inherit;cursor:pointer;padding:0;}
+.ma-day span{font-size:11px;color:#64748b;}
+.ma-day b{font-size:14px;}
+.ma-day:disabled{cursor:default;}
+.ma-none b{color:transparent;}
+.ma-P{background:#dcfce7;border-color:#bbf7d0;}.ma-P b{color:#166534;}
+.ma-P.ma-noout{border:1.5px dashed #ea580c;}
+.ma-AB{background:#fee2e2;border-color:#fecaca;}.ma-AB b{color:#b91c1c;}
+.ma-L{background:#fef3c7;border-color:#fde68a;}.ma-L b{color:#92400e;}
+.ma-WO{background:#f1f5f9;border-color:#e2e8f0;}.ma-WO b{color:#64748b;font-size:11px;}
+.ma-today{box-shadow:0 0 0 2px #2563eb inset;}
+.ma-day.on{box-shadow:0 0 0 3px #1e3a8a;}
+.ma-detail{border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:4px;font-size:15px;border:1px solid #e2e8f0;background:#fff;}
+.ma-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:13px;color:#475569;justify-content:center;}
+.ma-legend span{display:flex;align-items:center;gap:5px;}
+.ma-dot{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid transparent;}

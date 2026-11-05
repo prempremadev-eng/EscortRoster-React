@@ -46,7 +46,7 @@ const GUARD_ROUTES = new Set([
   '/pinMessage', '/forwardMessage', '/addWork', '/finishWork', '/safety', '/addSafety', '/sendAlert', '/cancelAlert',
   '/postHistory', '/postWorks', '/pastShift', '/groupChat', '/groupSend', '/groupMedia',
   '/coverCandidates', '/startBreak', '/cancelBreak', '/respondCover', '/pingBack', '/replyPing', '/backOnDuty',
-  '/coverReturned', '/leaveCover', '/qrSite', '/qrChallenge', '/qrCheck', '/qrPunch', '/qrReliever', '/myProfile', '/qrSwapAsk', '/qrSwapStatus', '/qrWait', '/qrRegCheck', '/qrLateCheck', '/scheduleAutoDay', '/vehicles', '/vehicleIn', '/vehicleOut', '/vehiclePhoto', '/vehiclePhotoLink', '/vehiclePlate', '/vehicleVoice', '/vehicleKnown', '/siteReportForm', '/siteReportSend', '/siteReportRemind', '/ertForm', '/ertSend'
+  '/coverReturned', '/leaveCover', '/qrSite', '/qrChallenge', '/qrCheck', '/qrPunch', '/qrReliever', '/myProfile', '/qrSwapAsk', '/qrSwapStatus', '/qrWait', '/qrRegCheck', '/qrLateCheck', '/scheduleAutoDay', '/vehicles', '/vehicleIn', '/vehicleOut', '/vehiclePhoto', '/vehiclePhotoLink', '/vehiclePlate', '/vehicleVoice', '/vehicleKnown', '/siteReportForm', '/siteReportSend', '/siteReportRemind', '/ertForm', '/ertSend', '/myAttendance'
 ]);
 
 const EMAIL_RE = /^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}$/;

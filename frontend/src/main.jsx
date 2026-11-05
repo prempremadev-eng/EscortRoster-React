@@ -28,6 +28,7 @@ import RelieversPage from './components/RelieversPage.jsx';
 import AttendancePage from './components/AttendancePage.jsx';
 import SplashHost from './components/Splash.jsx';
 import EscortExtra from './components/EscortExtra.jsx';
+import MyAttendance from './components/MyAttendance.jsx';
 import GroupChat from './post/GroupChat.jsx';
 import { api } from './api.js';
 
@@ -127,6 +128,8 @@ function Root() {
   if (hash.startsWith('#group/')) return <GuardGroup token={hash.slice('#group/'.length)} />;
   if (hash.startsWith('#setup/')) return <GuardSetup token={hash.slice('#setup/'.length)} />;
   // Urgent escort (Prem, 4 Nov): a post guard on a 🚕 Escort break fills his Extra row.
+  // 📅 The guard's own month (Prem, 5 Nov).
+  if (hash.startsWith('#myatt/')) return <MyAttendance token={hash.slice('#myatt/'.length)} />;
   if (hash.startsWith('#escortx/')) return <EscortExtra token={hash.slice('#escortx/'.length)} />;
   if (hash.startsWith('#guard/')) {
     const [token, query] = hash.slice('#guard/'.length).split('?');
