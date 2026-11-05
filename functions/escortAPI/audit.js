@@ -149,6 +149,25 @@ module.exports = function auditRoutes(app, h) {
       const name = {};
       branches.forEach(b => { name[String(b.ROWID)] = b.branch_name; });
       const mine = rows.filter(r => !r.branch_id || auth.branchOk(req, r.branch_id));
+      // The first rows (before 5 Nov 15:10) kept raw fields with ids: say them in words here.
+      const legacy = mine.filter(r => { try { return !Array.isArray(JSON.parse(r.details || '{}').lines); } catch { return false; } });
+      if (legacy.length) {
+        const ids = { Guards: new Set(), Posts: new Set(), Agencies: new Set() };
+        legacy.forEach(r => { const d = JSON.parse(r.details || '{}'); [['guard', 'Guards'], ['guard_id', 'Guards'], ['post', 'Posts'], ['agency', 'Agencies'], ['agency_id', 'Agencies']].forEach(([k, t]) => { if (id(d[k])) ids[t].add(d[k]); }); });
+        const names = {};
+        const col = { Guards: 'guard_name', Posts: 'post_name', Agencies: 'agency_name' };
+        for (const t of Object.keys(ids)) {
+          if (!ids[t].size) continue;
+          (await zcql.executeZCQLQuery(`SELECT ROWID, ${col[t]} FROM ${t} WHERE ROWID IN (${[...ids[t]].join(', ')})`)).forEach(x => { names[String(x[t].ROWID)] = x[t][col[t]]; });
+        }
+        const LABEL = { guard: 'Guard', guard_id: 'Guard', post: 'Post', agency: 'Agency', agency_id: 'Agency', shift: 'Shift', date: 'Date', month: 'Month', day: 'Day', code: 'Code' };
+        legacy.forEach(r => {
+          const d = JSON.parse(r.details || '{}');
+          const lines = Object.keys(d).filter(k => k !== 'branch' && k !== 'branch_id').map(k => (LABEL[k] || k.replace(/_/g, ' ')) + ': '
+            + ((k === 'guard' || k === 'guard_id') && (d[k] === 'null' || !d[k]) ? 'empty (guard removed)' : names[String(d[k])] || (k === 'code' ? code(d[k]) : d[k])));
+          r.details = JSON.stringify({ lines });
+        });
+      }
       res.status(200).json({ status: 'success', data: { rows: mine.map(r => ({ ...r, branch: name[String(r.branch_id)] || '' })) } });
     } catch (err) {
       fail(res, err);
