@@ -9,10 +9,8 @@
 
 const ACTIONS = {
   '/schedulePublish': ['Schedule published', b => b.date],
-  '/scheduleAuto': ['Auto fill run', b => b.date],
-  '/scheduleCopy': ['Copied from yesterday', b => b.date],
-  '/scheduleClear': ['Day cleared', b => b.date],
-  '/scheduleSet': ['Schedule changed', b => [b.date, b.shift_code].filter(Boolean).join(' · ')],
+  // Daily schedule drafts (set / Auto fill / copy / clear) are NOT logged (Prem, 5 Nov: planning must not
+  // feel watched); Publish records what actually changed for the guards, before → after.
   '/rosterUpload': ['Month roster uploaded', b => b.month],
   '/rosterRow': ['Month roster row changed', b => b.month],
   '/rosterSet': ['Month roster changed', b => b.month],
@@ -96,7 +94,37 @@ module.exports = function auditRoutes(app, h) {
       const newName = b.guard ? await guardName(zcql, b.guard) : '';
       return () => ({ target: post + ' · Shift ' + b.shift + ' · ' + day(b.date) + ': ' + (oldName || 'empty') + ' → ' + (newName || 'empty'), lines: ['Date: ' + day(b.date), 'Post: ' + post, 'Shift: ' + b.shift, 'Before: ' + (oldName || 'empty'), 'After: ' + (newName || 'empty')] });
     },
-    '/schedulePublish': async (zcql, b) => reply => ({ target: day(b.date) + (reply && reply.published !== undefined ? ' · ' + reply.published + ' change(s) sent to guards' : ''), lines: [] }),
+    '/schedulePublish': async (zcql, b) => {
+      const date = String(b.date || '').replace(/[^0-9-]/g, '');
+      const branch = id(b.branch);
+      if (!date || !branch) return null;
+      // What the guards had before: the snapshot kept with the last publish of this day (a slot row is
+      // overwritten by a draft, so the old guard is only known from there).
+      const last = await zcql.executeZCQLQuery(`SELECT details FROM AuditLog WHERE action = 'Schedule published' AND branch_id = ${branch} ORDER BY CREATEDTIME DESC LIMIT 50`);
+      let prev = null;
+      for (const r of last) { try { const d = JSON.parse(r.AuditLog.details || '{}'); if (d.date === date && d.snap) { prev = d.snap; break; } } catch { /* skip */ } }
+      return async () => {
+        // After the publish every slot of the day is published: that is the new snapshot.
+        const rows = (await zcql.executeZCQLQuery(`SELECT post_id, shift_code, guard_id FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${date}' LIMIT 0, 300`)).map(x => x.Schedule);
+        const snap = {};
+        rows.forEach(x => { if (x.guard_id) snap[x.post_id + '|' + x.shift_code] = String(x.guard_id); });
+        const keys = [...new Set([...Object.keys(snap), ...Object.keys(prev || {})])];
+        const changed = prev ? keys.filter(k => (prev[k] || '') !== (snap[k] || '')) : [];
+        const gids = [...new Set(changed.flatMap(k => [prev[k], snap[k]]).filter(Boolean))];
+        const pids = [...new Set(changed.map(k => k.split('|')[0]))];
+        const gname = {}, pname = {};
+        if (gids.length) (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE ROWID IN (${gids.join(', ')})`)).forEach(x => { gname[String(x.Guards.ROWID)] = x.Guards.guard_name; });
+        if (pids.length) (await zcql.executeZCQLQuery(`SELECT ROWID, post_name FROM Posts WHERE ROWID IN (${pids.join(', ')})`)).forEach(x => { pname[String(x.Posts.ROWID)] = x.Posts.post_name; });
+        const lines = prev
+          ? changed.map(k => { const [pid, sh] = k.split('|'); return 'Post: ' + (pname[pid] || 'Post') + ' · Shift: ' + sh + ' · Before: ' + (gname[prev[k]] || 'empty') + ' · After: ' + (gname[snap[k]] || 'empty'); })
+          : ['First publish of ' + day(date) + ' · ' + Object.keys(snap).length + ' slot(s) sent to guards'];
+        return {
+          target: day(date) + (prev ? ' · ' + changed.length + ' change(s) sent to guards' : ' · first publish, ' + Object.keys(snap).length + ' slot(s)'),
+          lines: ['Date: ' + day(date), ...lines],
+          extra: JSON.stringify(snap).length < 7000 ? { date, snap } : { date }
+        };
+      };
+    },
     '/scheduleAuto': async (zcql, b) => reply => ({ target: day(b.date) + (reply && reply.filled !== undefined ? ' · ' + reply.filled + ' slot(s) filled' : ''), lines: [] }),
     '/scheduleCopy': async (zcql, b) => () => ({ target: day(b.date), lines: [] }),
     '/scheduleClear': async (zcql, b) => reply => ({ target: day(b.date) + (reply && reply.cleared !== undefined ? ' · ' + reply.cleared + ' slot(s) removed' : ''), lines: [] }),
@@ -115,14 +143,14 @@ module.exports = function auditRoutes(app, h) {
     '/rosterUpload': async (zcql, b) => reply => ({ target: b.month + (Array.isArray(b.rows) ? ' · ' + b.rows.length + ' guards' : ''), lines: reply && reply.areas ? ['Teams updated: ' + reply.areas] : [] })
   };
 
-  async function write(req, label, target, lines) {
+  async function write(req, label, target, lines, extra) {
     try {
       const catalystApp = catalyst.initialize(req, { scope: 'admin' });
       const b = req.body || {};
       await catalystApp.datastore().table('AuditLog').insertRow({
         at: stamp(), who: String(req.user.name || req.user.email).slice(0, 100), role: req.user.role,
         action: label, branch_id: id(b.branch_id || b.branch || req.user.branch_id), agency_id: id(b.agency_id || b.agency || req.user.agency_id),
-        target: String(target || '').slice(0, 150), details: JSON.stringify({ lines: (lines || []).slice(0, 60) }).slice(0, 9000)
+        target: String(target || '').slice(0, 150), details: (() => { const j = JSON.stringify({ lines: (lines || []).slice(0, 80), ...(extra || {}) }); return j.length <= 9900 ? j : JSON.stringify({ lines: (lines || []).slice(0, 80) }).slice(0, 9900); })()
       });
     } catch (err) {
       console.error('Audit log write failed:', err.message || err);
@@ -141,13 +169,16 @@ module.exports = function auditRoutes(app, h) {
       console.error('Audit read failed:', err.message || err);
     }
     const json = res.json.bind(res);
+    // The reply waits for the log row (a serverless function may stop once it has answered).
     res.json = body => {
-      if (res.statusCode < 300 && body && body.status === 'success') {
+      if (!(res.statusCode < 300 && body && body.status === 'success')) return json(body);
+      (async () => {
         let out = { target: '', lines: [] };
-        try { out = after ? after(body.data) : { target: a[1](req.body || {}) || '', lines: [] }; } catch { /* plain row */ }
-        write(req, a[0], out.target, out.lines);
-      }
-      return json(body);
+        try { out = after ? await after(body.data) : { target: a[1](req.body || {}) || '', lines: [] }; } catch (err) { console.error('Audit build failed:', err.message || err); }
+        await write(req, a[0], out.target, out.lines, out.extra);
+        json(body);
+      })();
+      return res;
     };
     next();
   });
