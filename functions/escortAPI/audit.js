@@ -16,6 +16,7 @@ const ACTIONS = {
   '/rosterUpload': ['Month roster uploaded', b => b.month],
   '/rosterRow': ['Month roster row changed', b => b.month],
   '/rosterSet': ['Month roster changed', b => b.month],
+  '/rosterSave': ['Month roster saved', b => b.month],
   '/addPost': ['Post created', b => b.post_name],
   '/updatePost': ['Post edited', b => b.post_name],
   '/deletePost': ['Post deleted', b => b.ROWID || b.id],
@@ -74,6 +75,19 @@ module.exports = function auditRoutes(app, h) {
         for (let i = 0; i < now.length; i++) if ((old[i] || '-') !== now[i]) lines.push(day(b.month + '-' + String(i + 1).padStart(2, '0')) + ': ' + code(old[i]) + ' → ' + code(now[i]));
         return { target: name + ' · ' + lines.length + ' day(s) changed', lines };
       };
+    },
+    '/rosterSave': async (zcql, b) => {
+      const list = Array.isArray(b.changes) ? b.changes : [];
+      const ids = [...new Set(list.map(c => id(c.guard_id)).filter(Boolean))];
+      const names = {}, before = {};
+      if (ids.length) {
+        (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE ROWID IN (${ids.join(', ')})`)).forEach(x => { names[String(x.Guards.ROWID)] = x.Guards.guard_name; });
+        (await zcql.executeZCQLQuery(`SELECT guard_id, codes FROM MonthRoster WHERE roster_month = '${String(b.month).replace(/[^0-9-]/g, '')}' AND guard_id IN (${ids.join(', ')})`)).forEach(x => { before[String(x.MonthRoster.guard_id)] = String(x.MonthRoster.codes || ''); });
+      }
+      return () => ({
+        target: list.length + ' change(s) · ' + ids.length + ' guard(s)',
+        lines: list.map(c => (names[String(c.guard_id)] || 'Guard') + ' · ' + day(b.month + '-' + String(c.day).padStart(2, '0')) + ': ' + code((before[String(c.guard_id)] || '')[Number(c.day) - 1]) + ' → ' + code(String(c.code || '').toUpperCase()))
+      });
     },
     '/scheduleSet': async (zcql, b) => {
       const post = ((await one(zcql, 'Posts', 'ROWID, post_name', b.post)) || {}).post_name || '';

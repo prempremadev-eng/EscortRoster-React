@@ -173,6 +173,48 @@ module.exports = function rosterRoutes(app, h) {
   });
 
   // One box: one guard, one day.
+  // ✓ Save after tapping boxes (Prem, 5 Nov: taps stay pending on the page; one confirm saves them all and
+  // the History log gets one record). changes = [{ guard_id, day, code }].
+  app.post('/rosterSave', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const branch = auth.requireBranch(req, requireRowId(req.body.branch));
+      const month = requireMonth(req.body.month);
+      const days = daysIn(month);
+      const list = Array.isArray(req.body.changes) ? req.body.changes.slice(0, 2000) : [];
+      if (!list.length) throw new Error('Nothing to save.');
+      const byGuard = {};
+      list.forEach(c => {
+        const day = Number(c.day);
+        const code = String(c.code || '').toUpperCase();
+        if (!Number.isInteger(day) || day < 1 || day > days) throw new Error('Pick a day');
+        if (!CODES.includes(code)) throw new Error('Code must be A, B, C, G, O, L or -');
+        (byGuard[String(requireRowId(c.guard_id))] = byGuard[String(requireRowId(c.guard_id))] || []).push([day, code]);
+      });
+      const ids = Object.keys(byGuard);
+      const guards = (await zcql.executeZCQLQuery(`SELECT ROWID, branch_id, agency_id FROM Guards WHERE ROWID IN (${ids.join(', ')})`)).map(r => r.Guards);
+      const existing = {};
+      (await zcql.executeZCQLQuery(`SELECT ROWID, guard_id, codes FROM MonthRoster WHERE roster_month = '${month}' AND guard_id IN (${ids.join(', ')})`))
+        .forEach(r => { existing[String(r.MonthRoster.guard_id)] = r.MonthRoster; });
+      const table = catalystApp.datastore().table('MonthRoster');
+      const out = {};
+      for (const gid of ids) {
+        const guard = auth.requireRow(req, guards.find(g => String(g.ROWID) === gid), 'guard');
+        if (String(guard.branch_id) !== String(branch)) throw new Error('A guard is in another branch.');
+        const ex = existing[gid];
+        let codes = ex ? cleanCodes(ex.codes, days) : '-'.repeat(days);
+        byGuard[gid].forEach(([day, code]) => { codes = codes.slice(0, day - 1) + code + codes.slice(day); });
+        if (ex) await table.updateRow({ ROWID: ex.ROWID, codes, updated_by: req.user.name });
+        else await table.insertRow({ guard_id: guard.ROWID, roster_month: month, codes, sort_no: await nextSort(zcql, branch, month), branch_id: branch, agency_id: guard.agency_id || null, updated_by: req.user.name });
+        out[gid] = codes;
+      }
+      ok(res, { codes: out, saved: list.length });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   app.post('/rosterSet', async (req, res) => {
     try {
       const catalystApp = admin(req);

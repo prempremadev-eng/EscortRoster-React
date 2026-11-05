@@ -206,6 +206,11 @@ export default function RosterPage({ initialMonth }) {
   const [fill, setFill] = useState(null); // the guard whose month is being filled
   const [kind, setKind] = useState(''); // '' all · '*' ⭐ incharges · a tag (Lady, Document …)
   const [just, setJust] = useState(''); // the box saved last
+  // Taps wait here until ✓ Save (Prem, 5 Nov): "guardId|day" → new code; one confirm saves all and the
+  // History log gets one record.
+  const [pending, setPending] = useState({});
+  const [confirmSave, setConfirmSave] = useState(false);
+  const pendingCount = Object.keys(pending).length;
   const [agencies, setAgencies] = useState([]);
   const { pickAgency, branchAgencies, ag, chooseAgency } = useAgencyPick(branch, agencies);
 
@@ -223,6 +228,7 @@ export default function RosterPage({ initialMonth }) {
   const load = useCallback(async () => {
     if (!branch || !month || (pickAgency && !ag)) return;
     setError('');
+    setPending({}); // another branch / month: unsaved taps are dropped
     try {
       setData((await api.roster(branch, month, ag)).data);
     } catch (err) {
@@ -230,6 +236,13 @@ export default function RosterPage({ initialMonth }) {
     }
   }, [branch, month, ag, pickAgency]);
   useEffect(() => { if (branch) keep('sup_branch', branch); setUpload(null); load(); }, [branch, load]);
+  // Leaving the page with unsaved taps: the browser asks first.
+  useEffect(() => {
+    if (!pendingCount) return undefined;
+    const warn = e => { e.preventDefault(); e.returnValue = ''; };
+    window.addEventListener('beforeunload', warn);
+    return () => window.removeEventListener('beforeunload', warn);
+  }, [pendingCount]);
 
   const days = data ? data.days : 0;
   const weekday = d => WD[new Date(Date.UTC(+month.slice(0, 4), +month.slice(5, 7) - 1, d)).getUTCDay()];
@@ -241,7 +254,12 @@ export default function RosterPage({ initialMonth }) {
   const kinds = data ? [...new Set(data.guards.flatMap(tagsOf))].sort() : [];
   const shown = useMemo(() => !data ? [] : data.guards.filter(g => isKind(g, kind) &&
     (!area || g.area === area) && (!q.trim() || (g.name + ' ' + g.id).toLowerCase().includes(q.trim().toLowerCase()))), [data, area, q, kind]);
-  const codesOf = g => pad(data.codes[g.ROWID], days);
+  const baseOf = g => pad(data.codes[g.ROWID], days);
+  const codesOf = g => {
+    let c = baseOf(g);
+    Object.keys(pending).forEach(k => { const [gid, d] = k.split('|'); if (gid === String(g.ROWID)) c = c.slice(0, d - 1) + pending[k] + c.slice(d); });
+    return c;
+  };
   const filled = data ? data.guards.filter(g => data.codes[g.ROWID]).length : 0;
 
   async function pickFile(e) {
@@ -286,18 +304,30 @@ export default function RosterPage({ initialMonth }) {
     }
   }
 
-  // Tap a box: next code (A → B → C → G → O → L → - → A).
-  async function tap(g, day) {
+  // Tap a box: next code (A → B → C → G → O → L → - → A). It stays yellow (not saved) until ✓ Save.
+  function tap(g, day) {
     if (busy) return;
     const now = codesOf(g)[day - 1];
     const next = CODES[(CODES.indexOf(now) + 1) % CODES.length];
+    const key = g.ROWID + '|' + day;
+    setPending(p => {
+      const n = { ...p };
+      if (baseOf(g)[day - 1] === next) delete n[key]; else n[key] = next;
+      return n;
+    });
+    setJust('');
+  }
+
+  async function savePending() {
     setBusy(true);
     setError('');
     try {
-      const r = (await api.rosterSet(branch, month, g.ROWID, day, next, ag)).data;
-      setData(d => ({ ...d, codes: { ...d.codes, [g.ROWID]: r.codes } }));
-      // A tap saves at once; a green ring on that box says so (Prem, 27 Oct: "is there a save button?").
-      setJust(g.ROWID + '-' + day);
+      const changes = Object.keys(pending).map(k => { const [guard_id, day] = k.split('|'); return { guard_id, day: Number(day), code: pending[k] }; });
+      const r = (await api.rosterSave(branch, month, changes, ag)).data;
+      setData(d => ({ ...d, codes: { ...d.codes, ...r.codes } }));
+      setPending({});
+      setConfirmSave(false);
+      setNote('✅ Saved ' + r.saved + ' change(s). It is in the 📜 History log.');
     } catch (err) {
       setError(err.message);
     } finally {
@@ -376,6 +406,32 @@ export default function RosterPage({ initialMonth }) {
           </div>
         )}
 
+        {pendingCount > 0 && data && (
+          <div className="rs-savebar" role="status">
+            <span>✏️ <b>{pendingCount}</b> change(s) not saved yet</span>
+            <button className="btn secondary" onClick={() => setPending({})} disabled={busy}>Undo all</button>
+            <button className="btn" onClick={() => setConfirmSave(true)} disabled={busy}>✓ Save</button>
+          </div>
+        )}
+        {confirmSave && data && (
+          <div className="grid-picker-overlay" onClick={e => { if (e.target === e.currentTarget && !busy) setConfirmSave(false); }}>
+            <div className="rs-confirm">
+              <h3>Save {pendingCount} change(s)?</h3>
+              <ul>
+                {Object.keys(pending).map(k => {
+                  const [gid, d] = k.split('|');
+                  const g = data.guards.find(x => String(x.ROWID) === gid) || { name: 'Guard' };
+                  const old = pad(data.codes[gid], days)[d - 1];
+                  return <li key={k}><b>{g.name}</b> · {d}: <span className={'rs-cell rs-' + (old === '-' ? 'none' : old)}>{old === '-' ? '·' : old}</span> → <span className={'rs-cell rs-' + (pending[k] === '-' ? 'none' : pending[k])}>{pending[k] === '-' ? '·' : pending[k]}</span></li>;
+                })}
+              </ul>
+              <div className="rs-confirm-btns">
+                <button className="btn secondary" onClick={() => setConfirmSave(false)} disabled={busy}>Back</button>
+                <button className="btn" onClick={savePending} disabled={busy}>{busy ? 'Saving…' : '✓ Confirm & save'}</button>
+              </div>
+            </div>
+          </div>
+        )}
         {fill && data && <FillMonth key={fill.ROWID + month} guard={fill} guards={data.guards} month={month} days={days} codesOf={codesOf} onSave={saveFill} onClose={() => setFill(null)} busy={busy} />}
 
         {!data && !error && <div className="loading-message">Loading...</div>}
@@ -433,7 +489,7 @@ export default function RosterPage({ initialMonth }) {
                         </td>
                         {dayNums.map(d => {
                           const c = codes[d - 1];
-                          return <td key={d}><button className={'rs-cell rs-' + (c === '-' ? 'none' : c) + (just === g.ROWID + '-' + d ? ' rs-just' : '')} onClick={() => tap(g, d)} disabled={busy} title={g.name + ' · ' + d + ' · ' + LABEL[c]}>{c === '-' ? '' : c}</button></td>;
+                          return <td key={d}><button className={'rs-cell rs-' + (c === '-' ? 'none' : c) + (just === g.ROWID + '-' + d ? ' rs-just' : '') + (pending[g.ROWID + '|' + d] ? ' rs-pending' : '')} onClick={() => tap(g, d)} disabled={busy} title={g.name + ' · ' + d + ' · ' + LABEL[c]}>{c === '-' ? '' : c}</button></td>;
                         })}
                         <td><b>{[...codes].filter(c => 'ABCG'.includes(c)).length}</b></td>
                         <td>{[...codes].filter(c => c === 'O' || c === 'L').length}</td>
