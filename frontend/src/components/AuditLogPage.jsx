@@ -37,7 +37,8 @@ export default function AuditLogPage() {
   const byDay = [];
   rows.forEach(r => { const d = String(r.at).slice(0, 10); const last = byDay[byDay.length - 1]; if (last && last.d === d) last.rows.push(r); else byDay.push({ d, rows: [r] }); });
   const toggle = id => setOpen(o => { const n = new Set(o); if (n.has(id)) n.delete(id); else n.add(id); return n; });
-  const details = r => { try { return Object.entries(JSON.parse(r.details || '{}')); } catch { return []; } };
+  // New rows: { lines: ["Shifts: ABC → ABCG", …] } in words; the first test rows kept raw fields.
+  const details = r => { try { const d = JSON.parse(r.details || '{}'); return Array.isArray(d.lines) ? d.lines : Object.entries(d).map(([k, v]) => k.replace(/_/g, ' ') + ': ' + v); } catch { return []; } };
 
   return (
     <>
@@ -70,12 +71,12 @@ export default function AuditLogPage() {
                   <span className="al-icon">{ICON[r.action] || '•'}</span>
                   <span className="al-what"><b>{r.action}</b>{r.target ? <span> · {r.target}</span> : null}</span>
                   <span className="al-who">{r.who}<small>{ROLE[r.role] || r.role}{r.branch ? ' · ' + r.branch : ''}</small></span>
-                  <span className="al-more">{open.has(r.ROWID) ? '▾' : '▸'}</span>
+                  <span className="al-more">{details(r).length ? (open.has(r.ROWID) ? '▾' : '▸ ' + details(r).length) : ''}</span>
                 </button>
                 {open.has(r.ROWID) && (
-                  <div className="al-details">
-                    {details(r).length ? details(r).map(([k, v]) => <span key={k}><small>{k.replace(/_/g, ' ')}</small>{v}</span>) : <i>No details</i>}
-                  </div>
+                  <ul className="al-details">
+                    {details(r).length ? details(r).map((line, i) => <li key={i}>{line}</li>) : <li className="al-none">Nothing more to show.</li>}
+                  </ul>
                 )}
               </div>
             ))}
