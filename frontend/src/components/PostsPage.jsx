@@ -6,7 +6,7 @@ import { worksIn } from '../agency.js';
 import { Toggle, IconBtn } from './RowControls.jsx';
 
 // Same keys as functions/escortAPI/siteReports.js TYPES.
-export const REPORT_TYPES = [['', 'None'], ['mlcp_car', '🚗 MLCP Car Parking (11 · 15 · 23)'], ['mlcp_two', '🛵 MLCP Two Wheeler (11 · 15 · 23)'], ['lancor', '🚙 Lancor Vendor Parking (11 · 15 · 23)'], ['emp_strength', '👥 Employee Strength (23 · 03; Sat/Sun also 11 · 15)'], ['ert', '🚑 ERT incident report (when it happens)']];
+export const REPORT_TYPES = [['', 'None'], ['mlcp_car', '🚗 MLCP Car Parking (11 · 15 · 23)'], ['mlcp_two', '🛵 MLCP Two Wheeler (11 · 15 · 23)'], ['lancor', '🚙 Lancor Vendor Parking (11 · 15 · 23)'], ['emp_northplaza', '👥 North Plaza Employee Strength (23 · 03; Sat/Sun also 11 · 15)'], ['emp_apricot', '👥 Apricot Employee Strength'], ['emp_mlcp', '👥 MLCP Employee Strength'], ['emp_strength', '👥 Employee Strength (this post only)'], ['ert', '🚑 ERT incident report (when it happens)']];
 const BLANK_POST = { post_name: '', post_type: 'POST', agency_id: '', vehicle_entry: false, report_type: '', extra_duty: false, auto_fill: false, section: '', sort_order: '', shift_codes: 'ABC' };
 const isOn = v => v === true || v === 'true';
 const idList = v => String(v || '').split(',').map(x => x.trim()).filter(Boolean);

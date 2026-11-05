@@ -14,6 +14,15 @@ const MLCP_FLOORS = ['T "A"', 'T', '12A', '12th', '11A', '11th', '10A', '10th', 
 
 // sections: [title, [[key, label, tag]]]; totals: [label, tag] (sum of the fields with that tag);
 // the first total is the headline number (ShiftReports.total).
+// Employee strength: weekdays only the night; Saturday / Sunday the day too (Prem, 5 Nov).
+// "Male = 01, Female = 05, below Total = 10".
+const EMP = (label, shared) => ({
+  label, icon: '👥', shared,
+  slots: date => { const d = new Date(date + 'T00:00:00Z').getUTCDay(); return d === 0 || d === 6 ? ['11:00', '15:00', '23:00', '03:00'] : ['23:00', '03:00']; },
+  sections: [['Employees', [['male', 'Male', 'emp'], ['female', 'Female', 'emp']]]],
+  totals: [['Total', ['emp']]],
+  texts: [['safety', 'Safety officer']]
+});
 const TYPES = {
   mlcp_car: {
     label: 'MLCP Car Parking', icon: '🚗', slots: () => PARKING_SLOTS, shared: true,
@@ -36,15 +45,12 @@ const TYPES = {
     ],
     totals: [['Total cars', ['car']], ['Total bikes', ['bike']]]
   },
-  emp_strength: {
-    label: 'Employee Strength', icon: '👥',
-    // Weekdays only the night; Saturday / Sunday the day too (Prem, 5 Nov).
-    slots: date => { const d = new Date(date + 'T00:00:00Z').getUTCDay(); return d === 0 || d === 6 ? ['11:00', '15:00', '23:00', '03:00'] : ['23:00', '03:00']; },
-    // Prem, 5 Nov: "Male = 01, Female = 05, below Total = 10".
-    sections: [['Employees', [['male', 'Male', 'emp'], ['female', 'Female', 'emp']]]],
-    totals: [['Total', ['emp']]],
-    texts: [['safety', 'Safety officer']]
-  }
+  emp_strength: EMP('Employee Strength', false),
+  // One report per building, sent by whoever is on duty there (Prem, 5 Nov: "yaar duty paakkuraangalo
+  // avanga podalaam, ovvoru post-um thaniyaa vendaam").
+  emp_northplaza: EMP('North Plaza Employee Strength', true),
+  emp_apricot: EMP('Apricot Employee Strength', true),
+  emp_mlcp: EMP('MLCP Employee Strength', true)
 };
 const LATE_MIN = 30;
 // shared: one report per branch and time, filled by every post of that type (Prem, 5 Nov: MLCP Basement-1
