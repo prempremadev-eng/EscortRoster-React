@@ -192,7 +192,7 @@ export default function AdminHome({ hash }) {
       </header>
       {error && <div className="ah-error">{error}</div>}
       {!data && !error && <div className="ah-loading">Loading…</div>}
-      {view === 'total' && <ErtStrip date={date} />}
+      {/* 🚑 ERT card removed from Today (Prem, 5 Nov morning); ERT stays in Site reports. */}
 
       {data && view === 'total' && (() => {
         // Enterprise look (Prem, 26 Oct): a white KPI strip for the whole day, then one table line per
