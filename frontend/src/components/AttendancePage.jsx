@@ -1,4 +1,5 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import AttendanceMonth from './AttendanceMonth.jsx';
 import { api } from '../api.js';
 import { worksIn } from '../agency.js';
 
@@ -24,6 +25,9 @@ export default function AttendancePage() {
   const [from, setFrom] = useState(today);
   const [to, setTo] = useState(today);
   const [show, setShow] = useState('all'); // all · Present · Absent
+  // 📋 Day list or 📅 Month grid (Prem, 5 Nov); remembered on this computer.
+  const [view, setViewRaw] = useState(() => { try { return localStorage.getItem('at-view') || 'day'; } catch { return 'day'; } });
+  const setView = v => { setViewRaw(v); try { localStorage.setItem('at-view', v); } catch { /* private mode */ } };
   const [search, setSearch] = useState('');
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -38,7 +42,7 @@ export default function AttendancePage() {
     setError(''); setNote(''); setData(null);
     try { setData((await api.attendance('', '', from, to)).data); } catch (err) { setError(err.message); setData({ rows: [] }); }
   }
-  useEffect(() => { load(); }, [from, to]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (view === 'day') load(); }, [from, to, view]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const uniq = list => [...new Set(list.filter(Boolean))].sort();
   const states = uniq(branches.map(b => b.state));
@@ -52,6 +56,12 @@ export default function AttendancePage() {
       && (!branch || r.branchId === branch) && (!agency || r.agencyId === agency)
       && (!s || [r.name, r.clock, r.vendorId, r.post].some(v => String(v).toLowerCase().includes(s))));
   }, [data, state, city, branch, agency, search]);
+  // The Month grid uses the same place filters and search.
+  const keep = useCallback(r => {
+    const s = search.trim().toLowerCase();
+    return (!state || r.state === state) && (!city || r.city === city) && (!branch || r.branchId === branch) && (!agency || r.agencyId === agency)
+      && (!s || [r.name, r.clock, r.vendorId, r.team].some(v => String(v || '').toLowerCase().includes(s)));
+  }, [state, city, branch, agency, search]);
   const rows = placed.filter(r => show === 'all' || r.status === show);
   const count = k => placed.filter(r => k === 'all' || r.status === k).length;
 
@@ -77,6 +87,10 @@ export default function AttendancePage() {
     <>
       <div className="titlebar"><h1>🗓️ Attendances</h1></div>
       <div className="toolbar no-print at-tools">
+        <div className="at-views" role="tablist">
+          <button role="tab" aria-selected={view === 'day'} className={'btn' + (view === 'day' ? '' : ' secondary')} onClick={() => setView('day')}>📋 Day list</button>
+          <button role="tab" aria-selected={view === 'month'} className={'btn' + (view === 'month' ? '' : ' secondary')} onClick={() => setView('month')}>📅 Month</button>
+        </div>
         <select value={state} onChange={e => { setState(e.target.value); setCity(''); setBranch(''); setAgency(''); }} aria-label="State">
           <option value="">All states</option>
           {states.map(x => <option key={x} value={x}>{x}</option>)}
@@ -93,13 +107,13 @@ export default function AttendancePage() {
           <option value="">All agencies</option>
           {shownAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
         </select>
-        <label>From <input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} /></label>
-        <label>To <input type="date" value={to} min={from} onChange={e => setTo(e.target.value)} /></label>
+        {view === 'day' && <label>From <input type="date" value={from} max={to} onChange={e => setFrom(e.target.value)} /></label>}
+        {view === 'day' && <label>To <input type="date" value={to} min={from} onChange={e => setTo(e.target.value)} /></label>}
         <input className="pd-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Name, Clock NO, post" />
-        <button className="btn secondary" onClick={load}>🔄</button>
-        <button className="btn" onClick={exportXlsx} disabled={!rows.length}>📤 Export Excel</button>
+        {view === 'day' && <button className="btn secondary" onClick={load}>🔄</button>}
+        {view === 'day' && <button className="btn" onClick={exportXlsx} disabled={!rows.length}>📤 Export Excel</button>}
       </div>
-      <div className="dash at-page">
+      {view === 'month' ? <div className="dash at-page"><AttendanceMonth keep={keep} /></div> : <div className="dash at-page">
         {error && <div className="trip-error">{error}</div>}
         {note && <div className="sim-push">{note}</div>}
         <div className="at-chips">
@@ -126,7 +140,7 @@ export default function AttendancePage() {
             </table>
           </div>
         )}
-      </div>
+      </div>}
     </>
   );
 }
