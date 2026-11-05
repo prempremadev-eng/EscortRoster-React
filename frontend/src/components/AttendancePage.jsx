@@ -113,7 +113,17 @@ export default function AttendancePage() {
         {view === 'day' && <button className="btn secondary" onClick={load}>🔄</button>}
         {view === 'day' && <button className="btn" onClick={exportXlsx} disabled={!rows.length}>📤 Export Excel</button>}
       </div>
-      {view === 'month' ? <div className="dash at-page"><AttendanceMonth keep={keep} /></div> : <div className="dash at-page">
+      {view === 'month' ? <div className="dash at-page"><AttendanceMonth keep={keep} filters={<>
+        <select value={branch} onChange={e => { setBranch(e.target.value); setAgency(''); }} aria-label="Branch">
+          <option value="">All branches</option>
+          {shownBranches.map(b => <option key={b.ROWID} value={b.ROWID}>{b.branch_name} · {b.city}</option>)}
+        </select>
+        <select value={agency} onChange={e => setAgency(e.target.value)} aria-label="Agency">
+          <option value="">All agencies</option>
+          {shownAgencies.map(a => <option key={a.ROWID} value={a.ROWID}>{a.agency_name}</option>)}
+        </select>
+        <input className="am-search" value={search} onChange={e => setSearch(e.target.value)} placeholder="🔍 Name, Clock NO, team" />
+      </>} /></div> : <div className="dash at-page">
         {error && <div className="trip-error">{error}</div>}
         {note && <div className="sim-push">{note}</div>}
         <div className="at-chips">

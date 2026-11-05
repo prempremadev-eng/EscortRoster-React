@@ -1459,3 +1459,5 @@ td.in-late{color:#b91c1c;}
 .am-table td.am-k-p b{color:#15803d;}.am-table td.am-k-ab b{color:#b91c1c;}.am-table td.am-k-l b{color:#a16207;}.am-table td.am-k-wo b{color:#475569;}
 .am-hours{white-space:nowrap;color:#334155;font-size:12px;min-width:70px;}
 @media (max-width:700px){ .am-name{min-width:120px;max-width:130px;} .am-kpi b{font-size:20px;} }
+.am-bar select,.am-search{padding:7px 10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;}
+.am-search{min-width:180px;}

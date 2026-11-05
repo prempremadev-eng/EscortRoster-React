@@ -11,7 +11,7 @@ const nice = m => new Date(m + '-01T00:00:00').toLocaleDateString('en-GB', { mon
 const shiftMonth = (m, n) => { const d = new Date(m + '-01T00:00:00Z'); d.setUTCMonth(d.getUTCMonth() + n); return d.toISOString().slice(0, 7); };
 const hm = mins => Math.floor(mins / 60) + 'h ' + String(mins % 60).padStart(2, '0') + 'm';
 
-export default function AttendanceMonth({ keep }) {
+export default function AttendanceMonth({ keep, filters }) {
   const [month, setMonth] = useState(thisMonth);
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
@@ -60,6 +60,8 @@ export default function AttendanceMonth({ keep }) {
         <input type="month" value={month} onChange={e => e.target.value && setMonth(e.target.value)} aria-label="Month" />
         <button className="btn secondary" onClick={() => setMonth(shiftMonth(month, 1))} aria-label="Next month">›</button>
         <b className="am-title">{nice(month)}</b>
+        {/* Branch + Agency right here too (Prem, 5 Nov); same filters as the page toolbar. */}
+        {filters}
         <span className="spacer"></span>
         <button className="btn" onClick={exportXlsx} disabled={!rows.length}>📤 Excel</button>
       </div>
