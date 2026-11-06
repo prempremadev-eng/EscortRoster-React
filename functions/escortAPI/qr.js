@@ -437,7 +437,7 @@ module.exports = function qrRoutes(app, h) {
         const act = purpose === 'OUT' ? 'OUT' : purpose === 'IN' ? 'IN' : (inRow ? 'OUT' : 'IN');
         const row = act === 'OUT' ? inRow : waiting;
         // Already IN (pressed IN again, 6 Nov): say so, like a regular guard; not "no duty allotted".
-        if (act === 'IN' && !waiting && inRow) throw new Error('Already IN since ' + String(inRow.in_at).slice(11, 16) + '. Open 📋 My duty page, or press 🏁 OUT to go.');
+        if (act === 'IN' && !waiting && inRow) return ok(res, { already: true, token: found.guard_token || '', name: found.guard_name, since: String(inRow.in_at).slice(11, 16) });
         if (!row) {
           if (act === 'IN') await tellOffice(catalystApp, b.ROWID, '⚠️ Reliever without duty at the gate', found.guard_name + ' scanned IN but no guard added him today.');
           throw new Error(act === 'IN' ? '🔁 ' + found.guard_name + ': no duty allotted today. Ask the guard on duty to add you.' : 'You are not IN. Press ✅ IN.');
@@ -453,7 +453,8 @@ module.exports = function qrRoutes(app, h) {
       }
 
       const open = await openIn(zcql, found.ROWID);
-      if (purpose === 'IN' && open) throw new Error('Already IN since ' + String(open.CREATEDTIME).slice(11, 16) + '. Open 📋 My duty page, or press 🏁 OUT to go.');
+      // Already IN + the face matched (Prem, 6 Nov): open his duty page, no link needed.
+      if (purpose === 'IN' && open) return ok(res, { already: true, token: found.guard_token || '', name: found.guard_name, since: String(open.CREATEDTIME).slice(11, 16) });
       if (purpose === 'OUT' && !open) throw new Error('You are not IN. Press ✅ IN.');
       const action = open ? 'OUT' : 'IN';
       const code = open ? '' : await dutyCode(zcql, found.ROWID, day);

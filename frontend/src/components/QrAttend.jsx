@@ -114,6 +114,11 @@ export default function QrAttend({ qrKey }) {
       setStep('checking');
       last.current = { k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), photo2: shut[0].toDataURL('image/jpeg', 0.75), photo3: shut[1].toDataURL('image/jpeg', 0.75), photo4: shut[2].toDataURL('image/jpeg', 0.75), c: ch.c, w: c.width, light };
       const r = (await api.qrCheck({ ...last.current, purpose: p, ...(reg || {}) })).data;
+      // Already IN (Prem, 6 Nov): the face is enough, his duty page opens (no link to send).
+      if (r.already) {
+        if (r.token) { saveDuty(r.token); setMsg('✅ ' + r.name + ': already IN since ' + r.since + '. Opening your duty page…'); setStep('start'); setTimeout(() => window.location.replace('#guard/' + r.token), 1200); return; }
+        throw new Error('✅ ' + r.name + ': already IN since ' + r.since + '. Press 🏁 OUT to go.');
+      }
       setCheck(r);
       if (r.pass) savePass(r.pass);
       setStep(r.matched ? 'found' : 'nomatch');
