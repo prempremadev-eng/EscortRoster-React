@@ -32,6 +32,23 @@ function beep(freq) {
   try { navigator.vibrate && navigator.vibrate(200); } catch { /* no buzz */ }
 }
 
+// 🔊 Spoken steps (Prem, 6 Nov): the phone's Tamil voice says "look straight / close / open your eyes",
+// so the guard keeps looking at the camera. No Tamil voice on the phone → English; no speech → beep only.
+function say(ta, en) {
+  try {
+    const s = window.speechSynthesis;
+    if (!s) return;
+    s.cancel();
+    const voices = s.getVoices();
+    const tamil = voices.find(v => /^ta/i.test(v.lang));
+    const u = new SpeechSynthesisUtterance(tamil ? ta : en);
+    if (tamil) u.voice = tamil;
+    u.lang = tamil ? tamil.lang : 'en-IN';
+    u.rate = 0.95;
+    s.speak(u);
+  } catch { /* no voice */ }
+}
+
 // Average brightness of the middle of a photo, 0 (black) – 255 (white). Too dark → Zia cannot see the eyes (29 Oct).
 function lightOf(c) {
   const w = c.width, h = c.height, d = c.getContext('2d').getImageData(Math.round(w * 0.25), Math.round(h * 0.2), Math.round(w * 0.5), Math.round(h * 0.6)).data;
@@ -78,6 +95,7 @@ export default function QrAttend({ qrKey }) {
   // Start → location → camera → 3 · 2 · 1 → photo → server face check.
   async function start(p, reg) {
     setMsg(''); setCheck(null); setPurpose(p);
+    try { window.speechSynthesis && window.speechSynthesis.getVoices(); } catch { /* no voice */ }
     try { const A = window.AudioContext || window.webkitAudioContext; if (A && !beep.ctx) beep.ctx = new A(); if (beep.ctx) beep.ctx.resume(); } catch { /* no sound */ } // sound needs the tap
     try {
       setStep('gps');
@@ -85,6 +103,7 @@ export default function QrAttend({ qrKey }) {
       const ch = (await api.qrChallenge(qrKey)).data; // a fresh signed start for this check
       setCount(3);
       setHint('Look straight · நேராகப் பாருங்கள்');
+      say('கேமராவை நேராகப் பாருங்கள்', 'Look straight at the camera');
       setStep('camera');
       stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 720 } }, audio: false });
       video.current.srcObject = stream.current;
@@ -104,10 +123,12 @@ export default function QrAttend({ qrKey }) {
       setHint('😌 Close your eyes · கண்ணை மூடுங்கள்');
       setCount('😌');
       beep(880);
+      say('கண்ணை மூடுங்கள்', 'Close your eyes');
       const shut = [];
-      for (const ms of [1000, 600, 600]) { await new Promise(r => setTimeout(r, ms)); shut.push(snap()); }
+      for (const ms of [1400, 600, 600]) { await new Promise(r => setTimeout(r, ms)); shut.push(snap()); }
       beep(523);
       setHint('✅ Open your eyes · கண்ணைத் திறங்கள்');
+      say('கண்ணைத் திறங்கள்', 'Open your eyes');
       setCount('👀');
       await new Promise(r => setTimeout(r, 500));
       stopCam();
