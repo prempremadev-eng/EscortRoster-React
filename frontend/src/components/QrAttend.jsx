@@ -22,23 +22,36 @@ function getFix() {
 // 🔊 Spoken steps (Prem, 6 Nov): a recorded Tamil voice (same on every phone, from the server) says
 // "look straight / close / open your eyes", so the guard keeps looking at the camera.
 // If the clip cannot play: the phone's own voice. No beep (Prem, 6 Nov: the voice is enough).
-const clips = {};
+// Played through one AudioContext started on the IN / OUT tap (the old beep worked this way on every phone;
+// a plain <audio> was blocked on some). Clips are fetched once and decoded.
+let ctx = null;
+const raw = {}, clips = {};
 function loadVoice(qrKey) {
   ['look', 'close', 'open'].forEach(n => {
-    if (clips[n]) return;
-    try { const a = new Audio(apiUrl('/qrVoice?k=' + encodeURIComponent(qrKey) + '&n=' + n + '&v=2')); a.preload = 'auto'; clips[n] = a; } catch { /* no audio */ }
+    if (raw[n]) return;
+    raw[n] = fetch(apiUrl('/qrVoice?k=' + encodeURIComponent(qrKey) + '&n=' + n + '&v=2')).then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
   });
 }
-// Phones play sound only after a tap: on the IN / OUT tap each clip is started silently once.
+// On the tap: start (or wake) the sound, then decode the clips.
 function unlockVoice() {
-  Object.values(clips).forEach(a => { try { a.unlocking = true; a.muted = true; const p = a.play(); if (p) p.then(() => { if (a.unlocking) { a.pause(); a.currentTime = 0; a.muted = false; a.unlocking = false; } }).catch(() => { a.muted = false; a.unlocking = false; }); } catch { /* no audio */ } });
+  try {
+    const A = window.AudioContext || window.webkitAudioContext;
+    if (A && !ctx) ctx = new A();
+    if (ctx && ctx.state !== 'running') ctx.resume();
+    if (ctx) { const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(0); }
+  } catch { ctx = null; }
+  Object.keys(raw).forEach(n => {
+    if (clips[n] || !ctx) return;
+    clips[n] = raw[n].then(buf => (buf ? new Promise(ok => ctx.decodeAudioData(buf.slice(0), ok, () => ok(null))) : null)).catch(() => null);
+  });
 }
 function say(n, ta, en) {
-  const a = clips[n];
-  if (a) {
-    try { a.unlocking = false; a.muted = false; a.currentTime = 0; const p = a.play(); if (p) { p.catch(() => speak(ta, en)); return; } } catch { /* fall back */ }
-  }
-  speak(ta, en);
+  if (!ctx || !clips[n]) return speak(ta, en);
+  clips[n].then(audio => {
+    if (!audio) return speak(ta, en);
+    try { if (ctx.state !== 'running') ctx.resume(); const s = ctx.createBufferSource(); s.buffer = audio; s.connect(ctx.destination); s.start(0); }
+    catch { speak(ta, en); }
+  });
 }
 function speak(ta, en) {
   try {
