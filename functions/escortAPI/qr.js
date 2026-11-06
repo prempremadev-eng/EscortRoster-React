@@ -457,11 +457,17 @@ module.exports = function qrRoutes(app, h) {
 
       let found = null, score = null;
       try {
+        // Best match, not the first one (Prem, 6 Nov: a new person was taken for a registered guard). Every
+        // score is logged so the safe limit can be set from real tests.
+        const scores = [];
         for (const g of list.slice(0, 10)) {
           const regFile = await storedPhoto(bucket, g.photo_key);
           const r = await catalystApp.zia().compareFace(fs.createReadStream(regFile), fs.createReadStream(selfieFile));
-          if (yes(r && r.matched)) { found = g; score = Number(r.confidence) || null; break; }
+          const conf = Number(r && r.confidence) || 0;
+          scores.push({ g: String(g.ROWID), ok: yes(r && r.matched), conf });
+          if (yes(r && r.matched) && conf > (score || 0)) { found = g; score = conf || null; }
         }
+        console.log('qr match', JSON.stringify({ purpose: req.body.purpose || '', scores }));
       } finally {
         cleanTmp();
       }
