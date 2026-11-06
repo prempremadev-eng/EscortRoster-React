@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { api } from '../api.js';
+import { api, apiUrl } from '../api.js';
 
 // #qr/<key>: the gate QR (Prem, 29 Oct, Cumbum). Any phone, no login: GPS near the gate → front camera
 // 3 · 2 · 1 → Zia finds the registered guard → one big IN / OUT button. Server: functions/escortAPI/qr.js.
@@ -32,9 +32,28 @@ function beep(freq) {
   try { navigator.vibrate && navigator.vibrate(200); } catch { /* no buzz */ }
 }
 
-// 🔊 Spoken steps (Prem, 6 Nov): the phone's Tamil voice says "look straight / close / open your eyes",
-// so the guard keeps looking at the camera. No Tamil voice on the phone → English; no speech → beep only.
-function say(ta, en) {
+// 🔊 Spoken steps (Prem, 6 Nov): a recorded Tamil voice (same on every phone, from the server) says
+// "look straight / close / open your eyes", so the guard keeps looking at the camera.
+// If the clip cannot play: the phone's own voice; no voice → beep only.
+const clips = {};
+function loadVoice(qrKey) {
+  ['look', 'close', 'open'].forEach(n => {
+    if (clips[n]) return;
+    try { const a = new Audio(apiUrl('/qrVoice?k=' + encodeURIComponent(qrKey) + '&n=' + n)); a.preload = 'auto'; clips[n] = a; } catch { /* no audio */ }
+  });
+}
+// Phones play sound only after a tap: on the IN / OUT tap each clip is started silently once.
+function unlockVoice() {
+  Object.values(clips).forEach(a => { try { a.unlocking = true; a.muted = true; const p = a.play(); if (p) p.then(() => { if (a.unlocking) { a.pause(); a.currentTime = 0; a.muted = false; a.unlocking = false; } }).catch(() => { a.muted = false; a.unlocking = false; }); } catch { /* no audio */ } });
+}
+function say(n, ta, en) {
+  const a = clips[n];
+  if (a) {
+    try { a.unlocking = false; a.muted = false; a.currentTime = 0; const p = a.play(); if (p) { p.catch(() => speak(ta, en)); return; } } catch { /* fall back */ }
+  }
+  speak(ta, en);
+}
+function speak(ta, en) {
   try {
     const s = window.speechSynthesis;
     if (!s) return;
@@ -84,6 +103,7 @@ export default function QrAttend({ qrKey }) {
   const savePass = p => { try { p ? localStorage.setItem(passKey, p) : localStorage.removeItem(passKey); } catch { /* private mode */ } };
   // 📋 My duty page (Prem, 6 Nov): after an IN this phone keeps the duty link for 18 h, so a guard who comes
   // back to this page (pressed IN again) opens the chat from here; OUT forgets it.
+  useEffect(() => { loadVoice(qrKey); }, [qrKey]);
   const saveDuty = t => { try { t ? localStorage.setItem('qr-duty', JSON.stringify({ t, until: Date.now() + 18 * 3600000 })) : localStorage.removeItem('qr-duty'); } catch { /* private mode */ } };
   const dutyLink = (() => { try { const v = JSON.parse(localStorage.getItem('qr-duty') || 'null'); return v && v.until > Date.now() ? v.t : ''; } catch { return ''; } })();
   const readPass = () => { try { return localStorage.getItem(passKey) || ''; } catch { return ''; } };
@@ -96,6 +116,7 @@ export default function QrAttend({ qrKey }) {
   async function start(p, reg) {
     setMsg(''); setCheck(null); setPurpose(p);
     try { window.speechSynthesis && window.speechSynthesis.getVoices(); } catch { /* no voice */ }
+    loadVoice(qrKey); unlockVoice();
     try { const A = window.AudioContext || window.webkitAudioContext; if (A && !beep.ctx) beep.ctx = new A(); if (beep.ctx) beep.ctx.resume(); } catch { /* no sound */ } // sound needs the tap
     try {
       setStep('gps');
@@ -103,7 +124,7 @@ export default function QrAttend({ qrKey }) {
       const ch = (await api.qrChallenge(qrKey)).data; // a fresh signed start for this check
       setCount(3);
       setHint('Look straight · நேராகப் பாருங்கள்');
-      say('கேமராவை நேராகப் பாருங்கள்', 'Look straight at the camera');
+      say('look', 'கேமராவை நேராகப் பாருங்கள்', 'Look straight at the camera');
       setStep('camera');
       stream.current = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 720 } }, audio: false });
       video.current.srcObject = stream.current;
@@ -123,12 +144,12 @@ export default function QrAttend({ qrKey }) {
       setHint('😌 Close your eyes · கண்ணை மூடுங்கள்');
       setCount('😌');
       beep(880);
-      say('கண்ணை மூடுங்கள்', 'Close your eyes');
+      say('close', 'கண்ணை மூடுங்கள்', 'Close your eyes');
       const shut = [];
       for (const ms of [1400, 600, 600]) { await new Promise(r => setTimeout(r, ms)); shut.push(snap()); }
       beep(523);
       setHint('✅ Open your eyes · கண்ணைத் திறங்கள்');
-      say('கண்ணைத் திறங்கள்', 'Open your eyes');
+      say('open', 'கண்ணைத் திறங்கள்', 'Open your eyes');
       setCount('👀');
       await new Promise(r => setTimeout(r, 500));
       stopCam();

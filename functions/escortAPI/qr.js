@@ -157,6 +157,44 @@ module.exports = function qrRoutes(app, h) {
 
   // ---------- the guard's phone at the gate (no login) ----------
 
+  // 🔊 Tamil voice for the face check (Prem, 6 Nov): made once with Sarvam (key in Settings, never sent to
+  // the phone), kept in Stratus, then served from there. Same voice on every phone.
+  const VOICE_TEXT = { look: 'கேமராவை நேராகப் பாருங்கள்', close: 'கண்ணை மூடுங்கள்', open: 'கண்ணைத் திறங்கள்' };
+  const voiceCache = {}; // name → Buffer while the function stays warm
+  app.get('/qrVoice', async (req, res) => {
+    try {
+      const n = String(req.query.n || '');
+      if (!VOICE_TEXT[n]) throw new Error('Unknown voice.');
+      const catalystApp = admin(req);
+      await branchByKey(catalystApp.zcql(), req.query.k);
+      if (!voiceCache[n]) {
+        const bucket = catalystApp.stratus().bucket(BUCKET);
+        const key = 'voice/ta-' + n + '-v1.wav';
+        try {
+          const chunks = [];
+          for await (const c of await bucket.getObject(key)) chunks.push(Buffer.from(c));
+          voiceCache[n] = Buffer.concat(chunks);
+        } catch (e) {
+          const row = await getSetting(catalystApp.zcql(), 'sarvam_api_key');
+          const apiKey = row && row.setting_value ? String(row.setting_value).trim() : '';
+          if (!apiKey) throw new Error('Voice is not set up (no key).');
+          const r = await fetch('https://api.sarvam.ai/text-to-speech', {
+            method: 'POST', headers: { 'api-subscription-key': apiKey, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ inputs: [VOICE_TEXT[n]], target_language_code: 'ta-IN', model: 'bulbul:v3' })
+          });
+          if (!r.ok) { const t = await r.text(); console.error('Sarvam TTS failed:', r.status, t); throw new Error('Voice failed (' + r.status + '): ' + t.slice(0, 160)); }
+          const audio = Buffer.from((await r.json()).audios[0], 'base64');
+          await bucket.putObject(key, audio, { contentType: 'audio/wav' });
+          voiceCache[n] = audio;
+        }
+      }
+      res.set({ 'Content-Type': 'audio/wav', 'Cache-Control': 'public, max-age=604800' });
+      res.status(200).send(voiceCache[n]);
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   app.get('/qrSite', async (req, res) => {
     try {
       const b = await branchByKey(admin(req).zcql(), req.query.k);

@@ -93,6 +93,9 @@ async function vehiclePhoto(path, blob) {
   return json;
 }
 
+// Plain GET address of a guard route (audio files etc.).
+export const apiUrl = path => API_BASE + path;
+
 export const api = {
   getEscorts: () => apiCall('GET', '/getEscorts'),
   addEscort: escort => apiCall('POST', '/addEscort', escort),
