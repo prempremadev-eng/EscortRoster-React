@@ -65,6 +65,10 @@ export default function QrAttend({ qrKey }) {
   // Wait pass (29 Oct): reliever added but not IN → 🏁 OUT shows the lock with no photo. Kept on this phone.
   const passKey = 'qr-wait-' + qrKey;
   const savePass = p => { try { p ? localStorage.setItem(passKey, p) : localStorage.removeItem(passKey); } catch { /* private mode */ } };
+  // 📋 My duty page (Prem, 6 Nov): after an IN this phone keeps the duty link for 18 h, so a guard who comes
+  // back to this page (pressed IN again) opens the chat from here; OUT forgets it.
+  const saveDuty = t => { try { t ? localStorage.setItem('qr-duty', JSON.stringify({ t, until: Date.now() + 18 * 3600000 })) : localStorage.removeItem('qr-duty'); } catch { /* private mode */ } };
+  const dutyLink = (() => { try { const v = JSON.parse(localStorage.getItem('qr-duty') || 'null'); return v && v.until > Date.now() ? v.t : ''; } catch { return ''; } })();
   const readPass = () => { try { return localStorage.getItem(passKey) || ''; } catch { return ''; } };
 
   useEffect(() => { api.qrSite(qrKey).then(r => setSite(r.data)).catch(err => setMsg(err.message)); }, [qrKey]);
@@ -167,7 +171,7 @@ export default function QrAttend({ qrKey }) {
         const r = (await api.qrSwapStatus({ k: qrKey, ticket: swapWait })).data;
         if (stop || r.status === 'pending') return;
         clearInterval(id);
-        if (r.status === 'ok' && r.token) window.location.replace('#guard/' + r.token);
+        if (r.status === 'ok' && r.token) { saveDuty(r.token); window.location.replace('#guard/' + r.token); }
         else setCheck(c => (c && c.swap ? { ...c, swap: { ...c.swap, status: r.status } } : c));
       } catch (err) { clearInterval(id); setMsg(err.message); }
     }, 8000);
@@ -178,7 +182,8 @@ export default function QrAttend({ qrKey }) {
     setMsg('');
     try {
       const d = (await api.qrPunch({ k: qrKey, ticket: check.ticket })).data;
-      if (check.action === 'OUT') savePass('');
+      if (check.action === 'OUT') { savePass(''); saveDuty(''); }
+      else if (d.token) saveDuty(d.token);
       setDone(d);
       setStep('done');
       // After an IN the duty page opens by itself, in place of this page (Prem, 2 Nov: a reliever must not get
@@ -211,6 +216,7 @@ export default function QrAttend({ qrKey }) {
       )}
       {step === 'start' && site && site.ready && (
         <div className="qr-three">
+          {dutyLink && <a className="qr-big qr-reg" href={'#guard/' + dutyLink} onClick={e => { e.preventDefault(); window.location.replace('#guard/' + dutyLink); }}>📋 My duty page<small>Chat · break · பணி பக்கம்</small></a>}
           <button className="qr-big qr-in" onClick={() => { seenHelp(); start('IN'); }}>✅ IN<small>Duty start · பணி தொடக்கம்</small></button>
           <button className="qr-big qr-out" onClick={() => { seenHelp(); pressOut(); }}>🏁 OUT<small>Duty end · பணி முடிவு</small></button>
           <button className="qr-big qr-reg" onClick={() => { seenHelp(); setStep('reg'); }}>🆕 New Registration<small>First time here · முதல் முறை</small></button>
