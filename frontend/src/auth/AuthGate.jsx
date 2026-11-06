@@ -3,6 +3,16 @@ import { api } from '../api.js';
 import { UserContext, atLeast, signOut } from './user.js';
 import { showSplash } from '../components/Splash.jsx';
 
+// The guard link this phone used last (main.jsx keeps it; the gate QR keeps it 18 h after an IN).
+function myDutyLink() {
+  try {
+    const t = localStorage.getItem('guard_token');
+    if (t) return t;
+    const v = JSON.parse(localStorage.getItem('qr-duty') || 'null');
+    return v && v.until > Date.now() ? v.t : '';
+  } catch { return ''; }
+}
+
 // Catalyst Web SDK, loaded only for the signed-in pages (guards' phones never need it).
 // Order matters: init.js uses what catalystWebSDK.js sets up.
 const SDK = ['https://static.zohocdn.com/catalyst/sdk/js/4.6.2/catalystWebSDK.js', '/__catalyst/sdk/init.js'];
@@ -99,6 +109,8 @@ export default function AuthGate({ children, bar = true }) {
         <div className="login-card">
           <h1>🦉 NightOwl</h1>
           <p className="login-sub">Admins and supervisors sign in here. Guards use their own link.</p>
+          {/* A guard who opened the app without his link (Prem, 6 Nov): this phone knows his duty page. */}
+          {myDutyLink() && <a className="btn setup-btn" style={{ display: 'block', textAlign: 'center', fontSize: '1.15rem', padding: '14px', margin: '8px 0 14px' }} href={'#guard/' + myDutyLink()}>📋 My duty page · என் பணி பக்கம்</a>}
           <div id="login-box" className="login-box"></div>
         </div>
       </div>
