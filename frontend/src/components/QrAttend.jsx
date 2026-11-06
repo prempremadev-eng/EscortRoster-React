@@ -25,9 +25,29 @@ function getFix() {
 // Played through one AudioContext started on the IN / OUT tap (the old beep worked this way on every phone;
 // a plain <audio> was blocked on some). Clips are fetched once and decoded.
 let ctx = null;
+const VOICE_KEYS = ['look', 'close', 'open', 'in_ok', 'out_ok', 'reg_ok', 'nomatch', 'already', 'notin', 'blink', 'notsame', 'far', 'gps', 'dark', 'front', 'locked', 'noduty', 'time', 'swap', 'regdetails', 'registered', 'retry'];
+// Which spoken sentence fits a message on the screen (Prem, 6 Nov: everything by voice too).
+function voiceOf(msg) {
+  const m = String(msg || '');
+  if (/already IN since|Opening your duty/i.test(m)) return 'already';
+  if (/Already registered/i.test(m)) return 'registered';
+  if (/not IN/i.test(m)) return 'notin';
+  if (/not the same person/i.test(m)) return 'notsame';
+  if (/Too dark|இருட்டா/i.test(m)) return 'dark';
+  if (/close your eyes/i.test(m)) return 'blink';
+  if (/from the gate/i.test(m)) return 'far';
+  if (/GPS|Location/i.test(m)) return 'gps';
+  if (/OUT locked/i.test(m)) return 'locked';
+  if (/no duty|பணி இல்லை|not added today/i.test(m)) return 'noduty';
+  if (/அனுமதி|Shift .* -க்கு/i.test(m)) return 'swap';
+  if (/⏰|மணி/.test(m)) return 'time';
+  if (/does not match|not a guard of this site|10 digits/i.test(m)) return 'regdetails';
+  if (/face|camera|one person/i.test(m)) return 'front';
+  return 'retry';
+}
 const raw = {}, clips = {};
 function loadVoice(qrKey) {
-  ['look', 'close', 'open'].forEach(n => {
+  VOICE_KEYS.forEach(n => {
     if (raw[n]) return;
     raw[n] = fetch(apiUrl('/qrVoice?k=' + encodeURIComponent(qrKey) + '&n=' + n + '&v=2')).then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
   });
@@ -46,11 +66,11 @@ function unlockVoice() {
   });
 }
 function say(n, ta, en) {
-  if (!ctx || !clips[n]) return speak(ta, en);
+  if (!ctx || !clips[n]) return ta ? speak(ta, en) : undefined;
   clips[n].then(audio => {
-    if (!audio) return speak(ta, en);
+    if (!audio) return ta ? speak(ta, en) : undefined;
     try { if (ctx.state !== 'running') ctx.resume(); const s = ctx.createBufferSource(); s.buffer = audio; s.connect(ctx.destination); s.start(0); }
-    catch { speak(ta, en); }
+    catch { if (ta) speak(ta, en); }
   });
 }
 function speak(ta, en) {
@@ -104,6 +124,14 @@ export default function QrAttend({ qrKey }) {
   // 📋 My duty page (Prem, 6 Nov): after an IN this phone keeps the duty link for 18 h, so a guard who comes
   // back to this page (pressed IN again) opens the chat from here; OUT forgets it.
   useEffect(() => { loadVoice(qrKey); }, [qrKey]);
+  // 🔊 Results by voice too: the message, no face match, IN / OUT done, OUT locked.
+  useEffect(() => { if (msg && !/^✅ .*Opening/.test(msg)) say(voiceOf(msg)); else if (msg) say('already'); }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (step === 'nomatch') say('nomatch');
+    if (step === 'done' && done) say(check && check.action === 'OUT' ? 'out_ok' : check && check.registering ? 'reg_ok' : 'in_ok');
+    if (step === 'found' && check && check.swap) say('swap');
+    if (step === 'found' && check && !check.swap && check.handover && !check.handover.ok) say('locked');
+  }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveDuty = t => { try { t ? localStorage.setItem('qr-duty', JSON.stringify({ t, until: Date.now() + 18 * 3600000 })) : localStorage.removeItem('qr-duty'); } catch { /* private mode */ } };
   const dutyLink = (() => { try { const v = JSON.parse(localStorage.getItem('qr-duty') || 'null'); return v && v.until > Date.now() ? v.t : ''; } catch { return ''; } })();
   const readPass = () => { try { return localStorage.getItem(passKey) || ''; } catch { return ''; } };
@@ -175,6 +203,7 @@ export default function QrAttend({ qrKey }) {
 
   // 🏁 OUT: with a wait pass, ask first; still locked → the lock page without the camera.
   async function pressOut() {
+    unlockVoice();
     const pass = readPass();
     if (pass) {
       setMsg(''); setStep('checking');
@@ -192,6 +221,7 @@ export default function QrAttend({ qrKey }) {
   const [regBusy, setRegBusy] = useState(false);
   async function regContinue() {
     if (regBusy) return;
+    loadVoice(qrKey); unlockVoice();
     const body = reg.type === 'regular' ? { reg: 'regular', id: reg.id, name: reg.name, phone4: reg.phone4 } : { reg: 'reliever', name: reg.name, phone: reg.phone };
     setMsg(''); setRegBusy(true);
     try { await api.qrRegCheck({ k: qrKey, ...body }); } catch (err) { setMsg('❌ ' + err.message); setRegBusy(false); return; }
