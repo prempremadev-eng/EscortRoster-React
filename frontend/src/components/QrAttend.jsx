@@ -162,6 +162,9 @@ export default function QrAttend({ qrKey }) {
       }
       setCheck(r);
       if (r.pass) savePass(r.pass);
+      // 🆕 Registration (Prem, 6 Nov): the face is OK → register + IN at once (no second "Register & IN" tap,
+      // guards missed it and then got "Face not matched").
+      if (r.matched && r.registering && !r.swap && !r.early) { setStep('checking'); await punch(r); return; }
       setStep(r.matched ? 'found' : 'nomatch');
     } catch (err) {
       stopCam();
@@ -224,11 +227,11 @@ export default function QrAttend({ qrKey }) {
     return () => { stop = true; clearInterval(id); };
   }, [swapWait, qrKey]);
 
-  async function punch() {
+  async function punch(c = check) {
     setMsg('');
     try {
-      const d = (await api.qrPunch({ k: qrKey, ticket: check.ticket })).data;
-      if (check.action === 'OUT') { savePass(''); saveDuty(''); }
+      const d = (await api.qrPunch({ k: qrKey, ticket: c.ticket })).data;
+      if (c.action === 'OUT') { savePass(''); saveDuty(''); }
       else if (d.token) saveDuty(d.token);
       setDone(d);
       setStep('done');
@@ -332,7 +335,7 @@ export default function QrAttend({ qrKey }) {
           {check.early ? <div className="qr-lock">{check.early}</div>
             : check.handover && !check.handover.ok
             ? <div className="qr-lock">🔒 OUT locked: wait for the Shift {check.handover.code} guard{check.handover.reliever ? ' / ' + check.handover.reliever.name : ''}</div>
-            : <button className={'qr-big ' + (check.action === 'IN' ? 'qr-in' : 'qr-out')} onClick={punch}>{check.action === 'IN' ? (check.registering ? '✅ Register & IN' : '✅ IN') : '🏁 OUT'}</button>}
+            : <button className={'qr-big ' + (check.action === 'IN' ? 'qr-in' : 'qr-out')} onClick={() => punch()}>{check.action === 'IN' ? (check.registering ? '✅ Register & IN' : '✅ IN') : '🏁 OUT'}</button>}
           {check.addedBy && <div className="qr-sub">Added by {check.addedBy}</div>}
           {check.relief && (
             <div className="qr-rel">
