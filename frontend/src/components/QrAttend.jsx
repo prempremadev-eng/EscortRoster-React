@@ -19,22 +19,9 @@ function getFix() {
   });
 }
 
-// A short beep + buzz: the guard looks at the camera, not at the words (29 Oct).
-function beep(freq) {
-  try {
-    const A = window.AudioContext || window.webkitAudioContext;
-    const ctx = beep.ctx || (beep.ctx = new A());
-    const o = ctx.createOscillator(), g = ctx.createGain();
-    o.frequency.value = freq; g.gain.value = 0.25;
-    o.connect(g); g.connect(ctx.destination);
-    o.start(); o.stop(ctx.currentTime + 0.25);
-  } catch { /* no sound */ }
-  try { navigator.vibrate && navigator.vibrate(200); } catch { /* no buzz */ }
-}
-
 // 🔊 Spoken steps (Prem, 6 Nov): a recorded Tamil voice (same on every phone, from the server) says
 // "look straight / close / open your eyes", so the guard keeps looking at the camera.
-// If the clip cannot play: the phone's own voice; no voice → beep only.
+// If the clip cannot play: the phone's own voice. No beep (Prem, 6 Nov: the voice is enough).
 const clips = {};
 function loadVoice(qrKey) {
   ['look', 'close', 'open'].forEach(n => {
@@ -117,7 +104,6 @@ export default function QrAttend({ qrKey }) {
     setMsg(''); setCheck(null); setPurpose(p);
     try { window.speechSynthesis && window.speechSynthesis.getVoices(); } catch { /* no voice */ }
     loadVoice(qrKey); unlockVoice();
-    try { const A = window.AudioContext || window.webkitAudioContext; if (A && !beep.ctx) beep.ctx = new A(); if (beep.ctx) beep.ctx.resume(); } catch { /* no sound */ } // sound needs the tap
     try {
       setStep('gps');
       fix.current = await getFix();
@@ -143,11 +129,11 @@ export default function QrAttend({ qrKey }) {
       // Live check (29 Oct): close the eyes for the second photo; a photo or a screen cannot.
       setHint('😌 Close your eyes · கண்ணை மூடுங்கள்');
       setCount('😌');
-      beep(880);
+      try { navigator.vibrate && navigator.vibrate(200); } catch { /* no buzz */ } // voice only, no beep (Prem, 6 Nov)
       say('close', 'கண்ணை மூடுங்கள்', 'Close your eyes');
       const shut = [];
       for (const ms of [1400, 600, 600]) { await new Promise(r => setTimeout(r, ms)); shut.push(snap()); }
-      beep(523);
+      try { navigator.vibrate && navigator.vibrate(200); } catch { /* no buzz */ }
       setHint('✅ Open your eyes · கண்ணைத் திறங்கள்');
       say('open', 'கண்ணைத் திறங்கள்', 'Open your eyes');
       setCount('👀');
@@ -256,7 +242,7 @@ export default function QrAttend({ qrKey }) {
           <ol>
             <li>Stand at the gate, Location ON · கேட்டில் நில்லுங்கள், Location ON</li>
             <li>Look straight at the camera: 3 · 2 · 1 · கேமராவை நேராகப் பாருங்கள்</li>
-            <li>🔔 Beep → close your eyes for 2 seconds, open at the second beep · முதல் பீப் → 2 வினாடி கண்ணை மூடுங்கள், இரண்டாவது பீப் → திறங்கள்</li>
+            <li>🔊 Listen: close your eyes when the voice says so, open when it says open · குரல் சொல்லும்போது கண்ணை மூடுங்கள், திறக்கச் சொன்னதும் திறங்கள்</li>
             <li>✅ IN / 🏁 OUT</li>
           </ol>
         </div>
