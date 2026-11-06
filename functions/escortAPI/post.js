@@ -77,9 +77,9 @@ module.exports = function postRoutes(app, h) {
 
   // Presence = who stood at a post from when to when (main guard or a cover during a break).
   // "Who was here at 01:20?" in History reads these rows.
-  function openPresence(catalystApp, postId, guardId, logId, kind) {
+  function openPresence(catalystApp, postId, guardId, logId, kind, fromAt) {
     return catalystApp.datastore().table('Presence').insertRow({
-      post_id: postId, guard_id: guardId, duty_log_id: logId, kind, from_at: nowStamp()
+      post_id: postId, guard_id: guardId, duty_log_id: logId, kind, from_at: fromAt || nowStamp()
     });
   }
 
@@ -305,10 +305,11 @@ module.exports = function postRoutes(app, h) {
       if (!log) throw new Error('Your card IN is not there yet.');
       if (log.shift_code !== GENERAL) throw new Error('Only for the general shift.');
       if (log.status !== 'waiting') throw new Error('Your duty has already started.');
-      const now = nowStamp();
+      // On duty from the card IN time (Prem, 6 Nov: he was IN at 08:19, the page opening later is not his start).
+      const now = log.in_at ? String(log.in_at).slice(0, 16) : nowStamp();
       await catalystApp.datastore().table('DutyLog').updateRow({ ROWID: log.ROWID, status: 'on_duty', taken_over_at: now });
-      await openPresence(catalystApp, log.post_id, me.ROWID, log.ROWID, 'main');
-      await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, kind: 'system', text: me.guard_name + ' started general duty · ' + hhmm(now) });
+      await openPresence(catalystApp, log.post_id, me.ROWID, log.ROWID, 'main', now);
+      await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: me.ROWID, kind: 'system', text: me.guard_name + ' card IN · on duty · ' + hhmm(now) });
       res.status(200).json({ status: 'success', data: { started: hhmm(now) } });
     } catch (err) {
       fail(res, err);
