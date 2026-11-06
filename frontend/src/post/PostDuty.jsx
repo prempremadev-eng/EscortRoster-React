@@ -27,6 +27,11 @@ export default function PostDuty({ token }) {
       setDuty(d);
       if (d.locked) return setView(d.out ? 'out' : 'locked');
       if (d.status === 'handed_over') return setView('done');
+      // G shift / reliever (Prem, 6 Nov): no handover, so after card IN the chat opens straight away
+      // (no "Start duty" step). A/B/C still take over from the guard before them.
+      if (d.status === 'waiting' && d.general) {
+        try { await api.startGeneral(token); return load(); } catch (e) { /* show the Start duty page below */ }
+      }
       if (d.status === 'on_duty' || d.status === 'on_break') return setView('timeline');
       setView(v => (v === 'waiting' ? 'waiting' : 'main'));
     } catch (err) {
