@@ -169,7 +169,7 @@ module.exports = function qrRoutes(app, h) {
       await branchByKey(catalystApp.zcql(), req.query.k);
       if (!voiceCache[n]) {
         const bucket = catalystApp.stratus().bucket(BUCKET);
-        const key = 'voice/ta-' + n + '-v1.wav';
+        const key = 'voice/ta-' + n + '-v2-kavitha.wav';
         try {
           const chunks = [];
           for await (const c of await bucket.getObject(key)) chunks.push(Buffer.from(c));
@@ -180,7 +180,7 @@ module.exports = function qrRoutes(app, h) {
           if (!apiKey) throw new Error('Voice is not set up (no key).');
           const r = await fetch('https://api.sarvam.ai/text-to-speech', {
             method: 'POST', headers: { 'api-subscription-key': apiKey, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ inputs: [VOICE_TEXT[n]], target_language_code: 'ta-IN', model: 'bulbul:v3' })
+            body: JSON.stringify({ inputs: [VOICE_TEXT[n]], target_language_code: 'ta-IN', model: 'bulbul:v3', speaker: 'kavitha' })
           });
           if (!r.ok) { const t = await r.text(); console.error('Sarvam TTS failed:', r.status, t); throw new Error('Voice failed (' + r.status + '): ' + t.slice(0, 160)); }
           const audio = Buffer.from((await r.json()).audios[0], 'base64');

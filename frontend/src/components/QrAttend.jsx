@@ -39,7 +39,7 @@ const clips = {};
 function loadVoice(qrKey) {
   ['look', 'close', 'open'].forEach(n => {
     if (clips[n]) return;
-    try { const a = new Audio(apiUrl('/qrVoice?k=' + encodeURIComponent(qrKey) + '&n=' + n)); a.preload = 'auto'; clips[n] = a; } catch { /* no audio */ }
+    try { const a = new Audio(apiUrl('/qrVoice?k=' + encodeURIComponent(qrKey) + '&n=' + n + '&v=2')); a.preload = 'auto'; clips[n] = a; } catch { /* no audio */ }
   });
 }
 // Phones play sound only after a tap: on the IN / OUT tap each clip is started silently once.
