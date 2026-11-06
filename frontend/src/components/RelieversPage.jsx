@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
+import { setupLink } from './GuardLinks.jsx';
 
 // #relievers (Prem, 29 Oct): relievers at QR gates (Cumbum). The guard on duty adds them; the first IN registers
 // the face. Not guards: they only show here, on the day schedule and under the month roster.
@@ -17,6 +18,13 @@ export default function RelieversPage() {
   async function remove(p) {
     if (!window.confirm('Remove ' + p.name + ' fully? Their photo, phone and all their relief shifts are deleted. This cannot be undone.')) return;
     try { const r = (await api.qrRelieverRemove(p.id)).data; setNote('🗑 ' + r.removed + ' removed (' + r.shifts + ' shift(s), ' + r.photos + ' photo(s)).'); setList(l => l.filter(x => x.id !== p.id)); } catch (err) { setError(err.message); }
+  }
+  // 📋 Copy link (Prem, 6 Nov): send it on WhatsApp; the reliever opens his duty page (chat, break) with it.
+  const [copied, setCopied] = useState('');
+  async function copyLink(p) {
+    const link = setupLink(p.token);
+    try { await navigator.clipboard.writeText(link); setCopied(p.id); setNote('📋 ' + p.name + ' link copied. Send it on WhatsApp.'); }
+    catch { window.prompt('Copy this link', link); }
   }
   return (
     <>
@@ -46,6 +54,9 @@ export default function RelieversPage() {
                   <span>Came {p.visits}×{p.last ? ' · last ' + p.last : ''}</span>
                   {p.addedBy && <span>Added by {p.addedBy}</span>}
                   {!p.photo && <span>No face yet (not come yet)</span>}
+                  {p.token
+                    ? <button className="btn" onClick={() => copyLink(p)}>{copied === p.id ? '✅ Copied' : '📋 Copy link'}</button>
+                    : <span>Link after the first IN</span>}
                   <button className="btn secondary master-danger" onClick={() => remove(p)}>🗑 Remove</button>
                 </div>
               </div>

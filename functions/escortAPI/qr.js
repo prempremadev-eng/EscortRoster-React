@@ -725,9 +725,14 @@ module.exports = function qrRoutes(app, h) {
       const branch = auth.requireBranch(req, requireRowId(req.query.branch));
       const bucket = catalystApp.stratus().bucket(BUCKET);
       const list = [];
-      for (const p of await relieversOf(zcql, branch)) {
+      const people = await relieversOf(zcql, branch);
+      // 📋 Copy link (Prem, 6 Nov): the reliever's duty page link (his guard profile, made at the first IN).
+      const gids = people.map(p => p.guard_id).filter(Boolean).map(requireRowId);
+      const tokens = {};
+      if (gids.length) (await zcql.executeZCQLQuery(`SELECT ROWID, guard_token FROM Guards WHERE ROWID IN (${gids.join(', ')}) AND is_active = 'true'`)).forEach(r => { tokens[String(r.Guards.ROWID)] = r.Guards.guard_token || ''; });
+      for (const p of people) {
         const last = (await zcql.executeZCQLQuery(`SELECT duty_date, shift_code, in_at, added_by FROM ReliefShifts WHERE reliever_id = ${p.ROWID} ORDER BY CREATEDTIME DESC LIMIT 1`)).map(r => r.ReliefShifts)[0] || {};
-        list.push({ id: String(p.ROWID), name: p.name, phone: p.phone, visits: Number(p.visits) || 0, photo: await signed(bucket, p.photo_key), last: last.duty_date ? last.duty_date + ' · ' + last.shift_code + (last.in_at ? '' : ' (did not come)') : '', addedBy: last.added_by || '' });
+        list.push({ id: String(p.ROWID), name: p.name, phone: p.phone, visits: Number(p.visits) || 0, photo: await signed(bucket, p.photo_key), last: last.duty_date ? last.duty_date + ' · ' + last.shift_code + (last.in_at ? '' : ' (did not come)') : '', addedBy: last.added_by || '', token: tokens[String(p.guard_id)] || '' });
       }
       ok(res, list.sort((a, b) => b.visits - a.visits || a.name.localeCompare(b.name)));
     } catch (err) {
