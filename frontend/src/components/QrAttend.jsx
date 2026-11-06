@@ -133,7 +133,8 @@ export default function QrAttend({ qrKey }) {
     if (step === 'found' && check && !check.swap && check.handover && !check.handover.ok) say('locked');
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveDuty = t => { try { t ? localStorage.setItem('qr-duty', JSON.stringify({ t, until: Date.now() + 18 * 3600000 })) : localStorage.removeItem('qr-duty'); } catch { /* private mode */ } };
-  const dutyLink = (() => { try { const v = JSON.parse(localStorage.getItem('qr-duty') || 'null'); return v && v.until > Date.now() ? v.t : ''; } catch { return ''; } })();
+  // Also the guard link this phone opened before (main.jsx keeps it), e.g. an IN made before this button came (Prem, 6 Nov).
+  const dutyLink = (() => { try { const v = JSON.parse(localStorage.getItem('qr-duty') || 'null'); return v && v.until > Date.now() ? v.t : (localStorage.getItem('guard_token') || ''); } catch { return ''; } })();
   const readPass = () => { try { return localStorage.getItem(passKey) || ''; } catch { return ''; } };
 
   useEffect(() => { api.qrSite(qrKey).then(r => setSite(r.data)).catch(err => setMsg(err.message)); }, [qrKey]);
