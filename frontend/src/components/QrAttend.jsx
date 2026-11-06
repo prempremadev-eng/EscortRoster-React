@@ -45,33 +45,50 @@ function voiceOf(msg) {
   if (/face|camera|one person/i.test(m)) return 'front';
   return 'retry';
 }
-const raw = {}, clips = {};
-function loadVoice(qrKey) {
-  VOICE_KEYS.forEach(n => {
-    if (raw[n]) return;
-    raw[n] = fetch(apiUrl('/qrVoice?k=' + encodeURIComponent(qrKey) + '&n=' + n + '&v=2')).then(r => (r.ok ? r.arrayBuffer() : null)).catch(() => null);
-  });
+
+// Clips (mp3, small) are fetched when the page opens: the 3 camera steps first, the rest after. Each is decoded
+// as soon as it arrives, so it plays at once later. Not ready yet → the phone's own voice says it (6 Nov:
+// a guard on slow site data heard nothing and did not close his eyes).
+const ready = {};
+let loading = false;
+function audioCtx() {
+  try { const A = window.AudioContext || window.webkitAudioContext; if (A && !ctx) ctx = new A(); } catch { ctx = null; }
+  return ctx;
 }
-// On the tap: start (or wake) the sound, then decode the clips.
+function loadOne(qrKey, n) {
+  return fetch(apiUrl('/qrVoice?k=' + encodeURIComponent(qrKey) + '&n=' + n + '&v=3'))
+    .then(r => (r.ok ? r.arrayBuffer() : null))
+    .then(buf => (buf && audioCtx() ? new Promise(ok => ctx.decodeAudioData(buf, ok, () => ok(null))) : null))
+    .then(audio => { if (audio) ready[n] = audio; })
+    .catch(() => {});
+}
+function loadVoice(qrKey) {
+  if (loading) return;
+  loading = true;
+  Promise.all(VOICE_KEYS.slice(0, 3).map(n => loadOne(qrKey, n)))
+    .then(() => VOICE_KEYS.slice(3).reduce((p, n) => p.then(() => loadOne(qrKey, n)), Promise.resolve()));
+}
+// On the IN / OUT tap: wake the sound (phones play only after a tap).
 function unlockVoice() {
   try {
-    const A = window.AudioContext || window.webkitAudioContext;
-    if (A && !ctx) ctx = new A();
-    if (ctx && ctx.state !== 'running') ctx.resume();
-    if (ctx) { const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource(); s.buffer = b; s.connect(ctx.destination); s.start(0); }
-  } catch { ctx = null; }
-  Object.keys(raw).forEach(n => {
-    if (clips[n] || !ctx) return;
-    clips[n] = raw[n].then(buf => (buf ? new Promise(ok => ctx.decodeAudioData(buf.slice(0), ok, () => ok(null))) : null)).catch(() => null);
-  });
+    if (!audioCtx()) return;
+    if (ctx.state !== 'running') ctx.resume();
+    const b = ctx.createBuffer(1, 1, 22050), src = ctx.createBufferSource(); src.buffer = b; src.connect(ctx.destination); src.start(0);
+  } catch { /* no sound */ }
 }
+const SPOKEN = {
+  look: 'கேமராவை நேராகப் பாருங்கள்', close: 'கண்ணை மூடுங்கள்', open: 'கண்ணைத் திறங்கள்',
+  in_ok: 'IN பதிவு செய்யப்பட்டது', out_ok: 'OUT பதிவு செய்யப்பட்டது', reg_ok: 'பதிவு முடிந்தது',
+  nomatch: 'முகம் பொருந்தவில்லை', already: 'ஏற்கனவே IN செய்துள்ளீர்கள்', retry: 'மீண்டும் முயற்சிக்கவும்'
+};
 function say(n, ta, en) {
-  if (!ctx || !clips[n]) return ta ? speak(ta, en) : undefined;
-  clips[n].then(audio => {
-    if (!audio) return ta ? speak(ta, en) : undefined;
-    try { if (ctx.state !== 'running') ctx.resume(); const s = ctx.createBufferSource(); s.buffer = audio; s.connect(ctx.destination); s.start(0); }
-    catch { if (ta) speak(ta, en); }
-  });
+  const audio = ready[n];
+  if (audio && ctx) {
+    try { if (ctx.state !== 'running') ctx.resume(); const src = ctx.createBufferSource(); src.buffer = audio; src.connect(ctx.destination); src.start(0); return; }
+    catch { /* phone voice below */ }
+  }
+  const t = ta || SPOKEN[n];
+  if (t) speak(t, en || '');
 }
 function speak(ta, en) {
   try {
