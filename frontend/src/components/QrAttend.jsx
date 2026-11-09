@@ -143,7 +143,7 @@ export default function QrAttend({ qrKey }) {
   // back to this page (pressed IN again) opens the chat from here; OUT forgets it.
   useEffect(() => { loadVoice(qrKey); }, [qrKey]);
   // 🔊 Results by voice too: the message, no face match, IN / OUT done, OUT locked.
-  useEffect(() => { if (msg && !/^✅ .*Opening/.test(msg)) say(voiceOf(msg)); else if (msg) say('already'); }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (msg && /^🚫 இந்த முகம்/.test(msg)) return; if (msg && !/^✅ .*Opening/.test(msg)) say(voiceOf(msg)); else if (msg) say('already'); }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (step === 'nomatch') say('nomatch');
     if (step === 'done' && done) say(check && check.action === 'OUT' ? 'out_ok' : check && check.registering ? 'reg_ok' : 'in_ok');
@@ -202,6 +202,14 @@ export default function QrAttend({ qrKey }) {
       setStep('checking');
       last.current = { k: qrKey, lat: fix.current.coords.latitude, lng: fix.current.coords.longitude, acc: fix.current.coords.accuracy, photo: c.toDataURL('image/jpeg', 0.85), photo2: shut[0].toDataURL('image/jpeg', 0.75), photo3: shut[1].toDataURL('image/jpeg', 0.75), photo4: shut[2].toDataURL('image/jpeg', 0.75), c: ch.c, w: c.width, light };
       const r = (await api.qrCheck({ ...last.current, purpose: p, ...(reg || {}) })).data;
+      // Same face already registered for someone (Prem, 9 Nov): say who, in Tamil first, and speak it with the name.
+      if (r.dup) {
+        stopCam();
+        setMsg('🚫 இந்த முகம் ஏற்கனவே ' + r.name + ' பெயரில் பதிவு செய்யப்பட்டுள்ளது. ஒருவருக்கு ஒரு பதிவு மட்டுமே. அலுவலகத்தைக் கேளுங்கள்.\n(This face is already registered as ' + r.name + '. One person, one registration. Ask the office.)');
+        setStep('start');
+        loadOne(qrKey, 'dup-' + r.gid).then(() => say('dup-' + r.gid, '', '')).then(() => { if (!ready['dup-' + r.gid]) say('dupface'); });
+        return;
+      }
       // Already IN (Prem, 6 Nov): the face is enough, his duty page opens (no link to send).
       if (r.already) {
         if (r.token) { saveDuty(r.token); setMsg('✅ ' + r.name + ': already IN since ' + r.since + '. Opening your duty page…'); setStep('start'); setTimeout(() => window.location.replace('#guard/' + r.token), 1200); return; }
@@ -298,7 +306,7 @@ export default function QrAttend({ qrKey }) {
   return (
     <div className="qr">
       <div className="qr-head"><b>{site ? site.branch : 'NightOwl'}</b><span>Attendance</span></div>
-      {msg && <div className="qr-msg">{msg}</div>}
+      {msg && <div className="qr-msg" style={{ whiteSpace: 'pre-line' }}>{msg}</div>}
       {site && !site.ready && <div className="qr-msg">The gate location is not set yet. Ask the office.</div>}
 
       {step === 'start' && site && site.ready && (help || firstTime) && (

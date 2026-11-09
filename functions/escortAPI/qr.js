@@ -185,13 +185,23 @@ module.exports = function qrRoutes(app, h) {
   const voiceCache = {}; // name → Buffer while the function stays warm
   app.get('/qrVoice', async (req, res) => {
     try {
-      const n = String(req.query.n || '');
-      if (!VOICE_TEXT[n]) throw new Error('Unknown voice.');
+      let n = String(req.query.n || '');
       const catalystApp = admin(req);
-      await branchByKey(catalystApp.zcql(), req.query.k);
+      const site = await branchByKey(catalystApp.zcql(), req.query.k);
+      // "dup-<guard>": the duplicate-face sentence with that guard's name (Prem, 9 Nov). Only a guard of this site.
+      let text = VOICE_TEXT[n], key = 'voice/ta-' + n + '-v3-kavitha.mp3'; // mp3 (Prem, 6 Nov: wav was ~4 MB in all, too slow on site data)
+      const dupM = n.match(/^dup-(\d{5,20})$/);
+      if (dupM) {
+        const g = (await catalystApp.zcql().executeZCQLQuery(`SELECT guard_name FROM Guards WHERE ROWID = ${requireRowId(dupM[1])} AND branch_id = ${site.ROWID}`))[0];
+        if (!g) throw new Error('Unknown voice.');
+        const name = String(g.Guards.guard_name || '').trim();
+        text = 'இந்த முகம் ஏற்கனவே ' + name + ' பெயரில் பதிவு செய்யப்பட்டுள்ளது. ஒருவருக்கு ஒரு பதிவு மட்டுமே. அலுவலகத்தைக் கேளுங்கள்.';
+        n = n + '-' + crypto.createHash('sha1').update(name).digest('hex').slice(0, 8); // a new name → a new clip
+        key = 'voice/' + n + '.mp3';
+      }
+      if (!text) throw new Error('Unknown voice.');
       if (!voiceCache[n]) {
         const bucket = catalystApp.stratus().bucket(BUCKET);
-        const key = 'voice/ta-' + n + '-v3-kavitha.mp3'; // mp3 (Prem, 6 Nov: wav was ~4 MB in all, too slow on site data)
         try {
           const chunks = [];
           for await (const c of await bucket.getObject(key)) chunks.push(Buffer.from(c));
@@ -202,7 +212,7 @@ module.exports = function qrRoutes(app, h) {
           if (!apiKey) throw new Error('Voice is not set up (no key).');
           const r = await fetch('https://api.sarvam.ai/text-to-speech', {
             method: 'POST', headers: { 'api-subscription-key': apiKey, 'Content-Type': 'application/json' },
-            body: JSON.stringify({ inputs: [VOICE_TEXT[n]], target_language_code: 'ta-IN', model: 'bulbul:v3', speaker: 'kavitha', output_audio_codec: 'mp3' })
+            body: JSON.stringify({ inputs: [text], target_language_code: 'ta-IN', model: 'bulbul:v3', speaker: 'kavitha', output_audio_codec: 'mp3' })
           });
           if (!r.ok) { const t = await r.text(); console.error('Sarvam TTS failed:', r.status, t); throw new Error('Voice failed (' + r.status + '): ' + t.slice(0, 160)); }
           const audio = Buffer.from((await r.json()).audios[0], 'base64');
@@ -471,7 +481,7 @@ module.exports = function qrRoutes(app, h) {
         if (dup) {
           console.log('qr reg duplicate', JSON.stringify({ g: String(dup.g.ROWID), conf: dup.conf }));
           await tellOffice(catalystApp, b.ROWID, '⚠️ Same face, second registration', 'Someone tried to register with the face of ' + dup.g.guard_name + '.');
-          throw new Error('🚫 This face is already registered as ' + dup.g.guard_name + '. One person, one registration. Ask the office.');
+          return ok(res, { dup: true, name: dup.g.guard_name, gid: String(dup.g.ROWID) });
         }
         const who = await regWho(catalystApp, zcql, b, req.body, day, false);
         if (who.p) {
