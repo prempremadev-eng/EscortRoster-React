@@ -32,6 +32,7 @@ const auth = require('./auth.js')(catalyst, selectAll);
 app.use(auth.middleware);
 // 📜 History log (audit.js): records every office change after it succeeds. Must stay before the routes.
 require('./audit.js')(app, { catalyst, selectAll, requireDate, fail, auth });
+require('./shots.js')(app, { catalyst, fail, getSetting }); // 📤 screenshot drop (secret key, no login)
 
 /* ---------------- HELPERS ---------------- */
 

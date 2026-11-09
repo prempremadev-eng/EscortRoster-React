@@ -97,6 +97,9 @@ async function vehiclePhoto(path, blob) {
 export const apiUrl = path => API_BASE + path;
 
 export const api = {
+  shotUpload: body => apiCall('POST', '/shotUpload', body),
+  shotList: k => apiCall('GET', '/shotList?k=' + encodeURIComponent(k)),
+  shotRemove: body => apiCall('POST', '/shotRemove', body),
   getEscorts: () => apiCall('GET', '/getEscorts'),
   addEscort: escort => apiCall('POST', '/addEscort', escort),
   updateEscort: escort => apiCall('PUT', '/updateEscort', escort),

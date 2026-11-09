@@ -25,6 +25,7 @@ import './post/post.css';
 import './supervisor/supervisor.css';
 import AuthGate from './auth/AuthGate.jsx';
 import QrAttend from './components/QrAttend.jsx';
+import ShotDrop from './components/ShotDrop.jsx';
 import RelieversPage from './components/RelieversPage.jsx';
 import AttendancePage from './components/AttendancePage.jsx';
 import SplashHost from './components/Splash.jsx';
@@ -126,6 +127,7 @@ function Root() {
   // Guard's phone: the secret link is the key, no login.
   // Gate QR attendance (Cumbum, 29 Oct): any phone, no login.
   if (hash.startsWith('#qr/')) return <QrAttend qrKey={hash.slice('#qr/'.length)} />;
+  if (hash.startsWith('#shots/')) return <ShotDrop k={hash.slice('#shots/'.length)} />;
   if (hash.startsWith('#group/')) return <GuardGroup token={hash.slice('#group/'.length)} />;
   if (hash.startsWith('#setup/')) return <GuardSetup token={hash.slice('#setup/'.length)} />;
   // Urgent escort (Prem, 4 Nov): a post guard on a 🚕 Escort break fills his Extra row.
