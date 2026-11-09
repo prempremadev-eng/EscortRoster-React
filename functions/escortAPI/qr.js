@@ -12,6 +12,8 @@ const crypto = require('crypto');
 
 const BUCKET = (process.env.MEDIA_BUCKET || 'escortcardaccess-media');
 const KEY_RE = /^[a-f0-9]{24}$/;
+// Gate messages: Tamil first, English below (Prem, 9 Nov: guards read Tamil better).
+const TA = (ta, en) => ta + '\n(' + en + ')';
 const MAX_ACCURACY_M = 100; // GPS worse than this: ask to step outside and try again
 const TICKET_MS = 3 * 60000; // the photo check is valid for 3 minutes before IN / OUT is pressed
 const OPEN_IN_HOURS = 16; // an IN older than this is not closed by the next scan (forgotten OUT)
@@ -27,12 +29,12 @@ module.exports = function qrRoutes(app, h) {
     const a = Math.sin((lat2 - lat1) * r / 2) ** 2 + Math.cos(lat1 * r) * Math.cos(lat2 * r) * Math.sin((lng2 - lng1) * r / 2) ** 2;
     return Math.round(2 * R * Math.asin(Math.sqrt(a)));
   }
-  const num = (v, min, max) => { const n = Number(v); if (!Number.isFinite(n) || n < min || n > max) throw new Error('Location missing. Allow location and try again.'); return n; };
+  const num = (v, min, max) => { const n = Number(v); if (!Number.isFinite(n) || n < min || n > max) throw new Error(TA('📍 இடம் கிடைக்கவில்லை. Location அனுமதி கொடுத்து மீண்டும் முயற்சிக்கவும்.', 'Location missing. Allow location and try again.')); return n; };
 
   async function branchByKey(zcql, key) {
-    if (!KEY_RE.test(String(key || ''))) throw new Error('This QR is not valid.');
+    if (!KEY_RE.test(String(key || ''))) throw new Error(TA('இந்த QR செல்லாது.', 'This QR is not valid.'));
     const rows = await zcql.executeZCQLQuery(`SELECT ROWID, branch_name, lat, lng, radius_m, is_active FROM Branches WHERE qr_key = '${key}'`);
-    if (!rows.length || rows[0].Branches.is_active !== 'true') throw new Error('This QR is not valid.');
+    if (!rows.length || rows[0].Branches.is_active !== 'true') throw new Error(TA('இந்த QR செல்லாது.', 'This QR is not valid.'));
     return rows[0].Branches;
   }
 
@@ -45,9 +47,9 @@ module.exports = function qrRoutes(app, h) {
   }
   async function readTicket(catalystApp, ticket) {
     const [body, mac] = String(ticket || '').split('.');
-    if (!body || mac !== sign(await secret(catalystApp), body)) throw new Error('Scan again.');
+    if (!body || mac !== sign(await secret(catalystApp), body)) throw new Error(TA('மீண்டும் ஸ்கேன் செய்யவும்.', 'Scan again.'));
     const data = JSON.parse(Buffer.from(body, 'base64url').toString());
-    if (Date.now() - data.t > (data.x || TICKET_MS)) throw new Error(data.x ? 'Scan again.' : 'Too slow: scan again.');
+    if (Date.now() - data.t > (data.x || TICKET_MS)) throw new Error(data.x ? TA('மீண்டும் ஸ்கேன் செய்யவும்.', 'Scan again.') : TA('நேரம் முடிந்தது. மீண்டும் ஸ்கேன் செய்யவும்.', 'Too slow: scan again.'));
     return data;
   }
 
@@ -87,8 +89,8 @@ module.exports = function qrRoutes(app, h) {
     let r;
     try { r = await catalystApp.zia().analyseFace(fs.createReadStream(file), { mode: 'advanced' }); } catch (err) { console.error('analyseFace failed:', err.message || err); return { why: '' }; }
     const faces = (r && r.faces) || [];
-    if (!faces.length) return { why: '🙂 No face found. Face the camera in good light.' };
-    if (faces.length > 1) return { why: '🙂 Only one person in the photo, please.' };
+    if (!faces.length) return { why: TA('🙂 முகம் தெரியவில்லை. வெளிச்சத்தில் கேமராவைப் பாருங்கள்.', 'No face found. Face the camera in good light.') };
+    if (faces.length > 1) return { why: TA('🙂 புகைப்படத்தில் ஒருவர் மட்டும் இருக்க வேண்டும்.', 'Only one person in the photo, please.') };
     const f = faces[0], lm = f.landmarks || {};
     const k = name => Object.keys(lm).find(x => x.toLowerCase().replace(/[^a-z]/g, '') === name);
     // Points as [x, y] pairs. Nose: the last 5 points are the tip and nostrils (the bridge stays centred when
@@ -109,9 +111,9 @@ module.exports = function qrRoutes(app, h) {
     const open = list => { if (list.length < 3) return null; const xs = list.map(p => p.x), ys = list.map(p => p.y); const w = Math.max(...xs) - Math.min(...xs); return w ? (Math.max(...ys) - Math.min(...ys)) / w : null; };
     const eo = [open(pts(lm[k('lefteye')])), open(pts(lm[k('righteye')]))].filter(v => v !== null);
     const out = { byJaw, byEyes, eyes: eo.length ? eo.reduce((a, b) => a + b, 0) / eo.length : null };
-    if (imgWidth && box.length >= 4 && Math.abs(box[2] - box[0]) < imgWidth * 0.2) return { ...out, why: '🙂 Come closer to the camera.' };
-    if (Math.abs(re.y - le.y) / eye > 0.2) return { ...out, why: '🙂 Keep your head straight (not tilted).' };
-    if (Math.abs(byEyes - 0.5) > 0.12 || Math.abs(byJaw - 0.5) > 0.1) return { ...out, why: '🙂 Look straight at the camera (not to the side).' };
+    if (imgWidth && box.length >= 4 && Math.abs(box[2] - box[0]) < imgWidth * 0.2) return { ...out, why: TA('🙂 கேமராவுக்கு அருகில் வாருங்கள்.', 'Come closer to the camera.') };
+    if (Math.abs(re.y - le.y) / eye > 0.2) return { ...out, why: TA('🙂 தலையை நேராக வையுங்கள் (சாய்க்க வேண்டாம்).', 'Keep your head straight (not tilted).') };
+    if (Math.abs(byEyes - 0.5) > 0.12 || Math.abs(byJaw - 0.5) > 0.1) return { ...out, why: TA('🙂 கேமராவை நேராகப் பாருங்கள் (பக்கவாட்டில் வேண்டாம்).', 'Look straight at the camera (not to the side).') };
     return { ...out, why: '' };
   }
 
@@ -311,7 +313,7 @@ module.exports = function qrRoutes(app, h) {
     const keep = list.filter(x => Date.now() - x.t < 12 * 3600000);
     await catalystApp.cache().segment().put(swapKey(branchId), JSON.stringify(keep), 12);
   }
-  const phoneOf = v => { const d = String(v || '').replace(/\D/g, '').slice(-10); if (d.length !== 10) throw new Error('Phone: 10 digits.'); return d; };
+  const phoneOf = v => { const d = String(v || '').replace(/\D/g, '').slice(-10); if (d.length !== 10) throw new Error(TA('தொலைபேசி எண்: 10 இலக்கங்கள்.', 'Phone: 10 digits.')); return d; };
   const masked = p => (p ? '••••' + String(p).slice(-4) : '');
   // The shift after the one this guard is on, and its duty day (C → next day's A).
   async function nextSlot(zcql, guardId, open, branchId) {
@@ -375,20 +377,20 @@ module.exports = function qrRoutes(app, h) {
       const row = p && (await reliefRows(zcql, b.ROWID, [plusDay(day, -1), day, plusDay(day, 1)])).filter(r => String(r.reliever_id) === String(p.ROWID) && !r.in_at && !r.out_at)[0];
       if (!p || !row) {
         if (tell) await tellOffice(catalystApp, b.ROWID, '⚠️ Unknown reliever at the gate', 'Phone ••••' + phone.slice(-4) + ' tried to register but was not added by the guard on duty.');
-        throw new Error('This phone number is not added today. Check the number, or ask the guard on duty to add your name and phone.');
+        throw new Error(TA('இந்த தொலைபேசி எண் இன்று சேர்க்கப்படவில்லை. எண்ணைச் சரிபார்க்கவும், அல்லது பணியில் உள்ள காவலரிடம் உங்கள் பெயர், எண்ணைச் சேர்க்கச் சொல்லுங்கள்.', 'This phone number is not added today. Check the number, or ask the guard on duty to add your name and phone.'));
       }
-      if (!sameName(body.name, p.name)) throw new Error('Name does not match this phone number. Give your full name as the guard on duty added it.');
-      if (p.photo_key) throw new Error('Already registered. Press ✅ IN.');
+      if (!sameName(body.name, p.name)) throw new Error(TA('பெயர் இந்த எண்ணுடன் பொருந்தவில்லை. பணியில் உள்ள காவலர் சேர்த்த அதே முழுப் பெயரைக் கொடுங்கள்.', 'Name does not match this phone number. Give your full name as the guard on duty added it.'));
+      if (p.photo_key) throw new Error(TA('நீங்கள் ஏற்கனவே பதிவு செய்துள்ளீர்கள். ✅ IN அழுத்தவும்.', 'Already registered. Press ✅ IN.'));
       return { p, row };
     }
     const idT = String(body.id || '').trim().replace(/^0+/, '').toUpperCase();
     const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number, phone, photo_key, tags FROM Guards WHERE branch_id = ${b.ROWID} AND is_active = 'true'`)).map(r => r.Guards)
       .find(x => String(x.id_number).replace(/^0+/, '').toUpperCase() === idT);
-    if (!g) throw new Error('ID ' + (body.id || '') + ' is not a guard of this site. Check the ID, or ask the office.');
-    if (g.photo_key) throw new Error('Already registered. Press ✅ IN.');
-    if (!sameName(body.name, g.guard_name)) throw new Error('Name does not match ID ' + body.id + '. Give your full name as in the office records (with the initial).');
-    if (g.phone && String(body.phone4 || '').replace(/\D/g, '') !== String(g.phone).replace(/\D/g, '').slice(-4)) throw new Error('Phone (last 4 digits) does not match. Give your correct phone number.');
-    if (await openIn(zcql, g.ROWID)) throw new Error('Already IN.');
+    if (!g) throw new Error(TA('ID ' + (body.id || '') + ' இந்த இடத்தின் காவலர் இல்லை. ID-ஐச் சரிபார்க்கவும், அல்லது அலுவலகத்தைக் கேளுங்கள்.', 'ID ' + (body.id || '') + ' is not a guard of this site. Check the ID, or ask the office.'));
+    if (g.photo_key) throw new Error(TA('நீங்கள் ஏற்கனவே பதிவு செய்துள்ளீர்கள். ✅ IN அழுத்தவும்.', 'Already registered. Press ✅ IN.'));
+    if (!sameName(body.name, g.guard_name)) throw new Error(TA('பெயர் ID ' + body.id + '-உடன் பொருந்தவில்லை. அலுவலக பதிவில் உள்ளபடி முழுப் பெயரை (initial-உடன்) கொடுங்கள்.', 'Name does not match ID ' + body.id + '. Give your full name as in the office records (with the initial).'));
+    if (g.phone && String(body.phone4 || '').replace(/\D/g, '') !== String(g.phone).replace(/\D/g, '').slice(-4)) throw new Error(TA('தொலைபேசி எண்ணின் கடைசி 4 இலக்கங்கள் பொருந்தவில்லை. சரியான எண்ணைக் கொடுங்கள்.', 'Phone (last 4 digits) does not match. Give your correct phone number.'));
+    if (await openIn(zcql, g.ROWID)) throw new Error(TA('நீங்கள் ஏற்கனவே IN செய்துள்ளீர்கள்.', 'Already IN.'));
     return { g };
   }
   app.post('/qrRegCheck', async (req, res) => {
@@ -409,17 +411,17 @@ module.exports = function qrRoutes(app, h) {
       const catalystApp = admin(req);
       const zcql = catalystApp.zcql();
       const b = await branchByKey(zcql, req.body.k);
-      if (!b.lat || !b.lng) throw new Error('The gate location is not set yet. Ask the office.');
+      if (!b.lat || !b.lng) throw new Error(TA('கேட் இடம் இன்னும் அமைக்கப்படவில்லை. அலுவலகத்தைக் கேளுங்கள்.', 'The gate location is not set yet. Ask the office.'));
       const lat = num(req.body.lat, -90, 90), lng = num(req.body.lng, -180, 180);
       const acc = Number(req.body.acc) || 999;
-      if (acc > MAX_ACCURACY_M) throw new Error('📍 GPS is weak (' + Math.round(acc) + ' m). Step outside and try again.');
+      if (acc > MAX_ACCURACY_M) throw new Error(TA('📍 GPS சரியாக இல்லை (' + Math.round(acc) + ' m). வெளியே வந்து மீண்டும் முயற்சிக்கவும்.', 'GPS is weak (' + Math.round(acc) + ' m). Step outside and try again.'));
       const distance = metres(lat, lng, Number(b.lat), Number(b.lng));
       const radius = Number(b.radius_m) || 100;
-      if (distance > radius) throw new Error('📍 You are ' + distance + ' m from the gate (allowed ' + radius + ' m). Come to the gate.');
+      if (distance > radius) throw new Error(TA('📍 நீங்கள் கேட்டிலிருந்து ' + distance + ' m தொலைவில் உள்ளீர்கள் (அனுமதி ' + radius + ' m). கேட் அருகே வாருங்கள்.', 'You are ' + distance + ' m from the gate (allowed ' + radius + ' m). Come to the gate.'));
       const m = String(req.body.photo || '').match(/^data:image\/jpeg;base64,(.+)$/);
-      if (!m) throw new Error('No photo. Try again.');
+      if (!m) throw new Error(TA('புகைப்படம் இல்லை. மீண்டும் முயற்சிக்கவும்.', 'No photo. Try again.'));
       const photo = Buffer.from(m[1], 'base64');
-      if (photo.length > 1048576) throw new Error('Photo too big.');
+      if (photo.length > 1048576) throw new Error(TA('புகைப்படம் மிகப் பெரியது.', 'Photo too big.'));
 
       // Registered guards of this branch with a photo. Typed ID → only that guard; else the guard who is
       // IN now comes first (likely OUT), then those whose roster says a shift today.
@@ -428,7 +430,7 @@ module.exports = function qrRoutes(app, h) {
       const typed = req.body.purpose === 'REG' ? '' // REG: the typed ID is for registering, not a face filter (29 Oct)
         : String(req.body.id || '').trim().replace(/^0+/, '').toUpperCase();
       let list = typed ? guards.filter(g => String(g.id_number).replace(/^0+/, '').toUpperCase() === typed) : guards;
-      if (typed && !list.length) throw new Error('ID ' + req.body.id + ' has no registered face here. Ask the office.');
+      if (typed && !list.length) throw new Error(TA('ID ' + req.body.id + '-க்கு இங்கு முகம் பதிவு இல்லை. அலுவலகத்தைக் கேளுங்கள்.', 'ID ' + req.body.id + ' has no registered face here. Ask the office.'));
       const rank = {};
       for (const g of list) rank[g.ROWID] = (await openIn(zcql, g.ROWID)) ? 0 : 'ABCG'.includes(await rosterShiftOf(zcql, g.ROWID, qrDay()) || '-') ? 1 : 2;
       list = list.sort((x, y) => rank[x.ROWID] - rank[y.ROWID]);
@@ -442,7 +444,7 @@ module.exports = function qrRoutes(app, h) {
       // photo or a screen cannot close its eyes. Both photos must be the same person.
       // Up to 3 eyes-closed photos (29 Oct: a guard closed late after the beep); the first one with the eyes shut counts.
       const shots = [req.body.photo2, req.body.photo3, req.body.photo4].map(x => String(x || '').match(/^data:image\/jpeg;base64,(.+)$/)).filter(Boolean);
-      if (!shots.length) { cleanTmp(); throw new Error('😌 Close your eyes when asked and try again.'); }
+      if (!shots.length) { cleanTmp(); throw new Error(TA('😌 சொல்லும்போது கண்ணை மூடி மீண்டும் முயற்சிக்கவும்.', 'Close your eyes when asked and try again.')); }
       const first = await measureFace(catalystApp, selfieFile, 0);
       // 29 Oct tests: real blink 0.18–0.23 against 0.32 open (0.55–0.70); a photo stays ≈ 1.0. Limit 0.75.
       let turnFile = null;
@@ -454,9 +456,9 @@ module.exports = function qrRoutes(app, h) {
         if (shut.eyes !== null && shut.eyes !== undefined && shut.eyes < first.eyes * 0.75) { turnFile = f; break; }
       }
       console.log('qr blink', JSON.stringify({ open: first.eyes, closed: seen, light: Number(req.body.light) || null }));
-      if (!turnFile) { cleanTmp(); throw new Error('😌 Close your eyes when you hear the beep (2 seconds) and try again. First time here? Press 🆕 New Registration.'); }
+      if (!turnFile) { cleanTmp(); throw new Error(TA('😌 கண்ணை மூடவில்லை. குரல் சொல்லும்போது கண்ணை மூடி மீண்டும் முயற்சிக்கவும். முதல் முறையா? 🆕 புதிய பதிவு அழுத்தவும்.', 'Close your eyes when the voice says so and try again. First time here? Press 🆕 New Registration.')); }
       const same = await catalystApp.zia().compareFace(fs.createReadStream(selfieFile), fs.createReadStream(turnFile));
-      if (!yes(same && same.matched)) { cleanTmp(); throw new Error('The two photos are not the same person. Try again.'); }
+      if (!yes(same && same.matched)) { cleanTmp(); throw new Error(TA('இரண்டு புகைப்படங்களும் ஒரே நபர் இல்லை. மீண்டும் முயற்சிக்கவும்.', 'The two photos are not the same person. Try again.')); }
       const purpose = ['IN', 'OUT', 'REG'].includes(req.body.purpose) ? req.body.purpose : '';
       const day = qrDay();
       const shifts = await getShifts(zcql, b.ROWID);
@@ -532,7 +534,7 @@ module.exports = function qrRoutes(app, h) {
         if (act === 'IN' && !waiting && inRow) return ok(res, { already: true, token: found.guard_token || '', name: found.guard_name, since: String(inRow.in_at).slice(11, 16) });
         if (!row) {
           if (act === 'IN') await tellOffice(catalystApp, b.ROWID, '⚠️ Reliever without duty at the gate', found.guard_name + ' scanned IN but no guard added him today.');
-          throw new Error(act === 'IN' ? '🔁 ' + found.guard_name + ': no duty allotted today. Ask the guard on duty to add you.' : 'You are not IN. Press ✅ IN.');
+          throw new Error(act === 'IN' ? TA('🔁 ' + found.guard_name + ': இன்று உங்களுக்கு பணி இல்லை. பணியில் உள்ள காவலரிடம் உங்களைச் சேர்க்கச் சொல்லுங்கள்.', 'no duty allotted today. Ask the guard on duty to add you.') : TA('நீங்கள் இன்னும் IN செய்யவில்லை. ✅ IN அழுத்தவும்.', 'You are not IN. Press ✅ IN.'));
         }
         if (act === 'IN') { const late = inCheck(shifts, row.shift_code, row.duty_date); if (late) throw new Error(late.swapTo ? '⏰ உங்கள் reliever பணி Shift ' + row.shift_code + '. அந்த நேரத்தில் வாருங்கள்.' : late.why); }
         else { const early = outCheck(shifts, row.shift_code, row.duty_date); if (early) throw new Error(early); }
@@ -547,7 +549,7 @@ module.exports = function qrRoutes(app, h) {
       const open = await openIn(zcql, found.ROWID);
       // Already IN + the face matched (Prem, 6 Nov): open his duty page, no link needed.
       if (purpose === 'IN' && open) return ok(res, { already: true, token: found.guard_token || '', name: found.guard_name, since: String(open.CREATEDTIME).slice(11, 16) });
-      if (purpose === 'OUT' && !open) throw new Error('You are not IN. Press ✅ IN.');
+      if (purpose === 'OUT' && !open) throw new Error(TA('நீங்கள் இன்னும் IN செய்யவில்லை. ✅ IN அழுத்தவும்.', 'You are not IN. Press ✅ IN.'));
       const action = open ? 'OUT' : 'IN';
       const code = open ? '' : await dutyCode(zcql, found.ROWID, day);
       // Too early for OUT: the screen still opens (Prem, 2 Nov night: the C guard adds the A reliever before 06:00),
@@ -610,18 +612,18 @@ module.exports = function qrRoutes(app, h) {
       const zcql = catalystApp.zcql();
       const b = await branchByKey(zcql, req.body.k);
       const t = await readTicket(catalystApp, req.body.ticket);
-      if (t.b !== String(b.ROWID) || t.a !== 'OUT' || !t.g) throw new Error('Scan again.');
+      if (t.b !== String(b.ROWID) || t.a !== 'OUT' || !t.g) throw new Error(TA('மீண்டும் ஸ்கேன் செய்யவும்.', 'Scan again.'));
       const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE ROWID = ${requireRowId(t.g)}`))[0].Guards;
       const open = await openIn(zcql, g.ROWID);
-      if (!open) throw new Error('You are not IN. Scan again.');
+      if (!open) throw new Error(TA('நீங்கள் IN செய்யவில்லை. மீண்டும் ஸ்கேன் செய்யவும்.', 'You are not IN. Scan again.'));
       const slot = await nextSlot(zcql, g.ROWID, open, b.ROWID);
-      if (!slot) throw new Error('No next shift for you to hand over.');
+      if (!slot) throw new Error(TA('உங்களுக்கு அடுத்த ஷிஃப்ட் இல்லை.', 'No next shift for you to hand over.'));
       let relId = req.body.reliever_id ? String(requireRowId(req.body.reliever_id)) : '';
       const people = await relieversOf(zcql, b.ROWID);
       if (relId && !people.some(p => String(p.ROWID) === relId)) throw new Error('Reliever not found.');
       if (!relId) {
         const name = String(req.body.name || '').replace(/[^A-Za-z .]/g, '').trim().slice(0, 60);
-        if (name.length < 2) throw new Error('Reliever name, please.');
+        if (name.length < 2) throw new Error(TA('Reliever பெயரைக் கொடுங்கள்.', 'Reliever name, please.'));
         const phone = phoneOf(req.body.phone);
         const same = people.find(p => String(p.phone) === phone);
         if (same) relId = String(same.ROWID); // known by the phone number
@@ -629,7 +631,7 @@ module.exports = function qrRoutes(app, h) {
       }
       const table = catalystApp.datastore().table('ReliefShifts');
       const row = activeRow(await reliefRows(zcql, b.ROWID, [slot.day]), slot.code); // an OUT reliever's row is done
-      if (row && row.in_at) throw new Error('The reliever of shift ' + slot.code + ' is already IN.');
+      if (row && row.in_at) throw new Error(TA('Shift ' + slot.code + ' reliever ஏற்கனவே IN செய்துள்ளார்.', 'The reliever of shift ' + slot.code + ' is already IN.'));
       if (row) await table.updateRow({ ROWID: row.ROWID, reliever_id: relId, added_by: g.guard_name });
       else await table.insertRow({ branch_id: b.ROWID, duty_date: slot.day, shift_code: slot.code, reliever_id: relId, added_by: g.guard_name });
       const who = (await relieversOf(zcql, b.ROWID)).find(p => String(p.ROWID) === relId);
@@ -657,7 +659,7 @@ module.exports = function qrRoutes(app, h) {
       if (relId && !people.some(p => String(p.ROWID) === relId)) throw new Error('Reliever not found.');
       if (!relId) {
         const name = String(req.body.name || '').replace(/[^A-Za-z .]/g, '').trim().slice(0, 60);
-        if (name.length < 2) throw new Error('Reliever name, please.');
+        if (name.length < 2) throw new Error(TA('Reliever பெயரைக் கொடுங்கள்.', 'Reliever name, please.'));
         const phone = phoneOf(req.body.phone);
         const same = people.find(p => String(p.phone) === phone);
         if (same) relId = String(same.ROWID);
@@ -686,7 +688,7 @@ module.exports = function qrRoutes(app, h) {
       const zcql = catalystApp.zcql();
       const b = await branchByKey(zcql, req.body.k);
       const t = await readTicket(catalystApp, req.body.pass);
-      if (!t.w || t.b !== String(b.ROWID)) throw new Error('Scan again.');
+      if (!t.w || t.b !== String(b.ROWID)) throw new Error(TA('மீண்டும் ஸ்கேன் செய்யவும்.', 'Scan again.'));
       const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number FROM Guards WHERE ROWID = ${requireRowId(t.g)}`))[0].Guards;
       const open = await openIn(zcql, g.ROWID);
       if (!open) return ok(res, { locked: false, out: true, name: g.guard_name }); // already OUT (e.g. the office allowed it)
@@ -883,7 +885,7 @@ module.exports = function qrRoutes(app, h) {
       const zcql = catalystApp.zcql();
       const b = await branchByKey(zcql, req.body.k);
       const t = await readTicket(catalystApp, req.body.ticket);
-      if (t.a !== 'SWAP' || t.b !== String(b.ROWID)) throw new Error('Scan again.');
+      if (t.a !== 'SWAP' || t.b !== String(b.ROWID)) throw new Error(TA('மீண்டும் ஸ்கேன் செய்யவும்.', 'Scan again.'));
       const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name, id_number FROM Guards WHERE ROWID = ${requireRowId(t.g)}`))[0].Guards;
       const list = await swapsOf(catalystApp, b.ROWID);
       const at = new Date(Date.now() + 330 * 60000).toISOString().slice(11, 16);
@@ -907,7 +909,7 @@ module.exports = function qrRoutes(app, h) {
       const zcql = catalystApp.zcql();
       const b = await branchByKey(zcql, req.body.k);
       const t = await readTicket(catalystApp, req.body.ticket);
-      if (t.a !== 'SWAP' || t.b !== String(b.ROWID)) throw new Error('Scan again.');
+      if (t.a !== 'SWAP' || t.b !== String(b.ROWID)) throw new Error(TA('மீண்டும் ஸ்கேன் செய்யவும்.', 'Scan again.'));
       const x = (await swapsOf(catalystApp, b.ROWID)).filter(r => r.g === t.g && r.day === t.day && r.to === t.to).pop();
       if (!x || x.status === 'pending') return ok(res, { status: 'pending' });
       if (x.status === 'no') return ok(res, { status: 'no' });
@@ -1063,13 +1065,13 @@ module.exports = function qrRoutes(app, h) {
       const zcql = catalystApp.zcql();
       const b = await branchByKey(zcql, req.body.k);
       const t = await readTicket(catalystApp, req.body.ticket);
-      if (t.b !== String(b.ROWID)) throw new Error('Scan again.');
+      if (t.b !== String(b.ROWID)) throw new Error(TA('மீண்டும் ஸ்கேன் செய்யவும்.', 'Scan again.'));
       if (t.a === 'RIN' || t.a === 'ROUT') {
         const { time } = istNow();
         const now = new Date(Date.now() + 330 * 60000).toISOString().slice(0, 16).replace('T', ' ');
         const row = (await zcql.executeZCQLQuery(`SELECT ROWID, duty_date, shift_code, in_at, out_at FROM ReliefShifts WHERE ROWID = ${requireRowId(t.rs)}`))[0];
         const r = row && row.ReliefShifts;
-        if (!r || r.out_at || (t.a === 'RIN') !== !r.in_at) throw new Error('Scan again.');
+        if (!r || r.out_at || (t.a === 'RIN') !== !r.in_at) throw new Error(TA('மீண்டும் ஸ்கேன் செய்யவும்.', 'Scan again.'));
         const rel = (await zcql.executeZCQLQuery(`SELECT ROWID, name, phone, visits, guard_id, photo_key FROM Relievers WHERE ROWID = ${requireRowId(t.rel)}`))[0].Relievers;
         const guard = await relieverGuard(catalystApp, zcql, b, rel, t.reg ? t.s : '');
         let token = '';
@@ -1087,7 +1089,7 @@ module.exports = function qrRoutes(app, h) {
           const hand = await handover(zcql, b.ROWID, guard.ROWID, { duty_date: r.duty_date }, r.shift_code);
           if (!hand.ok) {
             await tellOffice(catalystApp, b.ROWID, '🔒 Reliever ' + rel.name + ' wants to go OUT', 'Shift ' + hand.code + (hand.reliever ? ': reliever ' + hand.reliever.name + ' not IN' : ': nobody IN, no reliever added') + '. Allow OUT on the Schedule page if needed.');
-            throw new Error('🔒 OUT locked: the Shift ' + hand.code + ' guard or reliever is not IN yet. Wait, or ask the office.');
+            throw new Error(TA('🔒 OUT பூட்டப்பட்டுள்ளது: Shift ' + hand.code + ' காவலர் அல்லது reliever இன்னும் IN செய்யவில்லை. காத்திருங்கள், அல்லது அலுவலகத்தைக் கேளுங்கள்.', 'OUT locked: the Shift ' + hand.code + ' guard or reliever is not IN yet. Wait, or ask the office.'));
           }
           await catalystApp.datastore().table('ReliefShifts').updateRow({ ROWID: r.ROWID, out_at: now, out_selfie: t.s });
           await catalystApp.datastore().table('AccessLog').insertRow({ guard_id: guard.ROWID, direction: 'OUT', punch_time: time, duty_date: r.duty_date, source: 'QR', distance_m: t.d, selfie_key: t.s });
@@ -1100,14 +1102,14 @@ module.exports = function qrRoutes(app, h) {
       if (!guard || guard.is_active !== 'true') throw new Error('Guard not found.');
       // Pressed twice, or the state changed since the check: refuse.
       const open = await openIn(zcql, guard.ROWID);
-      if ((t.a === 'IN') !== !open) throw new Error('Already ' + (open ? 'IN' : 'OUT') + '. Scan again.');
+      if ((t.a === 'IN') !== !open) throw new Error(TA('ஏற்கனவே ' + (open ? 'IN' : 'OUT') + ' செய்துள்ளீர்கள். மீண்டும் ஸ்கேன் செய்யவும்.', 'Already ' + (open ? 'IN' : 'OUT') + '. Scan again.'));
       if (t.a === 'OUT') {
         const early = outCheck(await getShifts(zcql, b.ROWID), await shiftNow(zcql, b.ROWID, guard.ROWID, open), open.duty_date);
         if (early) throw new Error(early);
         const hand = await handover(zcql, b.ROWID, guard.ROWID, open);
         if (!hand.ok) {
           await tellOffice(catalystApp, b.ROWID, '🔒 ' + guard.guard_name + ' wants to go OUT', 'Shift ' + hand.code + (hand.reliever ? ': reliever ' + hand.reliever.name + ' not IN' : ': nobody IN, no reliever added') + '. Allow OUT on the Schedule page if needed.');
-          throw new Error('🔒 OUT locked: the Shift ' + hand.code + ' guard or reliever is not IN yet. Wait, or ask the office.');
+          throw new Error(TA('🔒 OUT பூட்டப்பட்டுள்ளது: Shift ' + hand.code + ' காவலர் அல்லது reliever இன்னும் IN செய்யவில்லை. காத்திருங்கள், அல்லது அலுவலகத்தைக் கேளுங்கள்.', 'OUT locked: the Shift ' + hand.code + ' guard or reliever is not IN yet. Wait, or ask the office.'));
         }
       }
       const { time } = istNow();

@@ -143,7 +143,7 @@ export default function QrAttend({ qrKey }) {
   // back to this page (pressed IN again) opens the chat from here; OUT forgets it.
   useEffect(() => { loadVoice(qrKey); }, [qrKey]);
   // 🔊 Results by voice too: the message, no face match, IN / OUT done, OUT locked.
-  useEffect(() => { if (msg && /^🚫 இந்த முகம்/.test(msg)) return; if (msg && !/^✅ .*Opening/.test(msg)) say(voiceOf(msg)); else if (msg) say('already'); }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (msg && /^🚫 இந்த முகம்/.test(msg)) return; if (msg && !/Opening your duty page/.test(msg)) say(voiceOf(msg)); else if (msg) say('already'); }, [msg]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (step === 'nomatch') say('nomatch');
     if (step === 'done' && done) say(check && check.action === 'OUT' ? 'out_ok' : check && check.registering ? 'reg_ok' : 'in_ok');
@@ -185,7 +185,7 @@ export default function QrAttend({ qrKey }) {
       for (let n = 3; n > 0; n--) { setCount(n); await new Promise(r => setTimeout(r, 1000)); }
       const c = snap();
       const light = lightOf(c);
-      if (light < TOO_DARK) { stopCam(); setMsg('💡 Too dark. Stand under a light and try again · இருட்டாக உள்ளது, வெளிச்சத்தில் நின்று மீண்டும் முயற்சிக்கவும்'); setStep(p === 'REG' ? 'reg' : 'start'); return; }
+      if (light < TOO_DARK) { stopCam(); setMsg('💡 இருட்டாக உள்ளது. வெளிச்சத்தில் நின்று மீண்டும் முயற்சிக்கவும்.\n(Too dark. Stand under a light and try again.)'); setStep(p === 'REG' ? 'reg' : 'start'); return; }
       // Live check (29 Oct): close the eyes for the second photo; a photo or a screen cannot.
       setHint('😌 Close your eyes · கண்ணை மூடுங்கள்');
       setCount('😌');
@@ -212,8 +212,8 @@ export default function QrAttend({ qrKey }) {
       }
       // Already IN (Prem, 6 Nov): the face is enough, his duty page opens (no link to send).
       if (r.already) {
-        if (r.token) { saveDuty(r.token); setMsg('✅ ' + r.name + ': already IN since ' + r.since + '. Opening your duty page…'); setStep('start'); setTimeout(() => window.location.replace('#guard/' + r.token), 1200); return; }
-        throw new Error('✅ ' + r.name + ': already IN since ' + r.since + '. Press 🏁 OUT to go.');
+        if (r.token) { saveDuty(r.token); setMsg('✅ ' + r.name + ': ' + r.since + ' முதல் ஏற்கனவே IN. உங்கள் பணி பக்கம் திறக்கிறது…\n(Already IN since ' + r.since + '. Opening your duty page…)'); setStep('start'); setTimeout(() => window.location.replace('#guard/' + r.token), 1200); return; }
+        throw new Error('✅ ' + r.name + ': ' + r.since + ' முதல் ஏற்கனவே IN. செல்ல 🏁 OUT அழுத்தவும்.\n(Already IN since ' + r.since + '. Press 🏁 OUT to go.)');
       }
       setCheck(r);
       if (r.pass) savePass(r.pass);
@@ -223,7 +223,7 @@ export default function QrAttend({ qrKey }) {
       setStep(r.matched ? 'found' : 'nomatch');
     } catch (err) {
       stopCam();
-      setMsg(err.name === 'NotAllowedError' ? '📷 Camera is blocked. Allow the camera for this page.' : err.message);
+      setMsg(err.name === 'NotAllowedError' ? '📷 கேமரா அனுமதி இல்லை. இந்த பக்கத்துக்கு கேமராவை அனுமதிக்கவும்.\n(Camera is blocked. Allow the camera for this page.)' : err.message);
       setStep('start');
     }
   }
@@ -238,7 +238,7 @@ export default function QrAttend({ qrKey }) {
         const r = (await api.qrWait(qrKey, pass)).data;
         if (r.locked) { setPurpose('OUT'); setCheck({ ...r, waitOnly: true }); setStep('found'); return; }
         savePass('');
-        if (r.out) { setMsg('🏁 ' + r.name + ' is already OUT.'); setStep('start'); return; }
+        if (r.out) { setMsg('🏁 ' + r.name + ': ஏற்கனவே OUT செய்துவிட்டீர்கள்.\n(Already OUT.)'); setStep('start'); return; }
       } catch { savePass(''); }
     }
     start('OUT');
@@ -260,7 +260,7 @@ export default function QrAttend({ qrKey }) {
     setRelMsg('');
     try {
       const r = (await api.qrReliever({ k: qrKey, ticket: check.ticket, ...(relForm.pick ? { reliever_id: relForm.pick } : { name: relForm.name, phone: relForm.phone }) })).data;
-      setRelMsg('✅ ' + r.name + ' added for Shift ' + r.code + '. He scans this QR when he comes.');
+      setRelMsg('✅ ' + r.name + ' Shift ' + r.code + '-க்கு சேர்க்கப்பட்டார். வரும்போது இந்த QR-ஐ ஸ்கேன் செய்வார்.\n(Added for Shift ' + r.code + '. They scan this QR when they come.)');
       setCheck(c => ({ ...c, relief: { ...c.relief, added: r.name } }));
       if (r.pass) savePass(r.pass);
       setRelForm(null);
@@ -411,7 +411,7 @@ export default function QrAttend({ qrKey }) {
                   <button onClick={addReliever} disabled={!relForm.pick && (!relForm.name.trim() || relForm.phone.replace(/\D/g, '').length < 10)}>Add</button>
                 </div>
               )}
-              {relMsg && <div className="qr-sub">{relMsg}</div>}
+              {relMsg && <div className="qr-sub" style={{ whiteSpace: 'pre-line' }}>{relMsg}</div>}
             </div>
           )}
           {check.waitOnly && <button className="qr-link" onClick={() => start('OUT')}>📷 Check again with photo</button>}
