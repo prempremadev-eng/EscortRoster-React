@@ -25,11 +25,12 @@ function getFix() {
 // Played through one AudioContext started on the IN / OUT tap (the old beep worked this way on every phone;
 // a plain <audio> was blocked on some). Clips are fetched once and decoded.
 let ctx = null;
-const VOICE_KEYS = ['look', 'close', 'open', 'in_ok', 'out_ok', 'reg_ok', 'nomatch', 'already', 'notin', 'blink', 'notsame', 'far', 'gps', 'dark', 'front', 'locked', 'noduty', 'time', 'swap', 'regdetails', 'registered', 'retry'];
+const VOICE_KEYS = ['look', 'close', 'open', 'in_ok', 'out_ok', 'reg_ok', 'nomatch', 'already', 'notin', 'blink', 'notsame', 'far', 'gps', 'dark', 'front', 'locked', 'noduty', 'time', 'swap', 'regdetails', 'registered', 'dupface', 'retry'];
 // Which spoken sentence fits a message on the screen (Prem, 6 Nov: everything by voice too).
 function voiceOf(msg) {
   const m = String(msg || '');
   if (/already IN since|Opening your duty/i.test(m)) return 'already';
+  if (/already registered as/i.test(m)) return 'dupface';
   if (/Already registered/i.test(m)) return 'registered';
   if (/not IN/i.test(m)) return 'notin';
   if (/not the same person/i.test(m)) return 'notsame';

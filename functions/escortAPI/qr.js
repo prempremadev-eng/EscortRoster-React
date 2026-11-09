@@ -179,6 +179,7 @@ module.exports = function qrRoutes(app, h) {
     swap: 'இது வேறு ஷிஃப்ட். அலுவலகத்திடம் அனுமதி கேளுங்கள்.',
     regdetails: 'விவரங்கள் பொருந்தவில்லை. சரியான பெயர் மற்றும் தொலைபேசி எண்ணைக் கொடுங்கள்.',
     registered: 'நீங்கள் ஏற்கனவே பதிவு செய்துள்ளீர்கள். IN அழுத்தவும்.',
+    dupface: 'இந்த முகம் ஏற்கனவே வேறு பெயரில் பதிவு செய்யப்பட்டுள்ளது. ஒருவருக்கு ஒரு பதிவு மட்டுமே. அலுவலகத்தைக் கேளுங்கள்.',
     retry: 'மீண்டும் முயற்சிக்கவும்.'
   };
   const voiceCache = {}; // name → Buffer while the function stays warm
@@ -455,7 +456,23 @@ module.exports = function qrRoutes(app, h) {
       // 🆕 New Registration (Prem, 29 Oct): the first time, the live photo becomes the face. Regular guard: ID +
       // name + last 4 of his phone, and no face yet. Reliever: the name + phone the guard on duty added.
       if (purpose === 'REG') {
-        cleanTmp();
+        // One face, one person (Prem, 9 Nov: his face got registered for two guards). The new face is checked
+        // against every registered face here (guards and relievers); a match stops the registration.
+        let dup = null;
+        try {
+          for (const g of guards.slice(0, 40)) {
+            const regFile = await storedPhoto(bucket, g.photo_key);
+            const r = await catalystApp.zia().compareFace(fs.createReadStream(regFile), fs.createReadStream(selfieFile));
+            if (yes(r && r.matched)) { dup = { g, conf: Number(r.confidence) || 0 }; break; }
+          }
+        } finally {
+          cleanTmp();
+        }
+        if (dup) {
+          console.log('qr reg duplicate', JSON.stringify({ g: String(dup.g.ROWID), conf: dup.conf }));
+          await tellOffice(catalystApp, b.ROWID, '⚠️ Same face, second registration', 'Someone tried to register with the face of ' + dup.g.guard_name + '.');
+          throw new Error('🚫 This face is already registered as ' + dup.g.guard_name + '. One person, one registration. Ask the office.');
+        }
         const who = await regWho(catalystApp, zcql, b, req.body, day, false);
         if (who.p) {
           const { p, row } = who;
