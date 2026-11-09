@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../api.js';
 import { Icon, initials } from './icons.jsx';
 import PostTimeline from './PostTimeline.jsx';
@@ -20,6 +20,8 @@ export default function PostDuty({ token }) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
+  // Came from the gate QR: show the Card IN screen first, the chat after a tap (Prem, 9 Nov).
+  const fromGate = useRef((() => { try { const v = sessionStorage.getItem('from-gate'); sessionStorage.removeItem('from-gate'); return !!v; } catch { return false; } })());
   const load = useCallback(async () => {
     setError('');
     try {
@@ -32,7 +34,7 @@ export default function PostDuty({ token }) {
       if (d.status === 'waiting' && d.general) {
         try { await api.startGeneral(token); return load(); } catch (e) { /* show the Start duty page below */ }
       }
-      if (d.status === 'on_duty' || d.status === 'on_break') return setView('timeline');
+      if (d.status === 'on_duty' || d.status === 'on_break') return setView(fromGate.current ? 'main' : 'timeline');
       setView(v => (v === 'waiting' ? 'waiting' : 'main'));
     } catch (err) {
       setError(err.message);
@@ -69,6 +71,7 @@ export default function PostDuty({ token }) {
   }
 
   const shift = duty && duty.shift;
+  const onDuty = !!duty && (duty.status === 'on_duty' || duty.status === 'on_break');
   const shiftLine = shift ? (shift.code === 'G' ? 'General shift' : 'Shift ' + shift.code) + ' · ' + shift.start + ' – ' + shift.end : '';
 
   if (view === 'loading') return <div className="pd pd-page"><div className="pd-muted">Loading...</div></div>;
@@ -146,7 +149,7 @@ export default function PostDuty({ token }) {
           {Icon.bell}
           <div>
             <div className="pd-notice-sub">Card IN · {duty.inAt}</div>
-            <div className="pd-notice-main">Your post for today is ready</div>
+            <div className="pd-notice-main">{onDuty ? 'You are on duty' + (duty.takenOverAt ? ' since ' + duty.takenOverAt : '') : 'Your post for today is ready'}</div>
           </div>
         </div>
         <div className="pd-muted">{greeting()}, {duty.name}</div>
@@ -159,7 +162,9 @@ export default function PostDuty({ token }) {
           </div>
         </div>
         <div className="pd-grow"></div>
-        <button className="pd-btn pd-btn-primary" onClick={() => setView('waiting')}>Go to my post</button>
+        {onDuty
+          ? <button className="pd-btn pd-btn-primary" onClick={() => { fromGate.current = false; setView('timeline'); }}>💬 Open my post chat</button>
+          : <button className="pd-btn pd-btn-primary" onClick={() => setView('waiting')}>Go to my post</button>}
         {callButton}
       </div>
     );

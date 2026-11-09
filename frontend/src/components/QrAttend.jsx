@@ -19,6 +19,12 @@ function getFix() {
   });
 }
 
+// From the gate to the duty page: it opens on the Card IN screen first, not straight in the chat (Prem, 9 Nov).
+function goDuty(t) {
+  try { sessionStorage.setItem('from-gate', '1'); } catch { /* private mode */ }
+  window.location.replace('#guard/' + t);
+}
+
 // 🔊 Spoken steps (Prem, 6 Nov): a recorded Tamil voice (same on every phone, from the server) says
 // "look straight / close / open your eyes", so the guard keeps looking at the camera.
 // If the clip cannot play: the phone's own voice. No beep (Prem, 6 Nov: the voice is enough).
@@ -212,7 +218,7 @@ export default function QrAttend({ qrKey }) {
       }
       // Already IN (Prem, 6 Nov): the face is enough, his duty page opens (no link to send).
       if (r.already) {
-        if (r.token) { saveDuty(r.token); setMsg('✅ ' + r.name + ': ' + r.since + ' முதல் ஏற்கனவே IN. உங்கள் பணி பக்கம் திறக்கிறது…\n(Already IN since ' + r.since + '. Opening your duty page…)'); setStep('start'); setTimeout(() => window.location.replace('#guard/' + r.token), 1200); return; }
+        if (r.token) { saveDuty(r.token); setMsg('✅ ' + r.name + ': ' + r.since + ' முதல் ஏற்கனவே IN. உங்கள் பணி பக்கம் திறக்கிறது…\n(Already IN since ' + r.since + '. Opening your duty page…)'); setStep('start'); setTimeout(() => goDuty(r.token), 1200); return; }
         throw new Error('✅ ' + r.name + ': ' + r.since + ' முதல் ஏற்கனவே IN. செல்ல 🏁 OUT அழுத்தவும்.\n(Already IN since ' + r.since + '. Press 🏁 OUT to go.)');
       }
       setCheck(r);
@@ -277,7 +283,7 @@ export default function QrAttend({ qrKey }) {
         const r = (await api.qrSwapStatus({ k: qrKey, ticket: swapWait })).data;
         if (stop || r.status === 'pending') return;
         clearInterval(id);
-        if (r.status === 'ok' && r.token) { saveDuty(r.token); window.location.replace('#guard/' + r.token); }
+        if (r.status === 'ok' && r.token) { saveDuty(r.token); goDuty(r.token); }
         else setCheck(c => (c && c.swap ? { ...c, swap: { ...c.swap, status: r.status } } : c));
       } catch (err) { clearInterval(id); setMsg(err.message); }
     }, 8000);
@@ -295,7 +301,7 @@ export default function QrAttend({ qrKey }) {
       // After an IN the duty page opens by itself, in place of this page (Prem, 2 Nov: a reliever must not get
       // back to IN / OUT; only a new scan opens it).
       resetTimer.current = d.token
-        ? setTimeout(() => window.location.replace('#guard/' + d.token), 1500)
+        ? setTimeout(() => goDuty(d.token), 1500)
         : setTimeout(() => { setStep('start'); setDone(null); setCheck(null); }, 30000);
     } catch (err) {
       setMsg(err.message);
@@ -322,7 +328,7 @@ export default function QrAttend({ qrKey }) {
       )}
       {step === 'start' && site && site.ready && (
         <div className="qr-three">
-          {dutyLink && <a className="qr-big qr-reg" href={'#guard/' + dutyLink} onClick={e => { e.preventDefault(); window.location.replace('#guard/' + dutyLink); }}>📋 My duty page<small>Chat · break · பணி பக்கம்</small></a>}
+          {dutyLink && <a className="qr-big qr-reg" href={'#guard/' + dutyLink} onClick={e => { e.preventDefault(); goDuty(dutyLink); }}>📋 My duty page<small>Chat · break · பணி பக்கம்</small></a>}
           <button className="qr-big qr-in" onClick={() => { seenHelp(); start('IN'); }}>✅ IN<small>Duty start · பணி தொடக்கம்</small></button>
           <button className="qr-big qr-out" onClick={() => { seenHelp(); pressOut(); }}>🏁 OUT<small>Duty end · பணி முடிவு</small></button>
           <button className="qr-big qr-reg" onClick={() => { seenHelp(); setStep('reg'); }}>🆕 New Registration<small>First time here · முதல் முறை</small></button>
@@ -435,7 +441,7 @@ export default function QrAttend({ qrKey }) {
           <div className="qr-sub">{done.name}</div>
           {/* replace, not a new page (Prem, 29 Oct): ← back from the duty page must not land on IN / OUT again; only a new scan opens it. */}
           {done.token && <a className="qr-big qr-in" href={'#guard/' + done.token}
-            onClick={e => { e.preventDefault(); clearTimeout(resetTimer.current); window.location.replace('#guard/' + done.token); }}>📋 Open my duty page<small>Post · take over · chat · break</small></a>}
+            onClick={e => { e.preventDefault(); clearTimeout(resetTimer.current); goDuty(done.token); }}>📋 Open my duty page<small>Post · take over · chat · break</small></a>}
         </div>
       )}
     </div>
