@@ -63,6 +63,23 @@ module.exports = (app, { catalyst, fail, getSetting }) => {
     }
   });
 
+  // Change a title (Claude names them after looking).
+  app.post('/shotTitle', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      await allowed(catalystApp, req.body.k);
+      const bucket = catalystApp.stratus().bucket(BUCKET);
+      const list = await readIndex(bucket);
+      const s = list.find(x => x.key === String(req.body.key || ''));
+      if (!s) throw new Error('Not found.');
+      s.title = String(req.body.title || '').replace(/[<>]/g, '').trim().slice(0, 120);
+      await writeIndex(bucket, list);
+      ok(res, { title: s.title });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
   // Take one off the list (the file stays in storage; nothing is lost by a wrong tap).
   app.post('/shotRemove', async (req, res) => {
     try {
