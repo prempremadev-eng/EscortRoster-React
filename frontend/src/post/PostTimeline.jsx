@@ -436,7 +436,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
               </span>
               {here ? <span className="pd-pill pd-amber">Covering</span>
                 : onBreak ? <span className="pd-pill pd-amber">{myBreak.typeLabel} break</span>
-                  : <span className="pd-pill pd-green">On duty</span>}
+                  : null /* On duty: no pill, the row stays one line (Prem, 10 Nov) */}
             </div>
           </div>
           {/* 📞 like WhatsApp's call icon (Prem, 26 Oct): Safety today with call buttons, instead of a bar. */}
