@@ -1121,7 +1121,9 @@ module.exports = function qrRoutes(app, h) {
     const post = (await zcql.executeZCQLQuery(`SELECT ROWID FROM Posts WHERE branch_id = ${requireRowId(guard.branch_id)} AND post_type = 'POST' AND is_active = 'true'`)).map(x => x.Posts);
     if (post.length !== 1) return;
     const taken = await zcql.executeZCQLQuery(`SELECT ROWID, guard_id FROM Schedule WHERE post_id = ${post[0].ROWID} AND sched_date = '${r.duty_date}' AND shift_code = '${r.shift_code}'`);
-    if (taken.length) return;
+    // The regular of that shift is on the sheet but absent: the reliever gets his own row too (Prem, 10 Nov:
+    // the reliever was IN but had no post, because the slot was "taken").
+    if (taken.some(x => String(x.Schedule.guard_id) === String(guard.ROWID))) return;
     await catalystApp.datastore().table('Schedule').insertRow({ branch_id: guard.branch_id, sched_date: r.duty_date, post_id: post[0].ROWID, shift_code: r.shift_code, guard_id: guard.ROWID, published: true });
   }
 
