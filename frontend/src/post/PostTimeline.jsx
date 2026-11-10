@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import ReliefSheet from './ReliefSheet.jsx';
 import { api } from '../api.js';
 import { Icon, initials, Avatar } from './icons.jsx';
 import AddWork from './AddWork.jsx';
@@ -445,6 +446,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
           <MoreMenu label="☰ More" items={[
             // Break moved here from the On duty pill (Prem, 10 Nov: more room in the header).
             !here && !onBreak && !myBreak ? [general ? '☕ Break / end general duty' : '☕ Go on break', () => setSheet(general ? 'general' : 'break')] : null,
+            !general ? ['🔁 Add reliever', () => setSheet('relief')] : null,
             ['👥 Team group', () => { window.location.hash = '#group/' + token; }], ['🕘 Duty history', () => setPage('history')], ['📅 My attendance', () => { window.location.hash = '#myatt/' + token; }], ['📷 Profile photo', () => setPicking(true)]]} />
         </div>
         {here && here.mode === 'go' && (
@@ -625,6 +627,8 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
                 <button className="pd-link" onClick={() => setSheet(null)}>Cancel</button>
               </>
             )}
+
+            {sheet === 'relief' && <ReliefSheet token={token} onClose={() => setSheet(null)} onDone={t => { setSheet(null); say(t); }} />}
 
             {sheet === 'alert' && (
               <form className="pd-form" onSubmit={sendAlert}>

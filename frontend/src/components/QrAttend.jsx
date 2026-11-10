@@ -142,6 +142,7 @@ export default function QrAttend({ qrKey }) {
   const [reg, setReg] = useState({ type: 'regular', id: '', name: '', phone4: '', phone: '' });
   const [relForm, setRelForm] = useState(null); // { pick, name, phone } — the duty guard adds a reliever
   const [relMsg, setRelMsg] = useState('');
+  const [relOnly, setRelOnly] = useState(false); // 🔁 Add reliever from the front page: face check, then only the reliever form
   // Wait pass (29 Oct): reliever added but not IN → 🏁 OUT shows the lock with no photo. Kept on this phone.
   const passKey = 'qr-wait-' + qrKey;
   const savePass = p => { try { p ? localStorage.setItem(passKey, p) : localStorage.removeItem(passKey); } catch { /* private mode */ } };
@@ -154,7 +155,7 @@ export default function QrAttend({ qrKey }) {
     if (step === 'nomatch') say('nomatch');
     if (step === 'done' && done) say(check && check.action === 'OUT' ? 'out_ok' : check && check.registering ? 'reg_ok' : 'in_ok');
     if (step === 'found' && check && check.swap) say('swap');
-    if (step === 'found' && check && !check.swap && check.handover && !check.handover.ok) say('locked');
+    if (step === 'found' && check && !check.swap && !relOnly && check.handover && !check.handover.ok) say('locked');
   }, [step]); // eslint-disable-line react-hooks/exhaustive-deps
   const saveDuty = t => { try { t ? localStorage.setItem('qr-duty', JSON.stringify({ t, until: Date.now() + 18 * 3600000 })) : localStorage.removeItem('qr-duty'); } catch { /* private mode */ } };
   // Also the guard link this phone opened before (main.jsx keeps it), e.g. an IN made before this button came (Prem, 6 Nov).
@@ -329,9 +330,10 @@ export default function QrAttend({ qrKey }) {
       {step === 'start' && site && site.ready && (
         <div className="qr-three">
           {dutyLink && <a className="qr-big qr-reg" href={'#guard/' + dutyLink} onClick={e => { e.preventDefault(); goDuty(dutyLink); }}>📋 My duty page<small>Chat · break · பணி பக்கம்</small></a>}
-          <button className="qr-big qr-in" onClick={() => { seenHelp(); start('IN'); }}>✅ IN<small>Duty start · பணி தொடக்கம்</small></button>
-          <button className="qr-big qr-out" onClick={() => { seenHelp(); pressOut(); }}>🏁 OUT<small>Duty end · பணி முடிவு</small></button>
+          <button className="qr-big qr-in" onClick={() => { seenHelp(); setRelOnly(false); start('IN'); }}>✅ IN<small>Duty start · பணி தொடக்கம்</small></button>
+          <button className="qr-big qr-out" onClick={() => { seenHelp(); setRelOnly(false); setRelForm(null); pressOut(); }}>🏁 OUT<small>Duty end · பணி முடிவு</small></button>
           <button className="qr-big qr-reg" onClick={() => { seenHelp(); setStep('reg'); }}>🆕 New Registration<small>First time here · முதல் முறை</small></button>
+          <button className="qr-big qr-reg" onClick={() => { seenHelp(); unlockVoice(); setRelOnly(true); setRelMsg(''); setRelForm({ pick: '', name: '', phone: '' }); start('OUT'); }}>🔁 Add reliever<small>For the next shift · அடுத்த ஷிஃப்ட் மாற்று ஆள்</small></button>
         </div>
       )}
       {/* 🆕 First time: regular guard (ID + name + last 4 of phone) or reliever (name + phone the guard on duty added). */}
@@ -388,18 +390,20 @@ export default function QrAttend({ qrKey }) {
           <div className="qr-sub">ID {check.guard.id}{check.shift ? ' · Shift ' + check.shift.code + (check.shift.start ? ' ' + check.shift.start + '–' + check.shift.end : '') : ''}{check.since ? ' · IN since ' + check.since : ''}</div>
           {!check.waitOnly && <div className="qr-sub">📍 {check.distance} m from the gate</div>}
           {/* Handover (step 3): who of the next shift is IN; OUT only when someone is. */}
-          {check.handover && check.handover.code && (
+          {relOnly && <div className="qr-sub">🔁 Add the reliever for the next shift · அடுத்த ஷிஃப்ட் மாற்று ஆள்</div>}
+          {!relOnly && check.handover && check.handover.code && (
             <div className="qr-hand">
               <div className="qr-hand-title">Next: Shift {check.handover.code}</div>
               {check.handover.regulars.map(g => <div key={g.name} className="qr-hand-row">👤 {g.name} <b>{g.in ? '✅ IN ' + g.in : '❌ not IN'}</b></div>)}
               <div className="qr-hand-row">🔁 Reliever: {check.handover.reliever ? <>{check.handover.reliever.name} {check.handover.reliever.phone} <b>{check.handover.reliever.in ? '✅ IN ' + check.handover.reliever.in : '⏳ not IN yet'}</b></> : <b>not added</b>}</div>
             </div>
           )}
-          {check.early ? <div className="qr-lock">{check.early}</div>
+          {relOnly ? null : check.early ? <div className="qr-lock">{check.early}</div>
             : check.handover && !check.handover.ok
             ? <div className="qr-lock">🔒 OUT locked: wait for the Shift {check.handover.code} guard{check.handover.reliever ? ' / ' + check.handover.reliever.name : ''}</div>
             : <button className={'qr-big ' + (check.action === 'IN' ? 'qr-in' : 'qr-out')} onClick={() => punch()}>{check.action === 'IN' ? (check.registering ? '✅ Register & IN' : '✅ IN') : '🏁 OUT'}</button>}
           {check.addedBy && <div className="qr-sub">Added by {check.addedBy}</div>}
+          {relOnly && !check.relief && <div className="qr-lock" style={{ whiteSpace: 'pre-line' }}>உங்களுக்கு அடுத்த ஷிஃப்ட் இல்லை.{'\n'}(No next shift to add a reliever for.)</div>}
           {check.relief && (
             <div className="qr-rel">
               <div className="qr-sub">Shift {check.relief.code} reliever: <b>{check.relief.added || 'not added'}</b></div>
@@ -421,7 +425,7 @@ export default function QrAttend({ qrKey }) {
             </div>
           )}
           {check.waitOnly && <button className="qr-link" onClick={() => start('OUT')}>📷 Check again with photo</button>}
-          <button className="qr-link" onClick={() => { if (check.waitOnly) savePass(''); setStep('start'); setCheck(null); }}>Not me</button>
+          <button className="qr-link" onClick={() => { if (check.waitOnly) savePass(''); setRelOnly(false); setRelForm(null); setStep('start'); setCheck(null); }}>{relOnly ? 'Back' : 'Not me'}</button>
         </div>
       )}
 

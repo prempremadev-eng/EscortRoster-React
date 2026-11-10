@@ -19,7 +19,7 @@ const TICKET_MS = 3 * 60000; // the photo check is valid for 3 minutes before IN
 const OPEN_IN_HOURS = 16; // an IN older than this is not closed by the next scan (forgotten OUT)
 
 module.exports = function qrRoutes(app, h) {
-  const { catalyst, fail, requireRowId, auth, istNow, getShifts, getVapidKeys, onCardIn, onPostOut, rosterShiftOf, notify, getSetting, sendPushToGuard } = h;
+  const { catalyst, fail, requireRowId, auth, istNow, getShifts, getVapidKeys, onCardIn, onPostOut, rosterShiftOf, notify, getSetting, sendPushToGuard, guardByToken } = h;
   const admin = req => catalyst.initialize(req, { scope: 'admin' });
   const ok = (res, data) => res.status(200).json({ status: 'success', data });
 
@@ -606,6 +606,32 @@ module.exports = function qrRoutes(app, h) {
   });
 
   // The guard on duty adds the reliever for the next shift (needs his fresh check ticket).
+  // ➕ Add the reliever for the next shift: from the gate (after a face check) or the post chat ☰ More (Prem, 10 Nov).
+  async function addRelief(catalystApp, zcql, branchId, g, open, body) {
+    const slot = await nextSlot(zcql, g.ROWID, open, branchId);
+    if (!slot) throw new Error(TA('உங்களுக்கு அடுத்த ஷிஃப்ட் இல்லை.', 'No next shift for you to hand over.'));
+    let relId = body.reliever_id ? String(requireRowId(body.reliever_id)) : '';
+    const people = await relieversOf(zcql, branchId);
+    if (relId && !people.some(p => String(p.ROWID) === relId)) throw new Error('Reliever not found.');
+    if (!relId) {
+      const name = String(body.name || '').replace(/[^A-Za-z .]/g, '').trim().slice(0, 60);
+      if (name.length < 2) throw new Error(TA('Reliever பெயரைக் கொடுங்கள்.', 'Reliever name, please.'));
+      const phone = phoneOf(body.phone);
+      const same = people.find(p => String(p.phone) === phone);
+      if (same) relId = String(same.ROWID); // known by the phone number
+      else relId = String((await catalystApp.datastore().table('Relievers').insertRow({ branch_id: branchId, name: name.toUpperCase(), phone, visits: 0, created_by: g.guard_name })).ROWID);
+    }
+    const table = catalystApp.datastore().table('ReliefShifts');
+    const row = activeRow(await reliefRows(zcql, branchId, [slot.day]), slot.code); // an OUT reliever's row is done
+    if (row && row.in_at) throw new Error(TA('Shift ' + slot.code + ' reliever ஏற்கனவே IN செய்துள்ளார்.', 'The reliever of shift ' + slot.code + ' is already IN.'));
+    if (row) await table.updateRow({ ROWID: row.ROWID, reliever_id: relId, added_by: g.guard_name });
+    else await table.insertRow({ branch_id: branchId, duty_date: slot.day, shift_code: slot.code, reliever_id: relId, added_by: g.guard_name });
+    const who = (await relieversOf(zcql, branchId)).find(p => String(p.ROWID) === relId);
+    // 🔔 The office hears of it (Prem, 10 Nov).
+    await tellOffice(catalystApp, branchId, '🔁 Reliever added', g.guard_name + ' added ' + (who ? who.name + ' ' + masked(who.phone) : 'a reliever') + ' for Shift ' + slot.code + ' · ' + slot.day);
+    return { code: slot.code, day: slot.day, name: who ? who.name : '', pass: await waitPass(catalystApp, g.ROWID, branchId) };
+  }
+
   app.post('/qrReliever', async (req, res) => {
     try {
       const catalystApp = admin(req);
@@ -616,26 +642,41 @@ module.exports = function qrRoutes(app, h) {
       const g = (await zcql.executeZCQLQuery(`SELECT ROWID, guard_name FROM Guards WHERE ROWID = ${requireRowId(t.g)}`))[0].Guards;
       const open = await openIn(zcql, g.ROWID);
       if (!open) throw new Error(TA('நீங்கள் IN செய்யவில்லை. மீண்டும் ஸ்கேன் செய்யவும்.', 'You are not IN. Scan again.'));
-      const slot = await nextSlot(zcql, g.ROWID, open, b.ROWID);
-      if (!slot) throw new Error(TA('உங்களுக்கு அடுத்த ஷிஃப்ட் இல்லை.', 'No next shift for you to hand over.'));
-      let relId = req.body.reliever_id ? String(requireRowId(req.body.reliever_id)) : '';
-      const people = await relieversOf(zcql, b.ROWID);
-      if (relId && !people.some(p => String(p.ROWID) === relId)) throw new Error('Reliever not found.');
-      if (!relId) {
-        const name = String(req.body.name || '').replace(/[^A-Za-z .]/g, '').trim().slice(0, 60);
-        if (name.length < 2) throw new Error(TA('Reliever பெயரைக் கொடுங்கள்.', 'Reliever name, please.'));
-        const phone = phoneOf(req.body.phone);
-        const same = people.find(p => String(p.phone) === phone);
-        if (same) relId = String(same.ROWID); // known by the phone number
-        else relId = String((await catalystApp.datastore().table('Relievers').insertRow({ branch_id: b.ROWID, name: name.toUpperCase(), phone, visits: 0, created_by: g.guard_name })).ROWID);
-      }
-      const table = catalystApp.datastore().table('ReliefShifts');
-      const row = activeRow(await reliefRows(zcql, b.ROWID, [slot.day]), slot.code); // an OUT reliever's row is done
-      if (row && row.in_at) throw new Error(TA('Shift ' + slot.code + ' reliever ஏற்கனவே IN செய்துள்ளார்.', 'The reliever of shift ' + slot.code + ' is already IN.'));
-      if (row) await table.updateRow({ ROWID: row.ROWID, reliever_id: relId, added_by: g.guard_name });
-      else await table.insertRow({ branch_id: b.ROWID, duty_date: slot.day, shift_code: slot.code, reliever_id: relId, added_by: g.guard_name });
-      const who = (await relieversOf(zcql, b.ROWID)).find(p => String(p.ROWID) === relId);
-      ok(res, { code: slot.code, day: slot.day, name: who ? who.name : '', pass: await waitPass(catalystApp, g.ROWID, b.ROWID) });
+      ok(res, await addRelief(catalystApp, zcql, b.ROWID, g, open, req.body));
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // ☰ More → 🔁 Add reliever in the post chat (Prem, 10 Nov): the guard is IN already, so the duty link is enough.
+  async function chatGuard(zcql, t) {
+    const g = await guardByToken(zcql, t);
+    g.branch_id = String(requireRowId(g.branch_id));
+    const open = await openIn(zcql, g.ROWID);
+    if (!open) throw new Error(TA('நீங்கள் IN செய்யவில்லை.', 'You are not IN.'));
+    return { g, open };
+  }
+  app.get('/postRelief', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const { g, open } = await chatGuard(zcql, req.query.t);
+      const slot = await nextSlot(zcql, g.ROWID, open, g.branch_id);
+      if (!slot) return ok(res, { code: '' });
+      const row = activeRow(await reliefRows(zcql, g.branch_id, [slot.day]), slot.code);
+      const people = await relieversOf(zcql, g.branch_id);
+      const who = row && people.find(p => String(p.ROWID) === String(row.reliever_id));
+      ok(res, { code: slot.code, day: slot.day, added: who ? who.name + ' ' + masked(who.phone) : '', isIn: !!(row && row.in_at), list: people.map(p => ({ id: String(p.ROWID), name: p.name, phone: masked(p.phone), visits: Number(p.visits) || 0 })) });
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+  app.post('/postReliefAdd', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const { g, open } = await chatGuard(zcql, req.body.t);
+      ok(res, await addRelief(catalystApp, zcql, g.branch_id, g, open, req.body));
     } catch (err) {
       fail(res, err);
     }

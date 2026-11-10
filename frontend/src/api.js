@@ -248,6 +248,8 @@ export const api = {
   postWorks: (t, from, to, post) => apiCall('GET', '/postWorks?t=' + q(t) + '&from=' + q(from) + '&to=' + q(to) + (post ? '&post=' + q(post) : '')),
   pastShift: (t, log, post) => apiCall('GET', '/pastShift?t=' + q(t) + '&log=' + q(log) + (post ? '&post=' + q(post) : '')),
   startGeneral: t => apiCall('POST', '/startGeneral', { t }),
+  postRelief: t => apiCall('GET', '/postRelief?t=' + q(t)),
+  postReliefAdd: (t, body) => apiCall('POST', '/postReliefAdd', { t, ...body }),
   endGeneral: (t, note) => apiCall('POST', '/endGeneral', { t, note }),
   supInbox: (branch, seen, agency) => apiCall('POST', '/supInbox', { branch, seen, agency }),
   supPost: post => apiCall('GET', '/supPost?post=' + q(post)),
