@@ -63,7 +63,7 @@ function audioCtx() {
   return ctx;
 }
 function loadOne(qrKey, n) {
-  return fetch(apiUrl('/qrVoice?k=' + encodeURIComponent(qrKey) + '&n=' + n + '&v=3'))
+  return fetch(apiUrl('/qrVoice?k=' + encodeURIComponent(qrKey) + '&n=' + n + '&v=4'))
     .then(r => (r.ok ? r.arrayBuffer() : null))
     .then(buf => (buf && audioCtx() ? new Promise(ok => ctx.decodeAudioData(buf, ok, () => ok(null))) : null))
     .then(audio => { if (audio) ready[n] = audio; })
@@ -85,8 +85,8 @@ function unlockVoice() {
 }
 const SPOKEN = {
   look: 'கேமராவை நேராகப் பாருங்கள்', close: 'கண்ணை மூடுங்கள்', open: 'கண்ணைத் திறங்கள்',
-  in_ok: 'IN பதிவு செய்யப்பட்டது', out_ok: 'OUT பதிவு செய்யப்பட்டது', reg_ok: 'பதிவு முடிந்தது',
-  nomatch: 'முகம் பொருந்தவில்லை', already: 'ஏற்கனவே IN செய்துள்ளீர்கள்', retry: 'மீண்டும் முயற்சிக்கவும்'
+  in_ok: 'வருகை பதிவு செய்யப்பட்டது', out_ok: 'வெளியேற்றம் பதிவு செய்யப்பட்டது', reg_ok: 'பதிவு முடிந்தது',
+  nomatch: 'முகம் பொருந்தவில்லை', already: 'ஏற்கனவே வருகை பதிவு செய்துள்ளீர்கள்', retry: 'மீண்டும் முயற்சிக்கவும்'
 };
 function say(n, ta, en) {
   const audio = ready[n];

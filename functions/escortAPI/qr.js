@@ -164,23 +164,23 @@ module.exports = function qrRoutes(app, h) {
   // Every gate result is spoken too (Prem, 6 Nov: "ellame voice la sollanum"). Fixed sentences only (no free text).
   const VOICE_TEXT = {
     look: 'கேமராவை நேராகப் பாருங்கள்', close: 'கண்ணை மூடுங்கள்', open: 'கண்ணைத் திறங்கள்',
-    in_ok: 'IN பதிவு செய்யப்பட்டது. நன்றி.', out_ok: 'OUT பதிவு செய்யப்பட்டது. நன்றி.',
-    reg_ok: 'உங்கள் முகம் பதிவு செய்யப்பட்டது. IN முடிந்தது.',
+    in_ok: 'வருகை பதிவு செய்யப்பட்டது. நன்றி.', out_ok: 'வெளியேற்றம் பதிவு செய்யப்பட்டது. நன்றி.',
+    reg_ok: 'உங்கள் முகம் பதிவு செய்யப்பட்டது. வருகையும் பதிவு செய்யப்பட்டது.',
     nomatch: 'முகம் பொருந்தவில்லை. மீண்டும் முயற்சிக்கவும். முதல் முறை என்றால் புதிய பதிவு செய்யவும்.',
-    already: 'நீங்கள் ஏற்கனவே IN செய்துள்ளீர்கள். உங்கள் பணி பக்கம் திறக்கிறது.',
-    notin: 'நீங்கள் இன்னும் IN செய்யவில்லை. முதலில் IN அழுத்தவும்.',
+    already: 'நீங்கள் ஏற்கனவே வருகை பதிவு செய்துள்ளீர்கள். உங்கள் பணி பக்கம் திறக்கிறது.',
+    notin: 'நீங்கள் இன்னும் வருகை பதிவு செய்யவில்லை. முதலில் பச்சை பொத்தானை அழுத்தவும்.',
     blink: 'கண்ணை மூடவில்லை. சொல்லும்போது கண்ணை மூடி, மீண்டும் முயற்சிக்கவும்.',
     notsame: 'இரண்டு புகைப்படங்களும் ஒரே நபர் இல்லை. மீண்டும் முயற்சிக்கவும்.',
     far: 'நீங்கள் கேட்டிலிருந்து தொலைவில் உள்ளீர்கள். கேட் அருகே வாருங்கள்.',
     gps: 'இடம் சரியாகக் கிடைக்கவில்லை. வெளியே வந்து மீண்டும் முயற்சிக்கவும்.',
     dark: 'இருட்டாக உள்ளது. வெளிச்சத்தில் நின்று மீண்டும் முயற்சிக்கவும்.',
     front: 'முகம் சரியாகத் தெரியவில்லை. கேமராவை நேராகப் பார்த்து மீண்டும் முயற்சிக்கவும்.',
-    locked: 'OUT பூட்டப்பட்டுள்ளது. அடுத்த ஷிஃப்ட் காவலர் வரும் வரை காத்திருங்கள்.',
+    locked: 'இப்போது வெளியேற முடியாது. அடுத்த ஷிஃப்ட் காவலர் வரும் வரை காத்திருங்கள்.',
     noduty: 'இன்று உங்களுக்கு பணி இல்லை. அலுவலகத்தைக் கேளுங்கள்.',
     time: 'இது உங்கள் ஷிஃப்ட் நேரம் இல்லை. திரையில் உள்ள நேரத்தைப் பாருங்கள்.',
     swap: 'இது வேறு ஷிஃப்ட். அலுவலகத்திடம் அனுமதி கேளுங்கள்.',
     regdetails: 'விவரங்கள் பொருந்தவில்லை. சரியான பெயர் மற்றும் தொலைபேசி எண்ணைக் கொடுங்கள்.',
-    registered: 'நீங்கள் ஏற்கனவே பதிவு செய்துள்ளீர்கள். IN அழுத்தவும்.',
+    registered: 'நீங்கள் ஏற்கனவே பதிவு செய்துள்ளீர்கள். பச்சை பொத்தானை அழுத்தவும்.',
     dupface: 'இந்த முகம் ஏற்கனவே வேறு பெயரில் பதிவு செய்யப்பட்டுள்ளது. ஒருவருக்கு ஒரு பதிவு மட்டுமே. அலுவலகத்தைக் கேளுங்கள்.',
     retry: 'மீண்டும் முயற்சிக்கவும்.'
   };
@@ -191,7 +191,7 @@ module.exports = function qrRoutes(app, h) {
       const catalystApp = admin(req);
       const site = await branchByKey(catalystApp.zcql(), req.query.k);
       // "dup-<guard>": the duplicate-face sentence with that guard's name (Prem, 9 Nov). Only a guard of this site.
-      let text = VOICE_TEXT[n], key = 'voice/ta-' + n + '-v3-kavitha.mp3'; // mp3 (Prem, 6 Nov: wav was ~4 MB in all, too slow on site data)
+      let text = VOICE_TEXT[n], key = 'voice/ta-' + n + '-v4-kavitha.mp3'; // v4 10 Nov: no English IN / OUT in the spoken lines. mp3 (Prem, 6 Nov: wav was ~4 MB in all, too slow on site data)
       const dupM = n.match(/^dup-(\d{5,20})$/);
       if (dupM) {
         const g = (await catalystApp.zcql().executeZCQLQuery(`SELECT guard_name FROM Guards WHERE ROWID = ${requireRowId(dupM[1])} AND branch_id = ${site.ROWID}`))[0];
