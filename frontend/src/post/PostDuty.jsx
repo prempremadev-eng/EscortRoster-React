@@ -62,6 +62,7 @@ export default function PostDuty({ token }) {
     setError('');
     try {
       await (duty.general ? api.startGeneral(token) : api.takeOver(token));
+      fromGate.current = false; // after Take over the chat opens, not the Card IN page again (Prem, 10 Nov)
       await load();
     } catch (err) {
       setError(err.message);
