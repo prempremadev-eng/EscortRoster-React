@@ -772,3 +772,16 @@ button.pd-avatar{border:none;cursor:pointer;}
 .ma-legend span{display:flex;align-items:center;gap:5px;}
 .ma-dot{width:14px;height:14px;border-radius:4px;display:inline-block;border:1px solid transparent;}
 .sr-together{background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:10px 12px;font-size:14px;color:#1e3a8a;}
+
+/* Compact chat header (Prem, 10 Nov): smaller title and photo so the chat gets more room; ☰ More as a
+   named button, not ⋮ (guards mixed it up with the browser's own ⋮). */
+.pd-chat-top{padding:0 10px 8px;gap:6px;}
+.pd-chat-top .pd-chat-head{padding:8px 0 0;gap:8px;}
+.pd-chat-head .pd-avatar{width:36px;height:36px;font-size:13px;}
+.pd-chat-head .pd-title-sm{font-size:16px;line-height:1.2;}
+.pd-chat-who{font-size:12.5px;line-height:1.25;}
+.pd-chat-meta{font-size:12px;}
+.pd-chat-head .pd-pill{font-size:12px;padding:3px 9px;}
+.pd-chat-head .pd-icon-btn{width:34px;height:34px;}
+.pd-chat-head .pd-icon-btn svg{width:18px;height:18px;}
+.pd-chat-head .pd-more .pd-chip{font-size:12.5px;padding:6px 10px;white-space:nowrap;border-radius:99px;}
