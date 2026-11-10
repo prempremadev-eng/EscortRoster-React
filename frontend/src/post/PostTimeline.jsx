@@ -436,13 +436,16 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
               </span>
               {here ? <span className="pd-pill pd-amber">Covering</span>
                 : onBreak ? <span className="pd-pill pd-amber">{myBreak.typeLabel} break</span>
-                  : <button className="pd-pill pd-green pd-pill-btn" onClick={() => setSheet(general ? 'general' : 'break')} disabled={!!myBreak}>On duty ▾</button>}
+                  : <span className="pd-pill pd-green">On duty</span>}
             </div>
           </div>
           {/* 📞 like WhatsApp's call icon (Prem, 26 Oct): Safety today with call buttons, instead of a bar. */}
           <button className="pd-icon-btn" onClick={() => setSheet('safety')} aria-label="Safety today: who to call">{Icon.phone}</button>
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
-          <MoreMenu label="☰ More" items={[['👥 Team group', () => { window.location.hash = '#group/' + token; }], ['🕘 Duty history', () => setPage('history')], ['📅 My attendance', () => { window.location.hash = '#myatt/' + token; }], ['📷 Profile photo', () => setPicking(true)]]} />
+          <MoreMenu label="☰ More" items={[
+            // Break moved here from the On duty pill (Prem, 10 Nov: more room in the header).
+            !here && !onBreak && !myBreak ? [general ? '☕ Break / end general duty' : '☕ Go on break', () => setSheet(general ? 'general' : 'break')] : null,
+            ['👥 Team group', () => { window.location.hash = '#group/' + token; }], ['🕘 Duty history', () => setPage('history')], ['📅 My attendance', () => { window.location.hash = '#myatt/' + token; }], ['📷 Profile photo', () => setPicking(true)]]} />
         </div>
         {here && here.mode === 'go' && (
           <div className="pd-strip pd-strip-red pd-strip-col">
