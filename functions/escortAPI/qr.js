@@ -321,6 +321,15 @@ module.exports = function qrRoutes(app, h) {
     const next = NEXT[code];
     return next ? { code: next, day: code === 'C' ? plusDay(open.duty_date, 1) : open.duty_date } : null;
   }
+  // Shifts this guard may add a reliever for: the next one, and G for the A guard (Prem, 10 Nov: G guard absent).
+  async function slotsFor(zcql, guardId, open, branchId) {
+    const out = [];
+    const next = await nextSlot(zcql, guardId, open, branchId);
+    if (next) out.push(next);
+    const code = await shiftNow(zcql, branchId, guardId, open);
+    if (code === 'A' && (await getShifts(zcql, branchId)).some(x => x.code === 'G' && x.start)) out.push({ code: 'G', day: open.duty_date });
+    return out;
+  }
   async function reliefRows(zcql, branchId, days) {
     return (await zcql.executeZCQLQuery(`SELECT ROWID, duty_date, shift_code, reliever_id, added_by, in_at, out_at, CREATEDTIME FROM ReliefShifts WHERE branch_id = ${branchId} AND duty_date IN (${days.map(d => `'${d}'`).join(', ')})`)).map(r => r.ReliefShifts);
   }
@@ -608,7 +617,8 @@ module.exports = function qrRoutes(app, h) {
   // The guard on duty adds the reliever for the next shift (needs his fresh check ticket).
   // ➕ Add the reliever for the next shift: from the gate (after a face check) or the post chat ☰ More (Prem, 10 Nov).
   async function addRelief(catalystApp, zcql, branchId, g, open, body) {
-    const slot = await nextSlot(zcql, g.ROWID, open, branchId);
+    const slots = await slotsFor(zcql, g.ROWID, open, branchId);
+    const slot = slots.find(x => x.code === String(body.shift || '').toUpperCase()) || slots[0];
     if (!slot) throw new Error(TA('உங்களுக்கு அடுத்த ஷிஃப்ட் இல்லை.', 'No next shift for you to hand over.'));
     let relId = body.reliever_id ? String(requireRowId(body.reliever_id)) : '';
     const people = await relieversOf(zcql, branchId);
@@ -661,12 +671,17 @@ module.exports = function qrRoutes(app, h) {
       const catalystApp = admin(req);
       const zcql = catalystApp.zcql();
       const { g, open } = await chatGuard(zcql, req.query.t);
-      const slot = await nextSlot(zcql, g.ROWID, open, g.branch_id);
-      if (!slot) return ok(res, { code: '' });
-      const row = activeRow(await reliefRows(zcql, g.branch_id, [slot.day]), slot.code);
+      const slots = await slotsFor(zcql, g.ROWID, open, g.branch_id);
       const people = await relieversOf(zcql, g.branch_id);
-      const who = row && people.find(p => String(p.ROWID) === String(row.reliever_id));
-      ok(res, { code: slot.code, day: slot.day, added: who ? who.name + ' ' + masked(who.phone) : '', isIn: !!(row && row.in_at), list: people.map(p => ({ id: String(p.ROWID), name: p.name, phone: masked(p.phone), visits: Number(p.visits) || 0 })) });
+      const rows = slots.length ? await reliefRows(zcql, g.branch_id, [...new Set(slots.map(x => x.day))]) : [];
+      ok(res, {
+        slots: slots.map(slot => {
+          const row = activeRow(rows.filter(r => r.duty_date === slot.day), slot.code);
+          const who = row && people.find(p => String(p.ROWID) === String(row.reliever_id));
+          return { code: slot.code, day: slot.day, added: who ? who.name + ' ' + masked(who.phone) : '', isIn: !!(row && row.in_at) };
+        }),
+        list: people.map(p => ({ id: String(p.ROWID), name: p.name, phone: masked(p.phone), visits: Number(p.visits) || 0 }))
+      });
     } catch (err) {
       fail(res, err);
     }
@@ -844,6 +859,14 @@ module.exports = function qrRoutes(app, h) {
           const relName = rel ? ((await relieversOf(zcql, b.ROWID)).find(p => String(p.ROWID) === String(rel.reliever_id)) || {}).name : '';
           await tellOffice(catalystApp, b.ROWID, '🚨 ' + b.branch_name + ' Shift ' + sh.code + ': ' + (inNow ? 'not all IN' : 'nobody IN'), 'Started ' + sh.start + '. Not IN: ' + [...missing.map(g => g.guard_name), rel && !rel.in_at && relName ? 'reliever ' + relName : ''].filter(Boolean).join(', ') + '.');
           told.push(b.branch_name + ' ' + sh.code);
+          // G guard absent (Prem, 10 Nov): the A guard on duty may add the G reliever from the chat ☰ More.
+          if (sh.code === 'G' && !inNow && !rel) {
+            for (const g of guards) {
+              const open = await openIn(zcql, g.ROWID);
+              if (!open || (await shiftNow(zcql, b.ROWID, g.ROWID, open)) !== 'A') continue;
+              try { await sendPushToGuard(catalystApp, g.ROWID, { title: '🔁 G shift காவலர் வரவில்லை', body: 'G shift காவலர் இன்னும் IN செய்யவில்லை. மாற்று ஆள் வந்தால்: ☰ More → 🔁 Add reliever → Shift G.', url: '/' }); } catch (err) { console.error('G push failed:', err.message || err); }
+            }
+          }
         }
       }
       ok(res, { told });

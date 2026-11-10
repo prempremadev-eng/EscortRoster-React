@@ -8,9 +8,10 @@ export default function ReliefSheet({ token, onClose, onDone }) {
   const [form, setForm] = useState({ pick: '', name: '', phone: '' });
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [code, setCode] = useState('');
 
   useEffect(() => {
-    api.postRelief(token).then(r => setInfo(r.data)).catch(err => setMsg(err.message));
+    api.postRelief(token).then(r => { setInfo(r.data); setCode((r.data.slots[0] || {}).code || ''); }).catch(err => setMsg(err.message));
   }, [token]);
 
   async function add(e) {
@@ -18,7 +19,7 @@ export default function ReliefSheet({ token, onClose, onDone }) {
     setBusy(true);
     setMsg('');
     try {
-      const r = (await api.postReliefAdd(token, form.pick ? { reliever_id: form.pick } : { name: form.name, phone: form.phone })).data;
+      const r = (await api.postReliefAdd(token, { shift: code, ...(form.pick ? { reliever_id: form.pick } : { name: form.name, phone: form.phone }) })).data;
       onDone('✅ ' + r.name + ' · Shift ' + r.code + ' · office told');
     } catch (err) {
       setMsg(err.message);
@@ -27,16 +28,24 @@ export default function ReliefSheet({ token, onClose, onDone }) {
     }
   }
 
+  const slot = info && info.slots.find(x => x.code === code);
   const ready = form.pick || (form.name.trim() && form.phone.replace(/\D/g, '').length >= 10);
   return (
     <form className="pd-form" onSubmit={add}>
       <div className="pd-sheet-title">🔁 Add reliever</div>
       {!info && !msg && <div className="pd-muted">Loading...</div>}
-      {info && !info.code && <div className="pd-muted">No next shift to add a reliever for.</div>}
-      {info && info.code && (
+      {info && !info.slots.length && <div className="pd-muted">No next shift to add a reliever for.</div>}
+      {slot && (
         <>
-          <div className="pd-small">For <b>Shift {info.code}</b> · {info.day}. Now: <b>{info.added || 'not added'}</b>{info.isIn ? ' · already IN' : ''}</div>
-          {!info.isIn && (
+          {info.slots.length > 1 && (
+            <div style={{ display: 'flex', gap: 8 }}>
+              {info.slots.map(x => (
+                <button type="button" key={x.code} className={'pd-chip' + (x.code === code ? ' pd-chip-primary' : '')} onClick={() => setCode(x.code)}>Shift {x.code}{x.code === 'G' ? ' (today)' : ''}</button>
+              ))}
+            </div>
+          )}
+          <div className="pd-small">For <b>Shift {slot.code}</b> · {slot.day}. Now: <b>{slot.added || 'not added'}</b>{slot.isIn ? ' · already IN' : ''}</div>
+          {!slot.isIn && (
             <>
               {info.list.length > 0 && (
                 <>
