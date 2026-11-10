@@ -21,7 +21,7 @@ function getFix() {
 
 // From the gate to the duty page: it opens on the Card IN screen first, not straight in the chat (Prem, 9 Nov).
 function goDuty(t) {
-  try { sessionStorage.setItem('from-gate', '1'); } catch { /* private mode */ }
+  try { sessionStorage.setItem('from-gate', '1'); sessionStorage.setItem('no-splash', '1'); } catch { /* private mode */ }
   window.location.replace('#guard/' + t);
 }
 
