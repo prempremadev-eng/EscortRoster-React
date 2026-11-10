@@ -638,7 +638,7 @@ module.exports = function qrRoutes(app, h) {
     else await table.insertRow({ branch_id: branchId, duty_date: slot.day, shift_code: slot.code, reliever_id: relId, added_by: g.guard_name });
     const who = (await relieversOf(zcql, branchId)).find(p => String(p.ROWID) === relId);
     // 🔔 The office hears of it (Prem, 10 Nov).
-    await tellOffice(catalystApp, branchId, '🔁 Reliever added', g.guard_name + ' added ' + (who ? who.name + ' ' + masked(who.phone) : 'a reliever') + ' for Shift ' + slot.code + ' · ' + slot.day);
+    await tellOffice(catalystApp, branchId, row ? '✏️ Reliever changed' : '🔁 Reliever added', g.guard_name + (row ? ' changed the reliever to ' : ' added ') + (who ? who.name + ' ' + masked(who.phone) : 'a reliever') + ' for Shift ' + slot.code + ' · ' + slot.day);
     return { code: slot.code, day: slot.day, name: who ? who.name : '', pass: await waitPass(catalystApp, g.ROWID, branchId) };
   }
 
@@ -692,6 +692,26 @@ module.exports = function qrRoutes(app, h) {
       const zcql = catalystApp.zcql();
       const { g, open } = await chatGuard(zcql, req.body.t);
       ok(res, await addRelief(catalystApp, zcql, g.branch_id, g, open, req.body));
+    } catch (err) {
+      fail(res, err);
+    }
+  });
+
+  // ❌ Cancel the reliever added for a shift (Prem, 10 Nov: wrong person / not coming). Only before they are IN.
+  app.post('/postReliefCancel', async (req, res) => {
+    try {
+      const catalystApp = admin(req);
+      const zcql = catalystApp.zcql();
+      const { g, open } = await chatGuard(zcql, req.body.t);
+      const slot = (await slotsFor(zcql, g.ROWID, open, g.branch_id)).find(x => x.code === String(req.body.shift || '').toUpperCase());
+      if (!slot) throw new Error('Pick the shift.');
+      const row = activeRow(await reliefRows(zcql, g.branch_id, [slot.day]), slot.code);
+      if (!row) throw new Error(TA('Reliever சேர்க்கப்படவில்லை.', 'No reliever added.'));
+      if (row.in_at) throw new Error(TA('Reliever ஏற்கனவே IN. ரத்து செய்ய முடியாது.', 'The reliever is IN already; cannot cancel.'));
+      const who = (await relieversOf(zcql, g.branch_id)).find(p => String(p.ROWID) === String(row.reliever_id));
+      await catalystApp.datastore().table('ReliefShifts').deleteRow(row.ROWID);
+      await tellOffice(catalystApp, g.branch_id, '❌ Reliever cancelled', g.guard_name + ' cancelled ' + (who ? who.name + ' ' + masked(who.phone) : 'the reliever') + ' for Shift ' + slot.code + ' · ' + slot.day);
+      ok(res, { code: slot.code });
     } catch (err) {
       fail(res, err);
     }

@@ -28,6 +28,19 @@ export default function ReliefSheet({ token, onClose, onDone }) {
     }
   }
 
+  async function cancel() {
+    setBusy(true);
+    setMsg('');
+    try {
+      const r = (await api.postReliefCancel(token, code)).data;
+      onDone('❌ Shift ' + r.code + ' reliever cancelled · office told');
+    } catch (err) {
+      setMsg(err.message);
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const slot = info && info.slots.find(x => x.code === code);
   const ready = form.pick || (form.name.trim() && form.phone.replace(/\D/g, '').length >= 10);
   return (
@@ -45,6 +58,9 @@ export default function ReliefSheet({ token, onClose, onDone }) {
             </div>
           )}
           <div className="pd-small">For <b>Shift {slot.code}</b> · {slot.day}. Now: <b>{slot.added || 'not added'}</b>{slot.isIn ? ' · already IN' : ''}</div>
+          {!slot.isIn && slot.added && (
+            <div className="pd-small pd-muted">✏️ To change: pick or type another person below and tap Change. Not coming? Cancel.</div>
+          )}
           {!slot.isIn && (
             <>
               {info.list.length > 0 && (
@@ -64,7 +80,8 @@ export default function ReliefSheet({ token, onClose, onDone }) {
                   <input id="pd-rel-phone" className="pd-search" value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} inputMode="tel" placeholder="10 digits" />
                 </>
               )}
-              <button className="pd-btn pd-btn-primary" type="submit" disabled={busy || !ready}>{busy ? 'Adding...' : 'Add reliever'}</button>
+              <button className="pd-btn pd-btn-primary" type="submit" disabled={busy || !ready}>{busy ? 'Saving...' : slot.added ? '✏️ Change reliever' : 'Add reliever'}</button>
+              {slot.added && <button type="button" className="pd-btn pd-btn-outline" onClick={cancel} disabled={busy}>❌ Cancel {slot.added.split(' ••••')[0]}</button>}
               <div className="pd-small pd-muted">They scan the gate QR → 🆕 New Registration → 🔁 Reliever when they come.</div>
             </>
           )}
