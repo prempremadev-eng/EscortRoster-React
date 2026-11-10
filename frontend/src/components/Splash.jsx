@@ -4,11 +4,10 @@ import { useEffect, useState } from 'react';
 //   shift incharge → 📍 branch · agency, guard → "Welcome, <name>", admin → the logo (app name + shield
 //   until a logo file is given). A page asks for it with showSplash({...}); this host plays it once.
 const SHOWN = 'splash_shown';
-// From the gate QR straight to the duty page (Prem, 10 Nov): no owl, no welcome; the guard is already IN.
+// From the gate QR straight to the duty page (Prem, 10 Nov): no owl intro, but the 👋 welcome stays.
 const fromGate = () => { try { return !!sessionStorage.getItem('no-splash'); } catch { return false; } };
 
 export function showSplash(detail) {
-  if (fromGate()) return;
   try { if (sessionStorage.getItem(SHOWN)) return; sessionStorage.setItem(SHOWN, '1'); } catch { /* private mode: show it */ }
   window.dispatchEvent(new CustomEvent('app-splash', { detail }));
 }
