@@ -34,6 +34,19 @@ import MyAttendance from './components/MyAttendance.jsx';
 import GroupChat from './post/GroupChat.jsx';
 import { api } from './api.js';
 
+// 🔄 New version check (Prem, 10 Nov): Slate sends index.html with a 1-year cache, so phones kept the old app.
+// On open and on coming back to the app, read index.html fresh; a new build → load it under a new address.
+function checkNewVersion() {
+  const mine = [...document.scripts].map(x => x.src).find(x => /\/assets\/index-[^/]+\.js/.test(x));
+  if (!mine) return;
+  fetch(location.pathname + '?nv=' + Date.now(), { cache: 'no-store' }).then(r => (r.ok ? r.text() : '')).then(html => {
+    const m = html.match(/assets\/index-[^"']+\.js/);
+    if (m && !mine.includes(m[0])) location.replace(location.pathname + '?v=' + Date.now() + location.hash);
+  }).catch(() => { /* offline: keep going */ });
+}
+checkNewVersion();
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNewVersion(); });
+
 // The guard's team group ("IPF Schedule", 26 Oct): open with or without duty; ← goes to his duty page.
 function GuardGroup({ token }) {
   const groupApi = React.useMemo(() => ({
