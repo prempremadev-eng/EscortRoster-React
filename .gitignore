@@ -6,3 +6,4 @@ catalyst-debug.log
 client/.catalyst/
 frontend/dist/
 frontend/node_modules
+frontend/public/guide-*.html
