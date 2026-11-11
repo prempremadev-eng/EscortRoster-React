@@ -300,6 +300,13 @@ export default function PostsPage() {
                               onChange={e => setRule('regular_only', ['A', 'B', 'C', 'G'].filter(x => x === c ? e.target.checked : form.rules.regular_only.includes(x)).join('') || 'ABCG')} /> {c}</label>
                           ))}</div>
                         )}
+                        {/* The two points in Tamil (Prem, 11 Nov). */}
+                        {!!form.rules.regular_only && (
+                          <ul style={{ margin: '4px 0 0', paddingLeft: 20, fontSize: 13, color: '#5B6584', lineHeight: 1.6 }}>
+                            <li>மேலே உள்ள ரெகுலர் ஆட்களில் <b>யாருக்காவது</b> அன்று மாத ரோஸ்டரில் {form.rules.regular_only.split('').join(' / ')} இருந்தால் மட்டும், தினசரி schedule-ல் அந்த slot வரும்.</li>
+                            <li><b>யாருக்கும்</b> இல்லையென்றால் அந்த slot வராது; காலி (vacant) என்றும் காட்டாது.</li>
+                          </ul>
+                        )}
                       </div>
                       <details className="pp-more">
                         <summary>⚡ Auto fill lists (backup guards, priority …)</summary>
