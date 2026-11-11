@@ -1042,7 +1042,10 @@ module.exports = function qrRoutes(app, h) {
         // No shift of his own that day (off / week off, Prem 11 Nov: comes in place of an absent C guard): he is
         // added to that shift; the absent regular keeps their row, so they still show AB if they don't come.
         const theirs = moveOnly || !mine ? null : rows.find(r => r.shift_code === x.to && (!mine || String(r.post_id) === String(mine.post_id)));
-        if (theirs && theirs.guard_id && String(theirs.guard_id) !== x.g && (await openIn(zcql, theirs.guard_id))) throw new Error('The Shift ' + x.to + ' guard is already IN.');
+        // One guard a shift (Cumbum, Prem 11 Nov): someone of that shift is IN already → no OK, whatever the case.
+        for (const r of rows.filter(r2 => r2.shift_code === x.to && r2.guard_id && String(r2.guard_id) !== x.g)) {
+          if (await openIn(zcql, r.guard_id)) throw new Error('The Shift ' + x.to + ' guard is already IN. No swap needed.');
+        }
         const table = catalystApp.datastore().table('Schedule');
         // Kept on the day sheet for the attendance (Prem, 2 Nov): "🔄 C → G · OK <name> 15:40".
         const okBy = ' · OK ' + String(req.user.name || '').slice(0, 30) + ' ' + new Date(Date.now() + 330 * 60000).toISOString().slice(11, 16);
