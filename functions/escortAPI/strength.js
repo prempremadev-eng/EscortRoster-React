@@ -35,7 +35,9 @@ module.exports = function strengthRoutes(app, h) {
       const [branches, agencies, guards, slots, roster, ins] = await Promise.all([
         selectAll(zcql, 'Branches', `SELECT ROWID, branch_name, city FROM Branches WHERE is_active = 'true'${area ? ` AND ROWID IN (${area.map(requireRowId).join(', ')})` : ''} ORDER BY branch_name ASC`),
         selectAll(zcql, 'Agencies', 'SELECT ROWID, agency_name FROM Agencies ORDER BY agency_name ASC'),
-        selectAll(zcql, 'Guards', `SELECT ROWID, guard_name, id_number, branch_id, agency_id FROM Guards WHERE is_active = 'true'${inBranches}${auth.agencyWhere(req)} ORDER BY ROWID ASC`),
+        // Regular guards only (Prem, 11 Nov): relievers are kept apart and never counted in the strength.
+        selectAll(zcql, 'Guards', `SELECT ROWID, guard_name, id_number, branch_id, agency_id, tags FROM Guards WHERE is_active = 'true'${inBranches}${auth.agencyWhere(req)} ORDER BY ROWID ASC`)
+          .then(list => list.filter(g => !String(g.tags || '').split(',').map(x => x.trim()).includes('Reliever'))),
         selectAll(zcql, 'Schedule', `SELECT guard_id, post_id, branch_id, shift_code FROM Schedule WHERE sched_date = '${date}' AND published = true${inBranches} ORDER BY ROWID ASC`),
         selectAll(zcql, 'MonthRoster', `SELECT guard_id, codes, team FROM MonthRoster WHERE roster_month = '${date.slice(0, 7)}'${inBranches} ORDER BY ROWID ASC`),
         selectAll(zcql, 'AccessLog', `SELECT guard_id, punch_time, direction FROM AccessLog WHERE duty_date = '${date}' ORDER BY CREATEDTIME ASC`)
