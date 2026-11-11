@@ -117,7 +117,7 @@ module.exports = function attendanceRoutes(app, h) {
       auth.branchList(zcql),
       only ? Promise.resolve([only]) : selectAll(zcql, 'Guards', 'SELECT ROWID, guard_name, id_number, card_number, agency, agency_id, branch_id, is_active, tags FROM Guards ORDER BY ROWID ASC'),
       selectAll(zcql, 'AccessLog', `SELECT guard_id, direction, duty_date, CREATEDTIME FROM AccessLog WHERE duty_date >= '${from}' AND duty_date <= '${to}'${g1} ORDER BY CREATEDTIME ASC`),
-      selectAll(zcql, 'Schedule', `SELECT guard_id, sched_date, shift_code, post_id FROM Schedule WHERE sched_date >= '${from}' AND sched_date <= '${to}' AND published = true${g1} ORDER BY ROWID ASC`),
+      selectAll(zcql, 'Schedule', `SELECT guard_id, sched_date, shift_code, post_id, swap_note FROM Schedule WHERE sched_date >= '${from}' AND sched_date <= '${to}' AND published = true${g1} ORDER BY ROWID ASC`),
       selectAll(zcql, 'MonthRoster', `SELECT guard_id, codes, team FROM MonthRoster WHERE roster_month = '${month}'${g1} ORDER BY ROWID ASC`),
       selectAll(zcql, 'Posts', 'SELECT ROWID, post_name FROM Posts ORDER BY ROWID ASC')
     ]);
@@ -161,7 +161,7 @@ module.exports = function attendanceRoutes(app, h) {
           const lastOut = outs[outs.length - 1];
           const worked = lastOut ? Math.max(0, Math.round(mins(lastOut.CREATEDTIME) - mins(firstIn.CREATEDTIME))) : 0;
           tot.P++; tot.mins += worked;
-          cells.push({ s: 'P', c: (duty && duty.shift_code) || ('ABCG'.includes(rc) && rc) || 'P', in: String(firstIn.CREATEDTIME).slice(11, 16), out: lastOut ? String(lastOut.CREATEDTIME).slice(11, 16) : '', h: worked, post: duty ? postName[String(duty.post_id)] || '' : '' });
+          cells.push({ s: 'P', c: (duty && duty.shift_code) || ('ABCG'.includes(rc) && rc) || 'P', in: String(firstIn.CREATEDTIME).slice(11, 16), out: lastOut ? String(lastOut.CREATEDTIME).slice(11, 16) : '', h: worked, post: duty ? postName[String(duty.post_id)] || '' : '', ...(duty && duty.swap_note ? { sw: duty.swap_note } : {}) });
         } else if (rc === 'L') { tot.L++; cells.push({ s: 'L' }); }
         else if (rc === 'O') { tot.WO++; cells.push({ s: 'WO' }); }
         else if (duty && begun(String(g.branch_id), day, duty.shift_code)) { tot.AB++; cells.push({ s: 'AB', c: duty.shift_code, post: postName[String(duty.post_id)] || '' }); }

@@ -64,7 +64,7 @@ export default function MyAttendance({ token }) {
                 <button key={i} className={'ma-day ma-' + (c.s || 'none') + (c.s === 'P' && !c.out ? ' ma-noout' : '') + (data.today === month + '-' + String(i + 1).padStart(2, '0') ? ' ma-today' : '') + (day === i + 1 ? ' on' : '')}
                   onClick={() => setDay(i + 1)} disabled={!c.s}>
                   <span>{i + 1}</span>
-                  <b>{c.s === 'P' ? c.c : c.s}</b>
+                  <b>{c.s === 'P' ? (c.sw ? '🔄' : '') + c.c : c.s}</b>
                 </button>
               ))}
             </div>
@@ -72,14 +72,14 @@ export default function MyAttendance({ token }) {
             {pc && (
               <div className={'ma-detail ma-' + pc.s}>
                 <b>{day} {nice(month).split(' ')[0]} · {WORD[pc.s] || 'No duty'}</b>
-                {pc.s === 'P' && <span>Shift {pc.c}{pc.post ? ' · ' + pc.post : ''}<br />IN <b>{pc.in}</b> · OUT <b>{pc.out || '— (no OUT)'}</b>{pc.h ? ' · ' + hm(pc.h) : ''}</span>}
+                {pc.s === 'P' && <span>Shift {pc.c}{pc.post ? ' · ' + pc.post : ''}<br />IN <b>{pc.in}</b> · OUT <b>{pc.out || '— (no OUT)'}</b>{pc.h ? ' · ' + hm(pc.h) : ''}{pc.sw ? <><br />{pc.sw}</> : null}</span>}
                 {pc.s === 'AB' && <span>Shift {pc.c}{pc.post ? ' · ' + pc.post : ''} · no IN that day</span>}
               </div>
             )}
 
             <div className="ma-legend">
               <span><i className="ma-dot ma-P" />Present</span><span><i className="ma-dot ma-P ma-noout" />No OUT</span>
-              <span><i className="ma-dot ma-AB" />Absent</span><span><i className="ma-dot ma-L" />Leave</span><span><i className="ma-dot ma-WO" />Week off</span>
+              <span>🔄 Shift swap</span><span><i className="ma-dot ma-AB" />Absent</span><span><i className="ma-dot ma-L" />Leave</span><span><i className="ma-dot ma-WO" />Week off</span>
             </div>
             <div className="sr-muted">Something wrong? Tell your supervisor.</div>
           </>
