@@ -251,7 +251,6 @@ export const api = {
   postRelief: t => apiCall('GET', '/postRelief?t=' + q(t)),
   postReliefAdd: (t, body) => apiCall('POST', '/postReliefAdd', { t, ...body }),
   postReliefCancel: (t, shift) => apiCall('POST', '/postReliefCancel', { t, shift }),
-  endGeneral: (t, note) => apiCall('POST', '/endGeneral', { t, note }),
   supInbox: (branch, seen, agency) => apiCall('POST', '/supInbox', { branch, seen, agency }),
   supPost: post => apiCall('GET', '/supPost?post=' + q(post)),
   shiftReport: (branch, date, agency) => apiCall('GET', '/shiftReport?branch=' + q(branch) + '&date=' + q(date) + (agency ? '&agency=' + q(agency) : '')),

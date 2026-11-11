@@ -138,6 +138,14 @@ module.exports = function postRoutes(app, h) {
     await tellGuard(catalystApp, guard, '🚪 Card OUT · ' + hhmm(nowStamp()), 'Your duty page is closed till your card is IN again.');
     if (log.status === 'waiting') return;
     await closePresence(catalystApp, zcql, log.post_id, guard.ROWID, 'main');
+    // G guard OUT with someone still standing at the post (Prem, 11 Nov): the post is not empty, no alarm.
+    if (log.shift_code === GENERAL) {
+      const still = await zcql.executeZCQLQuery(`SELECT ROWID FROM Presence WHERE post_id = ${requireRowId(log.post_id)} AND to_at IS NULL LIMIT 1`);
+      if (still.length) {
+        await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: guard.ROWID, kind: 'system', text: guard.guard_name + ' card OUT · ' + hhmm(nowStamp()) });
+        return;
+      }
+    }
     await addMessage(catalystApp, { post_id: log.post_id, duty_log_id: log.ROWID, guard_id: guard.ROWID, kind: 'system_red', text: guard.guard_name + ' card OUT · post empty · ' + hhmm(nowStamp()) });
     await sup.notify(catalystApp, log.post_id, 'Post empty', guard.guard_name + ' card OUT · ' + hhmm(nowStamp()), true);
   }
