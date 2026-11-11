@@ -302,8 +302,8 @@ export default function PostsPage() {
                         )}
                       </div>
                       <details className="pp-more">
-                        <summary>⚡ Auto fill lists (relief, priority …)</summary>
-                        <GuardPick label="Relief guards" help="When a regular is off: these, in this order (5 or more also lets free guards fill it)." all={pool} value={form.rules.relief} onChange={v => setRule('relief', v)} />
+                        <summary>⚡ Auto fill lists (backup guards, priority …)</summary>
+                        <GuardPick label="Backup guards (from this branch) · மாற்று ஆட்கள்" help="Own guards of this branch who fill in when a regular is off, in this order (5 or more also lets free guards fill it). Not the 🔁 relievers from outside." all={pool} value={form.rules.relief} onChange={v => setRule('relief', v)} />
                         <div className="pp-flags">
                           <label>Priority
                             <select value={form.rules.priority} onChange={e => setRule('priority', e.target.value)}>
