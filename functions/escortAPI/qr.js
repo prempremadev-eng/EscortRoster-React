@@ -1035,7 +1035,11 @@ module.exports = function qrRoutes(app, h) {
         const posts = (await zcql.executeZCQLQuery(`SELECT ROWID FROM Posts WHERE branch_id = ${branch} AND agency_id = ${requireRowId(g.agency_id)} AND post_type = 'POST' AND is_active = 'true'`)).map(r => r.Posts);
         const rows = (await zcql.executeZCQLQuery(`SELECT ROWID, post_id, shift_code, guard_id FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${x.day}'`)).map(r => r.Schedule);
         const mine = rows.find(r => String(r.guard_id) === x.g && r.shift_code !== x.to);
-        const theirs = rows.find(r => r.shift_code === x.to && (!mine || String(r.post_id) === String(mine.post_id)));
+        // His own shift already began and he did not come (Prem, 11 Nov: A guard absent, the office calls him
+        // for C at night): move only him; the C regular stays on C (an exchange would put them on a past A).
+        const myShift = mine && (await getShifts(zcql, branch)).find(s2 => s2.code === mine.shift_code && s2.start);
+        const moveOnly = !!(myShift && minsInto(x.day) > hm(myShift.start) + SWAP_LATE_MIN);
+        const theirs = moveOnly ? null : rows.find(r => r.shift_code === x.to && (!mine || String(r.post_id) === String(mine.post_id)));
         if (theirs && theirs.guard_id && String(theirs.guard_id) !== x.g && (await openIn(zcql, theirs.guard_id))) throw new Error('The Shift ' + x.to + ' guard is already IN.');
         const table = catalystApp.datastore().table('Schedule');
         // Kept on the day sheet for the attendance (Prem, 2 Nov): "🔄 C → G · OK <name> 15:40".
