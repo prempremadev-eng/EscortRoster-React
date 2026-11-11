@@ -1039,7 +1039,9 @@ module.exports = function qrRoutes(app, h) {
         // for C at night): move only him; the C regular stays on C (an exchange would put them on a past A).
         const myShift = mine && (await getShifts(zcql, branch)).find(s2 => s2.code === mine.shift_code && s2.start);
         const moveOnly = !!(myShift && minsInto(x.day) > hm(myShift.start) + SWAP_LATE_MIN);
-        const theirs = moveOnly ? null : rows.find(r => r.shift_code === x.to && (!mine || String(r.post_id) === String(mine.post_id)));
+        // No shift of his own that day (off / week off, Prem 11 Nov: comes in place of an absent C guard): he is
+        // added to that shift; the absent regular keeps their row, so they still show AB if they don't come.
+        const theirs = moveOnly || !mine ? null : rows.find(r => r.shift_code === x.to && (!mine || String(r.post_id) === String(mine.post_id)));
         if (theirs && theirs.guard_id && String(theirs.guard_id) !== x.g && (await openIn(zcql, theirs.guard_id))) throw new Error('The Shift ' + x.to + ' guard is already IN.');
         const table = catalystApp.datastore().table('Schedule');
         // Kept on the day sheet for the attendance (Prem, 2 Nov): "🔄 C → G · OK <name> 15:40".
