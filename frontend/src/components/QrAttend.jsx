@@ -374,10 +374,14 @@ export default function QrAttend({ qrKey }) {
           {check.swap.refused && !check.swap.asked && <div className="qr-sub">❌ முன்பு கேட்டதை அலுவலகம் ஏற்கவில்லை. இன்னும் ஒரு முறை மட்டும் கேட்கலாம்.</div>}
           {check.swap.asked
             ? <div className="qr-lock">{check.swap.status === 'no' ? '❌ அலுவலகம் ஏற்கவில்லை. மீண்டும் கேட்க QR-ஐ ஸ்கேன் செய்யவும் (மொத்தம் 2 முறை).' : '⏳ Shift ' + check.swap.to + '-க்கு அலுவலகத்திடம் கேட்கப்பட்டது. அனுமதி வந்ததும் உங்கள் duty page தானாக திறக்கும். இந்த page-ஐ மூட வேண்டாம்.'}</div>
-            : <button className="qr-big qr-in" onClick={async () => {
+            : <>
+              {/* Prem, 11 Nov: the ask goes only after this press; say so plainly. */}
+              <div className="qr-sub" style={{ whiteSpace: 'pre-line', fontWeight: 700, color: '#1E3A8A' }}>{'👇 கீழே உள்ள பச்சை பொத்தானை அழுத்தவும். அப்போதுதான் அலுவலகத்துக்கு கேள்வி போகும்.\n(Press the green button. Only then the office gets your request.)'}</div>
+              <button className="qr-big qr-in" onClick={async () => {
                 setMsg('');
                 try { await api.qrSwapAsk({ k: qrKey, ticket: check.swap.ticket }); setCheck({ ...check, swap: { ...check.swap, asked: true } }); } catch (err) { setMsg(err.message); }
-              }}>🔄 அலுவலகத்திடம் கேளுங்கள்: இன்று Shift {check.swap.to}<small>{check.swap.from ? 'Shift ' + check.swap.from + '-க்கு பதிலாக' : 'கூடுதல் பணி'}</small></button>}
+              }}>🔄 அலுவலகத்திடம் கேளுங்கள்: இன்று Shift {check.swap.to}<small>{check.swap.from ? 'Shift ' + check.swap.from + '-க்கு பதிலாக' : 'கூடுதல் பணி'}</small></button>
+            </>}
           <button className="qr-link" onClick={() => { setStep('start'); setCheck(null); }}>Back</button>
         </div>
       )}
