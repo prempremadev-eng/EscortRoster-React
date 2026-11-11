@@ -628,7 +628,7 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
               </>
             )}
 
-            {sheet === 'relief' && <ReliefSheet token={token} onClose={() => setSheet(null)} onDone={t => { setSheet(null); say(t); }} />}
+            {sheet === 'relief' && <ReliefSheet token={token} onClose={() => setSheet(null)} onDone={t => { setSheet(null); say(t); load(); }} />}
 
             {sheet === 'alert' && (
               <form className="pd-form" onSubmit={sendAlert}>

@@ -615,6 +615,16 @@ module.exports = function qrRoutes(app, h) {
   });
 
   // The guard on duty adds the reliever for the next shift (needs his fresh check ticket).
+  const hhmm2 = () => new Date(Date.now() + 330 * 60000).toISOString().slice(11, 16);
+  // 💬 Reliever add / change / cancel also shows in the post chat (Prem, 11 Nov), so the guards see it.
+  async function reliefNote(catalystApp, zcql, g, text) {
+    try {
+      const r = await zcql.executeZCQLQuery(`SELECT ROWID, post_id FROM DutyLog WHERE guard_id = ${requireRowId(g.ROWID)} AND (status = 'on_duty' OR status = 'on_break' OR status = 'waiting') ORDER BY CREATEDTIME DESC LIMIT 1`);
+      if (!r.length) return;
+      await catalystApp.datastore().table('PostMessages').insertRow({ post_id: r[0].DutyLog.post_id, duty_log_id: r[0].DutyLog.ROWID, guard_id: g.ROWID, kind: 'system', pinned: false, text });
+    } catch (err) { console.error('Reliever chat note failed:', err.message || err); }
+  }
+
   // ➕ Add the reliever for the next shift: from the gate (after a face check) or the post chat ☰ More (Prem, 10 Nov).
   async function addRelief(catalystApp, zcql, branchId, g, open, body) {
     const slots = await slotsFor(zcql, g.ROWID, open, branchId);
@@ -638,6 +648,7 @@ module.exports = function qrRoutes(app, h) {
     else await table.insertRow({ branch_id: branchId, duty_date: slot.day, shift_code: slot.code, reliever_id: relId, added_by: g.guard_name });
     const who = (await relieversOf(zcql, branchId)).find(p => String(p.ROWID) === relId);
     // 🔔 The office hears of it (Prem, 10 Nov).
+    await reliefNote(catalystApp, zcql, g, (row ? '✏️ ' + g.guard_name + ' changed the Shift ' + slot.code + ' reliever to ' : '🔁 ' + g.guard_name + ' added reliever ') + (who ? who.name : '') + (row ? '' : ' for Shift ' + slot.code) + ' · ' + hhmm2());
     await tellOffice(catalystApp, branchId, row ? '✏️ Reliever changed' : '🔁 Reliever added', g.guard_name + (row ? ' changed the reliever to ' : ' added ') + (who ? who.name + ' ' + masked(who.phone) : 'a reliever') + ' for Shift ' + slot.code + ' · ' + slot.day);
     return { code: slot.code, day: slot.day, name: who ? who.name : '', pass: await waitPass(catalystApp, g.ROWID, branchId) };
   }
@@ -710,6 +721,7 @@ module.exports = function qrRoutes(app, h) {
       if (row.in_at) throw new Error(TA('Reliever ஏற்கனவே IN. ரத்து செய்ய முடியாது.', 'The reliever is IN already; cannot cancel.'));
       const who = (await relieversOf(zcql, g.branch_id)).find(p => String(p.ROWID) === String(row.reliever_id));
       await catalystApp.datastore().table('ReliefShifts').deleteRow(row.ROWID);
+      await reliefNote(catalystApp, zcql, g, '❌ ' + g.guard_name + ' cancelled the Shift ' + slot.code + ' reliever ' + (who ? who.name : '') + ' · ' + hhmm2());
       await tellOffice(catalystApp, g.branch_id, '❌ Reliever cancelled', g.guard_name + ' cancelled ' + (who ? who.name + ' ' + masked(who.phone) : 'the reliever') + ' for Shift ' + slot.code + ' · ' + slot.day);
       ok(res, { code: slot.code });
     } catch (err) {
