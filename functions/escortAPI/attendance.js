@@ -123,6 +123,17 @@ module.exports = function attendanceRoutes(app, h) {
     ]);
     const branchById = {};
     branches.filter(b => only ? String(b.ROWID) === String(only.branch_id) : auth.branchOk(req, b.ROWID)).forEach(b => { branchById[String(b.ROWID)] = b; });
+    // 🔁 Relievers (Prem, 11 Nov): who covered which shift, in their own section; an AB day shows who covered it.
+    const [relief, relPeople] = await Promise.all([
+      selectAll(zcql, 'ReliefShifts', `SELECT ROWID, branch_id, duty_date, shift_code, reliever_id, in_at, out_at FROM ReliefShifts WHERE duty_date >= '${from}' AND duty_date <= '${to}' ORDER BY ROWID ASC`),
+      selectAll(zcql, 'Relievers', 'SELECT ROWID, name, phone, branch_id, guard_id FROM Relievers ORDER BY ROWID ASC')
+    ]);
+    const relName = {};
+    relPeople.forEach(r => { relName[String(r.ROWID)] = r; });
+    const came = relief.filter(r => r.in_at && branchById[String(r.branch_id)]);
+    const coverOf = {};
+    came.forEach(r => { const k = String(r.branch_id) + '|' + String(r.duty_date).slice(0, 10) + '|' + r.shift_code; coverOf[k] = coverOf[k] || r; });
+    const hhmm = t => String(t || '').slice(11, 16);
     const guards = (only ? guardsAll : auth.inArea(req, guardsAll)).filter(g => branchById[String(g.branch_id)] && !String(g.tags || '').split(',').includes('Reliever'));
     const postName = {};
     posts.forEach(p => { postName[String(p.ROWID)] = p.post_name; });
@@ -169,7 +180,11 @@ module.exports = function attendanceRoutes(app, h) {
           cells.push({ ...(late > 10 && late < 18 * 60 ? { late } : {}), s: 'P', c: (duty && duty.shift_code) || ('ABCG'.includes(rc) && rc) || 'P', in: String(firstIn.CREATEDTIME).slice(11, 16), out: lastOut ? String(lastOut.CREATEDTIME).slice(11, 16) : '', h: worked, post: duty ? postName[String(duty.post_id)] || '' : '', ...(duty && duty.swap_note ? { sw: duty.swap_note } : {}) });
         } else if (rc === 'L') { tot.L++; cells.push({ s: 'L' }); }
         else if (rc === 'O') { tot.WO++; cells.push({ s: 'WO' }); }
-        else if (duty && begun(String(g.branch_id), day, duty.shift_code)) { tot.AB++; cells.push({ s: 'AB', c: duty.shift_code, post: postName[String(duty.post_id)] || '' }); }
+        else if (duty && begun(String(g.branch_id), day, duty.shift_code)) {
+          tot.AB++;
+          const cv = coverOf[String(g.branch_id) + '|' + day + '|' + duty.shift_code];
+          cells.push({ s: 'AB', c: duty.shift_code, post: postName[String(duty.post_id)] || '', ...(cv ? { cover: ((relName[String(cv.reliever_id)] || {}).name || 'Reliever') + ' (' + hhmm(cv.in_at) + '–' + (hhmm(cv.out_at) || '…') + ')' } : {}) });
+        }
         else cells.push(day > today ? { s: '', f: 1 } : { s: '' });
       }
       // Not active and nothing this month: leave out.
@@ -184,7 +199,38 @@ module.exports = function attendanceRoutes(app, h) {
       });
     }
     rows.sort((p, q) => p.branch.localeCompare(q.branch) || p.agency.localeCompare(q.agency) || p.name.localeCompare(q.name));
-    return { month, days, today, rows };
+    const relievers = [];
+    if (!only) {
+      const gOf = {};
+      guardsAll.forEach(g => { gOf[String(g.ROWID)] = g; });
+      const byRel = {};
+      came.forEach(r => { (byRel[String(r.reliever_id)] = byRel[String(r.reliever_id)] || []).push(r); });
+      for (const [rid, list] of Object.entries(byRel)) {
+        const person = relName[rid] || {};
+        const b = branchById[String(list[0].branch_id)];
+        const pg = gOf[String(person.guard_id)] || {};
+        const tot = { P: 0, mins: 0, late: 0 };
+        const cells = [];
+        for (let d = 1; d <= days; d++) {
+          const day = month + '-' + String(d).padStart(2, '0');
+          const x = list.find(r => String(r.duty_date).slice(0, 10) === day);
+          if (!x) { cells.push(day > today ? { s: '', f: 1 } : { s: '' }); continue; }
+          const worked = x.out_at ? Math.max(0, Math.round(mins(x.out_at + ':00') - mins(x.in_at + ':00'))) : 0;
+          const st = (startOf[String(x.branch_id)] || {})[x.shift_code];
+          const late = st ? Math.round(mins(x.in_at + ':00') - mins(day + ' ' + st + ':00')) : 0;
+          tot.P++; tot.mins += worked;
+          if (late > 10 && late < 18 * 60) tot.late++;
+          cells.push({ s: 'P', c: x.shift_code, in: hhmm(x.in_at), out: hhmm(x.out_at), h: worked, ...(late > 10 && late < 18 * 60 ? { late } : {}) });
+        }
+        relievers.push({
+          gid: 'rel-' + rid, name: person.name || 'Reliever', clock: person.phone ? '••••' + String(person.phone).slice(-4) : '', vendorId: '', team: '🔁 Reliever',
+          agency: pg.agency || '', agencyId: String(pg.agency_id || ''), branch: b.branch_name, branchId: String(list[0].branch_id), state: b.state || '', city: b.city || '',
+          cells, tot: { ...tot, hours: Math.floor(tot.mins / 60) + 'h ' + String(tot.mins % 60).padStart(2, '0') + 'm' }
+        });
+      }
+      relievers.sort((p, q) => p.name.localeCompare(q.name));
+    }
+    return { month, days, today, rows, relievers };
   }
 
   app.get('/attendanceMonth', async (req, res) => {

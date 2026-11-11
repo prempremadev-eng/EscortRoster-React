@@ -1183,6 +1183,12 @@ module.exports = function qrRoutes(app, h) {
           try { await onCardIn(catalystApp, guard, time, r.duty_date); } catch (err) { console.error('Reliever IN follow-up failed:', err.message || err); }
           token = guard.guard_token || crypto.randomBytes(16).toString('hex');
           if (!guard.guard_token) await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, guard_token: token });
+          // ⏰ A late reliever too (Prem, 11 Nov).
+          try {
+            const sh = (await getShifts(zcql, b.ROWID)).find(x => x.code === r.shift_code && x.start);
+            const late = sh ? minsInto(r.duty_date) - hm(sh.start) : 0;
+            if (late > LATE_MIN && late < 18 * 60) await tellOffice(catalystApp, b.ROWID, '⏰ Late IN · ' + rel.name + ' (reliever)', 'Shift ' + r.shift_code + ' started ' + sh.start + '. IN at ' + time + ' (' + late + ' min late).');
+          } catch (err) { console.error('Late reliever alert failed:', err.message || err); }
           if (t.reg) await tellOffice(catalystApp, b.ROWID, '🆕 New reliever registered', rel.name + ' ••••' + String(rel.phone).slice(-4) + ' · Shift ' + r.shift_code + '. Check the photo in Setup → Relievers.');
         } else {
           const hand = await handover(zcql, b.ROWID, guard.ROWID, { duty_date: r.duty_date }, r.shift_code);
