@@ -270,6 +270,7 @@ module.exports = function qrRoutes(app, h) {
   // ⏰ Shift times (Prem, 2 Nov): IN from 40 min before the start (A 06:00 → 05:20); OUT only after the end
   // (A → 14:00). Another shift today: a 🔄 swap, asked at the gate from 40 min before its start till 15 min
   // after, and the office OK makes it (the day sheet changes; the month roster stays).
+  const LATE_MIN = 10; // ⏰ IN later than this after the shift start = late (Prem, 11 Nov)
   const EARLY_MIN = 40, SWAP_LATE_MIN = 15, SWAP_MAX_ASKS = 2, IN_AFTER_END_MIN = 10; // IN till 10 min after the end (A → 14:10, Prem 2 Nov)
   const hm = t => +String(t).slice(0, 2) * 60 + +String(t).slice(3, 5);
   const clock = m => String(Math.floor(((m % 1440) + 1440) % 1440 / 60)).padStart(2, '0') + ':' + String(((m % 60) + 60) % 60).padStart(2, '0');
@@ -1226,6 +1227,14 @@ module.exports = function qrRoutes(app, h) {
         if (t.a === 'IN') {
           await autoSchedule(catalystApp, zcql, guard, day);
           await onCardIn(catalystApp, guard, time, day);
+          // ⏰ Late IN (Prem, 11 Nov): more than 10 min after the shift start → the office hears it; the
+          // attendance marks the day late (worked out there from the IN time, nothing stored).
+          try {
+            const code = await dutyCode(zcql, guard.ROWID, day);
+            const sh = (await getShifts(zcql, b.ROWID)).find(x => x.code === code && x.start);
+            const late = sh ? minsInto(day) - hm(sh.start) : 0;
+            if (late > LATE_MIN && late < 18 * 60) await tellOffice(catalystApp, b.ROWID, '⏰ Late IN · ' + guard.guard_name, 'Shift ' + code + ' started ' + sh.start + '. IN at ' + time + ' (' + late + ' min late).');
+          } catch (err) { console.error('Late IN alert failed:', err.message || err); }
           // The guard's own duty page opens on this phone after the IN (face + gate GPS proved who it is).
           token = guard.guard_token || crypto.randomBytes(16).toString('hex');
           if (!guard.guard_token) await catalystApp.datastore().table('Guards').updateRow({ ROWID: guard.ROWID, guard_token: token });

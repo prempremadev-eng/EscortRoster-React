@@ -147,7 +147,7 @@ module.exports = function attendanceRoutes(app, h) {
       const r = rosterOf[id];
       const codes = String((r && r.codes) || '');
       const cells = [];
-      const tot = { P: 0, AB: 0, L: 0, WO: 0, mins: 0 };
+      const tot = { P: 0, AB: 0, L: 0, WO: 0, mins: 0, late: 0 };
       const postCount = {};
       for (let d = 1; d <= days; d++) {
         const day = month + '-' + String(d).padStart(2, '0');
@@ -161,7 +161,12 @@ module.exports = function attendanceRoutes(app, h) {
           const lastOut = outs[outs.length - 1];
           const worked = lastOut ? Math.max(0, Math.round(mins(lastOut.CREATEDTIME) - mins(firstIn.CREATEDTIME))) : 0;
           tot.P++; tot.mins += worked;
-          cells.push({ s: 'P', c: (duty && duty.shift_code) || ('ABCG'.includes(rc) && rc) || 'P', in: String(firstIn.CREATEDTIME).slice(11, 16), out: lastOut ? String(lastOut.CREATEDTIME).slice(11, 16) : '', h: worked, post: duty ? postName[String(duty.post_id)] || '' : '', ...(duty && duty.swap_note ? { sw: duty.swap_note } : {}) });
+          // ⏰ Late: IN more than 10 min after the shift start (Prem, 11 Nov). C after midnight counts too.
+          const code = (duty && duty.shift_code) || ('ABCG'.includes(rc) && rc) || '';
+          const st = (startOf[String(g.branch_id)] || {})[code];
+          const late = st ? Math.round(mins(firstIn.CREATEDTIME) - mins(day + ' ' + st + ':00')) : 0;
+          if (late > 10 && late < 18 * 60) tot.late = (tot.late || 0) + 1;
+          cells.push({ ...(late > 10 && late < 18 * 60 ? { late } : {}), s: 'P', c: (duty && duty.shift_code) || ('ABCG'.includes(rc) && rc) || 'P', in: String(firstIn.CREATEDTIME).slice(11, 16), out: lastOut ? String(lastOut.CREATEDTIME).slice(11, 16) : '', h: worked, post: duty ? postName[String(duty.post_id)] || '' : '', ...(duty && duty.swap_note ? { sw: duty.swap_note } : {}) });
         } else if (rc === 'L') { tot.L++; cells.push({ s: 'L' }); }
         else if (rc === 'O') { tot.WO++; cells.push({ s: 'WO' }); }
         else if (duty && begun(String(g.branch_id), day, duty.shift_code)) { tot.AB++; cells.push({ s: 'AB', c: duty.shift_code, post: postName[String(duty.post_id)] || '' }); }

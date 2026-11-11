@@ -41,7 +41,7 @@ export default function AttendanceMonth({ keep, filters }) {
     ws.addRow(head).font = { bold: true };
     const FILL = { P: 'FFDCFCE7', AB: 'FFFEE2E2', L: 'FFFEF3C7', WO: 'FFE5E7EB' };
     rows.forEach((r, i) => {
-      const row = ws.addRow([i + 1, r.vendorId, r.clock, r.name, r.agency, r.team, ...r.cells.map(c => (c.s === 'P' ? (c.sw ? '🔄' : '') + c.c : c.s)), r.tot.P, r.tot.AB, r.tot.L, r.tot.WO, r.tot.hours]);
+      const row = ws.addRow([i + 1, r.vendorId, r.clock, r.name, r.agency, r.team, ...r.cells.map(c => (c.s === 'P' ? (c.sw ? '🔄' : '') + (c.late ? '⏰' : '') + c.c : c.s)), r.tot.P, r.tot.AB, r.tot.L, r.tot.WO, r.tot.hours]);
       r.cells.forEach((c, j) => { if (FILL[c.s]) row.getCell(7 + j).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: FILL[c.s] } }; });
     });
     ws.columns.forEach((col, i) => { col.width = i < 6 ? [6, 18, 10, 22, 10, 16][i] : i < 6 + days ? 4.5 : 9; });
@@ -85,6 +85,7 @@ export default function AttendanceMonth({ keep, filters }) {
           <span><i className="am-c am-P">A</i> Present (shift letter)</span>
           <span><i className="am-c am-P am-noout">A</i> Present, no OUT</span>
           <span><i className="am-c am-P">🔄B</i> Shift swap (office OK)</span>
+          <span><i className="am-c am-P">⏰A</i> Late IN (10+ min)</span>
           <span><i className="am-c am-AB">AB</i> Absent</span>
           <span><i className="am-c am-L">L</i> Leave</span>
           <span><i className="am-c am-WO">WO</i> Week off</span>
@@ -95,7 +96,7 @@ export default function AttendanceMonth({ keep, filters }) {
       {picked && pc && (
         <div className="am-pick">
           <b>{picked.name}</b> · {pick.d} {nice(month).split(' ')[0]}:
-          {pc.s === 'P' && <> ✅ Shift {pc.c}{pc.post ? ' · ' + pc.post : ''} · IN <b>{pc.in}</b> · OUT <b>{pc.out || '—'}</b>{pc.h ? ' · ' + hm(pc.h) : ' · no OUT'}{pc.sw ? <><br />{pc.sw}</> : null}</>}
+          {pc.s === 'P' && <> ✅ Shift {pc.c}{pc.post ? ' · ' + pc.post : ''} · IN <b>{pc.in}</b> · OUT <b>{pc.out || '—'}</b>{pc.h ? ' · ' + hm(pc.h) : ' · no OUT'}{pc.late ? <> · ⏰ <b>{pc.late} min late</b></> : null}{pc.sw ? <><br />{pc.sw}</> : null}</>}
           {pc.s === 'AB' && <> ❌ Absent · Shift {pc.c}{pc.post ? ' · ' + pc.post : ''} · no IN</>}
           {pc.s === 'L' && <> 🟡 Leave</>}
           {pc.s === 'WO' && <> ⚪ Week off</>}
@@ -123,7 +124,7 @@ export default function AttendanceMonth({ keep, filters }) {
                     <td key={j} className={'am-cellwrap' + (dayInfo[j].wd === 0 ? ' am-sun' : '') + (dayInfo[j].today ? ' am-today' : '')}>
                       {c.s
                         ? <button className={'am-c am-' + c.s + (c.s === 'P' && !c.out ? ' am-noout' : '') + (pick && pick.gid === r.gid && pick.d === j + 1 ? ' on' : '')}
-                          onClick={() => setPick({ gid: r.gid, d: j + 1 })} title={c.s === 'P' ? (c.sw ? c.sw + ' · ' : '') + 'IN ' + c.in + ' · OUT ' + (c.out || '—') : c.s}>{c.s === 'P' ? (c.sw ? '🔄' : '') + c.c : c.s}</button>
+                          onClick={() => setPick({ gid: r.gid, d: j + 1 })} title={c.s === 'P' ? (c.sw ? c.sw + ' · ' : '') + (c.late ? c.late + ' min late · ' : '') + 'IN ' + c.in + ' · OUT ' + (c.out || '—') : c.s}>{c.s === 'P' ? (c.sw ? '🔄' : '') + (c.late ? '⏰' : '') + c.c : c.s}</button>
                         : <span className={'am-c am-none' + (c.f ? ' am-future' : '')}>·</span>}
                     </td>
                   ))}
