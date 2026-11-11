@@ -33,12 +33,11 @@ export default function Rail({ active }) {
     if (!next) e.preventDefault(); // closing only folds the list, the page stays
   };
   // Five, not eight (Prem, 11 Nov): Shift report, Duty history, Site reports and the change log sit behind Reports.
+  // Prem, 11 Nov: Attendance and Setup sit in the main menu; More keeps Reports, Escort, Vehicles.
   const moreItems = [
-    ['attendance', '#attendance', 'Attendance', Icon.calendar],
     ['reports', '#reports', 'Reports', Icon.report],
     ['escort', '#escort', 'Escort', Icon.escort],
-    ['vehicles', '#vehicles', 'Vehicles', Icon.barrier],
-    ['setup', '#setup', 'Setup', Icon.gear]
+    ['vehicles', '#vehicles', 'Vehicles', Icon.barrier]
   ];
   const groups = [
     ['Daily', [
@@ -47,7 +46,9 @@ export default function Rail({ active }) {
       // flow; the menu shows no numbers (Prem, 27 Oct).
       ['schedule', '#schedule', 'Schedule', Icon.calendar, 1],
       ['home', '#home', 'Today', <svg key="h" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20H2"></path></svg>, 2],
-      ['posts', '#supervisor', 'Chats', Icon.chat, 3]
+      ['posts', '#supervisor', 'Chats', Icon.chat, 3],
+      ['attendance', '#attendance', 'Attendance', Icon.calendar, 4],
+      ['setup', '#setup', 'Setup', Icon.gear, 5]
     ].filter(Boolean)],
     // Escort & Vehicles, Reports and Setup sit behind one More button (Prem, 27 Oct: the menu looked
     // crowded); the More screen lists them in groups.
@@ -58,8 +59,9 @@ export default function Rail({ active }) {
   if (active === 'roster') active = 'schedule';
   // Live is opened from the Today page (its green Live button), so the Live board lights Today (Prem, 27 Oct).
   if (active === 'board') active = 'home';
-  let sub = setupSteps(user).some(s => s.key === active) ? 'setup' : ['report', 'history', 'sitereports', 'auditlog'].includes(active) ? 'reports' : active;
-  if (setupSteps(user).some(s => s.key === active) || ['setup', 'reports', 'report', 'history', 'attendance', 'escort', 'vehicles', 'sitereports', 'auditlog'].includes(active)) active = 'more';
+  if (setupSteps(user).some(s => s.key === active)) active = 'setup';
+  let sub = ['report', 'history', 'sitereports', 'auditlog'].includes(active) ? 'reports' : active;
+  if (['reports', 'report', 'history', 'escort', 'vehicles', 'sitereports', 'auditlog'].includes(active)) active = 'more';
   else sub = '';
   const here = groups.flatMap(g => g[1]).find(i => i[0] === active);
   const item = ([key, href, label, icon, step]) => key === 'more' ? [
