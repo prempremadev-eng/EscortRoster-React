@@ -330,10 +330,11 @@ export default function SupervisorSchedule() {
   const sum = k => summary.reduce((n, r) => n + r[k], 0);
   // On duty by the month roster but in no slot and not on the escort list: who can still fill a gap.
   const escortIds = new Set(data ? [...data.escort.batch, ...data.escort.night].map(e => e.guard) : []);
-  const idle = data ? data.guards.filter(g => ['A', 'B', 'C', 'G'].includes(g.roster) && !data.slots.some(s => s.guard === g.ROWID) && !escortIds.has(g.ROWID))
+  const idle = data ? data.guards.filter(g => !isReliever(g.ROWID) && ['A', 'B', 'C', 'G'].includes(g.roster) && !data.slots.some(s => s.guard === g.ROWID) && !escortIds.has(g.ROWID))
     .sort((x, y) => 'ABCG'.indexOf(x.roster) - 'ABCG'.indexOf(y.roster) || x.name.localeCompare(y.name)) : [];
   const hasG = idle.some(g => g.roster === 'G');
-  const filled = data ? data.slots.length : 0;
+  // One post + shift counts once even with two names on it (a swap keeps the absent regular's row; Prem 11 Nov).
+  const filled = data ? new Set(data.slots.map(x => x.post + '|' + x.shift)).size : 0;
   const drafts = data ? data.slots.filter(s => !s.published).length : 0;
   // Taken = already in a slot of the picked shift. A guard in another shift that day can still be
   // picked for extra duty (shown under "Other guards" with their other shift).
@@ -506,16 +507,18 @@ export default function SupervisorSchedule() {
           // The day in numbers (Prem, 28 Oct: total, leave, absent, allotted, vacant on the schedule page itself).
           // Roster: on duty / week off / leave. Sheet: allotted, free, vacant. Card IN: absent once a shift has run
           // 15 minutes (today) or for a past day; a future day shows —.
-          const r = c => data.guards.filter(g => g.roster === c);
-          const onDuty = data.guards.filter(g => 'ABCG'.includes(g.roster || '-'));
+          // Regular guards only (Prem, 11 Nov): relievers are kept apart (Relievers box) and never counted here.
+          const regs = data.guards.filter(g => !isReliever(g.ROWID));
+          const r = c => regs.filter(g => g.roster === c);
+          const onDuty = regs.filter(g => 'ABCG'.includes(g.roster || '-'));
           const inSlot = new Set(data.slots.map(x => x.guard));
-          const allotted = data.guards.filter(g => inSlot.has(g.ROWID));
+          const allotted = regs.filter(g => inSlot.has(g.ROWID));
           const minus15 = new Date(new Date(String(data.now || '').replace(' ', 'T') + ':00Z').getTime() - 15 * 60000).toISOString().slice(0, 16).replace('T', ' ');
           const begun = code => { const sh = data.shifts.find(x => x.code === code); return !!sh && ((sh.start < '06:00' ? addDays(date, 1) : date) + ' ' + sh.start) <= minus15; };
-          const absent = data.ins ? data.guards.filter(g => data.slots.some(x => x.guard === g.ROWID && begun(x.shift)) && !data.ins.includes(g.ROWID)) : null;
+          const absent = data.ins ? regs.filter(g => data.slots.some(x => x.guard === g.ROWID && begun(x.shift)) && !data.ins.includes(g.ROWID)) : null;
           const byShift = list => ['A', 'B', 'C', 'G'].map(c => [c, list.filter(g => g.roster === c).length]).filter(x => x[1]).map(x => x.join(' ')).join(' · ');
           const rows = [
-            ['guards', 'Guards', data.guards, ''],
+            ['guards', 'Guards', regs, ''],
             ['duty', 'On duty', onDuty, byShift(onDuty)],
             ['off', 'Week off', r('O'), ''],
             ['leave', 'Leave', r('L'), ''],
@@ -531,7 +534,7 @@ export default function SupervisorSchedule() {
             <div className="sc-day no-print">
               <FoldBtn k="day" />
               {rows.map(([k, label, list, hint]) => {
-                const n = k === 'vacant' ? total - filled : list ? list.length : '—';
+                const n = k === 'vacant' ? Math.max(0, total - filled) : list ? list.length : '—';
                 return (
                   <button key={k} className={'sc-day-n' + (dayList === k ? ' on' : '') + (k === 'vacant' && n ? ' warn' : '') + (k === 'absent' && n ? ' bad' : '')}
                     onClick={() => setDayList(d => (d === k ? '' : k))} disabled={n === '—' || n === 0} title={hint}>

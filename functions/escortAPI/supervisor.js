@@ -530,12 +530,14 @@ module.exports = function supervisorRoutes(app, h) {
           if (page.length < 300) return rows;
         }
       };
-      const [posts, shifts, guards, roster, slots] = await Promise.all([
+      const [posts, shifts, guardsAll, roster, slots] = await Promise.all([
         branchPosts(req, zcql, branch), getShifts(zcql, branch),
-        all(`SELECT ROWID, id_number, guard_name, area, agency FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
+        all(`SELECT ROWID, id_number, guard_name, area, agency, tags FROM Guards WHERE branch_id = ${branch} AND is_active = 'true'${auth.agencyWhere(req)} ORDER BY ROWID ASC`, 'Guards'),
         all(`SELECT guard_id, codes, team FROM MonthRoster WHERE branch_id = ${branch}${auth.agencyWhere(req)} AND roster_month = '${date.slice(0, 7)}' ORDER BY ROWID ASC`, 'MonthRoster'),
         all(`SELECT post_id, shift_code, guard_id FROM Schedule WHERE branch_id = ${branch} AND sched_date = '${date}' AND published = true ORDER BY ROWID ASC`, 'Schedule')
       ]);
+      // Regular guards only (Prem, 11 Nov): relievers are kept apart and never counted in the report.
+      const guards = guardsAll.filter(g => !String(g.tags || '').split(',').map(x => x.trim()).includes('Reliever'));
       withMonthTeam(guards, roster);
       // Swipes by real time (a morning A IN is saved under the night's duty day): the day and the next morning.
       const ids = new Set(guards.map(g => String(g.ROWID)));
