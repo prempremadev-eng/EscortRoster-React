@@ -240,7 +240,12 @@ export default function PostsPage() {
               <label>3 · Post name<input id="p-name" value={form.post_name} onChange={e => setForm(f => ({ ...f, post_name: e.target.value }))} placeholder="Gate 3" required /></label>
               {/* Type, section and row are not asked any more (Prem, 25 Oct: an admin does not know them). New posts
                   are POSTs; a post saved before keeps its section and row (the daily sheet order). */}
-              <div className="p-shifts">4 · Which shifts does this post need? · எந்த ஷிஃப்ட்டில் ஆள் வேண்டும்? (ஒரு நாள் G மட்டும் → Schedule-ல் "G today")
+              {/* Plain words (Prem, 11 Nov): what a tick does on the Schedule. */}
+              <div className="p-shifts">4 · Which shifts need a guard at this post? · இந்த post-க்கு எந்த ஷிஃப்ட்டில் ஆள் வேண்டும்?
+                <small style={{ display: 'block', fontWeight: 400, color: '#5B6584', margin: '2px 0 4px' }}>
+                  All 4 shifts → tick A, B, C, G. Only C → tick only C: the Schedule then shows only the C slot for this post.
+                  · 4 ஷிஃப்ட்டுக்கும் ஆள் வேண்டுமென்றால் நான்கையும் tick செய்யவும். C மட்டும் என்றால் C மட்டும் tick: Schedule-ல் C மட்டும் வரும்.
+                </small>
                 {/* G box unticked by default (Prem, 25 Oct): tick it only when the post needs G every day (Kidos School);
                     G on some days only → the Schedule's "G today". */}
                 <div>{['A', 'B', 'C', 'G'].map(c => (
