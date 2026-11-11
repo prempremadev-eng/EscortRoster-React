@@ -45,6 +45,8 @@ function checkNewVersion() {
   }).catch(() => { /* offline: keep going */ });
 }
 checkNewVersion();
+// Every phone gets the service worker (no permission asked), so later builds open fresh by themselves.
+try { if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {}); } catch { /* old browser */ }
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') checkNewVersion(); });
 
 // The guard's team group ("IPF Schedule", 26 Oct): open with or without duty; ← goes to his duty page.

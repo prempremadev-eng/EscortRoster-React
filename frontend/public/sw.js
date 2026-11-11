@@ -4,7 +4,17 @@
 // A new version of this file takes over at once, and also takes control of tabs that were
 // opened before it started (otherwise Android refuses to move those tabs to another page).
 self.addEventListener('install', () => self.skipWaiting());
-self.addEventListener('activate', event => event.waitUntil(self.clients.claim()));
+// 🔄 Fresh app every open (Prem, 11 Nov): Slate sends index.html with a 1-year cache, so phones kept an old
+// app. The browser checks this file without that cache; this new copy takes over, reloads open pages once,
+// and from then on every page open reads index.html fresh (the script files have new names each build).
+self.addEventListener('activate', event => event.waitUntil((async () => {
+  await self.clients.claim();
+  for (const c of await self.clients.matchAll({ type: 'window' })) { try { await c.navigate(c.url); } catch (e) { /* not ours */ } }
+})()));
+self.addEventListener('fetch', event => {
+  if (event.request.mode !== 'navigate') return;
+  event.respondWith(fetch(event.request.url, { cache: 'no-store', credentials: 'same-origin' }).catch(() => fetch(event.request)));
+});
 
 // `urgent` (cover request, "come back", empty post): long buzz and it stays on the screen
 // until the guard touches it, so it is noticed with the phone in a pocket. The sound is the
