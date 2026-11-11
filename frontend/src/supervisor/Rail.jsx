@@ -32,14 +32,12 @@ export default function Rail({ active }) {
     try { sessionStorage.setItem('railMore', next ? '1' : ''); } catch { /* private mode */ }
     if (!next) e.preventDefault(); // closing only folds the list, the page stays
   };
+  // Five, not eight (Prem, 11 Nov): Shift report, Duty history, Site reports and the change log sit behind Reports.
   const moreItems = [
+    ['attendance', '#attendance', 'Attendance', Icon.calendar],
+    ['reports', '#reports', 'Reports', Icon.report],
     ['escort', '#escort', 'Escort', Icon.escort],
     ['vehicles', '#vehicles', 'Vehicles', Icon.barrier],
-    ['sitereports', '#sitereports', 'Site reports', Icon.report],
-    ['auditlog', '#auditlog', 'History log', Icon.history],
-    ['report', '#report', 'Report', Icon.report],
-    ['history', '#history', 'History', Icon.history],
-    ['attendance', '#attendance', 'Attendance', Icon.calendar],
     ['setup', '#setup', 'Setup', Icon.gear]
   ];
   const groups = [
@@ -60,7 +58,7 @@ export default function Rail({ active }) {
   if (active === 'roster') active = 'schedule';
   // Live is opened from the Today page (its green Live button), so the Live board lights Today (Prem, 27 Oct).
   if (active === 'board') active = 'home';
-  let sub = setupSteps(user).some(s => s.key === active) ? 'setup' : active === 'reports' ? '' : active;
+  let sub = setupSteps(user).some(s => s.key === active) ? 'setup' : ['report', 'history', 'sitereports', 'auditlog'].includes(active) ? 'reports' : active;
   if (setupSteps(user).some(s => s.key === active) || ['setup', 'reports', 'report', 'history', 'attendance', 'escort', 'vehicles', 'sitereports', 'auditlog'].includes(active)) active = 'more';
   else sub = '';
   const here = groups.flatMap(g => g[1]).find(i => i[0] === active);

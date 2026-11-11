@@ -47,7 +47,9 @@ export function SetupHome() {
 export function ReportsHome() {
   const items = [
     ['#report', '📋', 'Shift report', 'Each shift: posts, IN, late, absent, leave, off, vacant (to send to the Branch Admin).'],
-    ['#history', '📖', 'Duty history', 'Who was at which post on past days; open any shift.']
+    ['#history', '📖', 'Duty history', 'Who was at which post on past days; open any shift.'],
+    ['#sitereports', '📝', 'Site reports', 'Parking / strength reports and ERT incidents sent by the guards.'],
+    ['#auditlog', '🕘', 'Change log', 'Who changed what in the app, and when.']
   ];
   return (
     <>
