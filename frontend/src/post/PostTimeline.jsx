@@ -444,10 +444,11 @@ export default function PostTimeline({ token, duty, shiftLine, onDutyChange }) {
           <button className="pd-icon-btn" onClick={() => setSheet('safety')} aria-label="Safety today: who to call">{Icon.phone}</button>
           <button className="pd-icon-btn" onClick={load} aria-label="Refresh">{Icon.refresh}</button>
           <MoreMenu label="☰ More" items={[
-            // Break moved here from the On duty pill (Prem, 10 Nov: more room in the header).
-            !here && !onBreak && !myBreak ? [general ? '☕ Break / end general duty' : '☕ Go on break', () => setSheet(general ? 'general' : 'break')] : null,
+            // Order (Prem, 11 Nov): Add reliever, Team group, Go on break, then the rest.
             !general ? ['🔁 Add reliever', () => setSheet('relief')] : null,
-            ['👥 Team group', () => { window.location.hash = '#group/' + token; }], ['🕘 Duty history', () => setPage('history')], ['📅 My attendance', () => { window.location.hash = '#myatt/' + token; }], ['📷 Profile photo', () => setPicking(true)]]} />
+            ['👥 Team group', () => { window.location.hash = '#group/' + token; }],
+            !here && !onBreak && !myBreak ? [general ? '☕ Break / end general duty' : '☕ Go on break', () => setSheet(general ? 'general' : 'break')] : null,
+            ['🕘 Duty history', () => setPage('history')], ['📅 My attendance', () => { window.location.hash = '#myatt/' + token; }], ['📷 Profile photo', () => setPicking(true)]]} />
         </div>
         {here && here.mode === 'go' && (
           <div className="pd-strip pd-strip-red pd-strip-col">
