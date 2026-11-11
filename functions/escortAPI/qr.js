@@ -456,14 +456,17 @@ module.exports = function qrRoutes(app, h) {
       const shots = [req.body.photo2, req.body.photo3, req.body.photo4].map(x => String(x || '').match(/^data:image\/jpeg;base64,(.+)$/)).filter(Boolean);
       if (!shots.length) { cleanTmp(); throw new Error(TA('😌 சொல்லும்போது கண்ணை மூடி மீண்டும் முயற்சிக்கவும்.', 'Close your eyes when asked and try again.')); }
       const first = await measureFace(catalystApp, selfieFile, 0);
-      // 29 Oct tests: real blink 0.18–0.23 against 0.32 open (0.55–0.70); a photo stays ≈ 1.0. Limit 0.75.
+      // 29 Oct tests: real blink 0.18–0.23 against 0.32 open (0.55–0.70); a photo stays ≈ 1.0.
+      // Limit 0.80 (Prem, 11 Nov): at night in dim light a guard's eyes read 0.20–0.29 open and 0.19–0.23 closed;
+      // with 0.75 he passed on the 8th try.
+      const BLINK_LIMIT = 0.8;
       let turnFile = null;
       const seen = [];
       for (const m2 of first.eyes ? shots : []) {
         const f = tmpFile(Buffer.from(m2[1], 'base64'), 'jpg');
         const shut = await measureFace(catalystApp, f, 0);
         seen.push(shut.eyes);
-        if (shut.eyes !== null && shut.eyes !== undefined && shut.eyes < first.eyes * 0.75) { turnFile = f; break; }
+        if (shut.eyes !== null && shut.eyes !== undefined && shut.eyes < first.eyes * BLINK_LIMIT) { turnFile = f; break; }
       }
       console.log('qr blink', JSON.stringify({ open: first.eyes, closed: seen, light: Number(req.body.light) || null }));
       if (!turnFile) { cleanTmp(); throw new Error(TA('😌 கண்ணை மூடவில்லை. குரல் சொல்லும்போது கண்ணை மூடி மீண்டும் முயற்சிக்கவும். முதல் முறையா? 🆕 புதிய பதிவு அழுத்தவும்.', 'Close your eyes when the voice says so and try again. First time here? Press 🆕 New Registration.')); }
