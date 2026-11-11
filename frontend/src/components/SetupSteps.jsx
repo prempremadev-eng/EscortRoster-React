@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Icon } from '../post/icons.jsx';
 import { useUser, atLeast } from '../auth/user.js';
 
@@ -11,7 +12,8 @@ export function setupSteps(user) {
     ['postsetup', '#posts', 'Posts', 'Posts and their shifts'],
     ['guards', '#master', 'Guards', 'Who works for the agency'],
     ['links', '#links', 'Links', 'Each guard’s phone link'],
-    atLeast(user, 'admin') && ['simulator', '#simulator', 'Card test', 'Try card IN / OUT']
+    atLeast(user, 'admin') && ['simulator', '#simulator', 'Card test', 'Try card IN / OUT'],
+    ['relievers', '#relievers', 'Relievers', 'QR gate relievers: photo, phone, visits']
   ].filter(Boolean);
   return steps.map((s, i) => ({ key: s[0], href: s[1], label: s[2], hint: s[3], step: 'S' + (i + 1) }));
 }
@@ -32,40 +34,13 @@ export default function SetupSteps({ active }) {
   );
 }
 
-// The Setup screen (#setup, Prem 27 Oct: one Setup button in the menu instead of five): the steps as big
-// cards in order, so it can be explained in one look.
+// #setup (Prem, 11 Nov: the Setup list and the strip showed the same steps twice): open the first step; the
+// strip on every setup page is the one menu.
 export function SetupHome() {
   const steps = setupSteps(useUser());
-  const ICON = { admin: '🏢', postsetup: '📍', guards: '🛡️', links: '🔗', simulator: '🪪' };
-  const MORE = {
-    admin: 'States, cities, branches, agencies and who may sign in (roles).',
-    postsetup: 'Every post of the branch and the shifts it needs (A, B, C, G).',
-    guards: 'ID, card, name and ⭐ shift incharge for each guard of the agency.',
-    links: 'One link / QR per guard: opened once on the guard’s phone for notifications.',
-    simulator: 'Press IN / OUT like the card machine to test a guard’s page.'
-  };
-  return (
-    <>
-      <div className="titlebar"><h1>⚙️ Setup</h1></div>
-      <div className="hub-home">
-        <p className="hub-note">Do these once, in this order. Daily work (roster, schedule …) starts after them.</p>
-        {steps.map(s => (
-          <a key={s.key} href={s.href} className="hub-card">
-            <span className="hub-card-step">{s.step}</span>
-            <span className="hub-card-icon">{ICON[s.key]}</span>
-            <span className="hub-card-text"><b>{s.label}</b><span>{MORE[s.key]}</span></span>
-            <span className="hub-card-go">›</span>
-          </a>
-        ))}
-        <a href="#relievers" className="hub-card">
-          <span className="hub-card-step">QR</span>
-          <span className="hub-card-icon">🔁</span>
-          <span className="hub-card-text"><b>Relievers</b><span>Relievers at a QR gate (Cumbum): photo, phone, how often they came.</span></span>
-          <span className="hub-card-go">›</span>
-        </a>
-      </div>
-    </>
-  );
+  const first = steps.length ? steps[0].href : "";
+  useEffect(() => { if (first) window.location.replace(first); }, [first]);
+  return null;
 }
 
 // The Reports screen (#reports, Prem 27 Oct: Report and History behind one button).

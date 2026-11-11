@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { api } from '../api.js';
 import { setupLink } from './GuardLinks.jsx';
+import SetupSteps from './SetupSteps.jsx';
 
 // #relievers (Prem, 29 Oct): relievers at QR gates (Cumbum). The guard on duty adds them; the first IN registers
 // the face. Not guards: they only show here, on the day schedule and under the month roster.
@@ -29,6 +30,7 @@ export default function RelieversPage() {
   return (
     <>
       <div className="titlebar"><h1>🔁 Relievers</h1></div>
+      <SetupSteps active="relievers" />
       <div className="toolbar no-print">
         <div>
           <label htmlFor="rl-branch">Branch:</label>
