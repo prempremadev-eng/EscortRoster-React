@@ -46,10 +46,13 @@ export default function Rail({ active }) {
       // flow; the menu shows no numbers (Prem, 27 Oct).
       ['schedule', '#schedule', 'Schedule', Icon.calendar, 1],
       ['home', '#home', 'Today', <svg key="h" viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M4 20V10"></path><path d="M10 20V4"></path><path d="M16 20v-7"></path><path d="M22 20H2"></path></svg>, 2],
-      ['posts', '#supervisor', 'Chats', Icon.chat, 3],
-      ['attendance', '#attendance', 'Attendance', Icon.calendar, 4],
-      ['setup', '#setup', 'Setup', Icon.gear, 5]
+      ['posts', '#supervisor', 'Chats', Icon.chat, 3]
     ].filter(Boolean)],
+    // Office work (Prem, 11 Nov): its own title, always open.
+    ['Office', [
+      ['attendance', '#attendance', 'Attendance', Icon.calendar],
+      ['setup', '#setup', 'Setup', Icon.gear]
+    ]],
     // Escort & Vehicles, Reports and Setup sit behind one More button (Prem, 27 Oct: the menu looked
     // crowded); the More screen lists them in groups.
     ['More', [['more', '#more', 'More', <svg key="m" viewBox="0 0 24 24" width="22" height="22" fill="currentColor"><circle cx="5" cy="12" r="2"></circle><circle cx="12" cy="12" r="2"></circle><circle cx="19" cy="12" r="2"></circle></svg>]]]
